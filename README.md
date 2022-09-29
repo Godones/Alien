@@ -1,11 +1,4 @@
-![Open in Codespaces](https://classroom.github.com/assets/open-in-codespaces-abfff4d4e15f9e1bd8274d9a39a0befe03a0632bb0f153d0ec72ff541cedbe34.svg)
-# oscomp kernel training
-
-## 基于2022全国大学生OS比赛内核赛道的训练邀请
-- [点击：创建自己的内核赛道训练repo](https://classroom.github.com/a/vk-D9SrL)
 - [查看训练排行榜单](https://os-autograding.github.io/classroom-grading-template/)
-
-**注：训练基于Github Classroom，在线编程，在线自动评测，在线显示排行榜**
 
 ## 内核赛道OS训练repo说明
 
