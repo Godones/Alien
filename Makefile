@@ -11,7 +11,10 @@ all:
 	@cargo build --release -p kernel
 	@cp $(KERNEL_FILE) kernel-qemu
 
-run: all
+
+build:all
+
+run:all
 	@qemu-system-riscv64 \
     -machine virt \
     -bios default \

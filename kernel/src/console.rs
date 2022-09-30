@@ -1,10 +1,7 @@
 use core::fmt::{Write, Arguments, Result};
+use crate::arch::{STDOUT, Uart};
 use crate::sbi::console_putchar;
 
-/* 下面的代码跟输出相关，如果不需要输出则直接将相应的代码
- * 注释掉，如果需要输出，则取消注释。在实体代码被注释掉时
- * 相应的代码不会被有效编译，不占内存空间。
- */
 
 #[macro_export]
 macro_rules! print {
@@ -28,7 +25,7 @@ impl Write for Stdout {
         let mut buffer = [0u8; 4];
         for c in s.chars() {
             for code_point in c.encode_utf8(&mut buffer).as_bytes().iter() {
-                console_putchar(*code_point);
+                STDOUT.lock().put(*code_point);
             }
         }
         Ok(())

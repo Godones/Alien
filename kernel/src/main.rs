@@ -15,7 +15,13 @@ mod console;
 mod panic;
 mod sbi;
 mod logging;
+mod driver;
+mod arch;
+mod config;
+mod mm;
 
+
+// extern crate alloc;
 #[macro_use]
 extern crate log;
 /// 汇编入口函数
