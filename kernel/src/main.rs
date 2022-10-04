@@ -9,7 +9,6 @@
 #![allow(unaligned_references)]
 
 use core::arch::asm;
-
 #[macro_use]
 mod console;
 mod panic;
@@ -55,7 +54,10 @@ pub extern "C" fn rust_main(hart_id: usize, _device_tree_addr: usize) -> ! {
     if hart_id != 0 {
         support_hart_resume(hart_id, 0);
     }
-    logging::init();
+    logging::init_logger();
+    mm::init_heap();
+    mm::init_frame_allocator();
+    mm::test_simple_bitmap();
     // 调用rust api关机
     panic!("正常关机")
 }

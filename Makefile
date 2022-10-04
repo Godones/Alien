@@ -19,7 +19,7 @@ run:all
     -machine virt \
     -bios default \
     -device loader,file=kernel-qemu,addr=0x80200000 \
-    -drive file=dependence/fat32.img,if=none,format=raw,id=x0 \
+    -drive file=init/fat32.img,if=none,format=raw,id=x0 \
     -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
     -kernel kernel-qemu \
     -nographic \
