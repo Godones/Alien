@@ -1,7 +1,5 @@
 use core::fmt::{Write, Arguments, Result};
 use crate::arch::{STDOUT, Uart};
-use crate::sbi::console_putchar;
-
 
 #[macro_export]
 macro_rules! print {
@@ -32,14 +30,7 @@ impl Write for Stdout {
     }
 }
 
-/// 输出函数-u8版
-/// 
-/// 对传递过来的`u8`数组进行输出
-pub fn _puts(args: &[u8]) {
-    for i in args {
-        console_putchar(*i);
-    }
-}
+
 
 /// 输出函数
 /// 
