@@ -1,10 +1,10 @@
 // uart.rs
 // UART routines and driver
 
+use super::Uart;
+use crate::config::RISCV_UART_ADDR;
 use core::fmt::Error;
 use core::fmt::Write;
-use crate::config::RISCV_UART_ADDR;
-use super::Uart;
 
 pub struct Ns16550a;
 

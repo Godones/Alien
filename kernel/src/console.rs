@@ -1,5 +1,5 @@
-use core::fmt::{Write, Arguments, Result};
-use crate::arch::{STDOUT, Uart};
+use crate::arch::{Uart, STDOUT};
+use core::fmt::{Arguments, Result, Write};
 
 #[macro_export]
 macro_rules! print {
@@ -30,10 +30,8 @@ impl Write for Stdout {
     }
 }
 
-
-
 /// 输出函数
-/// 
+///
 /// 对参数进行输出 主要使用在输出相关的宏中 如println
 pub fn print(args: Arguments) {
     Stdout.write_fmt(args).unwrap();

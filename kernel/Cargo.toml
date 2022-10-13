@@ -8,17 +8,10 @@ authors = ["chen linfeng"]
 [dependencies]
 log = "0.4.14"
 spin = "0.9.2"
-
 buddy_system_allocator = "0.8.0"
 bitmap-allocator = {git = "https://github.com/rcore-os/bitmap-allocator"}
 simple-bitmap = {path = "../dependence/simple-bitmap"}
-
-
-
-
-
-
-
+double-link-list = {path = "../dependence/double-link-list"}
 
 [dependencies.lazy_static]
 version = "1.4.0"
