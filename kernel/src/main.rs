@@ -7,22 +7,25 @@
 #![feature(asm_const)]
 #![feature(asm_sym)]
 #![allow(unaligned_references)]
-
+#![feature(const_for)]
+#![feature(const_cmp)]
+#![feature(const_mut_refs)]
 use core::arch::asm;
 #[macro_use]
 mod console;
-mod panic;
-mod sbi;
-mod logging;
-mod driver;
 mod arch;
 mod config;
+mod driver;
+mod logging;
 mod mm;
-
+mod panic;
+mod sbi;
 
 // extern crate alloc;
 #[macro_use]
 extern crate log;
+extern crate alloc;
+
 /// 汇编入口函数
 ///
 /// 分配栈 并调到rust入口函数
@@ -52,16 +55,21 @@ unsafe extern "C" fn _start() -> ! {
 pub extern "C" fn rust_main(hart_id: usize, _device_tree_addr: usize) -> ! {
     // 让其他核心进入等待
     if hart_id != 0 {
+        {
+            println!("hart_id:{} sleep", hart_id);
+        }
         support_hart_resume(hart_id, 0);
     }
-    logging::init_logger();
-    mm::init_heap();
+    logging::init_logger();;
     mm::init_frame_allocator();
     mm::test_simple_bitmap();
+    mm::mem_cache_init();
+    mm::test_slab_system();
+    mm::init_kmalloc();
+    mm::test_heap();
     // 调用rust api关机
     panic!("正常关机")
 }
-
 
 /// 辅助核心进入的函数
 ///

@@ -1,14 +1,18 @@
 #![no_std]
 // 128
-pub struct Bitmap<const N:usize> {
+pub struct Bitmap<const N: usize> {
     data: [u8; N],
+}
+
+impl<const N: usize> Default for Bitmap<N> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<const N: usize> Bitmap<N> {
     pub fn new() -> Self {
-        Self {
-            data: [0; N],
-        }
+        Self { data: [0; N] }
     }
     pub fn set(&mut self, index: usize) {
         let (byte_index, bit_index) = (index / 8, index % 8);
@@ -46,7 +50,7 @@ impl<const N: usize> Bitmap<N> {
         Some(index)
     }
     /// 分配连续 bit
-    pub fn alloc_contiguous(&mut self, count: usize,_align_log2:usize) -> Option<usize> {
+    pub fn alloc_contiguous(&mut self, count: usize, _align_log2: usize) -> Option<usize> {
         let mut index = self.find_first_zero()?;
         while index < N * 8 {
             let end = index + count;
@@ -74,22 +78,20 @@ impl<const N: usize> Bitmap<N> {
     }
 }
 
-
-mod test{
+mod test {
     use crate::Bitmap;
     #[allow(unused)]
-    fn test_alloc(){
+    fn test_alloc() {
         let mut bitmap = Bitmap::<16>::new();
-        assert_eq!(bitmap.alloc(),Some(0));
+        assert_eq!(bitmap.alloc(), Some(0));
         bitmap.set(1);
-        assert_eq!(bitmap.alloc(),Some(2));
-        let x = bitmap.alloc_contiguous(3,0);
-        assert_eq!(x,Some(3));
-        let x = bitmap.alloc_contiguous(3,0);
-        assert_eq!(x,Some(6));
+        assert_eq!(bitmap.alloc(), Some(2));
+        let x = bitmap.alloc_contiguous(3, 0);
+        assert_eq!(x, Some(3));
+        let x = bitmap.alloc_contiguous(3, 0);
+        assert_eq!(x, Some(6));
         bitmap.dealloc(7);
-        let x = bitmap.alloc_contiguous(3,0);
-        assert_eq!(x,Some(9));
+        let x = bitmap.alloc_contiguous(3, 0);
+        assert_eq!(x, Some(9));
     }
 }
-
