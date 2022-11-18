@@ -39,7 +39,6 @@ pub fn print(args: Arguments) {
 
 
 use preprint::{Print};
-use crate::config::RISCV_UART_ADDR;
 
 pub struct PrePrint;
 

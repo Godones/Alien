@@ -11,15 +11,7 @@ spin = "0.9.2"
 bitmap-allocator = {git = "https://github.com/rcore-os/bitmap-allocator"}
 simple-bitmap = {path = "../dependence/simple-bitmap"}
 
-
-doubly-linked-list = "0.2.0"
 rslab = {git= "https://github.com/os-module/rslab"}
 preprint = "0.1.0"
-uart_16550 = "0.2.16"
-rbuddy = {path = "../../os-module/rbuddy"}
 
-
-[dependencies.lazy_static]
-version = "1.4.0"
-features = ["spin_no_std"]
 
