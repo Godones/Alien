@@ -2,5 +2,4 @@
 members = [
     "kernel",
     "dependence/simple-bitmap",
-    "dependence/double-link-list"
 ]

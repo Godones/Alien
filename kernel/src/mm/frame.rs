@@ -81,7 +81,8 @@ impl Drop for Frame {
         FRAME_ALLOCATOR.lock().dealloc(self.number);
     }
 }
-pub fn alloc_frames(count: usize) -> Option<Frame> {
+
+pub fn alloc_frames_t(count: usize) -> Option<Frame> {
     Frame::alloc_contiguous(count, 0)
 }
 
