@@ -28,8 +28,7 @@ impl Log for SimpleLogger {
 }
 
 pub fn init_logger() {
-    static LOGGER: SimpleLogger = SimpleLogger;
-    log::set_logger(&LOGGER).unwrap();
+    log::set_logger(&SimpleLogger).unwrap();
     log::set_max_level(match option_env!("LOG") {
         Some("ERROR") => LevelFilter::Error,
         Some("WARN") => LevelFilter::Warn,
