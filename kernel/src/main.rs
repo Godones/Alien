@@ -1,4 +1,3 @@
-// remove std lib
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -10,7 +9,10 @@
 #![feature(const_for)]
 #![feature(const_cmp)]
 #![feature(const_mut_refs)]
+use crate::config::FRAME_SIZE;
 use core::arch::asm;
+use crate::mm::{Process};
+
 #[macro_use]
 mod console;
 mod arch;
@@ -34,14 +36,11 @@ extern crate alloc;
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start() -> ! {
     const STACK_SIZE: usize = 4096;
-
     #[link_section = ".bss.stack"]
     static mut STACK: [u8; STACK_SIZE] = [0u8; STACK_SIZE];
-
     asm!(
-    "   la  sp, {stack} + {stack_size}
-            j   rust_main
-        ",
+    "la  sp, {stack} + {stack_size}",
+    "j   rust_main",
     stack_size = const STACK_SIZE,
     stack      =   sym STACK,
     options(noreturn),
@@ -60,13 +59,17 @@ pub extern "C" fn rust_main(hart_id: usize, _device_tree_addr: usize) -> ! {
         }
         support_hart_resume(hart_id, 0);
     }
-    logging::init_logger();;
+    logging::init_logger();
+    preprint::init_print(&console::PrePrint);
     mm::init_frame_allocator();
     mm::test_simple_bitmap();
-    mm::mem_cache_init();
-    mm::test_slab_system();
-    mm::init_kmalloc();
+    mm::init_slab_system(FRAME_SIZE, 32);
     mm::test_heap();
+    mm::print_slab_system_info();
+
+    mm::test_heap();
+
+
     // 调用rust api关机
     panic!("正常关机")
 }

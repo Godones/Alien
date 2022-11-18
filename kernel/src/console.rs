@@ -24,6 +24,7 @@ impl Write for Stdout {
         for c in s.chars() {
             for code_point in c.encode_utf8(&mut buffer).as_bytes().iter() {
                 STDOUT.lock().put(*code_point);
+
             }
         }
         Ok(())
@@ -31,8 +32,22 @@ impl Write for Stdout {
 }
 
 /// 输出函数
-///
 /// 对参数进行输出 主要使用在输出相关的宏中 如println
 pub fn print(args: Arguments) {
     Stdout.write_fmt(args).unwrap();
 }
+
+
+use preprint::{Print};
+use crate::config::RISCV_UART_ADDR;
+
+pub struct PrePrint;
+
+impl Print for PrePrint{
+    fn print(&self, args: Arguments) {
+        print!("{}", args);
+    }
+}
+
+
+
