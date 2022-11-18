@@ -4,13 +4,12 @@ use crate::config::FRAME_SIZE;
 /// 使用位图实现
 /// 位图的每一位代表一个物理页帧
 use bitmap_allocator::{BitAlloc, BitAlloc16M};
-use lazy_static::lazy_static;
 use simple_bitmap::Bitmap;
-use spin::Mutex;
-lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<BitAlloc16M> = Mutex::new(BitAlloc16M::default());
-    // pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<16>> = Mutex::new(Bitmap::<16>::new());
-}
+use spin::{Mutex, Once};
+
+pub static FRAME_ALLOCATOR :Once<Mutex<BitAlloc16M>> = Once::new();
+
+
 extern "C" {
     fn ekernel();
 }
@@ -18,16 +17,17 @@ extern "C" {
 pub fn init_frame_allocator() {
     let start = ekernel as usize;
     let end = crate::config::MEMORY_END;
-    println!("memory start:{:#x},end:{:#x}", start, end);
+    info!("memory start:{:#x},end:{:#x}", start, end);
     // 计算页面数量
     let page_start = start / FRAME_SIZE;
     let page_end = end / FRAME_SIZE;
     let page_count = page_end - page_start;
-    println!(
+    info!(
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
-    FRAME_ALLOCATOR.lock().insert(0..page_count);
+    FRAME_ALLOCATOR.call_once(||{Mutex::new(BitAlloc16M::default())});
+    FRAME_ALLOCATOR.get().unwrap().lock().insert(0..page_count);
 }
 
 #[derive(Clone)]
@@ -56,6 +56,8 @@ impl Frame {
     fn alloc_contiguous(count: usize, align_log2: usize) -> Option<Frame> {
         // todo!(如果无法分配，尝试去slab中回收页帧
         let frame = FRAME_ALLOCATOR
+            .get()
+            .unwrap()
             .lock()
             .alloc_contiguous(count, align_log2)
             .map(|x| {
@@ -78,7 +80,7 @@ impl Frame {
 
 impl Drop for Frame {
     fn drop(&mut self) {
-        FRAME_ALLOCATOR.lock().dealloc(self.number);
+        FRAME_ALLOCATOR.get().unwrap().lock().dealloc(self.number);
     }
 }
 
