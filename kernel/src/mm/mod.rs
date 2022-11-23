@@ -1,30 +1,28 @@
 mod frame;
 mod vmm;
 
-pub use rslab::*;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::alloc::GlobalAlloc;
-use riscv::register::satp;
 pub use frame::{frame_allocator_test, init_frame_allocator};
-pub use vmm::{build_kernel_address_space, KERNEL_SPACE,test_page_allocator};
-
-
-
+use riscv::register::satp;
+pub use rslab::*;
+pub use vmm::{build_kernel_address_space, test_page_allocator, KERNEL_SPACE};
 
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
     slab: SlabAllocator,
 };
 
-
-
-
 /// 激活页表模式
-pub fn activate_paging_mode(){
+pub fn activate_paging_mode() {
     unsafe {
-        satp::set(satp::Mode::Sv39, 0, KERNEL_SPACE.read().root_ppn().unwrap().0);
+        satp::set(
+            satp::Mode::Sv39,
+            0,
+            KERNEL_SPACE.read().root_ppn().unwrap().0,
+        );
     }
 }
 
