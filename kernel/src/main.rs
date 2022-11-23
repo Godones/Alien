@@ -9,8 +9,8 @@
 #![feature(const_cmp)]
 #![feature(const_mut_refs)]
 use crate::config::FRAME_SIZE;
-use core::arch::global_asm;
 use cfg_if::cfg_if;
+use core::arch::global_asm;
 
 #[macro_use]
 mod console;
@@ -35,7 +35,7 @@ global_asm!(include_str!("boot/boot.asm"));
 /// 进行操作系统的初始化，
 #[no_mangle]
 pub extern "C" fn rust_main(_hart_id: usize, _device_tree_addr: usize) -> ! {
-    println!("{}",config::FLAG);
+    println!("{}", config::FLAG);
     logging::init_logger();
     preprint::init_print(&console::PrePrint);
     mm::init_frame_allocator();
