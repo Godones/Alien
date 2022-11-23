@@ -1,17 +1,46 @@
 mod frame;
-pub use rslab::*;
+mod vmm;
 
+pub use rslab::*;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::mem::forget;
-pub use frame::{alloc_frames_t, init_frame_allocator};
-use crate::mm::frame::dealloc_frames;
+use core::alloc::GlobalAlloc;
+use riscv::register::satp;
+pub use frame::{frame_allocator_test, init_frame_allocator};
+pub use vmm::{build_kernel_address_space, KERNEL_SPACE,test_page_allocator};
+
+
+
 
 #[global_allocator]
-static HEAP_ALLOCATOR: SlabAllocator = SlabAllocator;
+static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
+    slab: SlabAllocator,
+};
 
 
+
+
+/// 激活页表模式
+pub fn activate_paging_mode(){
+    unsafe {
+        satp::set(satp::Mode::Sv39, 0, KERNEL_SPACE.read().root_ppn().unwrap().0);
+    }
+}
+
+struct HeapAllocator {
+    slab: SlabAllocator,
+}
+unsafe impl GlobalAlloc for HeapAllocator {
+    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
+        self.slab.alloc(layout)
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
+        self.slab.dealloc(ptr, layout)
+    }
+}
+
+#[allow(unused)]
 pub fn test_heap() {
     let mut v = Vec::<i32>::new();
     v.reserve(100);
@@ -25,8 +54,10 @@ pub fn test_heap() {
     assert_eq!(*x, 5);
     let _str = String::from("Test heap should success！");
     // println!("{}: {}", core::mem::size_of_val(&str),str);
+    println!("heap test passed!");
 }
 
+#[allow(unused)]
 pub fn test_simple_bitmap() {
     use simple_bitmap::Bitmap;
     let mut bitmap = Bitmap::<16>::new();
@@ -41,21 +72,6 @@ pub fn test_simple_bitmap() {
     let x = bitmap.alloc_contiguous(3, 0);
     assert_eq!(x, Some(9));
     info!("bitmap test passed");
-}
-
-
-
-#[no_mangle]
-unsafe fn alloc_frames(num: usize) -> *mut u8 {
-    let frame = alloc_frames_t(num);
-    let start = frame.as_ref().unwrap().start();
-    forget(frame);
-    start as *mut u8
-}
-
-#[no_mangle]
-fn free_frames(addr: *mut u8, num: usize) {
-    dealloc_frames(addr as usize, num);
 }
 
 #[no_mangle]

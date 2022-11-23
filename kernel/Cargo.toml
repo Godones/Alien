@@ -10,8 +10,16 @@ log = "0.4.14"
 spin = "0.9.2"
 bitmap-allocator = {git = "https://github.com/rcore-os/bitmap-allocator"}
 simple-bitmap = {path = "../dependence/simple-bitmap"}
-
 rslab = {git= "https://github.com/os-module/rslab"}
 preprint = "0.1.0"
 
+riscv = "0.9.0"
 
+page-table = {path = "../../os-module/page-table"}
+
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+cfg-if = "1.0.0"
+
+[features]
+default = ["test"]
+test = []
