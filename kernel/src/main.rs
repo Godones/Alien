@@ -3,11 +3,7 @@
 #![feature(core_intrinsics)]
 #![feature(panic_info_message)]
 #![feature(default_alloc_error_handler)]
-#![feature(naked_functions)]
-#![feature(asm_const)]
-#![feature(const_for)]
-#![feature(const_cmp)]
-#![feature(const_mut_refs)]
+
 use crate::config::FRAME_SIZE;
 use cfg_if::cfg_if;
 use core::arch::global_asm;
