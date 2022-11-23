@@ -1,6 +1,6 @@
 use spin::Mutex;
 mod riscv;
-use riscv::Ns16550a;
+use self::riscv::Ns16550a;
 
 pub trait Uart {
     fn put(&mut self, c: u8);
