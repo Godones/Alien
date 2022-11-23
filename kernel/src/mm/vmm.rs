@@ -3,12 +3,14 @@ use crate::mm::frame::{addr_to_frame, frame_alloc};
 use alloc::sync::Arc;
 use core::intrinsics::forget;
 use lazy_static::lazy_static;
-use page_table::{AddressSpace, ap_from_str, Area, AreaPermission, PageManager, PPN, VPN, vpn_f_c_range};
+use page_table::{
+    ap_from_str, vpn_f_c_range, AddressSpace, Area, AreaPermission, PageManager, PPN, VPN,
+};
 use spin::RwLock;
 
-lazy_static!{
+lazy_static! {
     pub static ref KERNEL_SPACE: Arc<RwLock<AddressSpace>> =
-    Arc::new(RwLock::new(AddressSpace::new(Arc::new(PageAllocator))));
+        Arc::new(RwLock::new(AddressSpace::new(Arc::new(PageAllocator))));
 }
 
 /// 建立内核页表
@@ -23,45 +25,25 @@ pub fn build_kernel_address_space() {
         fn ekernel();
     }
     let mut kernel_space = KERNEL_SPACE.write();
-    let vpn_range = vpn_f_c_range!(stext as usize,srodata as usize);
+    let vpn_range = vpn_f_c_range!(stext as usize, srodata as usize);
     info!("kernel text range: {:x?}", vpn_range);
-    let text_area = Area::new(
-        vpn_range.clone(),
-        Some(vpn_range),
-        ap_from_str!("rx"),
-    );
-    let vpn_range = vpn_f_c_range!(srodata as usize,sdata as usize);
+    let text_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rx"));
+    let vpn_range = vpn_f_c_range!(srodata as usize, sdata as usize);
     info!("kernel rodata range: {:x?}", vpn_range);
     let rodata_area = Area::new(vpn_range.clone(), Some(vpn_range), AreaPermission::R);
-    let vpn_range = vpn_f_c_range!(sdata as usize,sbss as usize);
+    let vpn_range = vpn_f_c_range!(sdata as usize, sbss as usize);
     info!("kernel data range: {:x?}", vpn_range);
-    let data_area = Area::new(
-        vpn_range.clone(),
-        Some(vpn_range),
-        ap_from_str!("rw"),
-    );
-    let vpn_range = vpn_f_c_range!(sbss as usize,ekernel as usize);
-    info!("kernel bss range: {:x?}",vpn_range);
-    let bss_area = Area::new(
-        vpn_range.clone(),
-        Some(vpn_range),
-        ap_from_str!("rw"),
-    );
-    let vpn_range = vpn_f_c_range!(ekernel as usize,MEMORY_END);
-    info!("kernel heap range: {:x?}",vpn_range);
-    let heap_area = Area::new(
-        vpn_range.clone(),
-        Some(vpn_range),
-        ap_from_str!("rw"),
-    );
+    let data_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
+    let vpn_range = vpn_f_c_range!(sbss as usize, ekernel as usize);
+    info!("kernel bss range: {:x?}", vpn_range);
+    let bss_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
+    let vpn_range = vpn_f_c_range!(ekernel as usize, MEMORY_END);
+    info!("kernel heap range: {:x?}", vpn_range);
+    let heap_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
     // 映射UART区域
-    let vpn_range = vpn_f_c_range!(RISCV_UART_ADDR,RISCV_UART_ADDR + RISCV_UART_RANG);
-    info!("uart range: {:x?}",vpn_range);
-    let uart_area = Area::new(
-        vpn_range.clone(),
-        Some(vpn_range),
-        ap_from_str!("rw"),
-    );
+    let vpn_range = vpn_f_c_range!(RISCV_UART_ADDR, RISCV_UART_ADDR + RISCV_UART_RANG);
+    info!("uart range: {:x?}", vpn_range);
+    let uart_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
     kernel_space.push(text_area);
     kernel_space.push(rodata_area);
     kernel_space.push(data_area);
@@ -89,6 +71,7 @@ impl PageManager for PageAllocator {
     }
 }
 
+#[allow(unused)]
 pub fn test_page_allocator() {
     let allocator = PageAllocator;
     let ppn = allocator.alloc().unwrap();
