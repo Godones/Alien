@@ -1,9 +1,9 @@
 # 编译的目标平台
 [build]
-target = "riscv64imac-unknown-none-elf"
+target = "riscv64gc-unknown-none-elf"
 
 # 使用我们的 linker script 来进行链接
-[target.riscv64imac-unknown-none-elf]
+[target.riscv64gc-unknown-none-elf]
 rustflags = [
-    "-Clink-arg=-Tinit/linker.ld",
+    "-Clink-arg=-Tkernel/src/boot/linker.ld",
 ]
