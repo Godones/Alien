@@ -1,17 +1,17 @@
-use crate::arch::{Uart, STDOUT};
+use super::{Uart, STDOUT};
 use core::fmt::{Arguments, Result, Write};
 
 #[macro_export]
 macro_rules! print {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::__print(format_args!($fmt $(, $($arg)+)?));
+        $crate::print::console::__print(format_args!($fmt $(, $($arg)+)?));
     }
 }
 
 #[macro_export]
 macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::console::__print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
+        $crate::print::console::__print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
     }
 }
 
