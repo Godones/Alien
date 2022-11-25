@@ -3,22 +3,37 @@ name = "kernel"
 version = "0.1.0"
 edition = "2021"
 authors = ["chen linfeng"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# for log
 log = "0.4.14"
+#
+# for other
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = "0.9.2"
-bitmap-allocator = {git = "https://github.com/rcore-os/bitmap-allocator"}
-simple-bitmap = {path = "../dependence/simple-bitmap"}
+#
+
+# for slab
 rslab = {git= "https://github.com/os-module/rslab"}
 preprint = "0.1.0"
+#
 
+# for riscv arch
 riscv = "0.9.0"
-
+#
+#for memory manage
 page-table = {path = "../../os-module/page-table"}
+bitmap-allocator = {git = "https://github.com/rcore-os/bitmap-allocator"}
+simple-bitmap = {path = "../dependence/simple-bitmap"}
+#
 
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+
+
+# for test
 cfg-if = "1.0.0"
+#
 
 [features]
 default = ["test"]
