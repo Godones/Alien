@@ -1,5 +1,5 @@
 use crate::config::{MEMORY_END, RISCV_UART_ADDR, RISCV_UART_RANG};
-use crate::mm::frame::{addr_to_frame, frame_alloc};
+use crate::memory::frame::{addr_to_frame, frame_alloc};
 use alloc::sync::Arc;
 use core::intrinsics::forget;
 use lazy_static::lazy_static;
