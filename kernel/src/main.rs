@@ -3,30 +3,26 @@
 #![feature(core_intrinsics)]
 #![feature(panic_info_message)]
 #![feature(default_alloc_error_handler)]
-#![feature(naked_functions)]
-#![feature(asm_const)]
-#![feature(const_for)]
-#![feature(const_cmp)]
-#![feature(const_mut_refs)]
-use crate::config::FRAME_SIZE;
-use cfg_if::cfg_if;
-use core::arch::global_asm;
 
 #[macro_use]
-mod console;
-mod arch;
+mod print;
 mod config;
 mod driver;
-mod logging;
-mod mm;
+mod memory;
 mod panic;
 mod sbi;
+mod timer;
 mod trap;
 
 // extern crate alloc;
 #[macro_use]
 extern crate log;
 extern crate alloc;
+
+use crate::config::{FRAME_SIZE, TIMER_FREQ};
+use crate::timer::read_timer;
+use cfg_if::cfg_if;
+use core::arch::global_asm;
 
 global_asm!(include_str!("boot/boot.asm"));
 
@@ -36,19 +32,23 @@ global_asm!(include_str!("boot/boot.asm"));
 #[no_mangle]
 pub extern "C" fn rust_main(_hart_id: usize, _device_tree_addr: usize) -> ! {
     println!("{}", config::FLAG);
-    logging::init_logger();
-    preprint::init_print(&console::PrePrint);
-    mm::init_frame_allocator();
-    mm::init_slab_system(FRAME_SIZE, 32);
+    print::init_logger();
+    preprint::init_print(&print::PrePrint);
+    memory::init_frame_allocator();
+    memory::init_slab_system(FRAME_SIZE, 32);
     cfg_if!(
         if #[cfg(feature = "test")] {
-            mm::test_simple_bitmap();
-            mm::frame_allocator_test();
-            mm::test_heap();
-            mm::test_page_allocator();
+            memory::test_simple_bitmap();
+            memory::frame_allocator_test();
+            memory::test_heap();
+            memory::test_page_allocator();
         }
     );
-    mm::build_kernel_address_space();
-    mm::activate_paging_mode();
-    panic!("正常关机")
+    memory::build_kernel_address_space();
+    memory::activate_paging_mode();
+    let time = read_timer();
+    println!("time: {}", time);
+    trap::init_trap_subsystem();
+    timer::set_next_trigger(TIMER_FREQ);
+    loop {}
 }
