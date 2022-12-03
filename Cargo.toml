@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "kernel",
-    "dependence/simple-bitmap",
+    "modules/simple-bitmap",
+    "modules/gmanager"
 ]
