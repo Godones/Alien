@@ -9,7 +9,7 @@ mod exception;
 mod interrupt;
 
 global_asm!(include_str!("./kernel_v.asm"));
-
+global_asm!(include_str!("./trampoline.asm"));
 /// 开启中断/异常
 pub fn init_trap_subsystem() {
     extern "C" {

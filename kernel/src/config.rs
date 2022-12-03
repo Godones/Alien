@@ -15,3 +15,5 @@ pub const MEMORY_END: usize = 0x8820_0000; //2GB
 pub const FRAME_SIZE: usize = 0x1000; //4KB
 
 pub const TIMER_FREQ: usize = 10_000_000;
+
+pub const CPU_NUM: usize = 4;

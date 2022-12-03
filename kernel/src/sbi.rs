@@ -37,11 +37,12 @@ pub fn shutdown() -> ! {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct SbiRet {
     /// Error number
-    pub error: usize,
+    pub error: isize,
     /// Result value
-    pub value: usize,
+    pub value: isize,
 }
 
 pub const EXTENSION_BASE: usize = 0x10;
@@ -78,4 +79,17 @@ pub fn hart_suspend(suspend_type: u32, resume_addr: usize, opaque: usize) -> Sbi
         resume_addr,
         opaque,
     )
+}
+pub fn hart_start(hart_id: usize, start_addr: usize, opaque: usize) -> SbiRet {
+    sbi_call_3(
+        EXTENSION_HSM,
+        FUNCTION_HSM_HART_START,
+        hart_id,
+        start_addr,
+        opaque,
+    )
+}
+
+pub fn send_ipi(ptr: usize) {
+    sbi_call(SBI_SEND_IPI, ptr, 0, 0);
 }
