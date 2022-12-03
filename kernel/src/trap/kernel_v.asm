@@ -1,14 +1,5 @@
-.altmacro
-.macro SAVE_GP n
-    sd x\n, \n*8(sp)
-.endm
-.macro LOAD_GP n
-    ld x\n, \n*8(sp)
-.endm
-
-
 .globl kernel_v
-.align 4
+.align 2
 kernel_v:
         # make room to save registers.
         addi sp, sp, -256

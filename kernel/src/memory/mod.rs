@@ -6,6 +6,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::alloc::GlobalAlloc;
 pub use frame::{frame_allocator_test, init_frame_allocator};
+use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 pub use rslab::*;
 pub use vmm::{build_kernel_address_space, test_page_allocator, KERNEL_SPACE};
@@ -18,11 +19,13 @@ static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
 /// 激活页表模式
 pub fn activate_paging_mode() {
     unsafe {
+        sfence_vma_all();
         satp::set(
             satp::Mode::Sv39,
             0,
             KERNEL_SPACE.read().root_ppn().unwrap().0,
         );
+        sfence_vma_all();
     }
 }
 
