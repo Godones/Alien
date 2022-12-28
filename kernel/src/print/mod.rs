@@ -13,4 +13,4 @@ pub trait Uart {
     fn get(&mut self) -> Option<u8>;
 }
 
-pub static STDOUT: Mutex<Ns16550a> = Mutex::new(Ns16550a);
+pub static UART: Mutex<Ns16550a> = Mutex::new(Ns16550a);

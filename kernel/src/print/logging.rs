@@ -1,5 +1,5 @@
-use log::{self, Level, LevelFilter, Log, Metadata, Record};
 use crate::arch::hart_id;
+use log::{self, Level, LevelFilter, Log, Metadata, Record};
 
 struct SimpleLogger;
 impl Log for SimpleLogger {

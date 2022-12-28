@@ -3,15 +3,21 @@
 #![feature(core_intrinsics)]
 #![feature(panic_info_message)]
 #![feature(default_alloc_error_handler)]
+#![feature(naked_functions)]
+#![feature(let_chains)]
+#![feature(error_in_core)]
+#![feature(associated_type_bounds)]
 
 #[macro_use]
 mod print;
 mod arch;
 mod config;
 mod driver;
+mod fs;
 mod memory;
 mod panic;
 mod sbi;
+mod task;
 mod timer;
 mod trap;
 
@@ -21,6 +27,7 @@ extern crate log;
 extern crate alloc;
 
 use crate::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
+use crate::sbi::shutdown;
 use cfg_if::cfg_if;
 use core::arch::global_asm;
 use core::hint::spin_loop;
@@ -48,11 +55,12 @@ fn clear_bss() {
 ///
 /// 进行操作系统的初始化，
 #[no_mangle]
-pub extern "C" fn rust_main(hart_id: usize, _device_tree_addr: usize) -> ! {
+pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
         clear_bss();
         print::init_logger();
         preprint::init_print(&print::PrePrint);
+
         memory::init_frame_allocator();
         memory::init_slab_system(FRAME_SIZE, 32);
         println!("{}", config::FLAG);
@@ -68,7 +76,7 @@ pub extern "C" fn rust_main(hart_id: usize, _device_tree_addr: usize) -> ! {
         memory::activate_paging_mode();
         thread_local_init();
         trap::init_trap_subsystem();
-        timer::set_next_trigger(TIMER_FREQ);
+        // timer::set_next_trigger(TIMER_FREQ);
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
     } else {
@@ -82,8 +90,12 @@ pub extern "C" fn rust_main(hart_id: usize, _device_tree_addr: usize) -> ! {
         CPUS.fetch_add(1, Ordering::Release);
     }
     wait_all_cpu_start(); //等待其它cpu核启动
+    fs::test_gmanager();
+    driver::init_dt(device_tree_addr);
+    fs::fs_repl();
+
     loop {
-        spin_loop();
+        shutdown();
     }
 }
 

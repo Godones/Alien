@@ -10,6 +10,9 @@ mod interrupt;
 
 global_asm!(include_str!("./kernel_v.asm"));
 global_asm!(include_str!("./trampoline.asm"));
+
+pub use context::TrapFrame;
+
 /// 开启中断/异常
 pub fn init_trap_subsystem() {
     extern "C" {
@@ -25,6 +28,10 @@ pub fn init_trap_subsystem() {
         sie::set_stimer();
     }
 }
+
+#[no_mangle]
+/// 用户态陷入处理
+pub fn user_trap_vector() {}
 
 #[no_mangle]
 /// 只有在内核态下才能进入这个函数
