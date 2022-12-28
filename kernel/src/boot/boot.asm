@@ -9,7 +9,6 @@ _start:
     call rust_main
 
 
-
  sleep:
     wfi
     j sleep

@@ -108,7 +108,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
         .alloc()
         .map(FrameTracker::new)
 }
-#[allow(unused)]
+
 pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
     let mut ans = Vec::new();
     for _ in 0..count {

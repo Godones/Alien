@@ -2,5 +2,6 @@
 members = [
     "kernel",
     "modules/simple-bitmap",
-    "modules/gmanager"
+    "modules/gmanager",
+    "modules/plic",
 ]

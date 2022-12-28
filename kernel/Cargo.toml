@@ -27,9 +27,15 @@ page-table = {path = "../../os-module/page-table"}
 bitmap-allocator = {git = "https://github.com/rcore-os/bitmap-allocator"}
 simple-bitmap = {path = "../modules/simple-bitmap" }
 
+### for pid/tid alloc
+gmanager = {path ="../modules/gmanager"}
 
-
-
+### filesystem
+xmas-elf = "0.9.0"
+virtio-drivers = {git = "https://github.com/rcore-os/virtio-drivers"}
+fdt = "0.1.3"
+fat32 = {path = "../../os-module/fs/fat32"}
+fat32-trait = {path ="../../os-module/fs/fat32-trait"}
 ### for test
 cfg-if = "1.0.0"
 
