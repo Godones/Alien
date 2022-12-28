@@ -48,7 +48,7 @@ dtb:
 img:
 	#创建64MB大小的fat32文件系统
 	@sudo dd if=/dev/zero of=$(IMG) bs=512 count=131072
-	@mkfs.fat -F 32 $(IMG)
+	@sudo mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
 		sudo umount /fat; \
 	fi
