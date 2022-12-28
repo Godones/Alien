@@ -1,15 +1,17 @@
 mod frame;
 mod vmm;
 
+use crate::arch::hart_id;
+use crate::config::FRAME_BITS;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::alloc::GlobalAlloc;
-pub use frame::{frame_allocator_test, init_frame_allocator};
+pub use frame::*;
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 pub use rslab::*;
-pub use vmm::{build_kernel_address_space, test_page_allocator, KERNEL_SPACE};
+pub use vmm::*;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
@@ -39,6 +41,10 @@ unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
         self.slab.dealloc(ptr, layout)
     }
+}
+
+pub fn kernel_satp() -> usize {
+    8usize << 60 & (KERNEL_SPACE.read().root_ppn().unwrap().0 << FRAME_BITS)
 }
 
 #[allow(unused)]
@@ -77,5 +83,5 @@ pub fn test_simple_bitmap() {
 
 #[no_mangle]
 fn current_cpu_id() -> usize {
-    0
+    hart_id()
 }
