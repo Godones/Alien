@@ -16,3 +16,4 @@ kernel-qemu
 build
 *.dts
 boot/fs.img
+*.hex
