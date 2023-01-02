@@ -3,6 +3,7 @@
 //! 使用jammdb数据库构建文件系统,jammdb的底层文件依赖需要
 //! 将一个存储设备模拟为一个文件,并且需要支持mmap
 use crate::driver::QEMU_BLOCK_DEVICE;
+use alloc::alloc::dealloc;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
@@ -17,7 +18,16 @@ use core2::io::{Read, Seek, SeekFrom, Write};
 use fat32::BlockDevice;
 use fat32_trait::{DirectoryLike, FileLike};
 use jammdb::{Data, DbFile, FileExt, MemoryMap, MetaData, OpenOption, PathLike, DB};
+use lazy_static::lazy_static;
 use lru::LruCache;
+
+lazy_static! {
+    pub static ref ROOT_DIR: Arc<Dir> = {
+        let fs = DbFileSystem::init();
+        let root = fs.root();
+        root
+    };
+}
 
 type Cache = [u8; 512];
 
@@ -183,13 +193,13 @@ impl Read for FakeFile {
 }
 
 impl FileExt for FakeFile {
-    fn open<T: PathLike + ToString>(path: &T) -> Option<Self>
+    fn open<T: PathLike + ToString>(_path: &T) -> Option<Self>
     where
         Self: Sized,
     {
         let device = QEMU_BLOCK_DEVICE.lock();
         let device = device.as_ref().unwrap();
-        let mut file = FakeFile::new(device.clone());
+        let file = FakeFile::new(device.clone());
         Some(file)
     }
 
@@ -287,7 +297,12 @@ impl ToString for FakePath {
 }
 impl PathLike for FakePath {
     fn exists(&self) -> bool {
-        false
+        let device = QEMU_BLOCK_DEVICE.lock();
+        let mut buf = [0u8; 512];
+        let device = device.as_ref().unwrap();
+        device.read(0, &mut buf).unwrap();
+        let size = u64::from_le_bytes(buf[0..8].try_into().unwrap());
+        size > 0
     }
 }
 impl FakePath {
@@ -332,22 +347,18 @@ impl MemoryMap for FakeMMap {
         }
         info!("[{}/{}] mmap file size:{:#x}", file!(), line!(), size);
         unsafe {
+            let old_addr = FAKE_MMAP.addr;
+            let old_size = FAKE_MMAP.size;
+            if old_addr != 0 {
+                let layout = Layout::from_size_align(old_size, 8).unwrap();
+                dealloc(old_addr as *mut u8, layout);
+            }
             FAKE_MMAP.size = size;
             FAKE_MMAP.addr = addr as usize;
         }
         Ok(unsafe { FAKE_MMAP.clone() })
     }
 }
-
-// impl Drop for FakeMMap {
-//     fn drop(&mut self) {
-//         info!("drop mmap");
-//         let layout = Layout::from_size_align(self.size, 8).unwrap();
-//         unsafe {
-//             alloc::alloc::dealloc(self.addr as *mut u8, layout);
-//         }
-//     }
-// }
 
 pub struct SafeDb(DB);
 unsafe impl Sync for SafeDb {}
@@ -358,40 +369,35 @@ pub struct DbFileSystem {
 }
 pub struct File {
     db: Arc<SafeDb>,
-    name: String,
-    dir: Arc<DirEntry>,
+    path: String,
 }
 
 impl File {
-    pub fn new(db: Arc<SafeDb>, name: &str, dir: Arc<DirEntry>) -> Self {
+    pub fn new(db: Arc<SafeDb>, path: &str) -> Self {
         Self {
             db,
-            name: name.to_string(),
-            dir,
+            path: path.to_string(),
         }
     }
 }
 impl Debug for File {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("File")
-            .field("name", &self.name)
-            .field("dir", &self.dir)
-            .finish()
+        f.debug_struct("File").field("path", &self.path).finish()
     }
 }
 
-pub struct DirEntry {
+pub struct Dir {
     db: Arc<SafeDb>,
     path: String,
 }
 
-impl DirEntry {
+impl Dir {
     pub fn new(db: Arc<SafeDb>, path: String) -> Self {
         Self { db, path }
     }
 }
 
-impl Debug for DirEntry {
+impl Debug for Dir {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("DirEntry")
             .field("path", &self.path)
@@ -404,14 +410,10 @@ impl FileLike for File {
 
     fn read(&self, offset: u32, size: u32) -> Result<Vec<u8>, Self::Error> {
         let tx = self.db.0.tx(false)?;
-        let bucket = tx.get_bucket(self.dir.path.as_str())?;
-
-        let bucket = bucket.get_bucket(self.name.as_str())?;
+        let bucket = tx.get_bucket(self.path.as_str())?;
         // where is the offset?
         let data = bucket.get("data").unwrap();
         let data = data.kv().value().to_vec();
-
-        info!("read data len:{}", data.len());
         // read data
         if (data.len() as u32) < offset {
             Ok(vec![])
@@ -423,8 +425,7 @@ impl FileLike for File {
 
     fn write(&self, offset: u32, w_data: &[u8]) -> Result<u32, Self::Error> {
         let tx = self.db.0.tx(true)?;
-        let bucket = tx.get_bucket(self.dir.path.as_str())?;
-        let bucket = bucket.get_bucket(self.name.as_str())?;
+        let bucket = tx.get_bucket(self.path.as_str())?;
         let data = bucket.get("data").unwrap();
         let mut data = data.kv().value().to_vec();
         if (data.len() as u32) < offset {
@@ -433,100 +434,172 @@ impl FileLike for File {
                 data.push(0);
             }
         }
-
-        info!("data len:{}", data.len());
         data.extend_from_slice(&w_data);
-
-        info!("extended data len: {}", data.len());
-        bucket.put("data", data).unwrap();
-        tx.commit().unwrap();
+        bucket.put("data", data)?;
+        tx.commit()?;
         Ok(w_data.len() as u32)
     }
 
     fn clear(&self) {
         let tx = self.db.0.tx(true).unwrap();
-        let bucket = tx.get_bucket(self.dir.path.as_str()).unwrap();
-        let bucket = bucket.get_bucket(self.name.as_str()).unwrap();
+        let bucket = tx.get_bucket(self.path.as_str()).unwrap();
         bucket.put("data", vec![]).unwrap();
         tx.commit().unwrap();
     }
 
     fn size(&self) -> u32 {
         let tx = self.db.0.tx(false).unwrap();
-        let bucket = tx.get_bucket(self.dir.path.as_str()).unwrap();
-        let bucket = bucket.get_bucket(self.name.as_str()).unwrap();
+        let bucket = tx.get_bucket(self.path.as_str()).unwrap();
         let data = bucket.get("data").unwrap();
         let data = data.kv().value().len();
         data as u32
     }
 }
 
-impl DirectoryLike for DirEntry {
+impl DirectoryLike for Dir {
     type Error = Error;
-
+    /// 所有文件和目录位于虚拟的根目录下
     fn create_dir(&self, name: &str) -> Result<(), Self::Error> {
         let tx = self.db.0.tx(true)?;
         let bucket = tx.get_bucket(self.path.as_str())?;
-        bucket.create_bucket(name).unwrap();
-        tx.commit().unwrap();
-        Ok(())
+        let bucket = bucket.get_bucket("data")?;
+        let insert = bucket.get_kv(name.to_string() + "-d");
+        // 检查当前目录下是否存在同名目录
+        let ans = if insert.is_some() {
+            Err(Error::AlreadyExists)
+        } else {
+            // 创建目录
+            bucket.put(name.to_string() + "-d", "")?;
+            // 需要保证在根目录下的目录名唯一
+            let l = self.path.len();
+            let unique_name = self.path[0..l - 2].to_string() + "/" + name + "-d";
+            // 根目录下创建目录
+            let bucket = tx.create_bucket(unique_name.as_str())?;
+            // 创建目录下的data文件
+            // data文件存放目录下的子文件
+            bucket.create_bucket("data")?;
+            Ok(())
+        };
+        tx.commit()?;
+        ans
     }
 
     fn create_file(&self, name: &str) -> Result<(), Self::Error> {
         info!("create file:{} in {}", name, self.path);
         let tx = self.db.0.tx(true)?;
-        // x.into_iter().for_each(|x|info!("bucket:{}",core::str::from_utf8(x.0.name()).unwrap()));
-        let bucket = tx.get_bucket(self.path.as_str()).unwrap();
-        let bucket = bucket.create_bucket(name).unwrap();
-        bucket.put("data", vec![]).unwrap();
-        tx.commit().unwrap();
-        Ok(())
+        let bucket = tx.get_bucket(self.path.as_str())?;
+        let bucket = bucket.get_bucket("data")?;
+        let insert = bucket.get_kv(name.to_string() + "-f");
+        // 检查当前目录下是否存在同名文件
+        let ans = if insert.is_some() {
+            Err(Error::AlreadyExists)
+        } else {
+            // 创建文件
+            bucket.put(name.to_string() + "-f", "")?;
+            // 需要保证在根目录下的文件名唯一
+            let l = self.path.len();
+            let unique_name = self.path[0..l - 2].to_string() + "/" + name + "-f";
+            // 根目录下创建文件
+            let bucket = tx.create_bucket(unique_name.as_str())?;
+            // 创建文件下的data文件
+            // data文件存放文件内容
+            bucket.put("data", "")?;
+            Ok(())
+        };
+        tx.commit()?;
+        ans
     }
 
     fn delete_dir(&self, name: &str) -> Result<(), Self::Error> {
         let tx = self.db.0.tx(true)?;
         let bucket = tx.get_bucket(self.path.as_str())?;
-        bucket.delete_bucket(name).unwrap();
-        tx.commit().unwrap();
-        Ok(())
+        let bucket = bucket.get_bucket("data")?;
+        let delete = bucket.get_kv(name.to_string() + "-d");
+        // 检查当前目录下是否存在同名目录
+        let ans = if delete.is_some() {
+            // 删除目录
+            bucket.delete(name.to_string() + "-d")?;
+            // 需要保证在根目录下的目录名唯一
+            let l = self.path.len();
+            let unique_name = self.path[0..l - 2].to_string() + "/" + name + "-d";
+            // 根目录下删除目录
+            tx.delete_bucket(unique_name.as_str())?;
+            Ok(())
+        } else {
+            Err(Error::NotFound)
+        };
+        tx.commit()?;
+        ans
     }
 
     fn delete_file(&self, name: &str) -> Result<(), Self::Error> {
         let tx = self.db.0.tx(true)?;
         let bucket = tx.get_bucket(self.path.as_str())?;
-        bucket.delete_bucket(name)?;
-        tx.commit().unwrap();
-        Ok(())
+        let bucket = bucket.get_bucket("data")?;
+        let delete = bucket.get_kv(name.to_string() + "-f");
+        // 检查当前目录下是否存在同名目录
+        let ans = if delete.is_some() {
+            // 删除目录
+            bucket.delete(name.to_string() + "-f").unwrap();
+            // 需要保证在根目录下的目录名唯一
+            let l = self.path.len();
+            let unique_name = self.path[0..l - 2].to_string() + "/" + name + "-f";
+            // 根目录下删除目录
+            tx.delete_bucket(unique_name.as_str())?;
+            Ok(())
+        } else {
+            Err(Error::NotFound)
+        };
+        tx.commit()?;
+        ans
     }
 
     fn cd(&self, name: &str) -> Result<Arc<dyn DirectoryLike<Error = Self::Error>>, Self::Error> {
         let tx = self.db.0.tx(false)?;
         let bucket = tx.get_bucket(self.path.as_str())?;
-        let _bucket = bucket.get_bucket(name)?;
-        Ok(Arc::new(DirEntry::new(
-            self.db.clone(),
-            format!("{}/{}", self.path, name),
-        )))
+        let bucket = bucket.get_bucket("data")?;
+        let insert = bucket.get_kv(name.to_string() + "-d");
+        // 检查当前目录下是否存在同名目录
+        return if insert.is_some() {
+            let l = self.path.len();
+            let new_path = self.path[0..l - 2].to_string() + "/" + name + "-d";
+            Ok(Arc::new(Dir::new(self.db.clone(), new_path)))
+        } else {
+            Err(Error::NotFound)
+        };
     }
 
     fn open(&self, name: &str) -> Result<Arc<dyn FileLike<Error = Self::Error>>, Self::Error> {
         let tx = self.db.0.tx(false)?;
         let bucket = tx.get_bucket(self.path.as_str())?;
-        let _bucket = bucket.get_bucket(name)?;
-        let dir = Arc::new(DirEntry::new(self.db.clone(), self.path.clone()));
-        Ok(Arc::new(File::new(self.db.clone(), name, dir)))
+        let bucket = bucket.get_bucket("data")?;
+        let insert = bucket.get_kv(name.to_string() + "-f");
+        // 检查当前目录下是否存在同名目录
+        return if insert.is_some() {
+            let l = self.path.len();
+            let new_path = self.path[0..l - 2].to_string() + "/" + name + "-f";
+            let new_entry = File {
+                path: new_path,
+                db: self.db.clone(),
+            };
+            Ok(Arc::new(new_entry))
+        } else {
+            Err(Error::NotFound)
+        };
     }
 
     fn list(&self) -> Result<Vec<String>, Self::Error> {
         let tx = self.db.0.tx(false)?;
         let bucket = tx.get_bucket(self.path.as_str())?;
+        let bucket = bucket.get_bucket("data")?;
         let mut list = Vec::new();
         bucket.cursor().into_iter().for_each(|data| {
             let name = match &*data {
-                Data::Bucket(b) => b.name(),
                 Data::KeyValue(kv) => kv.key(),
+                _ => panic!("no bucket"),
             };
-            list.push(String::from_utf8(name.to_vec()).unwrap());
+            let name = core::str::from_utf8(name).unwrap();
+            list.push(name[0..name.len() - 2].to_string());
         });
         Ok(list)
     }
@@ -537,28 +610,70 @@ impl DirectoryLike for DirEntry {
         }
         let tx = self.db.0.tx(true)?;
         let r_bucket = tx.get_bucket(self.path.as_str())?;
-        let bucket = r_bucket.get_bucket(old_name).unwrap();
-        let data = bucket.get("data").unwrap();
-        let data = data.kv().value().to_vec();
-        r_bucket.delete_bucket(old_name).unwrap();
-        r_bucket.create_bucket(new_name).unwrap();
-        let bucket = r_bucket.get_bucket(new_name).unwrap();
-        bucket.put("data", data).unwrap();
+        let r_bucket = r_bucket.get_bucket("data")?;
+        let old = r_bucket.get_kv(old_name.to_string() + "-f");
+        let new = r_bucket.get_kv(new_name.to_string() + "-f");
+        let ans = if old.is_some() {
+            if new.is_some() {
+                Err(Error::AlreadyExists)
+            } else {
+                let l = self.path.len();
+                let old_path = self.path[0..l - 2].to_string() + "/" + old_name + "-f";
+                let new_path = self.path[0..l - 2].to_string() + "/" + new_name + "-f";
+                r_bucket.delete(old_name.to_string() + "-f")?;
+                r_bucket.put(new_name.to_string() + "-f", "")?;
+                let old_bucket = tx.get_bucket(&old_path)?;
+                let old_data = old_bucket.get_kv("data").unwrap();
+                let old_data = old_data.value();
+                tx.delete_bucket(old_path)?;
+                let new_bucket = tx.create_bucket(new_path)?;
+                new_bucket.put("data", old_data)?;
+                Ok(())
+            }
+        } else {
+            Err(Error::NotFound)
+        };
         tx.commit().unwrap();
-        Ok(())
+        ans
     }
 
     fn rename_dir(&self, old_name: &str, new_name: &str) -> Result<(), Self::Error> {
-        self.rename_file(old_name, new_name)
+        if old_name == new_name {
+            return Ok(());
+        }
+        let tx = self.db.0.tx(true)?;
+        let r_bucket = tx.get_bucket(self.path.as_str())?;
+        let r_bucket = r_bucket.get_bucket("data")?;
+        let old = r_bucket.get_kv(old_name.to_string() + "-d");
+        let new = r_bucket.get_kv(new_name.to_string() + "-d");
+        let ans = if old.is_some() {
+            if new.is_some() {
+                Err(Error::AlreadyExists)
+            } else {
+                let l = self.path.len();
+                let old_path = self.path[0..l - 2].to_string() + "/" + old_name + "-d";
+                let new_path = self.path[0..l - 2].to_string() + "/" + new_name + "-d";
+                r_bucket.delete(old_name)?;
+                r_bucket.put(new_name.to_string() + "-d", "")?;
+                let old_bucket = tx.get_bucket(&old_path)?;
+                let old_data = old_bucket.get_kv("data").unwrap();
+                let old_data = old_data.value();
+                tx.delete_bucket(old_path)?;
+                let new_bucket = tx.create_bucket(new_path)?;
+                new_bucket.put("data", old_data)?;
+                Ok(())
+            }
+        } else {
+            Err(Error::NotFound)
+        };
+        tx.commit().unwrap();
+        ans
     }
 }
 
 #[derive(Debug)]
 pub enum Error {
     NotFound,
-    NotADir,
-    NotAFile,
-    NotEmpty,
     DBError(jammdb::Error),
     AlreadyExists,
     Other,
@@ -585,19 +700,15 @@ impl DbFileSystem {
             db: Arc::new(SafeDb(db)),
         }
     }
-    pub fn root(&self) -> Arc<DirEntry> {
+    pub fn root(&self) -> Arc<Dir> {
         // 检查根目录是否存在
         let tx = self.db.0.tx(true).unwrap();
         info!("check root exist");
-        let root = tx.get_or_create_bucket("root");
+        let root = tx.get_or_create_bucket("root-d");
         assert!(root.is_ok());
+        root.unwrap().get_or_create_bucket("data").unwrap();
         tx.commit().unwrap();
-        let tx = self.db.0.tx(false).unwrap();
-        let root = tx.get_bucket("root");
-        if root.is_err() {
-            panic!("root not exist");
-        }
-        Arc::new(DirEntry::new(self.db.clone(), "root".to_string()))
+        Arc::new(Dir::new(self.db.clone(), "root-d".to_string()))
     }
 }
 
