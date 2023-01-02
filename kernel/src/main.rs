@@ -7,7 +7,7 @@
 #![feature(let_chains)]
 #![feature(error_in_core)]
 #![feature(associated_type_bounds)]
-
+#![allow(semicolon_in_expressions_from_macros)]
 #[macro_use]
 mod print;
 mod arch;
@@ -60,7 +60,6 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         clear_bss();
         print::init_logger();
         preprint::init_print(&print::PrePrint);
-
         memory::init_frame_allocator();
         memory::init_slab_system(FRAME_SIZE, 32);
         println!("{}", config::FLAG);
@@ -70,6 +69,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
             memory::frame_allocator_test();
             memory::test_heap();
             memory::test_page_allocator();
+            fs::test_gmanager();
         }
         );
         memory::build_kernel_address_space();
@@ -89,11 +89,17 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         timer::set_next_trigger(TIMER_FREQ);
         CPUS.fetch_add(1, Ordering::Release);
     }
-    wait_all_cpu_start(); //等待其它cpu核启动
-    fs::test_gmanager();
+    // 等待其它cpu核启动
+    wait_all_cpu_start();
+    // 设备树初始化
     driver::init_dt(device_tree_addr);
+    // 文件系统测试
+    #[cfg(feature = "fat32")]
     fs::fs_repl();
+    // #[cfg(feature = "dbfs")]
+    // fs::DbFileSystem::init();
 
+    fs::dbfs_test();
     loop {
         shutdown();
     }
