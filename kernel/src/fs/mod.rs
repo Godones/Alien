@@ -14,7 +14,11 @@ pub use stdio::*;
 
 pub use dbfs::{dbfs_test, jammdb_test, DbFileSystem};
 
+#[cfg(feature = "dbfs")]
+use crate::fs::dbfs::ROOT_DIR;
+#[cfg(feature = "fat32")]
 use crate::fs::fat32::ROOT_DIR;
+
 use crate::print::console::get_line;
 
 pub trait File: Send + Sync {
@@ -163,6 +167,7 @@ pub fn fs_repl() {
                     continue;
                 }
             }
+            "exit" => break,
             _ => {}
         }
     }
