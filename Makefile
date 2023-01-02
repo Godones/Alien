@@ -26,7 +26,6 @@ define boot_qemu
 endef
 
 
-
 compile:
 	@#rm  kernel-qemu
 	@cargo build --release -p kernel
@@ -36,7 +35,7 @@ compile:
 
 build:compile
 
-run:compile img
+run:compile $(img)
 	$(call boot_qemu)
 
 
@@ -45,8 +44,13 @@ dtb:
 	@dtc -I dtb -O dts -o riscv.dts riscv.dtb
 	@rm riscv.dtb
 
-img:
+ZeroFile:
+	#创建空白文件
+	@dd if=/dev/zero of=$(IMG) bs=1M count=64
+
+fat32:
 	#创建64MB大小的fat32文件系统
+	@sudo chmod 777 $(IMG)
 	@sudo dd if=/dev/zero of=$(IMG) bs=512 count=131072
 	@sudo mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
@@ -60,7 +64,7 @@ img:
 
 img-hex:
 	@hexdump $(IMG) > test.hex
-
+	@cat test.hex
 
 
 
@@ -70,8 +74,9 @@ debug: build
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
 
-asm:all
+asm:compile
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
+
 clean:
 	@cargo clean
 	@rm riscv.*
