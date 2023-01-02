@@ -94,12 +94,8 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     // 设备树初始化
     driver::init_dt(device_tree_addr);
     // 文件系统测试
-    #[cfg(feature = "fat32")]
     fs::fs_repl();
-    // #[cfg(feature = "dbfs")]
-    // fs::DbFileSystem::init();
-
-    fs::dbfs_test();
+    // fs::dbfs_test();
     loop {
         shutdown();
     }

@@ -46,7 +46,7 @@ cfg-if = "1.0.0"
 
 
 [features]
-default = ["test"]
+default = ["test","dbfs"]
 test = []
 fat32 = []
 dbfs = []
