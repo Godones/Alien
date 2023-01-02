@@ -36,6 +36,11 @@ virtio-drivers = {git = "https://github.com/rcore-os/virtio-drivers"}
 fdt = "0.1.3"
 fat32 = {path = "../../os-module/fs/fat32"}
 fat32-trait = {path ="../../os-module/fs/fat32-trait"}
+
+lru = "0.9.0"
+jammdb = {path ="../../os-module/jammdb"}
+core2 = {version="0.4.0",default-features = false, features = ["nightly"]}
+
 ### for test
 cfg-if = "1.0.0"
 
@@ -43,3 +48,5 @@ cfg-if = "1.0.0"
 [features]
 default = ["test"]
 test = []
+fat32 = []
+dbfs = []
