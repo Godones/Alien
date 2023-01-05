@@ -12,8 +12,6 @@ use fat32_trait::DirectoryLike;
 use gmanager::MinimalManager;
 pub use stdio::*;
 
-pub use dbfs::{dbfs_test, jammdb_test, DbFileSystem};
-
 #[cfg(feature = "dbfs")]
 use crate::fs::dbfs::ROOT_DIR;
 #[cfg(feature = "fat32")]
@@ -130,6 +128,31 @@ pub fn fs_repl() {
                 let ans = ans.unwrap();
                 let ans = String::from_utf8(ans).unwrap();
                 println!("{}", ans);
+            }
+            "write" => {
+                if input.len() != 2 {
+                    println!("write: missing operand");
+                    continue;
+                }
+                let file = current_dir.open(input[1]);
+                if file.is_err() {
+                    println!("write: no such file or directory");
+                    continue;
+                }
+                let file = file.unwrap();
+                let mut buf = String::new();
+                loop {
+                    let input = get_line();
+                    if input == "q" {
+                        break
+                    }
+                    buf.push_str(&input);
+                }
+                let ans = file.write(0, buf.as_bytes());
+                if ans.is_err() {
+                    println!("write: cannot write file");
+                    continue;
+                }
             }
             "rename" => {
                 if input.len() != 4 {

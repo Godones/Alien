@@ -40,6 +40,7 @@ fat32-trait = {path ="../../os-module/fs/fat32-trait"}
 lru = "0.9.0"
 jammdb = {path ="../../os-module/jammdb"}
 core2 = {version="0.4.0",default-features = false, features = ["nightly"]}
+dbfs = {path="../../os-module/dbfs"}
 
 ### for test
 cfg-if = "1.0.0"
