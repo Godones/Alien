@@ -1,6 +1,6 @@
 use crate::driver::hal::HalImpl;
 use alloc::sync::Arc;
-use fat32::BlockDevice;
+use fat32_trait::BlockDevice;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
