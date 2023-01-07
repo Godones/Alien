@@ -12,7 +12,7 @@ use core::ops::Deref;
 use core2::io::{Read, Seek, SeekFrom, Write};
 use dbfs::{Dir,File,DbFileSystem};
 use fat32_trait::BlockDevice;
-use jammdb::{DB, DbFile, FileExt, MemoryMap, MetaData, OpenOption, PathLike};
+use dbfs::jammdb::{DB, DbFile, FileExt, MemoryMap, MetaData, OpenOption, PathLike};
 use lru::LruCache;
 use crate::driver::QEMU_BLOCK_DEVICE;
 
@@ -191,16 +191,16 @@ impl Read for FakeFile {
     }
 }
 
-impl FileExt for FakeFile {
-    fn open<T: PathLike + ToString>(_path: &T) -> Option<Self>
-        where
-            Self: Sized,
-    {
+impl FakeFile{
+    fn open<T: PathLike + ToString>(_path: &T) -> Option<Self> {
         let device = QEMU_BLOCK_DEVICE.lock();
         let device = device.as_ref().unwrap();
         let file = FakeFile::new(device.clone());
         Some(file)
     }
+}
+
+impl FileExt for FakeFile {
 
     fn lock_exclusive(&self) -> core2::io::Result<()> {
         Ok(())
@@ -269,7 +269,7 @@ impl OpenOption for FakeOpenOptions {
         self
     }
 
-    fn open<T: ToString + PathLike>(&mut self, path: &T) -> core2::io::Result<jammdb::File> {
+    fn open<T: ToString + PathLike>(&mut self, path: &T) -> core2::io::Result<dbfs::jammdb::File> {
         info!("open file: {}", path.to_string());
         let fake_file = FakeFile::open(path);
         if fake_file.is_none() {
@@ -278,7 +278,7 @@ impl OpenOption for FakeOpenOptions {
                 "file not found",
             ));
         }
-        Ok(jammdb::File::new(Box::new(fake_file.unwrap())))
+        Ok(dbfs::jammdb::File::new(Box::new(fake_file.unwrap())))
     }
 
     fn create(&mut self, _create: bool) -> &mut Self {
