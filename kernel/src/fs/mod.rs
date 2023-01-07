@@ -129,9 +129,31 @@ pub fn fs_repl() {
                 let ans = String::from_utf8(ans).unwrap();
                 println!("{}", ans);
             }
+            "read" => {
+                if input.len() != 4 {
+                    println!("read {{-f}} {{-o}} {{-s}}: missing operand");
+                    continue;
+                }
+                let file = current_dir.open(input[1]);
+                if file.is_err() {
+                    println!("read: no such file or directory");
+                    continue;
+                }
+                let file = file.unwrap();
+                let offset = input[2].parse::<u32>().unwrap();
+                let f_size = input[3].parse::<u32>().unwrap();
+                let ans = file.read(offset, f_size);
+                if ans.is_err() {
+                    println!("read: cannot read file");
+                    continue;
+                }
+                let ans = ans.unwrap();
+                let ans = String::from_utf8(ans).unwrap();
+                println!("{}", ans);
+            }
             "write" => {
-                if input.len() != 2 {
-                    println!("write: missing operand");
+                if input.len() != 3 {
+                    println!("write {{-f}} {{-p}}: missing operand");
                     continue;
                 }
                 let file = current_dir.open(input[1]);
@@ -148,7 +170,8 @@ pub fn fs_repl() {
                     }
                     buf.push_str(&input);
                 }
-                let ans = file.write(0, buf.as_bytes());
+                let offset  = input[2].parse::<u32>().unwrap();
+                let ans = file.write(offset, buf.as_bytes());
                 if ans.is_err() {
                     println!("write: cannot write file");
                     continue;
@@ -189,6 +212,17 @@ pub fn fs_repl() {
                     println!("rm: cannot remove");
                     continue;
                 }
+            }
+            "clear" => {
+                if input.len()!=2{
+                    println!("clear {{-f}}: missing operand");
+                    continue;
+                }
+                let file = current_dir.open(input[1]);
+                if file.is_err(){
+                    println!("no file");
+                }
+                file.unwrap().clear();
             }
             "exit" => break,
             _ => {}
