@@ -29,7 +29,7 @@ endef
 compile:
 	@#rm  kernel-qemu
 	@cargo build --release -p kernel
-	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
+	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
 
 

@@ -4,9 +4,12 @@ use crate::config::FRAME_SIZE;
 /// 位图的每一位代表一个物理页帧
 use alloc::vec::Vec;
 use bitmap_allocator::{BitAlloc, BitAlloc16M};
+use lazy_static::lazy_static;
 use spin::{Mutex, Once};
 
-pub static FRAME_ALLOCATOR: Once<Mutex<BitAlloc16M>> = Once::new();
+lazy_static!{
+    pub static ref FRAME_ALLOCATOR:Mutex<BitAlloc16M> = Mutex::new(BitAlloc16M::default());
+}
 
 extern "C" {
     fn ekernel();
@@ -24,8 +27,7 @@ pub fn init_frame_allocator() {
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
-    FRAME_ALLOCATOR.call_once(|| Mutex::new(BitAlloc16M::default()));
-    FRAME_ALLOCATOR.get().unwrap().lock().insert(0..page_count);
+    FRAME_ALLOCATOR.lock().insert(0..page_count);
 }
 
 #[derive(Debug)]
@@ -63,11 +65,11 @@ impl FrameTracker {
 impl Drop for FrameTracker {
     fn drop(&mut self) {
         trace!("drop frame:{}", self.id);
-        let flag = FRAME_ALLOCATOR.get().unwrap().lock().test(self.id);
+        let flag = FRAME_ALLOCATOR.lock().test(self.id);
         if flag {
             panic!("frame {} is not allocated", self.id);
         }
-        FRAME_ALLOCATOR.get().unwrap().lock().dealloc(self.id);
+        FRAME_ALLOCATOR.lock().dealloc(self.id);
     }
 }
 
@@ -76,8 +78,6 @@ impl Drop for FrameTracker {
 #[no_mangle]
 fn alloc_frames(num: usize) -> *mut u8 {
     let start = FRAME_ALLOCATOR
-        .get()
-        .unwrap()
         .lock()
         .alloc_contiguous(num, 0);
     if start.is_none() {
@@ -94,16 +94,12 @@ fn free_frames(addr: *mut u8, num: usize) {
     let start = (addr as usize - ekernel as usize) / FRAME_SIZE;
     trace!("slab free frame {} start:{:#x}", start, addr as usize);
     FRAME_ALLOCATOR
-        .get()
-        .unwrap()
         .lock()
         .insert(start..start + num);
 }
 
 pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
-        .get()
-        .unwrap()
         .lock()
         .alloc()
         .map(FrameTracker::new)
@@ -112,7 +108,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
     let mut ans = Vec::new();
     for _ in 0..count {
-        let id = FRAME_ALLOCATOR.get().unwrap().lock().alloc()?;
+        let id = FRAME_ALLOCATOR.lock().alloc()?;
         ans.push(FrameTracker::new(id));
     }
     Some(ans)
