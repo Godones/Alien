@@ -16,7 +16,7 @@ _start:
     .section .bss.stack
     .global bootstack
 bootstack:
-    .space 4096 * 16 * 4 #
+    .space 4096 * 64#
     .global bootstacktop
 bootstacktop:
 
