@@ -7,6 +7,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::alloc::Layout;
 use core::cmp::min;
+use core::fmt::{Display, Formatter};
 use core::num::NonZeroUsize;
 use core::ops::Deref;
 use core2::io::{Read, Seek, SeekFrom, Write};
@@ -19,8 +20,8 @@ use crate::driver::QEMU_BLOCK_DEVICE;
 
 
 lazy_static! {
-    pub static ref ROOT_DIR: Arc<Dir> = {
-        let db = DB::open::<_,FakeOpenOptions,FakeMMap>(FakePath::new("")).unwrap();
+    pub static ref ROOT_DIR: Arc<Dir<FakeMMap>> = {
+        let db = DB::<FakeMMap>::open::<FakeOpenOptions,_>(FakePath::new("")).unwrap();
         let fs = DbFileSystem::new(db);
         let root = fs.root();
         root
@@ -285,16 +286,18 @@ impl OpenOption for FakeOpenOptions {
         self
     }
 }
-
+#[derive(Debug)]
 struct FakePath {
     path: String,
 }
 
-impl ToString for FakePath {
-    fn to_string(&self) -> String {
-        self.path.clone()
+impl Display for FakePath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.write_fmt(format_args!("FakePath({})", self.path))
     }
 }
+
+
 impl PathLike for FakePath {
     fn exists(&self) -> bool {
         let device = QEMU_BLOCK_DEVICE.lock();
@@ -357,26 +360,5 @@ impl MemoryMap for FakeMMap {
             FAKE_MMAP.addr = addr as usize;
         }
         Ok(unsafe { FAKE_MMAP.clone() })
-    }
-}
-#[allow(unused)]
-pub fn jammdb_test() {
-    let db = DB::open::<_, FakeOpenOptions, FakeMMap>(FakePath::new("")).unwrap();
-    // // open a writable transaction so we can make changes
-    let tx = db.tx(true).unwrap();
-    // create a bucket to store a map of first names to last names
-    let names_bucket = tx.create_bucket("names").unwrap();
-    names_bucket.put(b"Kanan", b"Jarrus").unwrap();
-    names_bucket.put(b"Ezra", b"Bridger").unwrap();
-    // commit the changes so they are saved to disk
-    tx.commit().unwrap();
-    let tx = db.tx(false).unwrap();
-    let users_bucket = tx.get_bucket("names").unwrap();
-    // get the key / value pair we inserted into the bucket
-    if let Some(data) = users_bucket.get(b"Kanan") {
-        // deserialize into a user struct
-        let key = core::str::from_utf8(data.kv().key()).unwrap();
-        let value = core::str::from_utf8(data.kv().value()).unwrap();
-        info!("{}:{}", key, value);
     }
 }
