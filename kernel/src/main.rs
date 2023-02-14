@@ -26,6 +26,7 @@ mod trap;
 extern crate log;
 extern crate alloc;
 
+
 use crate::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
 use crate::sbi::shutdown;
 use cfg_if::cfg_if;
@@ -57,15 +58,12 @@ fn clear_bss() {
 #[no_mangle]
 pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
-        println!("{}", config::FLAG);
         clear_bss();
+        println!("{}", config::FLAG);
         print::init_logger();
         preprint::init_print(&print::PrePrint);
-        println!("asdasda");
         memory::init_frame_allocator();
-        println!("Hello, world!");
         memory::init_slab_system(FRAME_SIZE, 32);
-        println!("{}", config::FLAG);
         cfg_if!(
         if #[cfg(feature = "test")] {
             memory::test_simple_bitmap();

@@ -10,7 +10,7 @@ pub const FLAG: &str = r"
 // 0x8020_0000
 pub const RISCV_UART_ADDR: usize = 0x10_000_000;
 pub const RISCV_UART_RANG: usize = 0x100;
-pub const MEMORY_END: usize = 0x88000000; //2GB
+pub const MEMORY_END: usize = 0x88_000_000; //128
                                           // pub const MEMORY_END: usize = 0x8820_0000; //2GB
 pub const FRAME_SIZE: usize = 0x1000; //4KB
 pub const FRAME_BITS: usize = 12;

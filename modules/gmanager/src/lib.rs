@@ -1,6 +1,8 @@
 #![no_std]
 
 extern crate alloc;
+#[cfg(test)]
+extern crate std;
 use alloc::vec::Vec;
 
 pub struct MinimalManager<T: Clone> {
@@ -73,6 +75,7 @@ pub enum ManagerError {
 
 #[cfg(test)]
 mod tests {
+    use std::println;
     use crate::MinimalManager;
 
     #[test]

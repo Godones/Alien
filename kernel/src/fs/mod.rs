@@ -26,7 +26,7 @@ pub trait File: Send + Sync {
 
 pub fn fs_repl() {
     let mut path_record: Vec<String> = Vec::new();
-    let mut current_dir: Arc<dyn DirectoryLike<Error: Error + 'static>> = ROOT_DIR.clone();
+    let mut current_dir: Arc<dyn DirectoryLike<Error: Error + 'static, FError:Error+'static>> = ROOT_DIR.clone();
     loop {
         let mut path = String::new();
         path_record.iter().for_each(|x| {
