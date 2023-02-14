@@ -1,4 +1,10 @@
 #![no_std]
+
+
+extern crate alloc;
+#[cfg(test)]
+extern crate std;
+
 // 128
 pub struct Bitmap<const N: usize> {
     data: [u8; N],
@@ -78,9 +84,11 @@ impl<const N: usize> Bitmap<N> {
     }
 }
 
+#[cfg(test)]
 mod test {
     use crate::Bitmap;
     #[allow(unused)]
+    #[test]
     fn test_alloc() {
         let mut bitmap = Bitmap::<16>::new();
         assert_eq!(bitmap.alloc(), Some(0));
