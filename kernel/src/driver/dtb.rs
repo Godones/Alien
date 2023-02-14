@@ -58,27 +58,12 @@ fn virtio_probe(node: FdtNode) {
 fn virtio_device(transport: impl Transport + 'static) {
     match transport.device_type() {
         DeviceType::Block => virtio_blk(transport),
-        // DeviceType::GPU => virtio_gpu(transport),
-        // DeviceType::Input => virtio_input(transport),
-        // DeviceType::Network => virtio_net(transport),
         t => warn!("Unrecognized virtio device: {:?}", t),
     }
 }
 fn virtio_blk<T: Transport + 'static>(transport: T) {
     let blk = VirtIOBlk::<HalImpl, T>::new(transport).expect("failed to create blk driver");
-
     let qemu_block_device = QemuBlockDevice::new(blk);
     *QEMU_BLOCK_DEVICE.lock() = Some(Arc::new(qemu_block_device));
-
-    // let mut input = vec![0xffu8; 512];
-    // let mut output = vec![0; 512];
-    // for i in 0..32 {
-    //     for x in input.iter_mut() {
-    //         *x = i as u8;
-    //     }
-    //     blk.write_block(i, &input).expect("failed to write");
-    //     blk.read_block(i, &mut output).expect("failed to read");
-    //     assert_eq!(input, output);
-    // }
     info!("virtio-blk init finished");
 }

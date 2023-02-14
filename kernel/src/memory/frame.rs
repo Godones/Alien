@@ -5,7 +5,7 @@ use crate::config::FRAME_SIZE;
 use alloc::vec::Vec;
 use bitmap_allocator::{BitAlloc, BitAlloc16M};
 use lazy_static::lazy_static;
-use spin::{Mutex, Once};
+use spin::{Mutex};
 
 lazy_static!{
     pub static ref FRAME_ALLOCATOR:Mutex<BitAlloc16M> = Mutex::new(BitAlloc16M::default());
