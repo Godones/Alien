@@ -1,41 +1,18 @@
 #![no_std]
 #![no_main]
-#![feature(core_intrinsics)]
 #![feature(panic_info_message)]
 #![feature(default_alloc_error_handler)]
-#![feature(naked_functions)]
-#![feature(let_chains)]
-#![feature(error_in_core)]
-#![feature(associated_type_bounds)]
-#![allow(semicolon_in_expressions_from_macros)]
-#[macro_use]
-mod print;
-mod arch;
-mod config;
-mod driver;
-mod fs;
-mod memory;
 mod panic;
-mod sbi;
-mod task;
-mod timer;
-mod trap;
 
-// extern crate alloc;
-#[macro_use]
-extern crate log;
-extern crate alloc;
-
-
-use crate::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
-use crate::sbi::shutdown;
 use cfg_if::cfg_if;
 use core::arch::global_asm;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use kernel::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
+use kernel::sbi::shutdown;
+use kernel::{config, driver, fs, memory, print, println, thread_local_init, timer, trap};
 
-global_asm!(include_str!("boot/boot.asm"));
-
+global_asm!(include_str!("./boot.asm"));
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
 
@@ -61,7 +38,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         clear_bss();
         println!("{}", config::FLAG);
         print::init_logger();
-        preprint::init_print(&print::PrePrint);
+        // preprint::init_print(&print::PrePrint);
         memory::init_frame_allocator();
         memory::init_slab_system(FRAME_SIZE, 32);
         cfg_if!(
@@ -99,14 +76,6 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     // fs::dbfs_test();
     loop {
         shutdown();
-    }
-}
-
-pub fn thread_local_init() {
-    // 允许内核读写用户态内存
-    // 取决于 CPU 的 RISC-V 规范版本就行处理
-    unsafe {
-        riscv::register::sstatus::set_sum();
     }
 }
 

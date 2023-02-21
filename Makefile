@@ -1,7 +1,7 @@
 .PHONY: all run clean
 
 TARGET      := riscv64gc-unknown-none-elf
-KERNEL_FILE := target/$(TARGET)/release/kernel
+KERNEL_FILE := target/$(TARGET)/release/boot
 DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
 OBJDUMP     := rust-objdump --arch-name=riscv64
@@ -9,7 +9,7 @@ OBJCOPY     := rust-objcopy --binary-architecture=riscv64
 BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
-IMG := boot/fs.img
+IMG := tools/fs.img
 SMP :=1
 
 
@@ -28,9 +28,9 @@ endef
 
 compile:
 	@#rm  kernel-qemu
-	@cargo build --release -p kernel
-	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
-	@cp $(KERNEL_FILE) ./kernel-qemu
+	@cargo build --release -p boot
+	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
+	@cp $(KERNEL_BIN) ./kernel-qemu
 
 
 build:compile
@@ -57,8 +57,7 @@ fat32:
 		sudo umount /fat; \
 	fi
 	@sudo mount $(IMG) /fat
-	@sudo cp ./boot/first.txt /fat
-	@sudo cp ./boot/second /fat
+	@sudo cp ./tools/hello /fat
 	@sync
 
 
@@ -76,7 +75,8 @@ debug: build
 
 asm:compile
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
-
+	@lvim kernel.asm
+	@rm kernel.asm
 clean:
 	@cargo clean
 	@rm riscv.*

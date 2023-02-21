@@ -5,16 +5,19 @@ use crate::config::FRAME_SIZE;
 use alloc::vec::Vec;
 use bitmap_allocator::{BitAlloc, BitAlloc16M};
 use lazy_static::lazy_static;
-use spin::{Mutex};
+use simple_bitmap::Bitmap;
+use spin::Mutex;
 
-lazy_static!{
-    pub static ref FRAME_ALLOCATOR:Mutex<BitAlloc16M> = Mutex::new(BitAlloc16M::default());
+const MAX_FRAME_COUNT: usize = 32768;
+lazy_static! {
+    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<MAX_FRAME_COUNT>> = Mutex::new(Bitmap::new());
 }
 
 extern "C" {
     fn ekernel();
 }
 
+#[no_mangle]
 pub fn init_frame_allocator() {
     let start = ekernel as usize;
     let end = crate::config::MEMORY_END;
@@ -27,7 +30,8 @@ pub fn init_frame_allocator() {
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
-    FRAME_ALLOCATOR.lock().insert(0..page_count);
+    // FRAME_ALLOCATOR.lock().insert(0..page_count);
+    println!("frame allocator init success");
 }
 
 #[derive(Debug)]
@@ -65,10 +69,10 @@ impl FrameTracker {
 impl Drop for FrameTracker {
     fn drop(&mut self) {
         trace!("drop frame:{}", self.id);
-        let flag = FRAME_ALLOCATOR.lock().test(self.id);
-        if flag {
-            panic!("frame {} is not allocated", self.id);
-        }
+        // let flag = FRAME_ALLOCATOR.lock()(self.id);
+        // if flag {
+        //     panic!("frame {} is not allocated", self.id);
+        // }
         FRAME_ALLOCATOR.lock().dealloc(self.id);
     }
 }
@@ -77,9 +81,7 @@ impl Drop for FrameTracker {
 /// 这些页面需要保持连续
 #[no_mangle]
 fn alloc_frames(num: usize) -> *mut u8 {
-    let start = FRAME_ALLOCATOR
-        .lock()
-        .alloc_contiguous(num, 0);
+    let start = FRAME_ALLOCATOR.lock().alloc_contiguous(num, 0);
     if start.is_none() {
         return core::ptr::null_mut();
     }
@@ -93,16 +95,16 @@ fn alloc_frames(num: usize) -> *mut u8 {
 fn free_frames(addr: *mut u8, num: usize) {
     let start = (addr as usize - ekernel as usize) / FRAME_SIZE;
     trace!("slab free frame {} start:{:#x}", start, addr as usize);
-    FRAME_ALLOCATOR
-        .lock()
-        .insert(start..start + num);
+    for i in 0..num {
+        FRAME_ALLOCATOR.lock().dealloc(start + i);
+    }
+    // FRAME_ALLOCATOR
+    //     .lock()
+    //     .de(start..start + num);
 }
 
 pub fn frame_alloc() -> Option<FrameTracker> {
-    FRAME_ALLOCATOR
-        .lock()
-        .alloc()
-        .map(FrameTracker::new)
+    FRAME_ALLOCATOR.lock().alloc().map(FrameTracker::new)
 }
 
 pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
@@ -119,13 +121,11 @@ pub fn frame_allocator_test() {
     let mut v: Vec<FrameTracker> = Vec::new();
     for i in 0..5 {
         let frame = frame_alloc().unwrap();
-        // println!("frame {} start:{:#x}", frame.id, frame.start());
         v.push(frame);
     }
     v.clear();
     for i in 0..5 {
         let frame = frame_alloc().unwrap();
-        // println!("frame {} start:{:#x}", frame.id, frame.start());
         v.push(frame);
     }
     drop(v);

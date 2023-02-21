@@ -36,10 +36,11 @@ struct HeapAllocator {
 }
 unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        self.slab.alloc(layout)
+        let ptr = self.slab.alloc(layout);
+        ptr
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
-        self.slab.dealloc(ptr, layout)
+        self.slab.dealloc(ptr, layout);
     }
 }
 
