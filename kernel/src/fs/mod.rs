@@ -26,7 +26,8 @@ pub trait File: Send + Sync {
 
 pub fn fs_repl() {
     let mut path_record: Vec<String> = Vec::new();
-    let mut current_dir: Arc<dyn DirectoryLike<Error: Error + 'static, FError:Error+'static>> = ROOT_DIR.clone();
+    let mut current_dir: Arc<dyn DirectoryLike<Error: Error + 'static, FError: Error + 'static>> =
+        ROOT_DIR.clone();
     loop {
         let mut path = String::new();
         path_record.iter().for_each(|x| {
@@ -166,11 +167,11 @@ pub fn fs_repl() {
                 loop {
                     let input = get_line();
                     if input == "q" {
-                        break
+                        break;
                     }
                     buf.push_str(&input);
                 }
-                let offset  = input[2].parse::<u32>().unwrap();
+                let offset = input[2].parse::<u32>().unwrap();
                 let ans = file.write(offset, buf.as_bytes());
                 if ans.is_err() {
                     println!("write: cannot write file");
@@ -214,12 +215,12 @@ pub fn fs_repl() {
                 }
             }
             "clear" => {
-                if input.len()!=2{
+                if input.len() != 2 {
                     println!("clear {{-f}}: missing operand");
                     continue;
                 }
                 let file = current_dir.open(input[1]);
-                if file.is_err(){
+                if file.is_err() {
                     println!("no file");
                 }
                 file.unwrap().clear();
