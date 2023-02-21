@@ -75,8 +75,8 @@ pub enum ManagerError {
 
 #[cfg(test)]
 mod tests {
-    use std::println;
     use crate::MinimalManager;
+    use std::println;
 
     #[test]
     pub fn test_gmanager() {
