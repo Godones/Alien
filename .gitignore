@@ -15,5 +15,5 @@ kernel-qemu
 .idea
 build
 *.dts
-boot/fs.img
+tools/fs.img
 *.hex

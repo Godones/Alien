@@ -1,7 +1,7 @@
+use crate::driver::QEMU_BLOCK_DEVICE;
 use alloc::alloc::dealloc;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use lazy_static::lazy_static;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -11,24 +11,21 @@ use core::fmt::{Display, Formatter};
 use core::num::NonZeroUsize;
 use core::ops::Deref;
 use core2::io::{Read, Seek, SeekFrom, Write};
-use dbfs::{Dir,File,DbFileSystem};
+use dbfs::{DbFileSystem, Dir, File};
 use fat32_trait::BlockDevice;
-use dbfs::jammdb::{DB, DbFile, FileExt, MemoryMap, MetaData, OpenOption, PathLike};
+use jammdb::{DbFile, FileExt, MemoryMap, MetaData, Mmap, OpenOption, PathLike, DB};
+use lazy_static::lazy_static;
 use lru::LruCache;
-use crate::driver::QEMU_BLOCK_DEVICE;
-
-
 
 lazy_static! {
-    pub static ref ROOT_DIR: Arc<Dir<FakeMMap>> = {
-        let db = DB::<FakeMMap>::open::<FakeOpenOptions,_>(FakePath::new("")).unwrap();
+    pub static ref ROOT_DIR: Arc<Dir> = {
+        let db = DB::open::<FakeOpenOptions, _>(Arc::new(FakeMMap::default()), FakePath::new(""))
+            .unwrap();
         let fs = DbFileSystem::new(db);
         let root = fs.root();
         root
     };
 }
-
-
 
 type Cache = [u8; 512];
 struct CacheManager {
@@ -192,7 +189,7 @@ impl Read for FakeFile {
     }
 }
 
-impl FakeFile{
+impl FakeFile {
     fn open<T: PathLike + ToString>(_path: &T) -> Option<Self> {
         let device = QEMU_BLOCK_DEVICE.lock();
         let device = device.as_ref().unwrap();
@@ -202,7 +199,6 @@ impl FakeFile{
 }
 
 impl FileExt for FakeFile {
-
     fn lock_exclusive(&self) -> core2::io::Result<()> {
         Ok(())
     }
@@ -270,7 +266,7 @@ impl OpenOption for FakeOpenOptions {
         self
     }
 
-    fn open<T: ToString + PathLike>(&mut self, path: &T) -> core2::io::Result<dbfs::jammdb::File> {
+    fn open<T: ToString + PathLike>(&mut self, path: &T) -> core2::io::Result<jammdb::File> {
         info!("open file: {}", path.to_string());
         let fake_file = FakeFile::open(path);
         if fake_file.is_none() {
@@ -279,7 +275,7 @@ impl OpenOption for FakeOpenOptions {
                 "file not found",
             ));
         }
-        Ok(dbfs::jammdb::File::new(Box::new(fake_file.unwrap())))
+        Ok(jammdb::File::new(Box::new(fake_file.unwrap())))
     }
 
     fn create(&mut self, _create: bool) -> &mut Self {
@@ -296,7 +292,6 @@ impl Display for FakePath {
         f.write_fmt(format_args!("FakePath({})", self.path))
     }
 }
-
 
 impl PathLike for FakePath {
     fn exists(&self) -> bool {
@@ -316,7 +311,7 @@ impl FakePath {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct FakeMMap {
     size: usize,
     addr: usize,
@@ -330,12 +325,12 @@ impl Deref for FakeMMap {
     }
 }
 
-static mut FAKE_MMAP: FakeMMap = FakeMMap { size: 0, addr: 0 };
+static mut FAKE_MMAP: Mmap = Mmap { size: 0, addr: 0 };
 
 impl MemoryMap for FakeMMap {
-    fn map(file: &mut dyn DbFile) -> core2::io::Result<Self>
-        where
-            Self: Sized,
+    fn map(&self, file: &mut dyn DbFile) -> core2::io::Result<Mmap>
+    where
+        Self: Sized,
     {
         // 将文件映射到虚拟内存
         // 这里暂且使用物理内存
@@ -359,6 +354,10 @@ impl MemoryMap for FakeMMap {
             FAKE_MMAP.size = size;
             FAKE_MMAP.addr = addr as usize;
         }
-        Ok(unsafe { FAKE_MMAP.clone() })
+        let mmap = Mmap {
+            size,
+            addr: addr as usize,
+        };
+        Ok(mmap)
     }
 }
