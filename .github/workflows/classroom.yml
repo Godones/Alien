@@ -57,10 +57,10 @@ jobs:
           cd qemu-7.0.0
           sudo make install
           qemu-system-riscv64 --version
-      - name: build os.bin
+      - name: build os.md.bin
         run: |
           make all
-      - name: run os
+      - name: run os.md
         run: |
           wget $IMG_URL -O fat32.img
           timeout $TIMEOUT qemu-system-riscv64 \
@@ -75,7 +75,7 @@ jobs:
       - name: Download Scripts
         run: |
           git clone $SCRIPT_REPO .github/classroom
-      - uses: yfblock/os-autograding@master
+      - uses: yfblock/os.md-autograding@master
         id: autograding
         with:
           outputFile: qemu_run_output.txt

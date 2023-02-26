@@ -1,6 +1,7 @@
 use crate::driver::hal::HalImpl;
-use crate::driver::{QemuBlockDevice, QEMU_BLOCK_DEVICE};
+use crate::driver::{QemuBlockDevice, QEMU_BLOCK_DEVICE, pci_probe};
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::ptr::NonNull;
 use fdt::node::FdtNode;
 use fdt::standard_nodes::Compatible;
@@ -8,6 +9,7 @@ use fdt::Fdt;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::transport::{DeviceType, Transport};
+use crate::driver::rtc::init_rtc;
 
 pub fn init_dt(dtb: usize) {
     info!("device tree @ {:#x}", dtb);
@@ -21,12 +23,27 @@ fn walk_dt(fdt: Fdt) {
         if let Some(compatible) = node.compatible() {
             if compatible.all().any(|s| s == "virtio,mmio") {
                 virtio_probe(node);
+            }else if  compatible.all().any(|s| s == "pci-host-ecam-generic"){
+                pci_probe(node);
+            }else if compatible.all().any(|s| s== "google,goldfish-rtc") {
+                rtc_probe(node);
             }
-        } else {
-            // info!("{:?}",node);
         }
     }
 }
+
+fn rtc_probe(node:FdtNode){
+    if let Some(reg) = node.reg().and_then(|mut reg| reg.next()) {
+        let paddr = reg.starting_address as usize;
+        if let Some(mut interrupts) = node.interrupts(){
+            let vec = interrupts.map(|x|x).collect::<Vec<usize>>();
+            if vec.len() > 0 {
+                init_rtc(paddr,vec[0] as u32);
+            }
+        }
+    };
+}
+
 fn virtio_probe(node: FdtNode) {
     if let Some(reg) = node.reg().and_then(|mut reg| reg.next()) {
         let paddr = reg.starting_address as usize;
@@ -38,9 +55,7 @@ fn virtio_probe(node: FdtNode) {
             node.name,
             node.compatible().map(Compatible::first),
         );
-
         let header = NonNull::new(vaddr as *mut VirtIOHeader).unwrap();
-
         match unsafe { MmioTransport::new(header) } {
             Err(e) => warn!("Error creating VirtIO MMIO transport: {}", e),
             Ok(transport) => {

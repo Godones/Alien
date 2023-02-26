@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use crate::fs::File;
 use alloc::sync::{Arc, Weak};
 use gmanager::MinimalManager;
@@ -8,6 +9,7 @@ use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, MAX_SUB_PROCESS_NUM, MAX_THREAD
 use crate::memory::build_elf_address_space;
 use crate::task::thread::Thread;
 use spin::RwLock;
+use crate::trap::TrapFrame;
 
 type ThreadManager = MinimalManager<Arc<Thread>>;
 type SubProcessManager = MinimalManager<Arc<Process>>;
@@ -37,6 +39,7 @@ pub struct ProcessInner {
     pub state: ProcessState,
     pub father: Option<Weak<Process>>,
     pub children: SubProcessManager,
+    pub trap_frame: Box<TrapFrame>,
     pub threads: ThreadManager,
     pub fd_table: FdManager,
     pub exit_code: i32,

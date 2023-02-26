@@ -30,7 +30,7 @@ impl Log for SimpleLogger {
 }
 
 pub fn init_logger() {
-    println!("init logger {:?}", option_env!("LOG"));
+    println!("Init logger {:?}", option_env!("LOG"));
     log::set_logger(&SimpleLogger).unwrap();
     log::set_max_level(match option_env!("LOG") {
         Some("ERROR") => LevelFilter::Error,

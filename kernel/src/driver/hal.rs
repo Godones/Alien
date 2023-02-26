@@ -1,6 +1,7 @@
 use crate::memory::{addr_to_frame, frames_alloc};
 use core::intrinsics::forget;
 use core::ptr::NonNull;
+use pci::PortOps;
 use virtio_drivers::{BufferDirection, Hal, PhysAddr, PAGE_SIZE};
 
 pub struct HalImpl;
@@ -27,9 +28,31 @@ unsafe impl Hal for HalImpl {
 
     unsafe fn share(buffer: NonNull<[u8]>, direction: BufferDirection) -> PhysAddr {
         let vaddr = buffer.as_ptr() as *mut u8 as usize;
-        // Nothing to do, as the host already has access to all memory.
         vaddr
     }
 
     unsafe fn unshare(paddr: PhysAddr, buffer: NonNull<[u8]>, direction: BufferDirection) {}
+}
+
+
+
+pub struct PortImpl;
+impl PortOps for PortImpl{
+    unsafe fn read8(&self, port: u16) -> u8 {
+        0
+    }
+
+    unsafe fn read16(&self, port: u16) -> u16 {
+        0
+    }
+
+    unsafe fn read32(&self, port: u32) -> u32 {
+        0
+    }
+
+    unsafe fn write8(&self, port: u16, val: u8) {}
+
+    unsafe fn write16(&self, port: u16, val: u16) {}
+
+    unsafe fn write32(&self, port: u32, val: u32) {}
 }
