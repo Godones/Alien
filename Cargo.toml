@@ -1,9 +1,12 @@
 [workspace]
 members = [
     "kernel",
+    "userlib",
     "modules/simple-bitmap",
     "modules/gmanager",
     "modules/plic",
     "modules/pci-rs",
-    "boot"
+    "boot",
+    "apps/init",
+    "apps/hello"
 ]

@@ -6,7 +6,7 @@ use core::arch::asm;
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct Context {
-     ra: usize,
+    ra: usize,
     sp: usize,
     s: [usize; 12],
 }
