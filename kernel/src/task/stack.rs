@@ -7,8 +7,8 @@ pub struct Stack {
 }
 
 impl Stack {
-    pub fn new(size: usize) -> Option<Stack> {
-        let frames = frames_alloc(size);
+    pub fn new(pages: usize) -> Option<Stack> {
+        let frames = frames_alloc(pages);
         frames.map(|frames| Self { frames })
     }
     /// get the stack top
