@@ -3,7 +3,6 @@ use crate::config::FRAME_SIZE;
 /// 使用位图实现
 /// 位图的每一位代表一个物理页帧
 use alloc::vec::Vec;
-use bitmap_allocator::{BitAlloc, BitAlloc16M};
 use lazy_static::lazy_static;
 use simple_bitmap::Bitmap;
 use spin::Mutex;
@@ -31,7 +30,7 @@ pub fn init_frame_allocator() {
         page_start, page_end, page_count
     );
     // FRAME_ALLOCATOR.lock().insert(0..page_count);
-    println!("frame allocator init success");
+    println!("Frame allocator init success");
 }
 
 #[derive(Debug)]

@@ -5,22 +5,26 @@ use core::arch::asm;
 /// 线程切换由__switch()完成，这个汇编函数不会由编译器完成寄存器保存，因此需要手动保存
 #[derive(Debug, Default)]
 #[repr(C)]
-pub struct ThreadContext {
-    ra: usize,
+pub struct Context {
+     ra: usize,
     sp: usize,
     s: [usize; 12],
 }
 
-impl ThreadContext {
+impl Context {
     pub fn new(ra: usize, sp: usize) -> Self {
         Self { ra, sp, s: [0; 12] }
     }
 }
 
+pub fn switch(current:&Context,next:&Context){
+    __switch(current as *const Context,next as *const Context)
+}
+
 #[naked]
 #[no_mangle]
 #[link_section = ".text"]
-pub extern "C" fn __switch(current: *mut ThreadContext, next: *mut ThreadContext) -> ! {
+pub extern "C" fn __switch(current: *const Context, next: *const Context) -> ! {
     unsafe {
         asm!(
             "sd ra,0(a0)",

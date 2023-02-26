@@ -1,6 +1,6 @@
 use crate::config::KERNEL_STACK_SIZE;
 use crate::memory::{kernel_satp, KERNEL_SPACE};
-use crate::task::context::ThreadContext;
+use crate::task::context::Context;
 use crate::task::process::Process;
 use crate::task::stack::Stack;
 use crate::trap::{kernel_trap_vector, TrapFrame};
@@ -18,7 +18,7 @@ pub struct ThreadInner {
     pub tid: u32,
     pub trap_frame: TrapFrame,
     pub state: ThreadState,
-    pub context: ThreadContext,
+    pub context: Context,
 }
 
 #[derive(Debug)]
@@ -39,7 +39,7 @@ impl Thread {
             tid: 0,
             trap_frame: TrapFrame::empty(),
             state: ThreadState::Init,
-            context: ThreadContext::default(),
+            context: Context::default(),
         };
         let thread = Self {
             process: Weak::new(),

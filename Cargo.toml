@@ -4,5 +4,6 @@ members = [
     "modules/simple-bitmap",
     "modules/gmanager",
     "modules/plic",
+    "modules/pci-rs",
     "boot"
 ]

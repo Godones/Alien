@@ -20,6 +20,7 @@ define boot_qemu
         -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \
         -device virtio-blk-device,drive=x0 \
+        -soundhw ac97 \
         -nographic \
         -kernel  kernel-qemu\
         -smp $(SMP) -m 128M
@@ -37,6 +38,7 @@ build:compile
 
 run:compile $(img)
 	$(call boot_qemu)
+	@rm ./kernel-qemu
 
 
 dtb:
