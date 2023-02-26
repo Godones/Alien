@@ -16,6 +16,8 @@ pub mod sbi;
 pub mod task;
 pub mod timer;
 pub mod trap;
+mod syscall;
+
 
 // extern crate alloc;
 #[macro_use]
