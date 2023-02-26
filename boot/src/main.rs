@@ -11,6 +11,7 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use kernel::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
 use kernel::sbi::shutdown;
 use kernel::{config, driver, fs, memory, print, println, thread_local_init, timer, trap};
+use kernel::driver::rtc::get_rtc_time;
 
 global_asm!(include_str!("./boot.asm"));
 // 多核启动标志
@@ -71,6 +72,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     wait_all_cpu_start();
     // 设备树初始化
     driver::init_dt(device_tree_addr);
+    get_rtc_time().map(|x|{println!("Current time:{:?}", x);}).is_none().then(||{println!("time error");});
     // 文件系统测试
     fs::fs_repl();
     // fs::dbfs_test();

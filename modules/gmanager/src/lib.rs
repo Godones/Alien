@@ -1,8 +1,9 @@
 #![no_std]
-
-extern crate alloc;
 #[cfg(test)]
+
+
 extern crate std;
+extern crate alloc;
 use alloc::vec::Vec;
 
 pub struct MinimalManager<T: Clone> {
