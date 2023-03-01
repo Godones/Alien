@@ -1,17 +1,14 @@
 #![no_std]
 #![no_main]
-#![feature(panic_info_message)]
-#![feature(default_alloc_error_handler)]
-mod panic;
 
-use cfg_if::cfg_if;
 use core::arch::global_asm;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use kernel::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
-use kernel::sbi::shutdown;
-use kernel::{config, driver, fs, memory, print, println, thread_local_init, timer, trap};
 use kernel::driver::rtc::get_rtc_time;
+use kernel::{config, driver, fs, memory, print, println, task, thread_local_init, timer, trap};
+
+use riscv::register::sstatus::{set_spp, SPP};
 
 global_asm!(include_str!("./boot.asm"));
 // 多核启动标志
@@ -35,27 +32,22 @@ fn clear_bss() {
 /// 进行操作系统的初始化，
 #[no_mangle]
 pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
+    unsafe {
+        set_spp(SPP::Supervisor);
+    }
     if hart_id == 0 {
         clear_bss();
         println!("{}", config::FLAG);
+        // println!("spp: {:?}", spp);
         print::init_logger();
         // preprint::init_print(&print::PrePrint);
         memory::init_frame_allocator();
         memory::init_slab_system(FRAME_SIZE, 32);
-        cfg_if!(
-        if #[cfg(feature = "test")] {
-            memory::test_simple_bitmap();
-            memory::frame_allocator_test();
-            memory::test_heap();
-            memory::test_page_allocator();
-            fs::test_gmanager();
-        }
-        );
         memory::build_kernel_address_space();
         memory::activate_paging_mode();
         thread_local_init();
         trap::init_trap_subsystem();
-        // timer::set_next_trigger(TIMER_FREQ);
+        timer::set_next_trigger(TIMER_FREQ);
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
     } else {
@@ -72,13 +64,18 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     wait_all_cpu_start();
     // 设备树初始化
     driver::init_dt(device_tree_addr);
-    get_rtc_time().map(|x|{println!("Current time:{:?}", x);}).is_none().then(||{println!("time error");});
-    // 文件系统测试
-    fs::fs_repl();
-    // fs::dbfs_test();
-    loop {
-        shutdown();
-    }
+    get_rtc_time()
+        .map(|x| {
+            println!("Current time:{:?}", x);
+        })
+        .is_none()
+        .then(|| {
+            println!("time error");
+        });
+    fs::list_dir();
+    task::init_process();
+    println!("init process done");
+    task::schedule::first_into_user();
 }
 
 fn wait_all_cpu_start() {

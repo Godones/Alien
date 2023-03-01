@@ -6,6 +6,7 @@ extern crate std;
 extern crate alloc;
 use alloc::vec::Vec;
 
+#[derive(Debug,Clone)]
 pub struct MinimalManager<T: Clone> {
     data: Vec<Option<T>>,
     // 记录最小可用索引
