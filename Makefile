@@ -1,7 +1,7 @@
 .PHONY: all run clean
 
 TARGET      := riscv64gc-unknown-none-elf
-KERNEL_FILE := target/$(TARGET)/release/boot
+KERNEL_FILE := boot/target/$(TARGET)/release/boot
 DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
 OBJDUMP     := rust-objdump --arch-name=riscv64
@@ -12,6 +12,7 @@ KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
 SMP :=1
 
+FS_TYPE := fat32
 
 define boot_qemu
 	qemu-system-riscv64 \
@@ -20,23 +21,26 @@ define boot_qemu
         -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \
         -device virtio-blk-device,drive=x0 \
-        -soundhw ac97 \
         -nographic \
         -kernel  kernel-qemu\
         -smp $(SMP) -m 128M
 endef
 
 
-compile:
-	@#rm  kernel-qemu
-	@cargo build --release -p boot
-	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
-	@cp $(KERNEL_BIN) ./kernel-qemu
+all:run
 
+compile:
+	@cd boot && cargo build --release
+	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
+	@cp $(KERNEL_FILE) ./kernel-qemu
+
+
+user:
+	@cd apps && make
 
 build:compile
 
-run:compile $(img)
+run:compile $(img) user
 	$(call boot_qemu)
 	@rm ./kernel-qemu
 
@@ -59,7 +63,6 @@ fat32:
 		sudo umount /fat; \
 	fi
 	@sudo mount $(IMG) /fat
-	@sudo cp ./tools/hello /fat
 	@sync
 
 
@@ -68,13 +71,29 @@ img-hex:
 	@cat test.hex
 
 
+gdb: compile $(img) user
+	@qemu-system-riscv64 \
+            -M virt $(1)\
+            -bios $(BOOTLOADER) \
+            -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
+            -drive file=$(IMG),if=none,format=raw,id=x0 \
+            -device virtio-blk-device,drive=x0 \
+            -nographic \
+            -kernel  kernel-qemu\
+            -smp $(SMP) -m 128M \
+            -s -S
 
-debug: build
+debug: compile $(img) user
 	@tmux new-session -d \
-		"qemu-system-riscv64 -machine virt -nographic -bios $(BOOTLOADER) -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) -smp 1 -m 128M -s -S" && \
+		"qemu-system-riscv64 -machine virt -nographic -bios $(BOOTLOADER) -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
+		-drive file=$(IMG),if=none,format=raw,id=x0  -device virtio-blk-device,drive=x0 -smp 1 -m 128M -s -S" && \
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
-
+fmt:
+	cd boot && cargo fmt
+	cd apps && make fmt
+	cd kernel && cargo fmt
+	cd userlib && cargo fmt
 asm:compile
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
 	@lvim kernel.asm

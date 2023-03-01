@@ -29,12 +29,13 @@ user_v:
     sd t2, 2*8(sp)
     # load kernel_satp into t0
     ld t0, 33*8(sp)
-    # move to kernel_sp
-    ld sp, 34*8(sp)
     # load trap_handler into t1
     ld t1, 35*8(sp)
+    # move to kernel_sp
+    ld sp, 34*8(sp)
+
     # load hartid into tp(x4)
-    ld tp, 36*8(tp)
+    # ld tp, 36*8(tp)
     # 保证用户态缓存全部刷新到内存
     sfence.vma
     # switch to kernel space

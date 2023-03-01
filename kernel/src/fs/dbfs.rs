@@ -11,7 +11,7 @@ use core::fmt::{Display, Formatter};
 use core::num::NonZeroUsize;
 use core::ops::Deref;
 use core2::io::{Read, Seek, SeekFrom, Write};
-use dbfs::{DbFileSystem, Dir, File};
+use dbfs::{DbFileSystem, Dir};
 use fat32_trait::BlockDevice;
 use jammdb::{DbFile, FileExt, MemoryMap, MetaData, Mmap, OpenOption, PathLike, DB};
 use lazy_static::lazy_static;
