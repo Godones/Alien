@@ -2,7 +2,6 @@ mod frame;
 mod vmm;
 
 use crate::arch::hart_id;
-use crate::config::FRAME_BITS;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -45,7 +44,7 @@ unsafe impl GlobalAlloc for HeapAllocator {
 }
 
 pub fn kernel_satp() -> usize {
-    8usize << 60 & (KERNEL_SPACE.read().root_ppn().unwrap().0 << FRAME_BITS)
+    8usize << 60 | (KERNEL_SPACE.read().root_ppn().unwrap().0)
 }
 
 #[allow(unused)]

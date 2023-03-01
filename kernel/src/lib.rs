@@ -4,6 +4,7 @@
 #![feature(let_chains)]
 #![feature(error_in_core)]
 #![feature(associated_type_bounds)]
+#![feature(panic_info_message)]
 #![allow(semicolon_in_expressions_from_macros)]
 #[macro_use]
 pub mod print;
@@ -12,12 +13,13 @@ pub mod config;
 pub mod driver;
 pub mod fs;
 pub mod memory;
+mod panic;
 pub mod sbi;
+mod sync;
+mod syscall;
 pub mod task;
 pub mod timer;
 pub mod trap;
-mod syscall;
-
 
 // extern crate alloc;
 #[macro_use]

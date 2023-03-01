@@ -4,249 +4,58 @@ mod dbfs;
 mod fat32;
 mod stdio;
 
-use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::error::Error;
-use fat32_trait::DirectoryLike;
-use gmanager::MinimalManager;
+use core::fmt::Debug;
+use fat32_trait::{DirectoryLike, FileLike};
 pub use stdio::*;
 
 #[cfg(feature = "dbfs")]
 use crate::fs::dbfs::ROOT_DIR;
 #[cfg(feature = "fat32")]
 use crate::fs::fat32::ROOT_DIR;
+use crate::task::current_process;
 
-use crate::print::console::get_line;
-
-pub trait File: Send + Sync {
-    fn write(&self, buf: &[u8]) -> usize;
-    fn read(&self, buf: &mut [u8]) -> usize;
+type UserBuffer = Vec<&'static mut [u8]>;
+pub trait File: Send + Sync + Debug {
+    fn write(&self, buf: UserBuffer) -> usize;
+    fn read(&self, buf: UserBuffer) -> usize;
 }
 
-pub fn fs_repl() {
-    let mut path_record: Vec<String> = Vec::new();
-    let mut current_dir: Arc<dyn DirectoryLike<Error: Error + 'static, FError: Error + 'static>> =
-        ROOT_DIR.clone();
-    loop {
-        let mut path = String::new();
-        path_record.iter().for_each(|x| {
-            path.push_str(x);
-            path.push_str("/");
-        });
-        if path_record.len() != 0 {
-            path.pop();
-        }
-        print!("{}>", path);
-        let input = get_line();
-        let input = input.split(" ").collect::<Vec<&str>>();
-        if input.len() == 0 {
-            continue;
-        }
-        match input[0].as_ref() {
-            "pwd" => {
-                print!("/");
-                path_record.iter().for_each(|x| {
-                    print!("{}/", x);
-                });
-                println!("");
-            }
-            "ls" => {
-                current_dir.list().unwrap().iter().for_each(|x| {
-                    println!("{}", x);
-                });
-            }
-            "cd" => {
-                if input.len() == 1 {
-                    println!("cd: missing operand");
-                    continue;
-                }
-                match input[1] {
-                    ".." => {
-                        if path_record.len() == 0 {
-                            println!("cd: no such file or directory");
-                            continue;
-                        }
-                        path_record.pop();
-                        current_dir = ROOT_DIR.clone();
-                        path_record.iter().for_each(|x| {
-                            current_dir = current_dir.cd(x).unwrap();
-                        });
-                    }
-                    "." => {
-                        continue;
-                    }
-                    other => {
-                        let dir = current_dir.cd(other);
-                        if dir.is_err() {
-                            println!("cd: no such file or directory");
-                            continue;
-                        }
-                        path_record.push(input[1].to_string());
-                        current_dir = dir.unwrap();
-                    }
-                }
-            }
-            "touch" => {
-                if input.len() == 1 {
-                    println!("touch: missing operand");
-                    continue;
-                }
-                let file = current_dir.create_file(input[1]);
-                if file.is_err() {
-                    println!("touch: cannot create file");
-                    continue;
-                }
-            }
-            "mkdir" => {
-                if input.len() == 1 {
-                    println!("mkdir: missing operand");
-                    continue;
-                }
-                let ans = current_dir.create_dir(input[1]);
-                if ans.is_err() {
-                    println!("mkdir: cannot create directory");
-                    continue;
-                }
-            }
-            "cat" => {
-                if input.len() == 1 {
-                    println!("cat: missing operand");
-                    continue;
-                }
-                let file = current_dir.open(input[1]);
-                if file.is_err() {
-                    println!("cat: no such file or directory");
-                    continue;
-                }
-                let file = file.unwrap();
-                let f_size = file.size();
-                let ans = file.read(0, f_size);
-                if ans.is_err() {
-                    println!("cat: cannot read file");
-                    continue;
-                }
-                let ans = ans.unwrap();
-                let ans = String::from_utf8(ans).unwrap();
-                println!("{}", ans);
-            }
-            "read" => {
-                if input.len() != 4 {
-                    println!("read {{-f}} {{-o}} {{-s}}: missing operand");
-                    continue;
-                }
-                let file = current_dir.open(input[1]);
-                if file.is_err() {
-                    println!("read: no such file or directory");
-                    continue;
-                }
-                let file = file.unwrap();
-                let offset = input[2].parse::<u32>().unwrap();
-                let f_size = input[3].parse::<u32>().unwrap();
-                let ans = file.read(offset, f_size);
-                if ans.is_err() {
-                    println!("read: cannot read file");
-                    continue;
-                }
-                let ans = ans.unwrap();
-                let ans = String::from_utf8(ans).unwrap();
-                println!("{}", ans);
-            }
-            "write" => {
-                if input.len() != 3 {
-                    println!("write {{-f}} {{-p}}: missing operand");
-                    continue;
-                }
-                let file = current_dir.open(input[1]);
-                if file.is_err() {
-                    println!("write: no such file or directory");
-                    continue;
-                }
-                let file = file.unwrap();
-                let mut buf = String::new();
-                loop {
-                    let input = get_line();
-                    if input == "q" {
-                        break;
-                    }
-                    buf.push_str(&input);
-                }
-                let offset = input[2].parse::<u32>().unwrap();
-                let ans = file.write(offset, buf.as_bytes());
-                if ans.is_err() {
-                    println!("write: cannot write file");
-                    continue;
-                }
-            }
-            "rename" => {
-                if input.len() != 4 {
-                    println!("rename {{old}} {{new}} -d/f: missing operand");
-                    continue;
-                }
-                let ans = match input[3] {
-                    "-d" => current_dir.rename_dir(input[1], input[2]),
-                    "-f" => current_dir.rename_file(input[1], input[2]),
-                    _ => {
-                        println!("rename {{old}} {{new}} -d/f: missing operand");
-                        continue;
-                    }
-                };
-                if ans.is_err() {
-                    println!("rename: cannot rename");
-                    continue;
-                }
-            }
-            "rm" => {
-                if input.len() != 3 {
-                    println!("rm {{name}} -d/f: missing operand");
-                    continue;
-                }
-                let ans = match input[2] {
-                    "-d" => current_dir.delete_dir(input[1]),
-                    "-f" => current_dir.delete_file(input[1]),
-                    _ => {
-                        println!("rm {{name}} -d/f: missing operand");
-                        continue;
-                    }
-                };
-                if ans.is_err() {
-                    println!("rm: cannot remove");
-                    continue;
-                }
-            }
-            "clear" => {
-                if input.len() != 2 {
-                    println!("clear {{-f}}: missing operand");
-                    continue;
-                }
-                let file = current_dir.open(input[1]);
-                if file.is_err() {
-                    println!("no file");
-                }
-                file.unwrap().clear();
-            }
-            "exit" => break,
-            _ => {}
-        }
+pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return -1;
     }
+    let file = file.unwrap();
+    let buf = process.transfer_raw_buffer(buf, len);
+    file.read(buf) as isize
 }
 
-#[allow(unused)]
-pub fn test_gmanager() {
-    let mut manager = MinimalManager::<usize>::new(10);
-    for i in 0..10 {
-        let index = manager.insert(10).unwrap();
-        assert_eq!(index, i);
+pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return -1;
     }
-    let index = manager.insert(10);
-    assert!(index.is_err());
-    let ans = manager.remove(10);
-    assert!(ans.is_err());
-    let ans = manager.remove(1).unwrap();
-    let index = manager.insert(10).unwrap();
-    assert_eq!(index, 1);
-    let index = manager.insert(10);
-    assert!(index.is_err());
+    let file = file.unwrap();
+    let buf = process.transfer_raw_buffer(buf, len);
+    file.write(buf) as isize
+}
 
-    println!("gmanager test passed");
+// temp function, will be removed
+pub fn list_dir() {
+    let root = ROOT_DIR.clone();
+    println!("---------APP LIST---------");
+    root.list().unwrap().iter().for_each(|entry| {
+        println!("{}", entry);
+    });
+}
+
+pub fn open_file(path: &str) -> Option<Arc<dyn FileLike<Error: Error + 'static>>> {
+    let root = ROOT_DIR.clone();
+    let file = root.open(path).unwrap();
+    Some(file)
 }

@@ -6,7 +6,7 @@ pub const FLAG: &str = r"
 /_/  /_/   \____/  /_____/  \____/   /_____//_____/          \____/  /____/
 
 ";
-
+pub const CLOCK_FREQ: usize = 12500000;
 // 0x8020_0000
 pub const RISCV_UART_ADDR: usize = 0x10_000_000;
 pub const RISCV_UART_RANG: usize = 0x100;
@@ -23,11 +23,11 @@ pub const MMIO: &[(usize, usize)] = &[
     (0x2000000, 0x10000),
     (0xc000000, 0x210000),  // VIRT_PLIC in virt machine
     (0x10_000_000, 0x9000), // VIRT_UART0 with GPU  in virt machine
-    (0x30_000_000,0x10000000)
+    (0x30_000_000, 0x10000000),
 ];
 
 // 跳板页定义
-pub const TRAMPOLINE: usize = usize::MAX - FRAME_SIZE + 1;
+pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 
 // 栈大小8k

@@ -1,7 +1,7 @@
 use crate::memory::{frames_alloc, FrameTracker};
 use alloc::vec::Vec;
 
-/// stack 拥有物理页帧的所有权
+#[derive(Debug)]
 pub struct Stack {
     frames: Vec<FrameTracker>,
 }
@@ -9,7 +9,10 @@ pub struct Stack {
 impl Stack {
     pub fn new(pages: usize) -> Option<Stack> {
         let frames = frames_alloc(pages);
-        frames.map(|frames| Self { frames })
+        match frames {
+            Some(v) => Some(Stack { frames: v }),
+            _ => None,
+        }
     }
     /// get the stack top
     pub fn top(&self) -> usize {
