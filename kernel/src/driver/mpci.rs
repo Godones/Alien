@@ -1,13 +1,12 @@
+use crate::driver::hal::PortImpl;
 use fdt::node::FdtNode;
 use fdt::standard_nodes::Compatible;
-use pci::{CSpaceAccessMethod, scan_bus};
-use crate::driver::hal::PortImpl;
 use pci::BAR;
-pub fn pci_probe(node:FdtNode){
+use pci::{scan_bus, CSpaceAccessMethod};
+pub fn pci_probe(node: FdtNode) {
     if let Some(reg) = node.reg().and_then(|mut reg| reg.next()) {
         let paddr = reg.starting_address as usize;
         let size = reg.size.unwrap();
-        let vaddr = paddr;
         info!("walk dt addr={:#x}, size={:#x}", paddr, size);
         info!(
             "Device tree node {}: {:?}",
@@ -15,18 +14,22 @@ pub fn pci_probe(node:FdtNode){
             node.compatible().map(Compatible::first),
         );
         unsafe {
-            scan_bus(&PortImpl, CSpaceAccessMethod::MemoryMapped(paddr as *mut u8)).for_each(|dev|{
+            scan_bus(
+                &PortImpl,
+                CSpaceAccessMethod::MemoryMapped(paddr as *mut u8),
+            )
+            .for_each(|dev| {
                 info!(
-                "pci: {:02x}:{:02x}.{} {:#x} {:#x} ({} {}) irq: {}:{:?}",
-                dev.loc.bus,
-                dev.loc.device,
-                dev.loc.function,
-                dev.id.vendor_id,
-                dev.id.device_id,
-                dev.id.class,
-                dev.id.subclass,
-                dev.pic_interrupt_line,
-                dev.interrupt_pin
+                    "pci: {:02x}:{:02x}.{} {:#x} {:#x} ({} {}) irq: {}:{:?}",
+                    dev.loc.bus,
+                    dev.loc.device,
+                    dev.loc.function,
+                    dev.id.vendor_id,
+                    dev.id.device_id,
+                    dev.id.class,
+                    dev.id.subclass,
+                    dev.pic_interrupt_line,
+                    dev.interrupt_pin
                 );
                 dev.bars.iter().enumerate().for_each(|(index, bar)| {
                     if let Some(BAR::Memory(pa, len, _, t)) = bar {
@@ -47,7 +50,6 @@ pub fn pci_probe(node:FdtNode){
                 //         info!("pci: unknown device");
                 //     }
                 // }
-
             })
         }
     }

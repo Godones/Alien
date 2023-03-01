@@ -68,10 +68,6 @@ impl FrameTracker {
 impl Drop for FrameTracker {
     fn drop(&mut self) {
         trace!("drop frame:{}", self.id);
-        // let flag = FRAME_ALLOCATOR.lock()(self.id);
-        // if flag {
-        //     panic!("frame {} is not allocated", self.id);
-        // }
         FRAME_ALLOCATOR.lock().dealloc(self.id);
     }
 }

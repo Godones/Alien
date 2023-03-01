@@ -1,17 +1,19 @@
-use crate::fs::File;
+use crate::fs::{File, UserBuffer};
 use crate::print::console::get_char;
-
+#[derive(Debug)]
 pub struct Stdin;
+
 impl File for Stdin {
-    fn write(&self, _buf: &[u8]) -> usize {
+    fn write(&self, _buf: UserBuffer) -> usize {
         0
     }
-    fn read(&self, buf: &mut [u8]) -> usize {
-        assert_eq!(buf.len(), 0);
+    fn read(&self, mut buf: UserBuffer) -> usize {
+        assert_eq!(buf.len(), 1);
         loop {
             match get_char() {
                 Some(ch) => {
-                    buf[0] = ch;
+                    let buf0 = buf[0].as_mut();
+                    buf0[0] = ch as u8;
                     return 1;
                 }
                 None => {}
@@ -20,15 +22,18 @@ impl File for Stdin {
     }
 }
 
+#[derive(Debug)]
 pub struct Stdout;
 
 impl File for Stdout {
-    fn write(&self, buf: &[u8]) -> usize {
-        let str = core::str::from_utf8(buf).unwrap();
-        println!("{}", str);
-        buf.len()
+    fn write(&self, buf: UserBuffer) -> usize {
+        buf.iter().for_each(|buf| {
+            let str = core::str::from_utf8(buf).unwrap();
+            print!("{}", str);
+        });
+        buf.iter().map(|buf| buf.len()).sum()
     }
-    fn read(&self, _buf: &mut [u8]) -> usize {
+    fn read(&self, _buf: UserBuffer) -> usize {
         0
     }
 }

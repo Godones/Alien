@@ -1,10 +1,27 @@
 #![no_std]
 #![no_main]
 
-
 use userlib::println;
+use userlib::process::{exec, fork, wait};
+use userlib::thread::m_yield;
 
 #[no_mangle]
-fn main() {
-    println!("Hello, world!");
+fn main() -> isize {
+    if fork() == 0 {
+        exec("shell\0");
+    } else {
+        loop {
+            let mut exit_code: i32 = 0;
+            let pid = wait(&mut exit_code);
+            if pid == -1 {
+                m_yield();
+                continue;
+            }
+            println!(
+                "[Init] Released a process, pid={}, exit_code={}",
+                pid, exit_code,
+            );
+        }
+    }
+    0
 }

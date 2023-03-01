@@ -8,7 +8,6 @@ _start:
     add sp,sp,t0
     call rust_main
 
-
  sleep:
     wfi
     j sleep
