@@ -129,7 +129,6 @@ impl Process {
     }
 
     // TODO 处理跨页问题
-
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
         let inner = self.inner.lock();
         let physical = inner
@@ -139,7 +138,6 @@ impl Process {
         unsafe { &mut *(physical as *mut T) }
     }
     // TODO:处理效率低的问题
-
     pub fn transfer_str(&self, ptr: *const u8) -> String {
         let inner = self.inner.lock();
         let mut res = String::new();
