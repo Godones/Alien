@@ -10,6 +10,17 @@ syscall_id!(SYSCALL_FORK, 220);
 syscall_id!(SYSCALL_EXEC, 221);
 syscall_id!(SYSCALL_WAITPID, 260);
 syscall_id!(SYSCALL_SHUTDOWN, 210);
+syscall_id!(SYSCALL_OPEN, 56);
+syscall_id!(SYSCALL_CLOSE, 57);
+syscall_id!(SYSCALL_LSEEK, 62);
+syscall_id!(SYSCALL_MKDIR, 83);
+syscall_id!(SYSCALL_RMDIR, 84);
+syscall_id!(SYSCALL_UNLINK, 87);
+syscall_id!(SYSCALL_GETCWD, 183);
+
+
+syscall_id!(SYSCALL_LIST, 1000);
+
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -35,3 +46,4 @@ syscall!(sys_fork, SYSCALL_FORK);
 syscall!(sys_execve, SYSCALL_EXEC, *const u8);
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
 syscall!(sys_shutdown, SYSCALL_SHUTDOWN);
+syscall!(sys_list, SYSCALL_LIST);

@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
-use userlib::println;
-use userlib::process::{exec, fork, wait};
-use userlib::thread::m_yield;
+use Mstd::println;
+use Mstd::process::{exec, fork, wait};
+use Mstd::thread::m_yield;
 
 #[no_mangle]
 fn main() -> isize {
