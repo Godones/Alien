@@ -1,4 +1,5 @@
 use crate::{fs, task, timer};
+use crate::sbi::shutdown;
 #[macro_export]
 macro_rules! syscall_id {
     ($name:ident,$val:expr) => {
@@ -15,8 +16,8 @@ syscall_id!(SYSCALL_GETPID, 172);
 syscall_id!(SYSCALL_FORK, 220);
 syscall_id!(SYSCALL_EXEC, 221);
 syscall_id!(SYSCALL_WAITPID, 260);
-// syscall_id!(SYSCALL_SHUTDOWN, 210);
-
+syscall_id!(SYSCALL_SHUTDOWN, 210);
+syscall_id!(SYSCALL_LIST, 1000);
 #[derive(Debug)]
 pub enum SysCallID {
     Read(usize, *mut u8, usize),
@@ -28,6 +29,8 @@ pub enum SysCallID {
     GetTimeOfDay,
     ExecVe(*const u8),
     WaitPID(isize, *mut i32),
+    Shutdown,
+    List,
     Unknown,
 }
 
@@ -43,6 +46,8 @@ impl From<[usize; 4]> for SysCallID {
             SYSCALL_GETPID => SysCallID::GetPID,
             SYSCALL_EXEC => SysCallID::ExecVe(value[1] as *const u8),
             SYSCALL_WAITPID => SysCallID::WaitPID(value[1] as isize, value[2] as *mut i32),
+            SYSCALL_SHUTDOWN => SysCallID::Shutdown,
+            SYSCALL_LIST => SysCallID::List,
             _ => SysCallID::Unknown,
         }
     }
@@ -64,6 +69,8 @@ impl Syscall for SysCallID {
             SysCallID::GetTimeOfDay => timer::get_time_ms() as isize,
             SysCallID::ExecVe(path) => task::do_exec(path),
             SysCallID::WaitPID(pid, status) => task::wait_pid(pid, status),
+            SysCallID::Shutdown => shutdown(),
+            SysCallID::List => fs::sys_list(),
             _ => -1,
         }
     }

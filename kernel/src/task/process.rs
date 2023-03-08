@@ -194,7 +194,7 @@ impl Process {
             return None;
         }
         let elf_info = elf_info.unwrap();
-        info!("elf_info: {:#x?}", elf_info);
+        // info!("elf_info: {:#x?}", elf_info);
         let address_space = elf_info.address_space;
         let physical = address_space.virtual_to_physical(TRAP_CONTEXT_BASE)?;
         let trap_frame = physical as *mut TrapFrame;
