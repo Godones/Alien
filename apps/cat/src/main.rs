@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
-use userlib::println;
+use Mstd::println;
 
 #[no_mangle]
-fn main() {
+fn main(){
     println!("Hello, world!");
 }

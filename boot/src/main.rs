@@ -47,7 +47,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         memory::activate_paging_mode();
         thread_local_init();
         trap::init_trap_subsystem();
-        timer::set_next_trigger(TIMER_FREQ);
+        // timer::set_next_trigger(TIMER_FREQ);
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
     } else {
@@ -74,7 +74,6 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         });
     fs::list_dir();
     task::init_process();
-    println!("init process done");
     task::schedule::first_into_user();
 }
 

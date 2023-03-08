@@ -3,18 +3,22 @@
 #![feature(linkage)]
 #![allow(unused)]
 
-use crate::alloc::init_heap;
+extern crate alloc;
+use crate::heap::init_heap;
 use crate::process::exit;
+use crate::syscall::sys_shutdown;
 
-mod alloc;
-mod fs;
-pub mod io;
+mod heap;
+pub mod fs;
+
 mod macros;
 mod panic;
 pub mod process;
 mod syscall;
 pub mod thread;
 pub mod time;
+pub mod io;
+mod sys;
 
 #[no_mangle]
 fn _start() -> ! {
@@ -26,4 +30,9 @@ fn _start() -> ! {
 #[no_mangle]
 fn main() -> i32 {
     panic!("Cannot find main!");
+}
+
+pub fn shutdown() -> ! {
+    sys_shutdown();
+    panic!("Shutdown failed!");
 }
