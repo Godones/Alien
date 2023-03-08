@@ -4,6 +4,7 @@ mod dbfs;
 mod fat32;
 mod stdio;
 
+use alloc::format;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::error::Error;
@@ -44,6 +45,10 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let buf = process.transfer_raw_buffer(buf, len);
     file.write(buf) as isize
 }
+pub fn sys_list()->isize{
+    list_dir();
+    0
+}
 
 // temp function, will be removed
 pub fn list_dir() {
@@ -56,6 +61,6 @@ pub fn list_dir() {
 
 pub fn open_file(path: &str) -> Option<Arc<dyn FileLike<Error: Error + 'static>>> {
     let root = ROOT_DIR.clone();
-    let file = root.open(path).unwrap();
+    let file = root.open(path).expect(format!("Cannot open file {},len:{}", path,path.len()).as_str());
     Some(file)
 }

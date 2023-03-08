@@ -1,3 +1,4 @@
+use alloc::string::ToString;
 use crate::syscall::{sys_execve, sys_exit, sys_fork, sys_getpid, sys_waitpid};
 use crate::thread::m_yield;
 
@@ -14,6 +15,8 @@ pub fn getpid() -> isize {
 }
 
 pub fn exec(path: &str) -> isize {
+    let mut path = path.to_string();
+    path.push('\0');
     sys_execve(path.as_ptr())
 }
 

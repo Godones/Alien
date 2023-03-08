@@ -68,6 +68,7 @@ impl FrameTracker {
 impl Drop for FrameTracker {
     fn drop(&mut self) {
         trace!("drop frame:{}", self.id);
+        zero_init_frame(self.start());
         FRAME_ALLOCATOR.lock().dealloc(self.id);
     }
 }
