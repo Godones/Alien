@@ -11,6 +11,6 @@ pub fn readdir(fd: usize, buf: &mut [u8]) -> isize {
     sys_read(fd, buf.as_mut_ptr(), buf.len())
 }
 
-pub fn list()->isize{
+pub fn list() -> isize {
     sys_list()
 }

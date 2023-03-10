@@ -1,6 +1,6 @@
+use crate::syscall::{sys_read, sys_write};
 use core::fmt::Write;
 use core2::io::Read;
-use crate::syscall::{sys_read, sys_write};
 
 type Result<T> = core2::io::Result<T>;
 pub type Stderr = Stdout;
@@ -33,7 +33,7 @@ impl Read for Stdin {
     }
 }
 
-impl core2::io::Write for Stdout{
+impl core2::io::Write for Stdout {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         let len = sys_write(1, buf.as_ptr(), buf.len());
         Ok(len as usize)
@@ -43,4 +43,3 @@ impl core2::io::Write for Stdout{
         Ok(())
     }
 }
-

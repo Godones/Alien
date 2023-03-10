@@ -6,8 +6,10 @@ use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use kernel::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
 use kernel::driver::rtc::get_rtc_time;
-use kernel::{config, driver, fs, memory, print, println, task, thread_local_init, timer, trap};
+use kernel::{config, driver, memory, print, println, task, thread_local_init, timer, trap};
 
+use kernel::fs::list_dir;
+use kernel::fs::vfs::init_vfs;
 use riscv::register::sstatus::{set_spp, SPP};
 
 global_asm!(include_str!("./boot.asm"));
@@ -27,9 +29,7 @@ fn clear_bss() {
     }
 }
 
-/// rust 入口函数
-///
-/// 进行操作系统的初始化，
+/// rust_main is the entry of the kernel
 #[no_mangle]
 pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     unsafe {
@@ -38,9 +38,8 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
         clear_bss();
         println!("{}", config::FLAG);
-        // println!("spp: {:?}", spp);
         print::init_logger();
-        // preprint::init_print(&print::PrePrint);
+        preprint::init_print(&print::PrePrint);
         memory::init_frame_allocator();
         memory::init_slab_system(FRAME_SIZE, 32);
         memory::build_kernel_address_space();
@@ -68,11 +67,9 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         .map(|x| {
             println!("Current time:{:?}", x);
         })
-        .is_none()
-        .then(|| {
-            println!("time error");
-        });
-    fs::list_dir();
+        .unwrap();
+    init_vfs();
+    list_dir();
     task::init_process();
     task::schedule::first_into_user();
 }

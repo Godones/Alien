@@ -1,4 +1,6 @@
+use crate::arch;
 use crate::config::CPU_NUM;
+use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::sync::IntrLock;
 use crate::task::context::Context;
@@ -6,12 +8,11 @@ use crate::task::process::{Process, ProcessState};
 use crate::task::schedule::schedule;
 use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
-use crate::{arch, fs};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use spin::Mutex;
-
 #[derive(Debug)]
 pub struct CPU {
     pub process: Option<Arc<Process>>,
@@ -117,10 +118,12 @@ pub fn do_fork() -> isize {
 
 pub fn do_exec(path: *const u8) -> isize {
     let process = current_process().unwrap();
-    let str = process.transfer_str(path);
-    if let Some(file) = fs::open_file(&str) {
-        let file_size = file.size();
-        let data = file.read(0, file_size).unwrap();
+    let mut str = process.transfer_str(path);
+    let mut data = Vec::new();
+    if !str.starts_with("/") {
+        str.insert(0, '/');
+    }
+    if vfs::read_all(&str, &mut data) {
         let res = process.exec(data.as_slice());
         if res.is_err() {
             return res.err().unwrap() as isize;

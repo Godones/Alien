@@ -18,9 +18,7 @@ syscall_id!(SYSCALL_RMDIR, 84);
 syscall_id!(SYSCALL_UNLINK, 87);
 syscall_id!(SYSCALL_GETCWD, 183);
 
-
 syscall_id!(SYSCALL_LIST, 1000);
-
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;

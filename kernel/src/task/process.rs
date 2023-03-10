@@ -1,4 +1,4 @@
-use crate::fs::{File, Stdin, Stdout};
+use crate::fs::{STDIN, STDOUT};
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
@@ -6,15 +6,18 @@ use gmanager::MinimalManager;
 use lazy_static::lazy_static;
 use page_table::AddressSpace;
 
+use crate::config::FRAME_SIZE;
 use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::memory::{build_elf_address_space, kernel_satp};
 use crate::task::context::Context;
 use crate::task::stack::Stack;
 use crate::trap::{trap_return, user_trap_vector, TrapFrame};
-use spin::Mutex;
-use virtio_drivers::PAGE_SIZE;
-
-type FdManager = MinimalManager<Arc<dyn File>>;
+use rvfs::dentry::DirEntry;
+use rvfs::file::File;
+use rvfs::info::ProcessFsInfo;
+use rvfs::mount::VfsMount;
+use spin::{Mutex, MutexGuard};
+type FdManager = MinimalManager<Arc<File>>;
 
 lazy_static! {
     /// 这里把MinimalManager复用为pid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
@@ -47,7 +50,55 @@ pub struct ProcessInner {
     pub trap_frame: *mut TrapFrame,
     pub fd_table: FdManager,
     pub context: Context,
+    pub fs_info: FsContext,
     pub exit_code: i32,
+}
+
+#[derive(Clone, Debug)]
+pub struct FsContext {
+    /// 当前工作目录
+    pub cwd: Arc<DirEntry>,
+    /// 根目录
+    pub root: Arc<DirEntry>,
+    /// 当前挂载点
+    pub cmnt: Arc<VfsMount>,
+    /// 根挂载点
+    pub rmnt: Arc<VfsMount>,
+}
+
+impl FsContext {
+    pub fn empty() -> Self {
+        FsContext {
+            cwd: Arc::new(DirEntry::empty()),
+            root: Arc::new(DirEntry::empty()),
+            cmnt: Arc::new(VfsMount::empty()),
+            rmnt: Arc::new(VfsMount::empty()),
+        }
+    }
+
+    pub fn new(
+        root: Arc<DirEntry>,
+        cwd: Arc<DirEntry>,
+        cmnt: Arc<VfsMount>,
+        rmnt: Arc<VfsMount>,
+    ) -> Self {
+        FsContext {
+            cwd,
+            root,
+            cmnt,
+            rmnt,
+        }
+    }
+}
+impl Into<ProcessFsInfo> for FsContext {
+    fn into(self) -> ProcessFsInfo {
+        ProcessFsInfo {
+            root_mount: self.rmnt.clone(),
+            root_dir: self.root.clone(),
+            current_dir: self.cwd.clone(),
+            current_mount: self.cmnt.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
@@ -63,6 +114,9 @@ impl Process {
         self.pid.0 as isize
     }
 
+    pub fn access_inner(&self) -> MutexGuard<ProcessInner> {
+        self.inner.lock()
+    }
     pub fn token(&self) -> usize {
         let inner = self.inner.lock();
         8usize << 60 | inner.address_space.root_ppn().unwrap().0
@@ -118,11 +172,12 @@ impl Process {
         inner.exit_code
     }
 
-    pub fn get_file(&self, fd: usize) -> Option<Arc<dyn File>> {
+    pub fn get_file(&self, fd: usize) -> Option<Arc<File>> {
         let inner = self.inner.lock();
         let file = inner.fd_table.get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
+
     pub fn transfer_raw(&self, ptr: usize) -> usize {
         let inner = self.inner.lock();
         inner.address_space.virtual_to_physical(ptr).unwrap()
@@ -161,8 +216,8 @@ impl Process {
         let mut v = Vec::new();
         while start < end {
             let start_phy = address_space.virtual_to_physical(start).unwrap();
-            // find the value >= start && value%PAGE_SIZE == 0
-            let bound = (start_phy + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+            // find the value >= start && value%FRAME_SIZE == 0
+            let bound = (start_phy + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
             let len = if bound > end {
                 end - start
             } else {
@@ -186,6 +241,7 @@ impl Process {
         // recycle page
         inner.address_space.recycle();
     }
+    /// only call once
     pub fn from_elf(elf: &[u8]) -> Option<Process> {
         let pid = PID_MANAGER.lock().insert(0).unwrap();
         // 创建进程地址空间
@@ -211,12 +267,13 @@ impl Process {
                 trap_frame,
                 fd_table: {
                     let mut fd_table = FdManager::new(MAX_FD_NUM);
-                    fd_table.insert(Arc::new(Stdin)).unwrap();
-                    fd_table.insert(Arc::new(Stdout)).unwrap();
-                    fd_table.insert(Arc::new(Stdout)).unwrap();
+                    fd_table.insert(STDIN.clone()).unwrap();
+                    fd_table.insert(STDOUT.clone()).unwrap();
+                    fd_table.insert(STDOUT.clone()).unwrap();
                     fd_table
                 },
                 context: Context::new(trap_return as usize, k_stack_top),
+                fs_info: FsContext::empty(),
                 exit_code: 0,
             }),
         };
@@ -252,6 +309,7 @@ impl Process {
                 trap_frame,
                 fd_table: inner.fd_table.clone(),
                 context: Context::new(trap_return as usize, k_stack_top),
+                fs_info: inner.fs_info.clone(),
                 exit_code: 0,
             }),
         };
