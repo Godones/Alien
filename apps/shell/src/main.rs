@@ -5,12 +5,12 @@ mod parameter;
 
 extern crate alloc;
 
-use Mstd::{print, println};
 use Mstd::process::{exec, fork, waitpid};
-use Mstd::thread::m_yield;
 use Mstd::shutdown;
+use Mstd::thread::m_yield;
+use Mstd::{print, println};
 #[no_mangle]
-fn main() ->isize {
+fn main() -> isize {
     println!("{}", BEGAN);
     loop {
         print!("> ");
@@ -33,7 +33,6 @@ pub fn execute(cmd: &str, args: &str) {
                 m_yield();
                 let mut exit_code: i32 = 0;
                 let _ = waitpid(pid as usize, &mut exit_code);
-
             }
         }
     }
