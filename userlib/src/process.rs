@@ -1,6 +1,6 @@
-use alloc::string::ToString;
 use crate::syscall::{sys_execve, sys_exit, sys_fork, sys_getpid, sys_waitpid};
 use crate::thread::m_yield;
+use alloc::string::ToString;
 
 pub fn exit(exit_code: i32) -> ! {
     sys_exit(exit_code);

@@ -8,17 +8,17 @@ use crate::heap::init_heap;
 use crate::process::exit;
 use crate::syscall::sys_shutdown;
 
-mod heap;
 pub mod fs;
+mod heap;
 
+pub mod io;
 mod macros;
 mod panic;
 pub mod process;
+mod sys;
 mod syscall;
 pub mod thread;
 pub mod time;
-pub mod io;
-mod sys;
 
 #[no_mangle]
 fn _start() -> ! {
