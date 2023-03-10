@@ -4,18 +4,21 @@ use core::fmt;
 use core2::io::{BufRead, Read, Write};
 use stdio::*;
 
-pub use stdio::{stdin,stdout,StdoutLock,StdinLock};
+pub use stdio::{stdin, stdout, StdinLock, StdoutLock};
 
 type Result<T> = core2::io::Result<T>;
 
-pub trait BufferReadExt{
+pub trait BufferReadExt {
     fn read_line(&mut self, buf: &mut String) -> Result<usize>;
-    fn lines(self) -> Lines<Self> where Self: Sized {
+    fn lines(self) -> Lines<Self>
+    where
+        Self: Sized,
+    {
         Lines { buf: self }
     }
 }
 
-impl <T:BufRead> BufferReadExt for T{
+impl<T: BufRead> BufferReadExt for T {
     fn read_line(&mut self, buf: &mut String) -> Result<usize> {
         unsafe { self.read_to_end(buf.as_mut_vec()) }
     }
@@ -46,7 +49,6 @@ impl<B: BufRead> Iterator for Lines<B> {
     }
 }
 
-
 #[macro_export]
 macro_rules! print {
     ($fmt: literal $(, $($arg: tt)+)?) => {
@@ -62,14 +64,13 @@ macro_rules! println {
 }
 
 fn print_to<T>(args: fmt::Arguments<'_>, global_s: fn() -> T, label: &str)
-    where
-        T: Write,
+where
+    T: Write,
 {
     if let Err(e) = global_s().write_fmt(args) {
         panic!("failed printing to {label}: {e}");
     }
 }
-
 
 fn use_raw_stdout(args: fmt::Arguments<'_>) {
     use super::sys::io::Stdout;
@@ -91,8 +92,8 @@ pub fn _eprint(args: fmt::Arguments<'_>) {
 
 pub fn read_line() -> String {
     use super::sys::io::Stdin;
-    let mut buf = [0u8;1];
-    let mut res =  String::new();
+    let mut buf = [0u8; 1];
+    let mut res = String::new();
     loop {
         Stdin.read(&mut buf).unwrap();
         if buf[0] == b'\n' || buf[0] == b'\r' {
@@ -106,7 +107,7 @@ pub fn read_line() -> String {
             continue;
         }
 
-        print!("{}",buf[0] as char);
+        print!("{}", buf[0] as char);
         res.push(buf[0] as char);
     }
     print!("\n");
