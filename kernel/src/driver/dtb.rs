@@ -79,6 +79,6 @@ fn virtio_device(transport: impl Transport + 'static) {
 fn virtio_blk<T: Transport + 'static>(transport: T) {
     let blk = VirtIOBlk::<HalImpl, T>::new(transport).expect("failed to create blk driver");
     let qemu_block_device = QemuBlockDevice::new(blk);
-    *QEMU_BLOCK_DEVICE.lock() = Some(Arc::new(qemu_block_device));
+    QEMU_BLOCK_DEVICE.lock().push(Arc::new(qemu_block_device));
     info!("virtio-blk init finished");
 }

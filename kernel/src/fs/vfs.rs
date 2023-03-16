@@ -30,7 +30,7 @@ pub fn init_vfs() {
     *TMP_DIR.lock() = root_mnt.root.clone();
     // mount fat fs
     register_filesystem(FAT).expect("register fat fs failed");
-    let img_device = QEMU_BLOCK_DEVICE.lock().clone().unwrap();
+    let img_device = QEMU_BLOCK_DEVICE.lock()[0].clone();
     let data = Box::new(Fat32Data::new(img_device));
     let mnt = do_mount::<VfsProvider>("fat", "/", "fat", MountFlags::empty(), Some(data)).unwrap();
     *TMP_MNT.lock() = mnt.clone();

@@ -1,5 +1,6 @@
 use crate::driver::hal::HalImpl;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::fmt::{Debug, Formatter};
 use core::num::NonZeroUsize;
 use lazy_static::lazy_static;
@@ -19,7 +20,7 @@ impl<T: Transport> QemuBlockDevice<T> {
     pub fn new(device: VirtIOBlk<HalImpl, T>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(32).unwrap())),
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(4*1024).unwrap())),
         }
     }
 }
@@ -27,7 +28,7 @@ unsafe impl<T: Transport> Send for QemuBlockDevice<T> {}
 unsafe impl<T: Transport> Sync for QemuBlockDevice<T> {}
 
 lazy_static! {
-    pub static ref QEMU_BLOCK_DEVICE: Mutex<Option<Arc<dyn Device>>> = Mutex::new(None);
+    pub static ref QEMU_BLOCK_DEVICE: Mutex<Vec<Arc<dyn Device>>> = Mutex::new(Vec::new());
 }
 
 impl<T: Transport> Debug for QemuBlockDevice<T> {
