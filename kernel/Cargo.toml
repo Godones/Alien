@@ -34,5 +34,7 @@ core2 = {version="0.4.0",default-features = false, features = ["alloc"]}
 
 rvfs = {path = "../../os-module/rvfs"}
 fat32-vfs = {path = "../../os-module/fat32-vfs"}
+jammdb = {path = "../../os-module/jammdb"}
+
 
 [features]

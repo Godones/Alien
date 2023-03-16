@@ -12,6 +12,8 @@ KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
 SMP :=1
 
+IMG1 := tools/fs1.img
+
 FS_TYPE := fat32
 
 define boot_qemu
@@ -21,6 +23,8 @@ define boot_qemu
         -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \
         -device virtio-blk-device,drive=x0 \
+	  	-drive file=$(IMG1),if=none,format=raw,id=x1 \
+		-device virtio-blk-device,drive=x1 \
         -nographic \
         -kernel  kernel-qemu\
         -smp $(SMP) -m 128M
