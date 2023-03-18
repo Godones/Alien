@@ -14,10 +14,8 @@ pub fn getpid() -> isize {
     sys_getpid()
 }
 
-pub fn exec(path: &str) -> isize {
-    let mut path = path.to_string();
-    path.push('\0');
-    sys_execve(path.as_ptr())
+pub fn exec(cmd: &str, args:&[*const u8]) -> isize {
+    sys_execve(cmd.as_ptr(),args.as_ptr() as *const usize)
 }
 
 pub fn wait(exit_code: &mut i32) -> isize {

@@ -177,28 +177,38 @@ impl Process {
         let file = inner.fd_table.get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
-
-    pub fn transfer_raw(&self, ptr: usize) -> usize {
-        let inner = self.inner.lock();
-        inner.address_space.virtual_to_physical(ptr).unwrap()
+    pub fn add_file(&self,file :Arc<File>)->Result<usize,()>{
+        self.access_inner().fd_table.insert(file).map_err(|_|{})
+    }
+    pub fn remove_file(&self, fd: usize) -> Result<(), ()> {
+        self.access_inner().fd_table.remove(fd).map_err(|_| {})
     }
 
+    pub fn transfer_raw(&self, ptr: usize) -> usize {
+       self.access_inner().transfer_raw(ptr)
+    }
     // TODO 处理跨页问题
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
-        let inner = self.inner.lock();
-        let physical = inner
-            .address_space
-            .virtual_to_physical(ptr as usize)
-            .unwrap();
-        unsafe { &mut *(physical as *mut T) }
+        self.access_inner().transfer_raw_ptr(ptr)
     }
     // TODO:处理效率低的问题
     pub fn transfer_str(&self, ptr: *const u8) -> String {
-        let inner = self.inner.lock();
+        self.access_inner().transfer_str(ptr)
+    }
+    pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
+        self.access_inner().transfer_raw_buffer(ptr, len)
+    }
+}
+
+impl ProcessInner {
+    pub fn transfer_raw(&self, ptr: usize) -> usize {
+        self.address_space.virtual_to_physical(ptr).unwrap()
+    }
+    pub fn transfer_str(&self, ptr: *const u8) -> String{
         let mut res = String::new();
         let mut start = ptr as usize;
         loop {
-            let physical = inner.address_space.virtual_to_physical(start).unwrap();
+            let physical = self.address_space.virtual_to_physical(start).unwrap();
             let c = unsafe { &*(physical as *const u8) };
             if *c == 0 {
                 break;
@@ -209,8 +219,7 @@ impl Process {
         res
     }
     pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
-        let inner = self.inner.lock();
-        let address_space = &inner.address_space;
+        let address_space = &self.address_space;
         let mut start = ptr as usize;
         let end = start + len;
         let mut v = Vec::new();
@@ -231,9 +240,18 @@ impl Process {
         }
         v
     }
+
+    pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
+        let physical = self
+            .address_space
+            .virtual_to_physical(ptr as usize)
+            .unwrap();
+        unsafe { &mut *(physical as *mut T) }
+    }
 }
 
 impl Process {
+
     pub fn recycle(&self) {
         let mut inner = self.inner.lock();
         // delete child process
@@ -319,7 +337,7 @@ impl Process {
         trap_frame.update_kernel_sp(k_stack_top);
         Some(process)
     }
-    pub fn exec(&self, elf_data: &[u8]) -> Result<(), isize> {
+    pub fn exec(&self, elf_data: &[u8],args:Vec<String>) -> Result<(), isize> {
         let elf_info = build_elf_address_space(elf_data);
         if elf_info.is_err() {
             return Err(-1);
@@ -333,14 +351,32 @@ impl Process {
         let trap_frame = physical as *mut TrapFrame;
         inner.address_space = address_space;
         inner.trap_frame = trap_frame;
+
+        // push the args to the top of stack of the process
+        // we have push '\0' into the arg string,so we don't need to push it again
+        let base = elf_info.stack_top - args.len() * core::mem::size_of::<usize>();
+        let mut str_base = base;
+        args.iter().enumerate().for_each(|(i,arg)| unsafe {
+            let arg_addr = base + i * core::mem::size_of::<usize>();
+            let arg_addr = inner.transfer_raw_ptr(arg_addr as *mut usize);
+            str_base = str_base - arg.as_bytes().len();
+            *arg_addr = str_base;
+            let arg_str_addr = inner.transfer_raw(str_base);
+            core::slice::from_raw_parts_mut(arg_str_addr as *mut u8, arg.as_bytes().len())
+                .copy_from_slice(arg.as_bytes());
+        });
+        // align the user_sp to 8byte
+        let user_sp = (str_base - 8) & !0x7;
         let trap_frame = TrapFrame::from_raw_ptr(trap_frame);
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
-            elf_info.stack_top,
+            user_sp,
             kernel_satp(),
             self.kernel_stack.top(),
             user_trap_vector as usize,
         );
+        trap_frame.regs()[10] = args.len() as usize;
+        trap_frame.regs()[11] = base;
         Ok(())
     }
 }

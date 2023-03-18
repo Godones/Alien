@@ -1,5 +1,8 @@
 use crate::sbi::shutdown;
 use core::panic::PanicInfo;
+use core::sync::atomic::AtomicBool;
+
+static RECURSION: AtomicBool = AtomicBool::new(false);
 
 /// 错误处理
 ///
@@ -16,5 +19,20 @@ fn panic_handler(info: &PanicInfo) -> ! {
     } else {
         println!("no location information available");
     }
+    if !RECURSION.load(core::sync::atomic::Ordering::SeqCst){
+        back_trace();
+    }
+    RECURSION.store(true, core::sync::atomic::Ordering::SeqCst);
+
     shutdown()
+}
+
+fn back_trace(){
+    println!("---START BACKTRACE---");
+    let info = crate::trace::init_kernel_trace();
+    let func_info = unsafe { trace_lib::my_trace(info) };
+    func_info.iter().for_each(|x| {
+        println!("{}", x);
+    });
+    println!("---END   BACKTRACE---");
 }
