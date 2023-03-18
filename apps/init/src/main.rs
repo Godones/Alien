@@ -8,7 +8,7 @@ use Mstd::thread::m_yield;
 #[no_mangle]
 fn main() -> isize {
     if fork() == 0 {
-        exec("shell\0");
+        exec("shell\0",&[0 as *const u8]);
     } else {
         loop {
             let mut exit_code: i32 = 0;

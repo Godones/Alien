@@ -9,6 +9,7 @@ use crate::task::schedule::schedule;
 use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
 use alloc::collections::VecDeque;
+use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
@@ -116,20 +117,40 @@ pub fn do_fork() -> isize {
     pid
 }
 
-pub fn do_exec(path: *const u8) -> isize {
+pub fn do_exec(path: *const u8,args_ptr:*const usize) -> isize {
     let process = current_process().unwrap();
-    let mut str = process.transfer_str(path);
+    let str = process.transfer_str(path);
     let mut data = Vec::new();
-    if !str.starts_with("/") {
-        str.insert(0, '/');
+    // get the args and push them into the new process stack
+    let mut args = Vec::new();
+    let mut start = args_ptr as * mut usize;
+    loop {
+        let arg = process.transfer_raw_ptr(start);
+        if *arg == 0 {
+            break;
+        }
+        args.push(*arg);
+        start = unsafe{start.add(1)};
     }
+    let mut args = args.into_iter().map(|arg| {
+        let mut  arg = process.transfer_str(arg as *const u8);
+        arg.push('\0');
+        arg
+    }).collect::<Vec<String>>();
+    // push app name to the last args
+    let mut app_name = str.clone();
+    app_name.push('\0');
+    args.insert(0,app_name);
     if vfs::read_all(&str, &mut data) {
-        let res = process.exec(data.as_slice());
+        let argc = args.len();
+        let res = process.exec(data.as_slice(),args);
         if res.is_err() {
             return res.err().unwrap() as isize;
         }
+        return argc as isize
+    }else {
+        -1
     }
-    0
 }
 
 pub fn wait_pid(pid: isize, exit_code: *mut i32) -> isize {

@@ -2,7 +2,7 @@ use crate::print::console::get_char;
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
-use rvfs::file::{File, FileFlags, FileMode, FileOps};
+use rvfs::file::{File, OpenFlags, FileMode, FileOps};
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 
@@ -16,7 +16,7 @@ lazy_static! {
         let file = File::new(
             Arc::new(DirEntry::empty()),
             Arc::new(VfsMount::empty()),
-            FileFlags::O_RDONLY,
+            OpenFlags::O_RDONLY,
             FileMode::FMODE_READ,
             file_ops,
         );
@@ -43,7 +43,7 @@ lazy_static! {
         let file = File::new(
             Arc::new(DirEntry::empty()),
             Arc::new(VfsMount::empty()),
-            FileFlags::O_WRONLY,
+            OpenFlags::O_WRONLY,
             FileMode::FMODE_WRITE,
             file_ops,
         );
