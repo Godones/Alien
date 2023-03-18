@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
-use rvfs::file::{vfs_open_file, vfs_read_file, FileFlags, FileMode};
+use rvfs::file::{vfs_open_file, vfs_read_file, OpenFlags, FileMode};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
@@ -39,16 +39,23 @@ pub fn init_vfs() {
 }
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
-    let attr = vfs_getattr::<VfsProvider>(file_name).unwrap();
+    let attr = vfs_getattr::<VfsProvider>(file_name);
+    if attr.is_err() {
+        return false;
+    }
+    let attr = attr.unwrap();
     let file =
-        vfs_open_file::<VfsProvider>(file_name, FileFlags::O_RDONLY, FileMode::FMODE_READ).unwrap();
+        vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
+    if file.is_err() {
+        return false;
+    }
+    let file = file.unwrap();
     let size = attr.size;
     let mut offset = 0;
     while offset < size {
         let mut tmp = vec![0; 512 as usize];
         let res = vfs_read_file::<VfsProvider>(file.clone(), &mut tmp, offset as u64).unwrap();
         offset += res;
-
         buf.extend_from_slice(&tmp);
     }
     true

@@ -30,10 +30,15 @@ define boot_qemu
         -smp $(SMP) -m 128M
 endef
 
+install:
+	@cargo install --git  https://github.com/os-module/elfinfo
 
 all:run
 
 compile:
+	@cd boot && cargo build --release
+	@pwd
+	@(nm -n ${KERNEL_FILE} | trace_exe > kernel/src/trace/kernel_symbol.S)
 	@cd boot && cargo build --release
 	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
@@ -44,7 +49,8 @@ user:
 
 build:compile
 
-run:compile $(img) user
+
+run:install compile $(img) user
 	$(call boot_qemu)
 	@rm ./kernel-qemu
 
@@ -67,6 +73,7 @@ fat32:
 		sudo umount /fat; \
 	fi
 	@sudo mount $(IMG) /fat
+	@sudo cp tools/f1.txt /fat
 	@sync
 
 
