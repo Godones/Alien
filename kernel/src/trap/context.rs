@@ -60,4 +60,7 @@ impl TrapFrame {
     pub fn parameters(&self) -> [usize; 4] {
         [self.x[17], self.x[10], self.x[11], self.x[12]]
     }
+    pub fn regs(&mut self) -> &mut [usize] {
+        &mut self.x
+    }
 }
