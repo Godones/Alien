@@ -10,10 +10,8 @@ use core::fmt::{Display, Formatter};
 use core::num::NonZeroUsize;
 use core::ops::Deref;
 use core2::io::{Read, Seek, SeekFrom, Write};
-use jammdb::{DbFile, FileExt, MemoryMap, MetaData, Mmap, OpenOption, PathLike};
+use jammdb::{DbFile, FileExt, MemoryMap, MetaData, Mmap, OpenOption, PathLike, DB};
 use lru::LruCache;
-
-
 
 type BlockDevice = dyn rvfs::superblock::Device;
 type Cache = [u8; 512];
@@ -31,37 +29,37 @@ impl CacheManager {
     }
     pub fn get(&mut self, id: usize) -> Option<&Cache> {
         let flag = self.lru.contains(&id);
-        if flag{
+        if flag {
             self.lru.get(&id)
         } else {
             let mut cache = [0u8; 512];
-            self.device.read( &mut cache,id*512).unwrap();
+            self.device.read(&mut cache, id * 512).unwrap();
             let old = self.lru.push(id, cache);
             let cache = self.lru.get(&id);
-            if let  Some((old_id,old_cache)) = old{
-                self.device.write(&old_cache,old_id*512).unwrap();
+            if let Some((old_id, old_cache)) = old {
+                self.device.write(&old_cache, old_id * 512).unwrap();
             }
             cache
         }
     }
     pub fn get_mut(&mut self, id: usize) -> Option<&mut Cache> {
         let flag = self.lru.contains(&id);
-        if flag{
+        if flag {
             self.lru.get_mut(&id)
         } else {
             let mut cache = [0u8; 512];
-            self.device.read( &mut cache,id*512).unwrap();
+            self.device.read(&mut cache, id * 512).unwrap();
             let old = self.lru.push(id, cache);
             let cache = self.lru.get_mut(&id);
-            if let  Some((old_id,old_cache)) = old{
-                self.device.write(&old_cache,old_id*512).unwrap();
+            if let Some((old_id, old_cache)) = old {
+                self.device.write(&old_cache, old_id * 512).unwrap();
             }
             cache
         }
     }
     pub fn flush(&mut self) {
-        self.lru.iter().for_each(|(id,cache)|{
-            self.device.write(cache,id*512).unwrap();
+        self.lru.iter().for_each(|(id, cache)| {
+            self.device.write(cache, id * 512).unwrap();
         })
     }
 }
@@ -76,7 +74,7 @@ pub struct FakeFile {
 impl FakeFile {
     fn new(device: Arc<BlockDevice>) -> Self {
         let mut buf = [0u8; 512];
-        device.read(&mut buf,0).unwrap();
+        device.read(&mut buf, 0).unwrap();
         let size = usize::from_le_bytes(buf[0..8].try_into().unwrap());
         Self {
             cache_manager: CacheManager::new(device, 1024),
@@ -226,7 +224,7 @@ impl FileExt for FakeFile {
         warn!("sync all metadata");
         let mut buf = [0u8; 8];
         buf[0..8].copy_from_slice(&(self.size).to_le_bytes());
-        self.cache_manager.device.write(&buf,0).unwrap();
+        self.cache_manager.device.write(&buf, 0).unwrap();
 
         Ok(())
     }
@@ -288,7 +286,7 @@ impl PathLike for FakePath {
     fn exists(&self) -> bool {
         let device = QEMU_BLOCK_DEVICE.lock()[1].clone();
         let mut buf = [0u8; 8];
-        device.read(&mut buf,0,).unwrap();
+        device.read(&mut buf, 0).unwrap();
         let size = usize::from_le_bytes(buf[0..8].try_into().unwrap());
         size > 0
     }
@@ -351,4 +349,17 @@ impl MemoryMap for FakeMMap {
         };
         Ok(mmap)
     }
+}
+
+fn init_db(db: &DB) {
+    let tx = db.tx(true).unwrap();
+    let bucket = tx.get_or_create_bucket("super_blk").unwrap();
+    bucket.put("continue_number", 0usize.to_le_bytes()).unwrap();
+    bucket.put("magic", 1111u32.to_le_bytes()).unwrap();
+    bucket.put("blk_size", 512u32.to_le_bytes()).unwrap();
+    tx.commit().unwrap()
+}
+
+pub fn init_dbfs() {
+    // let db = DB::open::<FakeOpenOptions,_>(Arc::new(FAKE_MMAP.clone()), "dbfs").unwrap();
 }

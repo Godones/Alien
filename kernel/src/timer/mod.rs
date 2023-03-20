@@ -1,3 +1,4 @@
+use syscall_table::syscall_func;
 use crate::arch;
 use crate::config::CLOCK_FREQ;
 
@@ -16,6 +17,7 @@ pub fn set_next_trigger(addition: usize) {
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
 
-pub fn get_time_ms() -> usize {
-    read_timer() / (CLOCK_FREQ / MSEC_PER_SEC)
+#[syscall_func(169)]
+pub fn get_time_ms() -> isize {
+    (read_timer() / (CLOCK_FREQ / MSEC_PER_SEC)) as isize
 }

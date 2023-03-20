@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
-use rvfs::file::{vfs_open_file, vfs_read_file, OpenFlags, FileMode};
+use rvfs::file::{vfs_open_file, vfs_read_file, FileMode, OpenFlags};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
@@ -44,8 +44,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
         return false;
     }
     let attr = attr.unwrap();
-    let file =
-        vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
+    let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
     if file.is_err() {
         return false;
     }

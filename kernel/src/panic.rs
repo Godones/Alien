@@ -19,15 +19,16 @@ fn panic_handler(info: &PanicInfo) -> ! {
     } else {
         println!("no location information available");
     }
-    if !RECURSION.load(core::sync::atomic::Ordering::SeqCst){
+    if !RECURSION.load(core::sync::atomic::Ordering::SeqCst) {
         back_trace();
     }
     RECURSION.store(true, core::sync::atomic::Ordering::SeqCst);
 
-    shutdown()
+    shutdown();
+    loop {}
 }
 
-fn back_trace(){
+fn back_trace() {
     println!("---START BACKTRACE---");
     let info = crate::trace::init_kernel_trace();
     let func_info = unsafe { trace_lib::my_trace(info) };

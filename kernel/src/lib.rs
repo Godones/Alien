@@ -16,11 +16,11 @@ pub mod memory;
 mod panic;
 pub mod sbi;
 mod sync;
-mod syscall;
+pub mod syscall;
 pub mod task;
 pub mod timer;
-pub mod trap;
 mod trace;
+pub mod trap;
 
 // extern crate alloc;
 #[macro_use]
