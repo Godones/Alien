@@ -1,5 +1,7 @@
 use crate::{syscall, syscall_id};
 use core::arch::asm;
+syscall_id!(SYSCALL_GETCWD, 17);
+syscall_id!(SYSCALL_CHDIR, 49);
 syscall_id!(SYSCALL_READ, 63);
 syscall_id!(SYSCALL_WRITE, 64);
 syscall_id!(SYSCALL_EXIT, 93);
@@ -16,8 +18,6 @@ syscall_id!(SYSCALL_LSEEK, 62);
 syscall_id!(SYSCALL_MKDIR, 83);
 syscall_id!(SYSCALL_RMDIR, 84);
 syscall_id!(SYSCALL_UNLINK, 87);
-syscall_id!(SYSCALL_GETCWD, 183);
-
 syscall_id!(SYSCALL_LIST, 1000);
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
@@ -41,9 +41,12 @@ syscall!(sys_yield, SYSCALL_YIELD);
 syscall!(sys_getpid, SYSCALL_GETPID);
 syscall!(sys_get_time, SYSCALL_GET_TIME);
 syscall!(sys_fork, SYSCALL_FORK);
-syscall!(sys_execve, SYSCALL_EXEC, *const u8,*const usize);
+syscall!(sys_execve, SYSCALL_EXEC, *const u8, *const usize);
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
 syscall!(sys_shutdown, SYSCALL_SHUTDOWN);
 syscall!(sys_list, SYSCALL_LIST);
-syscall!(sys_open,SYSCALL_OPEN,*const u8,usize);
+syscall!(sys_open, SYSCALL_OPEN, *const u8, usize);
 syscall!(sys_close, SYSCALL_CLOSE, usize);
+syscall!(sys_get_cwd, SYSCALL_GETCWD, *mut u8, usize);
+syscall!(sys_chdir, SYSCALL_CHDIR, *const u8);
+syscall!(sys_mkdir, SYSCALL_MKDIR, *const u8);

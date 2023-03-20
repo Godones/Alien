@@ -2,7 +2,7 @@ use crate::print::console::get_char;
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
-use rvfs::file::{File, OpenFlags, FileMode, FileOps};
+use rvfs::file::{File, FileMode, FileOps, OpenFlags};
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 

@@ -3,13 +3,11 @@ use alloc::vec::Vec;
 use core::arch::global_asm;
 use trace_lib::Symbol;
 
-
 #[derive(Debug, Clone)]
 pub struct SymbolEntry {
     addr: usize,
     symbol_str: String,
 }
-
 
 impl SymbolEntry {
     pub fn new(addr: usize, symbol_str: String) -> Self {
@@ -17,7 +15,7 @@ impl SymbolEntry {
     }
 }
 
-impl Symbol for SymbolEntry  {
+impl Symbol for SymbolEntry {
     fn addr(&self) -> usize {
         self.addr
     }
@@ -42,7 +40,7 @@ pub fn init_kernel_trace() -> Vec<SymbolEntry> {
     let symbol_num_addr = symbol_num as usize as *const usize;
     let symbol_num = unsafe { symbol_num_addr.read_volatile() };
     let mut symbol_info = Vec::new();
-    if symbol_num==0 {
+    if symbol_num == 0 {
         return symbol_info;
     }
     let symbol_addr = symbol_address as usize as *const usize; //符号地址存储区域

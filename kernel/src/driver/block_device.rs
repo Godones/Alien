@@ -20,7 +20,7 @@ impl<T: Transport> QemuBlockDevice<T> {
     pub fn new(device: VirtIOBlk<HalImpl, T>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(4*1024).unwrap())),
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(4 * 1024).unwrap())),
         }
     }
 }

@@ -14,8 +14,8 @@ pub fn getpid() -> isize {
     sys_getpid()
 }
 
-pub fn exec(cmd: &str, args:&[*const u8]) -> isize {
-    sys_execve(cmd.as_ptr(),args.as_ptr() as *const usize)
+pub fn exec(cmd: &str, args: &[*const u8]) -> isize {
+    sys_execve(cmd.as_ptr(), args.as_ptr() as *const usize)
 }
 
 pub fn wait(exit_code: &mut i32) -> isize {

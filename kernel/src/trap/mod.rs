@@ -89,7 +89,6 @@ impl TrapHandler for Trap {
                 exception::page_exception_handler()
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                info!("timer interrupt");
                 interrupt::timer_interrupt_handler();
             }
             Trap::Exception(Exception::IllegalInstruction) => {
