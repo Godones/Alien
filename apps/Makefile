@@ -19,3 +19,7 @@ build:
 fmt:
 	@echo "Formatting code"
 	@$(foreach dir, $(APPS), (cd $(dir) && cargo fmt && cd ..);)
+
+clean:
+	@echo "Cleaning apps"
+	@$(foreach dir, $(APPS), (cd $(dir) && cargo clean && cd ..);)

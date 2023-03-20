@@ -1,4 +1,5 @@
 use core::arch::asm;
+use syscall_table::syscall_func;
 
 const SBI_SET_TIMER: usize = 0;
 // const SBI_CLEAR_IPI: usize = 3;
@@ -27,10 +28,12 @@ pub fn set_timer(time: usize) {
 }
 
 /// 调用 SBI_SHUTDOWN 来关闭操作系统（直接退出 QEMU）
-pub fn shutdown() -> ! {
+#[syscall_func(210)]
+pub fn shutdown() -> isize {
     println!("shutdown...");
     sbi_call(SBI_SHUTDOWN, 0, 0, 0);
-    unreachable!()
+    // unreachable!()
+    0
 }
 
 // #[repr(C)]

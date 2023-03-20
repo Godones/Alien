@@ -6,7 +6,9 @@ use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use kernel::config::{CPU_NUM, FRAME_SIZE, TIMER_FREQ};
 use kernel::driver::rtc::get_rtc_time;
-use kernel::{config, driver, memory, print, println, task, thread_local_init, timer, trap};
+use kernel::{
+    config, driver, memory, print, println, syscall, task, thread_local_init, timer, trap,
+};
 
 use kernel::fs::list_dir;
 use kernel::fs::vfs::init_vfs;
@@ -46,6 +48,17 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         memory::activate_paging_mode();
         thread_local_init();
         trap::init_trap_subsystem();
+
+        // 设备树初始化
+        driver::init_dt(device_tree_addr);
+        get_rtc_time()
+            .map(|x| {
+                println!("Current time:{:?}", x);
+            })
+            .unwrap();
+        init_vfs();
+        list_dir();
+        syscall::register_all_syscall();
         timer::set_next_trigger(TIMER_FREQ);
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
@@ -61,15 +74,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     }
     // 等待其它cpu核启动
     wait_all_cpu_start();
-    // 设备树初始化
-    driver::init_dt(device_tree_addr);
-    get_rtc_time()
-        .map(|x| {
-            println!("Current time:{:?}", x);
-        })
-        .unwrap();
-    init_vfs();
-    list_dir();
+
     task::init_process();
     task::schedule::first_into_user();
 }

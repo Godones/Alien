@@ -110,6 +110,7 @@ asm:compile
 	@lvim kernel.asm
 	@rm kernel.asm
 clean:
-	@cargo clean
+	@cd boot && cargo clean
+	@cd apps && make clean
 	@rm riscv.*
 
