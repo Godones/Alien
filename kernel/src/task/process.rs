@@ -1,5 +1,5 @@
 use crate::fs::{STDIN, STDOUT};
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use gmanager::MinimalManager;
@@ -177,15 +177,15 @@ impl Process {
         let file = inner.fd_table.get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
-    pub fn add_file(&self,file :Arc<File>)->Result<usize,()>{
-        self.access_inner().fd_table.insert(file).map_err(|_|{})
+    pub fn add_file(&self, file: Arc<File>) -> Result<usize, ()> {
+        self.access_inner().fd_table.insert(file).map_err(|_| {})
     }
     pub fn remove_file(&self, fd: usize) -> Result<(), ()> {
         self.access_inner().fd_table.remove(fd).map_err(|_| {})
     }
 
     pub fn transfer_raw(&self, ptr: usize) -> usize {
-       self.access_inner().transfer_raw(ptr)
+        self.access_inner().transfer_raw(ptr)
     }
     // TODO 处理跨页问题
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
@@ -201,10 +201,35 @@ impl Process {
 }
 
 impl ProcessInner {
+    pub fn cwd(&self) -> String {
+        let current_dir = &self.fs_info.cwd;
+        let mut res = Vec::new();
+        let mut current = current_dir.clone();
+        // /f1/f2
+        loop {
+            let parent = {
+                let inner = current.access_inner();
+                if inner.d_name == "/" {
+                    if res.is_empty() {
+                        res.push("/".to_string());
+                    }
+                    break;
+                }
+                res.push(inner.d_name.clone());
+                res.push("/".to_string());
+                inner.parent.upgrade().unwrap()
+            };
+            current = parent;
+        }
+        res.iter().rev().fold(String::new(), |mut acc, x| {
+            acc.push_str(x);
+            acc
+        })
+    }
     pub fn transfer_raw(&self, ptr: usize) -> usize {
         self.address_space.virtual_to_physical(ptr).unwrap()
     }
-    pub fn transfer_str(&self, ptr: *const u8) -> String{
+    pub fn transfer_str(&self, ptr: *const u8) -> String {
         let mut res = String::new();
         let mut start = ptr as usize;
         loop {
@@ -251,7 +276,6 @@ impl ProcessInner {
 }
 
 impl Process {
-
     pub fn recycle(&self) {
         let mut inner = self.inner.lock();
         // delete child process
@@ -337,7 +361,7 @@ impl Process {
         trap_frame.update_kernel_sp(k_stack_top);
         Some(process)
     }
-    pub fn exec(&self, elf_data: &[u8],args:Vec<String>) -> Result<(), isize> {
+    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) -> Result<(), isize> {
         let elf_info = build_elf_address_space(elf_data);
         if elf_info.is_err() {
             return Err(-1);
@@ -356,7 +380,7 @@ impl Process {
         // we have push '\0' into the arg string,so we don't need to push it again
         let base = elf_info.stack_top - args.len() * core::mem::size_of::<usize>();
         let mut str_base = base;
-        args.iter().enumerate().for_each(|(i,arg)| unsafe {
+        args.iter().enumerate().for_each(|(i, arg)| unsafe {
             let arg_addr = base + i * core::mem::size_of::<usize>();
             let arg_addr = inner.transfer_raw_ptr(arg_addr as *mut usize);
             str_base = str_base - arg.as_bytes().len();

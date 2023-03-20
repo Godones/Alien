@@ -1,5 +1,8 @@
+use crate::syscall::{
+    sys_chdir, sys_close, sys_get_cwd, sys_list, sys_mkdir, sys_open, sys_read, sys_write,
+};
+use alloc::string::String;
 use bitflags::bitflags;
-use crate::syscall::{sys_close, sys_list, sys_open, sys_read, sys_write};
 
 bitflags! {
     pub struct OpenFlags:u32{
@@ -29,10 +32,33 @@ pub fn list() -> isize {
     sys_list()
 }
 
-pub fn open(name:&str,flag:OpenFlags)->isize{
-    sys_open(name.as_ptr(),flag.bits as usize)
+pub fn open(name: &str, flag: OpenFlags) -> isize {
+    sys_open(name.as_ptr(), flag.bits as usize)
 }
 
-pub fn close(fd:usize)->isize{
+pub fn close(fd: usize) -> isize {
     sys_close(fd)
+}
+
+pub fn get_cwd(buf: &mut [u8]) -> Result<&str, IoError> {
+    let len = sys_get_cwd(buf.as_mut_ptr(), buf.len());
+    if len == -1 {
+        return Err(IoError::BufferTooSmall);
+    } else {
+        let s = core::str::from_utf8(&buf[..len as usize]).unwrap();
+        Ok(s)
+    }
+}
+
+pub fn chdir(path: &str) -> isize {
+    sys_chdir(path.as_ptr())
+}
+pub fn mkdir(path: &str) -> isize {
+    sys_mkdir(path.as_ptr())
+}
+#[derive(Debug)]
+pub enum IoError {
+    BufferTooSmall,
+    FileNotFound,
+    FileAlreadyExist,
 }

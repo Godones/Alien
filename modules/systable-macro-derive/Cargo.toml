@@ -1,9 +1,13 @@
+[lib]
+proc-macro = true
+
 [package]
-name = "shell"
+name = "systable-macro-derive"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
-Mstd = {path = "../../userlib"}
-spin = "0.9.2"
+syn = {version =  "2.0.2",features = ["full","extra-traits"] }
+quote = "1.0.26"

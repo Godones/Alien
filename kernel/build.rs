@@ -1,6 +1,7 @@
 use std::fs::File;
-use std::path::Path;
 use std::io::Write;
+use std::path::Path;
+use syscall_table::scan::scan_and_generate;
 static TARGET_PATH: &str = "../userlib/target/riscv64gc-unknown-none-elf/release/";
 
 fn main() {
@@ -22,4 +23,5 @@ fn main() {
         write!(file, "symbol_index:\n").unwrap();
         write!(file, "symbol_name:\n").unwrap();
     }
+    scan_and_generate("src/syscall.rs".to_string());
 }

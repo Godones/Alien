@@ -14,6 +14,8 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use syscall_table::syscall_func;
+
 #[derive(Debug)]
 pub struct CPU {
     pub process: Option<Arc<Process>>,
@@ -69,6 +71,7 @@ pub fn current_trap_frame() -> &'static mut TrapFrame {
     process.trap_frame()
 }
 
+#[syscall_func(93)]
 pub fn do_exit(exit_code: i32) -> isize {
     let c_process = current_process().unwrap();
     if c_process.get_pid() == 0 {
@@ -89,6 +92,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     0
 }
 
+#[syscall_func(124)]
 pub fn do_suspend() -> isize {
     let process = current_process().unwrap();
     process.update_state(ProcessState::Sleeping);
@@ -96,11 +100,13 @@ pub fn do_suspend() -> isize {
     0
 }
 
+#[syscall_func(172)]
 pub fn get_pid() -> isize {
     let process = current_process().unwrap();
     process.get_pid()
 }
 
+#[syscall_func(220)]
 pub fn do_fork() -> isize {
     let process = current_process().unwrap();
     let new_process = process.fork();
@@ -116,43 +122,47 @@ pub fn do_fork() -> isize {
     process_pool.push_back(new_process);
     pid
 }
-
-pub fn do_exec(path: *const u8,args_ptr:*const usize) -> isize {
+#[syscall_func(221)]
+pub fn do_exec(path: *const u8, args_ptr: *const usize) -> isize {
     let process = current_process().unwrap();
     let str = process.transfer_str(path);
     let mut data = Vec::new();
     // get the args and push them into the new process stack
     let mut args = Vec::new();
-    let mut start = args_ptr as * mut usize;
+    let mut start = args_ptr as *mut usize;
     loop {
         let arg = process.transfer_raw_ptr(start);
         if *arg == 0 {
             break;
         }
         args.push(*arg);
-        start = unsafe{start.add(1)};
+        start = unsafe { start.add(1) };
     }
-    let mut args = args.into_iter().map(|arg| {
-        let mut  arg = process.transfer_str(arg as *const u8);
-        arg.push('\0');
-        arg
-    }).collect::<Vec<String>>();
+    let mut args = args
+        .into_iter()
+        .map(|arg| {
+            let mut arg = process.transfer_str(arg as *const u8);
+            arg.push('\0');
+            arg
+        })
+        .collect::<Vec<String>>();
     // push app name to the last args
     let mut app_name = str.clone();
     app_name.push('\0');
-    args.insert(0,app_name);
+    args.insert(0, app_name);
     if vfs::read_all(&str, &mut data) {
         let argc = args.len();
-        let res = process.exec(data.as_slice(),args);
+        let res = process.exec(data.as_slice(), args);
         if res.is_err() {
             return res.err().unwrap() as isize;
         }
-        return argc as isize
-    }else {
+        return argc as isize;
+    } else {
         -1
     }
 }
 
+#[syscall_func(260)]
 pub fn wait_pid(pid: isize, exit_code: *mut i32) -> isize {
     let process = current_process().unwrap();
     if !process

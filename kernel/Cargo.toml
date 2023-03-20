@@ -31,10 +31,16 @@ gmanager = {path ="../modules/gmanager"}
 rvfs = {path = "../../os-module/rvfs"}
 fat32-vfs = {path = "../../os-module/fat32-vfs"}
 jammdb = {path = "../../os-module/jammdb"}
+dbfs2 = {path = "../../os-module/dbfs2"}
+
 trace_lib = {git = "https://github.com/os-module/rtrace"}
 preprint = "0.1.0"
 rslab = "0.2.1"
 
+syscall-table = {path = "../modules/syscall-table"}
 
+
+[build-dependencies]
+syscall-table = {path = "../modules/syscall-table",features = ["std"]}
 
 [features]
