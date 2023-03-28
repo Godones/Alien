@@ -4,12 +4,18 @@ use crate::fs::vfs::VfsProvider;
 use crate::task::current_process;
 use core::cmp::min;
 use rvfs::file::{
-    vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file, FileMode, OpenFlags,
+    vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file, FileMode,
+    OpenFlags, SeekFrom,
 };
+
 use rvfs::inode::InodeMode;
 pub use stdio::*;
 use syscall_table::syscall_func;
 pub mod vfs;
+pub use dbfs::{
+    init_dbfs, sys_create_global_bucket, sys_execute_user_func, sys_execute_user_operate,
+    sys_show_dbfs,
+};
 
 #[syscall_func(56)]
 pub fn sys_open(path: usize, flag: u32) -> isize {
@@ -54,7 +60,6 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
         let r = vfs_read_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
         count += r;
     });
-    file.access_inner().f_pos += count;
     count as isize
 }
 
@@ -73,7 +78,6 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         let r = vfs_write_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
         count += r;
     });
-    file.access_inner().f_pos += count;
     count as isize
 }
 #[syscall_func(17)]
@@ -130,15 +134,39 @@ pub fn sys_mkdir(path: *const u8) -> isize {
 }
 
 #[syscall_func(1000)]
-pub fn sys_list() -> isize {
-    list_dir();
+pub fn sys_list(path: *const u8) -> isize {
+    let process = current_process().unwrap();
+    let path = process.transfer_str(path);
+    do_list(path.as_str())
+}
+
+fn do_list(path: &str) -> isize {
+    let file = vfs_open_file::<VfsProvider>(
+        path,
+        OpenFlags::O_RDWR | OpenFlags::O_DIRECTORY,
+        FileMode::FMODE_READ,
+    );
+    if file.is_err() {
+        return -1;
+    }
+    vfs_readdir(file.unwrap()).unwrap().for_each(|x| {
+        println!("name: {}", x);
+    });
     0
 }
 
-// temp function, will be removed
-pub fn list_dir() {
-    let file = vfs_open_file::<VfsProvider>("/", OpenFlags::O_RDWR, FileMode::FMODE_READ).unwrap();
-    vfs_readdir(file).unwrap().for_each(|x| {
-        println!("name: {}", x);
-    })
+#[syscall_func(62)]
+pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
+    let process = current_process().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return -1;
+    }
+    let file = file.unwrap();
+    let seek = SeekFrom::from((whence, offset as usize));
+    let res = vfs_llseek(file, seek);
+    if res.is_err() {
+        return -1;
+    }
+    0
 }

@@ -1,4 +1,5 @@
 use crate::driver::QEMU_BLOCK_DEVICE;
+use crate::task::{current_process, Process};
 use alloc::alloc::dealloc;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
@@ -10,8 +11,10 @@ use core::fmt::{Display, Formatter};
 use core::num::NonZeroUsize;
 use core::ops::Deref;
 use core2::io::{Read, Seek, SeekFrom, Write};
+use dbop::{Operate, OperateSet};
 use jammdb::{DbFile, FileExt, MemoryMap, MetaData, Mmap, OpenOption, PathLike, DB};
 use lru::LruCache;
+use syscall_table::syscall_func;
 
 type BlockDevice = dyn rvfs::superblock::Device;
 type Cache = [u8; 512];
@@ -361,5 +364,96 @@ fn init_db(db: &DB) {
 }
 
 pub fn init_dbfs() {
-    // let db = DB::open::<FakeOpenOptions,_>(Arc::new(FAKE_MMAP.clone()), "dbfs").unwrap();
+    let db = DB::open::<FakeOpenOptions, _>(Arc::new(FakeMMap::default()), "dbfs").unwrap();
+    init_db(&db);
+    dbfs2::init_dbfs(db);
+}
+
+#[syscall_func(1001)]
+pub fn sys_create_global_bucket(key: *const u8) -> isize {
+    let process = current_process().unwrap();
+    let str = process.transfer_str(key);
+    let res = dbfs2::extend::extend_create_global_bucket(&str);
+    if res.is_ok() {
+        0
+    } else {
+        0
+    }
+}
+
+#[syscall_func(1002)]
+pub fn sys_execute_user_func(key: *const u8, buf: *const u8, len: usize, func: usize) -> isize {
+    let process = current_process().unwrap();
+    let key = process.transfer_str(key);
+    let mut buf = process.transfer_raw_buffer(buf, len);
+    let func = process.transfer_raw(func);
+    use dbfs2::extend::MyPara;
+    let func = unsafe {
+        core::mem::transmute::<*const (), fn(&str, MyPara, &mut [u8]) -> isize>(func as *const ())
+    };
+
+    warn!("will execute user func, the key is {:?}", key);
+    dbfs2::extend::execute(&key, func, buf[0])
+}
+
+#[syscall_func(1003)]
+pub fn sys_show_dbfs() -> isize {
+    let res = dbfs2::extend::show_dbfs();
+    if res.is_ok() {
+        0
+    } else {
+        -1
+    }
+}
+
+#[syscall_func(1004)]
+pub fn sys_execute_user_operate(bucket: *const u8, operate: *const u8) -> isize {
+    let process = current_process().unwrap();
+    let bucket = process.transfer_str(bucket);
+    let operate = process.transfer_str(operate);
+    let mut operate: OperateSet = serde_json::from_str(&operate).unwrap();
+    // we need modify the ReadOperate because it contains a pointer of buf
+    operate.operate.iter_mut().for_each(|op| match op {
+        Operate::Read(rop) => {
+            let addr = rop.buf_addr;
+            let new_addr = process.transfer_raw(addr);
+            rop.buf_addr = new_addr;
+        }
+        Operate::AddBucket(_) | Operate::StepInto(_) => {
+            update_buf_address_recursive(process, op);
+        }
+        _ => {}
+    });
+
+    let res = dbfs2::extend::execute_operate(&bucket, operate);
+    res
+}
+
+fn update_buf_address_recursive(process: &Arc<Process>, operate: &mut Operate) {
+    let local = |other: &mut Box<OperateSet>| {
+        other.operate.iter_mut().for_each(|op| match op {
+            Operate::Read(rop) => {
+                let addr = rop.buf_addr;
+                let new_addr = process.transfer_raw(addr);
+                rop.buf_addr = new_addr;
+            }
+            Operate::AddBucket(_) | Operate::StepInto(_) => {
+                update_buf_address_recursive(process, op);
+            }
+            _ => {}
+        })
+    };
+    match operate {
+        Operate::AddBucket(ab) => {
+            if let Some(other) = &mut ab.other {
+                local(other);
+            }
+        }
+        Operate::StepInto(si) => {
+            if let Some(other) = &mut si.other {
+                local(other);
+            }
+        }
+        _ => {}
+    }
 }

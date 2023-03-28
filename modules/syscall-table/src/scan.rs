@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, Write};
 use std::path::PathBuf;
-use std::prelude::rust_2018::Vec;
-use std::string::String;
-use std::{fs, println};
+use std::string::{String, ToString};
+use std::vec::Vec;
+use std::{format, fs};
 
 pub fn scan_and_generate(path: String) {
     // read all files in the directory rescursively

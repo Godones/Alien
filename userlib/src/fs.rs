@@ -17,9 +17,11 @@ bitflags! {
         const O_NONBLOCK = 04000;
     }
 }
+
 pub fn read(fd: usize, buf: &mut [u8]) -> isize {
     sys_read(fd, buf.as_mut_ptr(), buf.len())
 }
+
 pub fn write(fd: usize, buf: &[u8]) -> isize {
     sys_write(fd, buf.as_ptr(), buf.len())
 }
@@ -28,8 +30,13 @@ pub fn readdir(fd: usize, buf: &mut [u8]) -> isize {
     sys_read(fd, buf.as_mut_ptr(), buf.len())
 }
 
-pub fn list() -> isize {
-    sys_list()
+pub fn list(path: &str) -> isize {
+    if !path.ends_with('\0') {
+        let mut p = String::from(path);
+        p.push('\0');
+        return sys_list(p.as_ptr());
+    }
+    sys_list(path.as_ptr())
 }
 
 pub fn open(name: &str, flag: OpenFlags) -> isize {

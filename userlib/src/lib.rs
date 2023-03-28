@@ -12,6 +12,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 
 pub mod common;
+pub mod dbfs;
 pub mod fs;
 mod heap;
 pub mod io;

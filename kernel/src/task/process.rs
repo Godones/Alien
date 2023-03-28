@@ -107,6 +107,7 @@ pub enum ProcessState {
     Running,
     Sleeping,
     Zombie,
+    Waiting,
 }
 
 impl Process {
@@ -391,6 +392,7 @@ impl Process {
         });
         // align the user_sp to 8byte
         let user_sp = (str_base - 8) & !0x7;
+
         let trap_frame = TrapFrame::from_raw_ptr(trap_frame);
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,

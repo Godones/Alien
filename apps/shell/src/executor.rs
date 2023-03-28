@@ -1,7 +1,7 @@
 use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use spin::{Mutex, Once};
+use spin::Mutex;
 use Mstd::fs::{chdir, get_cwd};
 use Mstd::process::{exec, fork, waitpid};
 use Mstd::thread::m_yield;
@@ -47,7 +47,7 @@ pub struct Executor {
 impl Executor {
     pub fn new(input: &str) -> Self {
         let (cmd, args) = input.split_once(' ').unwrap_or((input, ""));
-        let mut cmd = cmd.to_owned();
+        let cmd = cmd.to_owned();
         Self {
             parameter: Parameter::from_str(args),
             cmd,
@@ -61,7 +61,7 @@ impl Executor {
         match self.cmd.as_str() {
             "echo" => println!("{}", self.parameter.args.join(" ")),
             "help" => println!("{}", HELP),
-            "cd" => unsafe {
+            "cd" => {
                 println!("cd to {}", self.parameter.args[0]);
                 let res = chdir(&self.parameter.args[0]);
                 if res == -1 {
@@ -72,7 +72,7 @@ impl Executor {
                     println!("chdir success, now cwd: {}", cwd);
                     *CURRENT_DIR.lock() = Some(cwd.to_string());
                 }
-            },
+            }
             "exit" => shutdown(),
             _ => {
                 let mut cmd = self.cmd;

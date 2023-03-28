@@ -1,12 +1,9 @@
-#![no_std]
-#[cfg(test)]
+#![cfg_attr(not(test), no_std)]
 
-
-extern crate std;
 extern crate alloc;
 use alloc::vec::Vec;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct MinimalManager<T: Clone> {
     data: Vec<Option<T>>,
     // 记录最小可用索引
@@ -91,7 +88,7 @@ mod tests {
         assert!(index.is_err());
         let ans = manager.remove(10);
         assert!(ans.is_err());
-        let ans = manager.remove(1).unwrap();
+        let _ans = manager.remove(1).unwrap();
         let index = manager.insert(10).unwrap();
         assert_eq!(index, 1);
         println!("gmanager test passed");

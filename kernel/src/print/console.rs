@@ -1,6 +1,6 @@
-use super::{Uart, UART};
-use alloc::string::String;
+use crate::driver::uart::{CharDevice, UART, USER_UART};
 use core::fmt::{Arguments, Result, Write};
+use preprint::Print;
 
 #[macro_export]
 macro_rules! print {
@@ -16,13 +16,27 @@ macro_rules! println {
     }
 }
 
+#[macro_export]
+macro_rules! uprint {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+        $crate::print::console::__uprint(format_args!($fmt $(, $($arg)+)?));
+    }
+}
+
+#[macro_export]
+macro_rules! uprintln {
+    ($fmt: literal $(, $($arg: tt)+)?) => {
+        $crate::print::console::__uprint(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
+    }
+}
+
 struct Stdout;
 
 /// 对`Stdout`实现输出的Trait
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
         let mut buffer = [0u8; 4];
-        let mut stdout = UART.lock();
+        let stdout = UART.lock();
         for c in s.chars() {
             for code_point in c.encode_utf8(&mut buffer).as_bytes().iter() {
                 stdout.put(*code_point);
@@ -33,36 +47,8 @@ impl Write for Stdout {
 }
 
 pub fn get_char() -> Option<u8> {
-    UART.lock().get()
-}
-
-pub fn get_line() -> String {
-    let mut line = String::new();
-    loop {
-        match get_char() {
-            Some(ch) => {
-                match ch {
-                    //退格键或者删除键
-                    8 | 0x7f => {
-                        if line.len() > 0 {
-                            line.pop();
-                            print!("\x08 \x08");
-                        }
-                    }
-                    //回车键
-                    13 => {
-                        println!(""); //换行
-                        return line;
-                    }
-                    _ => {
-                        line.push(ch as char);
-                        print!("{}", ch as char);
-                    }
-                }
-            }
-            None => {}
-        }
-    }
+    let uart = USER_UART.get().unwrap();
+    uart.get()
 }
 
 /// 输出函数
@@ -71,7 +57,24 @@ pub fn __print(args: Arguments) {
     Stdout.write_fmt(args).unwrap();
 }
 
-use preprint::Print;
+struct UStdout;
+
+impl Write for UStdout {
+    fn write_str(&mut self, s: &str) -> Result {
+        let mut buffer = [0u8; 4];
+        let stdout = USER_UART.get().unwrap();
+        for c in s.chars() {
+            for code_point in c.encode_utf8(&mut buffer).as_bytes().iter() {
+                stdout.put(*code_point);
+            }
+        }
+        Ok(())
+    }
+}
+
+pub fn __uprint(args: Arguments) {
+    UStdout.write_fmt(args).unwrap();
+}
 
 pub struct PrePrint;
 

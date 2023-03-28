@@ -1,9 +1,5 @@
-#![no_std]
-
+#![cfg_attr(not(test), no_std)]
 extern crate alloc;
-#[cfg(test)]
-extern crate std;
-
 // 128
 pub struct Bitmap<const N: usize> {
     data: [u8; N],
