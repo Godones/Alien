@@ -20,10 +20,9 @@ fn panic_handler(info: &PanicInfo) -> ! {
         println!("no location information available");
     }
     if !RECURSION.load(core::sync::atomic::Ordering::SeqCst) {
+        RECURSION.store(true, core::sync::atomic::Ordering::SeqCst);
         back_trace();
     }
-    RECURSION.store(true, core::sync::atomic::Ordering::SeqCst);
-
     shutdown();
     loop {}
 }

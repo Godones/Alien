@@ -24,6 +24,23 @@ extern "C" {
     fn ekernel();
     fn strampoline();
 }
+
+pub fn kernel_info() {
+    println!(
+        "kernel text:   {:#x}-{:#x}",
+        stext as usize, srodata as usize
+    );
+    println!(
+        "kernel rodata: {:#x}-{:#x}",
+        srodata as usize, sdata as usize
+    );
+    println!("kernel data:   {:#x}-{:#x}", sdata as usize, sbss as usize);
+    println!(
+        "kernel bss:    {:#x}-{:#x}",
+        sbss as usize, ekernel as usize
+    );
+    println!("kernel heap:   {:#x}-{:#x}", ekernel as usize, MEMORY_END);
+}
 /// 建立内核页表
 pub fn build_kernel_address_space() {
     info!("build kernel address space");

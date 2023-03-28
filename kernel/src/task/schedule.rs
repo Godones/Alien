@@ -22,18 +22,21 @@ pub fn first_into_user() -> ! {
 
 pub fn schedule() {
     let mut process_manager = PROCESS_MANAGER.lock();
+    // println!("There are {} processes in the process pool", process_manager.len());
     let cpu = current_cpu();
-    let process = cpu.take_process().unwrap();
-    assert_ne!(process.state(), ProcessState::Running);
-    match process.state() {
-        ProcessState::Zombie => {
-            drop(process);
-        }
-        _ => {
-            process_manager.push_back(process);
+    {
+        let process = cpu.take_process().unwrap();
+        match process.state() {
+            ProcessState::Zombie | ProcessState::Sleeping | ProcessState::Waiting => {}
+            _ => {
+                process_manager.push_back(process);
+            }
         }
     }
     if let Some(process) = process_manager.pop_front() {
+        // if process.get_pid() == 1{
+        //     println!("schedule to pid:{}", 1);
+        // }
         process.update_state(ProcessState::Running);
         let context = process.get_context_raw_ptr();
         cpu.process = Some(process);

@@ -95,7 +95,7 @@ pub fn do_exit(exit_code: i32) -> isize {
 #[syscall_func(124)]
 pub fn do_suspend() -> isize {
     let process = current_process().unwrap();
-    process.update_state(ProcessState::Sleeping);
+    process.update_state(ProcessState::Ready);
     schedule();
     0
 }

@@ -57,8 +57,10 @@ impl TrapFrame {
     pub fn update_res(&mut self, val: usize) {
         self.x[10] = val;
     }
-    pub fn parameters(&self) -> [usize; 4] {
-        [self.x[17], self.x[10], self.x[11], self.x[12]]
+    pub fn parameters(&self) -> [usize; 7] {
+        [
+            self.x[17], self.x[10], self.x[11], self.x[12], self.x[13], self.x[14], self.x[15],
+        ]
     }
     pub fn regs(&mut self) -> &mut [usize] {
         &mut self.x
