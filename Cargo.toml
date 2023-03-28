@@ -1,0 +1,29 @@
+[workspace]
+members = [
+    "kernel",
+    "userlib",
+    "boot",
+
+    "modules/gmanager",
+    "modules/pci-rs",
+    "modules/simple-bitmap",
+    "modules/syscall-table",
+    "modules/systable-macro-derive",
+    "modules/plic",
+
+
+
+    "apps/cat",
+    "apps/echo",
+    "apps/dbfs",
+    "apps/init",
+    "apps/ls",
+    "apps/mkdir",
+    "apps/pwd",
+    "apps/shell",
+]
+
+
+[profile.release]
+#lto = "fat"
+#codegen-units = 1

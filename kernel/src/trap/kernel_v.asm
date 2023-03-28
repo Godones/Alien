@@ -1,5 +1,6 @@
+.section .text
 .globl kernel_v
-.align 2
+.align 4
 kernel_v:
         # make room to save registers.
         addi sp, sp, -256
@@ -36,8 +37,10 @@ kernel_v:
         sd t5, 232(sp)
         sd t6, 240(sp)
 
+        csrr t2, sscratch
+        jalr t2
         # call the C trap handler in trap.c
-        call kernel_trap_vector
+        #call kernel_trap_vector
 
         # restore registers.
         ld ra, 0(sp)

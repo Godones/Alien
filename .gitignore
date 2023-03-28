@@ -19,3 +19,4 @@ tools/fs.img
 *.hex
 */target
 std
+tools/*.img

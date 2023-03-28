@@ -1,18 +1,19 @@
 use crate::driver::rtc::get_rtc_time;
 use crate::driver::QEMU_BLOCK_DEVICE;
+use crate::fs::init_dbfs;
 use crate::task::current_process;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
+use dbfs2::DBFS;
 use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
-use rvfs::file::{vfs_open_file, vfs_read_file, FileMode, OpenFlags};
+use rvfs::file::{vfs_mkdir, vfs_open_file, vfs_read_file, FileMode, OpenFlags};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
-use rvfs::stat::vfs_getattr;
 use rvfs::superblock::{register_filesystem, DataOps, Device};
 use spin::Mutex;
 
@@ -35,21 +36,30 @@ pub fn init_vfs() {
     let mnt = do_mount::<VfsProvider>("fat", "/", "fat", MountFlags::empty(), Some(data)).unwrap();
     *TMP_MNT.lock() = mnt.clone();
     *TMP_DIR.lock() = mnt.root.clone();
+
+    vfs_mkdir::<VfsProvider>("/db", FileMode::FMODE_WRITE).unwrap();
+    register_filesystem(DBFS).unwrap();
+
+    // initialize the dbfs
+    init_dbfs();
+    let _db = do_mount::<VfsProvider>("block", "/db", "dbfs", MountFlags::empty(), None).unwrap();
+    // println!("db mnt:{:#?}", db);
     println!("vfs init done");
 }
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
-    let attr = vfs_getattr::<VfsProvider>(file_name);
-    if attr.is_err() {
-        return false;
-    }
-    let attr = attr.unwrap();
     let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
     if file.is_err() {
+        warn!("open file {} failed", file_name);
         return false;
     }
     let file = file.unwrap();
-    let size = attr.size;
+    let size = file
+        .f_dentry
+        .access_inner()
+        .d_inode
+        .access_inner()
+        .file_size;
     let mut offset = 0;
     while offset < size {
         let mut tmp = vec![0; 512 as usize];
