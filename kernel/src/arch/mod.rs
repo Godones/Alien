@@ -19,10 +19,31 @@ pub fn interrupt_disable() {
         sstatus::clear_sie();
     }
 }
-
+/// enable the global interrupt
 pub fn interrupt_enable() {
     unsafe {
         sstatus::set_sie();
+    }
+}
+
+pub fn external_interrupt_enable() {
+    unsafe {
+        // 开启外部中断
+        sie::set_sext();
+    }
+}
+
+pub fn software_interrupt_enable() {
+    unsafe {
+        // 开启软件中断
+        sie::set_ssoft();
+    }
+}
+
+pub fn external_interrupt_disable() {
+    unsafe {
+        // 关闭外部中断
+        sie::clear_sext();
     }
 }
 

@@ -28,8 +28,13 @@ impl Stdin {
 }
 impl Read for Stdin {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let len = sys_read(0, buf.as_mut_ptr(), buf.len());
-        Ok(len as usize)
+        loop {
+            let len = sys_read(0, buf.as_mut_ptr(), buf.len());
+            if len > 0 {
+                break;
+            }
+        }
+        Ok(1 as usize)
     }
 }
 

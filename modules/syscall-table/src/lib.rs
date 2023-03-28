@@ -1,13 +1,12 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "test"), no_std)]
 #![allow(non_snake_case)]
 
 #[cfg(feature = "std")]
 pub mod scan;
 
-#[cfg(test)]
+#[cfg(feature = "test")]
 extern crate std;
 
-#[cfg(feature = "alloc")]
 extern crate alloc;
 
 use alloc::boxed::Box;

@@ -1,7 +1,8 @@
 .PHONY: all run clean
 
 TARGET      := riscv64gc-unknown-none-elf
-KERNEL_FILE := boot/target/$(TARGET)/release/boot
+OUTPUT := target/$(TARGET)/release/
+KERNEL_FILE := $(OUTPUT)/boot
 DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
 OBJDUMP     := rust-objdump --arch-name=riscv64
@@ -15,6 +16,7 @@ SMP :=1
 IMG1 := tools/fs1.img
 
 FS_TYPE := fat32
+APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
 
 define boot_qemu
 	qemu-system-riscv64 \
@@ -31,13 +33,12 @@ define boot_qemu
 endef
 
 install:
-	@cargo install --git  https://github.com/os-module/elfinfo
+	@#cargo install --git  https://github.com/os-module/elfinfo
 
 all:run
 
 compile:
 	@cd boot && cargo build --release
-	@pwd
 	@(nm -n ${KERNEL_FILE} | trace_exe > kernel/src/trace/kernel_symbol.S)
 	@cd boot && cargo build --release
 	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
@@ -45,14 +46,17 @@ compile:
 
 
 user:
-	@cd apps && make
+	@cd apps && make build
+	@echo "Moving apps to /fat32"
+	@$(foreach dir, $(APPS_NAME), (sudo cp $(OUTPUT)$(dir) /fat/$(dir););)
+	@sync
 
 build:compile
 
 
-run:install compile $(img) user
+run:install compile $(img) user SecondFile
 	$(call boot_qemu)
-	@rm ./kernel-qemu
+	@#rm ./kernel-qemu
 
 
 dtb:
@@ -60,11 +64,16 @@ dtb:
 	@dtc -I dtb -O dts -o riscv.dts riscv.dtb
 	@rm riscv.dtb
 
+SecondFile:
+	#创建空白文件
+	@dd if=/dev/zero of=$(IMG1) bs=1M count=64
+
 ZeroFile:
 	#创建空白文件
 	@dd if=/dev/zero of=$(IMG) bs=1M count=64
 
 fat32:
+	@#rm -rf ./tools/fs.img
 	#创建64MB大小的fat32文件系统
 	@sudo chmod 777 $(IMG)
 	@sudo dd if=/dev/zero of=$(IMG) bs=512 count=131072
@@ -74,6 +83,8 @@ fat32:
 	fi
 	@sudo mount $(IMG) /fat
 	@sudo cp tools/f1.txt /fat
+	@sudo mkdir /fat/folder
+	@sudo cp tools/f1.txt /fat/folder
 	@sync
 
 
@@ -82,13 +93,15 @@ img-hex:
 	@cat test.hex
 
 
-gdb: compile $(img) user
+gdb: compile $(img) user SecondFile
 	@qemu-system-riscv64 \
             -M virt $(1)\
             -bios $(BOOTLOADER) \
             -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
             -drive file=$(IMG),if=none,format=raw,id=x0 \
             -device virtio-blk-device,drive=x0 \
+			-drive file=$(IMG1),if=none,format=raw,id=x1 \
+			-device virtio-blk-device,drive=x1 \
             -nographic \
             -kernel  kernel-qemu\
             -smp $(SMP) -m 128M \
@@ -101,14 +114,18 @@ debug: compile $(img) user
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
 fmt:
-	cd boot && cargo fmt
-	cd apps && make fmt
-	cd kernel && cargo fmt
-	cd userlib && cargo fmt
+	@cd boot && cargo fmt
+	@cd apps && make fmt
+	@cd kernel && cargo fmt
+	@cd userlib && cargo fmt
+	@cd modules && make fmt
 asm:compile
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
 	@lvim kernel.asm
 	@rm kernel.asm
+
+
+
 clean:
 	@cd boot && cargo clean
 	@cd apps && make clean

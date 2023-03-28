@@ -1,8 +1,7 @@
-//todo!(使用向量中断入口而不是统一中断入口)
 use core::arch::{asm, global_asm};
 use riscv::register::scause::{Exception, Interrupt, Trap};
 use riscv::register::stvec::TrapMode;
-use riscv::register::{sstatus, stvec};
+use riscv::register::{sscratch, sstatus, stvec};
 
 mod context;
 mod exception;
@@ -11,16 +10,19 @@ mod interrupt;
 global_asm!(include_str!("./kernel_v.asm"));
 global_asm!(include_str!("./trampoline.asm"));
 
-use crate::arch::{interrupt_enable, timer_interrupt_enable};
+use crate::arch::{
+    external_interrupt_enable, interrupt_disable, interrupt_enable, timer_interrupt_enable,
+};
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::task::current_user_token;
+use crate::timer::{check_timer_queue, set_next_trigger};
 pub use context::TrapFrame;
 use riscv::register::sstatus::SPP;
 
 extern "C" {
     fn kernel_v();
     fn user_v();
-    fn user_r(p1: usize, p2: usize);
+    fn user_r();
 }
 
 #[no_mangle]
@@ -28,6 +30,7 @@ extern "C" {
 /// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
+    interrupt_disable();
     set_user_trap_entry();
     unsafe {
         sstatus::set_spp(SPP::User);
@@ -54,17 +57,17 @@ fn set_user_trap_entry() {
 }
 fn set_kernel_trap_entry() {
     unsafe {
+        sscratch::write(kernel_trap_vector as usize);
         stvec::write(kernel_v as usize, TrapMode::Direct);
     }
 }
 
 /// 开启中断/异常
 pub fn init_trap_subsystem() {
-    // 设置内核陷入处理
+    println!("kernel_v:{:x}", kernel_v as usize);
     set_kernel_trap_entry();
-    // 开启全局中断
     interrupt_enable();
-    // 开启时钟中断
+    external_interrupt_enable();
     timer_interrupt_enable();
 }
 
@@ -95,6 +98,9 @@ impl TrapHandler for Trap {
                 println!("[kernel] IllegalInstruction in application, kernel killed it.");
                 exception::illegal_instruction_exception_handler()
             }
+            Trap::Interrupt(Interrupt::SupervisorExternal) => {
+                interrupt::external_interrupt_handler();
+            }
             _ => {
                 panic!("unhandled trap: {:?}", self);
             }
@@ -103,19 +109,24 @@ impl TrapHandler for Trap {
     fn do_kernel_handle(&self) {
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                info!("timer interrupt");
-                interrupt::timer_interrupt_handler();
+                check_timer_queue();
+                set_next_trigger();
             }
-            Trap::Exception(_) => {}
+            Trap::Exception(_) => {
+                warn!("exception: {:?}", self);
+            }
+            Trap::Interrupt(Interrupt::SupervisorExternal) => {
+                interrupt::external_interrupt_handler();
+            }
             _ => {
-                panic!("unhandled trap: {:?}", self);
+                warn!("unhandled trap: {:?}", self);
             }
         }
     }
 }
 
-#[no_mangle]
 /// 用户态陷入处理
+#[no_mangle]
 pub fn user_trap_vector() {
     set_kernel_trap_entry();
     let cause = riscv::register::scause::read();
@@ -123,9 +134,9 @@ pub fn user_trap_vector() {
     trap_return();
 }
 
-#[no_mangle]
 /// 只有在内核态下才能进入这个函数
 /// 避免嵌套中断发生这里不会再开启中断
+#[no_mangle]
 pub fn kernel_trap_vector() {
     let cause = riscv::register::scause::read().cause();
     cause.do_kernel_handle()

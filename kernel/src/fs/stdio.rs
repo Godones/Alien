@@ -26,15 +26,13 @@ lazy_static! {
 
 fn stdin_read(_file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
     assert_eq!(buf.len(), 1);
-    loop {
-        match get_char() {
-            Some(ch) => {
-                buf[0] = ch as u8;
-                return Ok(1);
-            }
-            None => {}
+    return match get_char() {
+        Some(ch) => {
+            buf[0] = ch as u8;
+            Ok(1)
         }
-    }
+        None => Ok(0),
+    };
 }
 lazy_static! {
     pub static ref STDOUT: Arc<Stdout> = {
@@ -52,6 +50,6 @@ lazy_static! {
 }
 
 fn stdout_write(_file: Arc<File>, buf: &[u8], _offset: u64) -> StrResult<usize> {
-    print!("{}", core::str::from_utf8(buf).unwrap());
+    uprint!("{}", core::str::from_utf8(buf).unwrap());
     Ok(buf.len())
 }

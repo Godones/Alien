@@ -7,7 +7,7 @@ APPS_NAME := $(shell ls -d */ | cut -d '/' -f 1)
 all:build
 	@# move to /fat32
 	@echo "Moving apps to /fat32"
-	@$(foreach dir, $(APPS_NAME), (sudo cp $(dir)/$(target)$(dir) /fat/$(dir););)
+	@$(foreach dir, $(APPS_NAME), (sudo cp $(target)$(dir) /fat/$(dir););)
 	@sync
 
 
@@ -23,3 +23,9 @@ fmt:
 clean:
 	@echo "Cleaning apps"
 	@$(foreach dir, $(APPS), (cd $(dir) && cargo clean && cd ..);)
+	@$(foreach dir, $(APPS), (cd $(dir) && rm -rf target && cd ..);)
+
+
+
+clock:
+	@$(foreach dir, $(APPS), (cd $(dir) && rm -rf Cargo.lock && cd ..);)

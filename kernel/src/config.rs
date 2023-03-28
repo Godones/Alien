@@ -15,7 +15,7 @@ pub const MEMORY_END: usize = 0x88_000_000; //128
 pub const FRAME_SIZE: usize = 0x1000; //4KB
 pub const FRAME_BITS: usize = 12;
 
-pub const TIMER_FREQ: usize = 10_000_000;
+pub const TIMER_FREQ: usize = CLOCK_FREQ;
 pub const CPU_NUM: usize = 1;
 
 pub const MMIO: &[(usize, usize)] = &[
