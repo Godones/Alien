@@ -3,47 +3,55 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::fmt::{Debug, Formatter};
 use core::num::NonZeroUsize;
+use downcast::{downcast, Any};
 use lazy_static::lazy_static;
 use lru::LruCache;
 use rvfs::superblock::Device;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
-use virtio_drivers::transport::Transport;
+use virtio_drivers::transport::mmio::MmioTransport;
 
 type Cache = [u8; 512];
-pub struct QemuBlockDevice<T: Transport> {
-    device: Mutex<VirtIOBlk<HalImpl, T>>,
+pub struct QemuBlockDevice {
+    pub device: Mutex<VirtIOBlk<HalImpl, MmioTransport>>,
     cache: Mutex<LruCache<usize, Cache>>,
 }
 
-impl<T: Transport> QemuBlockDevice<T> {
-    pub fn new(device: VirtIOBlk<HalImpl, T>) -> Self {
+impl QemuBlockDevice {
+    pub fn new(device: VirtIOBlk<HalImpl, MmioTransport>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(4 * 1024).unwrap())),
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(2* 4* 1024).unwrap())), // 2MB cache
         }
     }
 }
-unsafe impl<T: Transport> Send for QemuBlockDevice<T> {}
-unsafe impl<T: Transport> Sync for QemuBlockDevice<T> {}
+unsafe impl Send for QemuBlockDevice {}
+unsafe impl Sync for QemuBlockDevice {}
 
 lazy_static! {
-    pub static ref QEMU_BLOCK_DEVICE: Mutex<Vec<Arc<dyn Device>>> = Mutex::new(Vec::new());
+    pub static ref QEMU_BLOCK_DEVICE: Mutex<Vec<Arc<QemuBlockDevice>>> = Mutex::new(Vec::new());
 }
 
-impl<T: Transport> Debug for QemuBlockDevice<T> {
+impl Debug for QemuBlockDevice {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("QemuBlockDevice").finish()
     }
 }
 
-impl<T: Transport> Device for QemuBlockDevice<T> {
+pub trait BlockDevice: Device + Any {}
+
+downcast!(dyn BlockDevice);
+
+impl BlockDevice for QemuBlockDevice {}
+
+impl Device for QemuBlockDevice {
     fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, ()> {
         let mut block = offset / 512;
         let mut offset = offset % 512;
         let mut cache_lock = self.cache.lock();
         let len = buf.len();
         let mut count = 0;
+
         while count < len {
             if !cache_lock.contains(&block) {
                 let mut cache = [0u8; 512];

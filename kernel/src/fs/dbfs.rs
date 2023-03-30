@@ -1,88 +1,140 @@
-use crate::driver::QEMU_BLOCK_DEVICE;
+use crate::config::FRAME_SIZE;
+use crate::driver::{QemuBlockDevice, QEMU_BLOCK_DEVICE};
+use crate::memory::{frame_alloc, FrameTracker};
 use crate::task::{current_process, Process};
-use alloc::alloc::dealloc;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use alloc::vec;
-use core::alloc::Layout;
 use core::cmp::min;
 use core::fmt::{Display, Formatter};
 use core::num::NonZeroUsize;
-use core::ops::Deref;
 use core2::io::{Read, Seek, SeekFrom, Write};
 use dbop::{Operate, OperateSet};
-use jammdb::{DbFile, FileExt, MemoryMap, MetaData, Mmap, OpenOption, PathLike, DB};
+use jammdb::{
+    DbFile, File, FileExt, IOResult, IndexByPageID, MemoryMap, MetaData, Mmap, OpenOption,
+    PathLike, DB,
+};
 use lru::LruCache;
+use rvfs::superblock::Device;
+use spin::{Mutex, Once};
 use syscall_table::syscall_func;
 
-type BlockDevice = dyn rvfs::superblock::Device;
-type Cache = [u8; 512];
-struct CacheManager {
-    device: Arc<BlockDevice>,
-    lru: LruCache<usize, Cache>,
-}
+static CACHE_LAYER: Once<Mutex<CacheLayer>> = Once::new();
+const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 
-impl CacheManager {
-    pub fn new(device: Arc<BlockDevice>, limit: usize) -> Self {
+pub struct CacheLayer {
+    device: Arc<QemuBlockDevice>,
+    lru: LruCache<usize, FrameTracker>,
+}
+impl CacheLayer {
+    pub fn new(device: Arc<QemuBlockDevice>, limit: usize) -> Self {
         Self {
             device,
             lru: LruCache::new(NonZeroUsize::new(limit).unwrap()),
         }
     }
-    pub fn get(&mut self, id: usize) -> Option<&Cache> {
+    pub fn get(&mut self, id: usize) -> Option<&FrameTracker> {
         let flag = self.lru.contains(&id);
         if flag {
             self.lru.get(&id)
         } else {
-            let mut cache = [0u8; 512];
-            self.device.read(&mut cache, id * 512).unwrap();
-            let old = self.lru.push(id, cache);
-            let cache = self.lru.get(&id);
-            if let Some((old_id, old_cache)) = old {
-                self.device.write(&old_cache, old_id * 512).unwrap();
+            let mut cache = frame_alloc().unwrap();
+            let start = id * PAGE_CACHE_SIZE;
+            let start_block = start / 512;
+            let end_block = (start + PAGE_CACHE_SIZE) / 512;
+            for i in start_block..end_block {
+                let target_buf = &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                self.device.device.lock().read_block(i, target_buf).unwrap();
             }
+            let old = self.lru.push(id, cache);
+            // write back
+            if let Some((id, frame)) = old {
+                warn!("write back frame {} to disk", id);
+                let start = id * PAGE_CACHE_SIZE;
+                let start_block = start / 512;
+                let end_block = (start + PAGE_CACHE_SIZE) / 512;
+                for i in start_block..end_block {
+                    let target_buf = &frame[(i - start_block) * 512..(i - start_block + 1) * 512];
+                    self.device
+                        .device
+                        .lock()
+                        .write_block(i, target_buf)
+                        .unwrap();
+                }
+            }
+            let cache = self.lru.get(&id);
             cache
         }
     }
-    pub fn get_mut(&mut self, id: usize) -> Option<&mut Cache> {
+    pub fn get_mut(&mut self, id: usize) -> Option<&mut FrameTracker> {
         let flag = self.lru.contains(&id);
         if flag {
             self.lru.get_mut(&id)
         } else {
-            let mut cache = [0u8; 512];
-            self.device.read(&mut cache, id * 512).unwrap();
-            let old = self.lru.push(id, cache);
-            let cache = self.lru.get_mut(&id);
-            if let Some((old_id, old_cache)) = old {
-                self.device.write(&old_cache, old_id * 512).unwrap();
+            let mut cache = frame_alloc().unwrap();
+            let start = id * PAGE_CACHE_SIZE;
+            let start_block = start / 512;
+            let end_block = (start + PAGE_CACHE_SIZE) / 512;
+            for i in start_block..end_block {
+                let target_buf = &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                self.device.device.lock().read_block(i, target_buf).unwrap();
             }
+            let old = self.lru.push(id, cache);
+            // write back
+            if let Some((id, frame)) = old {
+                warn!("write back frame {} to disk", id);
+                let start = id * PAGE_CACHE_SIZE;
+                let start_block = start / 512;
+                let end_block = (start + PAGE_CACHE_SIZE) / 512;
+                for i in start_block..end_block {
+                    let target_buf = &frame[(i - start_block) * 512..(i - start_block + 1) * 512];
+                    self.device
+                        .device
+                        .lock()
+                        .write_block(i, target_buf)
+                        .unwrap();
+                }
+            }
+            let cache = self.lru.get_mut(&id);
             cache
         }
     }
-    pub fn flush(&mut self) {
-        self.lru.iter().for_each(|(id, cache)| {
-            self.device.write(cache, id * 512).unwrap();
-        })
+    pub fn flush(&self) {
+        for (id, frame) in self.lru.iter() {
+            let start = id * PAGE_CACHE_SIZE;
+            let start_block = start / 512;
+            let end_block = (start + PAGE_CACHE_SIZE) / 512;
+            for i in start_block..end_block {
+                let target_buf = &frame[(i - start_block) * 512..(i - start_block + 1) * 512];
+                self.device
+                    .device
+                    .lock()
+                    .write_block(i, target_buf)
+                    .unwrap();
+            }
+        }
     }
 }
 
-/// 将块设备模拟为一个文件
+/// we use a fake file to represent the block device
+///
+/// The first page is used to store the size of the file, the pagesize is 4KB.
 pub struct FakeFile {
-    cache_manager: CacheManager,
     offset: usize,
     size: usize,
+    device: Arc<QemuBlockDevice>,
 }
 
 impl FakeFile {
-    fn new(device: Arc<BlockDevice>) -> Self {
+    fn new(device: Arc<QemuBlockDevice>) -> Self {
         let mut buf = [0u8; 512];
-        device.read(&mut buf, 0).unwrap();
+        device.device.lock().read_block(0, &mut buf).unwrap();
         let size = usize::from_le_bytes(buf[0..8].try_into().unwrap());
+        CACHE_LAYER.call_once(|| Mutex::new(CacheLayer::new(device.clone(), 1024))); // 1024 * 4096 = 4MB
         Self {
-            cache_manager: CacheManager::new(device, 1024),
             offset: 0,
             size,
+            device,
         }
     }
 }
@@ -100,7 +152,10 @@ impl Seek for FakeFile {
             SeekFrom::End(offset) => {
                 self.offset = self.size + offset as usize;
                 if (self.offset as isize) < 0 {
-                    self.offset = 0;
+                    return Err(core2::io::Error::new(
+                        core2::io::ErrorKind::InvalidInput,
+                        "invalid seek to a negative or overflowing position",
+                    ));
                 }
             }
         }
@@ -115,11 +170,13 @@ impl Write for FakeFile {
         let mut offset = self.offset;
         let mut buf = buf;
         while !buf.is_empty() {
-            let cache_id = offset / 512;
-            let cache_offset = offset % 512;
-            // 文件从第一个块开始写入
-            let cache = self.cache_manager.get_mut(cache_id + 1).unwrap();
-            let n = min(512 - cache_offset, buf.len());
+            let cache_id = offset / PAGE_CACHE_SIZE;
+            let cache_offset = offset % PAGE_CACHE_SIZE;
+            // we need write from cache_offset to 4KB
+            let mut layer = CACHE_LAYER.get().unwrap().lock();
+            let cache = layer.get_mut(cache_id + 1).unwrap();
+            // let cache = self.cache_manager.get_mut(cache_id + 1).unwrap();
+            let n = min(PAGE_CACHE_SIZE - cache_offset, buf.len());
             cache[cache_offset..cache_offset + n].copy_from_slice(&buf[..n]);
             offset += n;
             buf = &buf[n..];
@@ -131,26 +188,10 @@ impl Write for FakeFile {
         Ok(len)
     }
 
+    /// write back the cache to the disk
     fn flush(&mut self) -> core2::io::Result<()> {
-        warn!("flush file");
-        self.cache_manager.flush();
-        // 因为块设备的第一块是用来存储文件系统的大小的
-        // 所以需要将文件系统的大小写入到块设备的第一块
-        // let mut buf = [0u8; 512];
-        // buf[0..8].copy_from_slice(&(self.size as u64).to_le_bytes());
-        // self.cache_manager.device.write(0, &buf).unwrap();
-        let map_size = unsafe { FAKE_MMAP.size };
-        let size = self.size();
-        if map_size >= size {
-            let mut data = vec![0u8; size];
-            self.seek(SeekFrom::Start(0)).unwrap();
-            self.read(data.as_mut_slice()).unwrap();
-            unsafe {
-                let addr = FAKE_MMAP.addr;
-                core::ptr::copy(data.as_ptr(), addr as *mut u8, size);
-            }
-        }
-
+        // warn!("flush file");
+        // CACHE_LAYER.get().unwrap().lock().flush();
         Ok(())
     }
 }
@@ -168,11 +209,12 @@ impl Read for FakeFile {
         let mut offset = self.offset;
         let mut buf = buf;
         while !buf.is_empty() && offset < self.size {
-            let cache_id = offset / 512;
-            let cache_offset = offset % 512;
+            let cache_id = offset / PAGE_CACHE_SIZE;
+            let cache_offset = offset % PAGE_CACHE_SIZE;
             // 文件从第一个块开始读取
-            let cache = self.cache_manager.get(cache_id + 1).unwrap();
-            let n = min(512 - cache_offset, buf.len());
+            let mut layer = CACHE_LAYER.get().unwrap().lock();
+            let cache = layer.get(cache_id + 1).unwrap();
+            let n = min(PAGE_CACHE_SIZE - cache_offset, buf.len());
             buf[..n].copy_from_slice(&cache[cache_offset..cache_offset + n]);
             offset += n;
             buf = &mut buf[n..];
@@ -221,14 +263,14 @@ impl FileExt for FakeFile {
         })
     }
 
+    /// write back the file size to the disk
     fn sync_all(&self) -> core2::io::Result<()> {
         // 因为块设备的第一块是用来存储文件系统的大小的
         // 所以需要将文件系统的大小写入到块设备的第一块
-        warn!("sync all metadata");
-        let mut buf = [0u8; 8];
-        buf[0..8].copy_from_slice(&(self.size).to_le_bytes());
-        self.cache_manager.device.write(&buf, 0).unwrap();
-
+        // warn!("sync all metadata to disk");
+        // let mut buf = [0u8; 512];
+        // buf[0..8].copy_from_slice(&(self.size).to_le_bytes());
+        // self.device.device.lock().write_block(0, &buf).unwrap();
         Ok(())
     }
 
@@ -267,7 +309,7 @@ impl OpenOption for FakeOpenOptions {
                 "file not found",
             ));
         }
-        Ok(jammdb::File::new(Box::new(fake_file.unwrap())))
+        Ok(File::new(Box::new(fake_file.unwrap())))
     }
 
     fn create(&mut self, _create: bool) -> &mut Self {
@@ -304,53 +346,31 @@ impl FakePath {
 }
 
 #[derive(Clone, Default)]
-pub struct FakeMMap {
-    size: usize,
-    addr: usize,
-}
-
-impl Deref for FakeMMap {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { core::slice::from_raw_parts(self.addr as *const u8, self.size) }
-    }
-}
-
-static mut FAKE_MMAP: Mmap = Mmap { size: 0, addr: 0 };
+pub struct FakeMMap;
 
 impl MemoryMap for FakeMMap {
-    fn map(&self, file: &mut dyn DbFile) -> core2::io::Result<Mmap>
+    fn map(&self, _file: &mut File) -> IOResult<Mmap>
     where
         Self: Sized,
     {
-        // 将文件映射到虚拟内存
-        // 这里暂且使用物理内存
-        let layout = Layout::from_size_align(file.size(), 8).unwrap();
-        let addr = unsafe { alloc::alloc::alloc(layout) };
-        let size = file.size();
-        let mut data = vec![0u8; size];
-        file.seek(SeekFrom::Start(0)).unwrap();
-        file.read(data.as_mut_slice()).unwrap();
-        unsafe {
-            core::ptr::copy(data.as_ptr(), addr as *mut u8, size);
-        }
-        info!("[{}/{}] mmap file size:{:#x}", file!(), line!(), size);
-        unsafe {
-            let old_addr = FAKE_MMAP.addr;
-            let old_size = FAKE_MMAP.size;
-            if old_addr != 0 {
-                let layout = Layout::from_size_align(old_size, 8).unwrap();
-                dealloc(old_addr as *mut u8, layout);
-            }
-            FAKE_MMAP.size = size;
-            FAKE_MMAP.addr = addr as usize;
-        }
-        let mmap = Mmap {
-            size,
-            addr: addr as usize,
-        };
+        let mmap = Mmap { size: 0, addr: 0 };
         Ok(mmap)
+    }
+
+    fn do_map(&self, _file: &mut File) -> IOResult<Arc<dyn IndexByPageID>> {
+        let res = IndexByPageIDImpl;
+        Ok(Arc::new(res))
+    }
+}
+
+struct IndexByPageIDImpl;
+
+impl IndexByPageID for IndexByPageIDImpl {
+    fn index(&self, page_id: u64, page_size: usize) -> IOResult<&[u8]> {
+        let mut layer = CACHE_LAYER.get().unwrap().lock();
+        let cache = layer.get_mut(page_id as usize + 1).unwrap();
+        let start = cache.start();
+        unsafe { Ok(core::slice::from_raw_parts(start as *const u8, page_size)) }
     }
 }
 

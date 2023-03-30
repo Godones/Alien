@@ -7,7 +7,7 @@ static TARGET_PATH: &str = "../userlib/target/riscv64gc-unknown-none-elf/release
 fn main() {
     println!("cargo:rerun-if-changed=../user/src/");
     println!("cargo:rerun-if-changed={}", TARGET_PATH);
-    println!("cargo:rerun-if-changed={}", "src");
+    println!("cargo:rerun-if-changed={}", "src/");
     let path = Path::new("src/trace/kernel_symbol.S");
     if !path.exists() {
         let mut file = File::create(path).unwrap();

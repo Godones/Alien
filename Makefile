@@ -1,5 +1,7 @@
 .PHONY: all run clean
 
+TRACE_EXE_PATH:= ../os-module/elfinfo/
+TRACE_EXE  := ../os-module/elfinfo/target/release/trace_exe
 TARGET      := riscv64gc-unknown-none-elf
 OUTPUT := target/$(TARGET)/release/
 KERNEL_FILE := $(OUTPUT)/boot
@@ -34,22 +36,27 @@ endef
 
 install:
 	@#cargo install --git  https://github.com/os-module/elfinfo
+	@cd $(TRACE_EXE_PATH) && cargo build --release
 
 all:run
 
 compile:
 	@cd boot && cargo build --release
-	@(nm -n ${KERNEL_FILE} | trace_exe > kernel/src/trace/kernel_symbol.S)
+	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
+	@#call trace_info
 	@cd boot && cargo build --release
 	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
 
+trace_info:
+	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 
 user:
 	@cd apps && make build
 	@echo "Moving apps to /fat32"
 	@$(foreach dir, $(APPS_NAME), (sudo cp $(OUTPUT)$(dir) /fat/$(dir););)
 	@sync
+
 
 build:compile
 
