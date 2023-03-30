@@ -6,6 +6,7 @@
 #![feature(associated_type_bounds)]
 #![feature(panic_info_message)]
 #![allow(semicolon_in_expressions_from_macros)]
+#![feature(trait_upcasting)]
 #[macro_use]
 pub mod print;
 pub mod arch;

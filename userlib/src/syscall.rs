@@ -24,7 +24,7 @@ syscall_id!(SYSCALL_CREATE_GLOBAL_BUCKET, 1001);
 syscall_id!(SYSCALL_EXECUTE_USER_FUNC, 1002);
 syscall_id!(SYSCALL_SHOW_DBFS, 1003);
 syscall_id!(SYSCALL_EXECUTE_OPERATE, 1004);
-
+syscall_id!(SYSCALL_SLEEP, 1005);
 fn syscall(id: usize, args: [usize; 6]) -> isize {
     let mut ret: isize;
     unsafe {
@@ -79,3 +79,5 @@ syscall!(
     *const u8,
     *const u8
 );
+
+syscall!(sys_sleep, SYSCALL_SLEEP, usize);

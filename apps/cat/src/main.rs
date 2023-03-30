@@ -13,11 +13,12 @@ fn main(_argc: usize, argv: Vec<String>) -> isize {
     let file_name = &argv[1];
     let fd = open(file_name, OpenFlags::O_RDONLY);
     if fd != -1 {
-        let mut buf = [0u8; 1024];
+        let mut buf = [0u8; 512];
         while let len = read(fd as usize, &mut buf) {
-            if len == 0 {
+            if len == 0 || len ==-1 {
                 break;
             }
+            println!("len = {}", len);
             println!("{}", core::str::from_utf8(&buf[..len as usize]).unwrap());
         }
         close(fd as usize);

@@ -42,6 +42,9 @@ dbop = {path = "../../os-module/dbop"}
 
 plic = {path = "../modules/plic"}
 
+
+downcast = {version = "0.11.0",default-features = false}
+
 [build-dependencies]
 #syscall-table = {path = "../modules/syscall-table",features = ["std"]}
 

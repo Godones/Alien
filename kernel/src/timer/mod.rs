@@ -31,9 +31,10 @@ pub fn get_time_ms() -> isize {
 #[syscall_func(1005)]
 pub fn sleep(ms: usize) -> isize {
     let end_time = read_timer() + ms * (CLOCK_FREQ / MSEC_PER_SEC);
-    while read_timer() < end_time {
+    if read_timer() < end_time {
         let process = current_process().unwrap();
         process.update_state(ProcessState::Sleeping);
+        push_to_timer_queue(process.clone(), end_time);
         schedule();
     }
     0
@@ -80,7 +81,7 @@ pub fn push_to_timer_queue(process: Arc<Process>, end_time: usize) {
 }
 
 pub fn check_timer_queue() {
-    let now = get_time_ms() as usize;
+    let now = read_timer();
     let mut queue = TIMER_QUEUE.lock();
     while let Some(timer) = queue.peek() {
         if timer.end_time <= now {

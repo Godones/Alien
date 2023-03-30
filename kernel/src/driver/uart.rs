@@ -19,9 +19,8 @@ pub trait CharDevice {
 }
 
 lazy_static! {
-    pub static ref UART:Mutex<Ns16550a> = {
+    pub static ref UART: Mutex<Ns16550a> = {
         let uart = Mutex::new(Ns16550a::new(RISCV_UART_ADDR));
-        // uart.lock().init();
         uart
     };
 }

@@ -55,16 +55,21 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let file = file.unwrap();
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
-    let offset = file.access_inner().f_pos;
+    let mut offset = file.access_inner().f_pos;
     buf.iter_mut().for_each(|b| {
         let r = vfs_read_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
         count += r;
+        offset += r;
     });
     count as isize
 }
 
 #[syscall_func(64)]
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+    // if fd==3{
+    //     println!("sys_write({},{},{})", fd, buf as usize, len);
+    // }
+
     let process = current_process().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
@@ -73,10 +78,15 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let file = file.unwrap();
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
-    let offset = file.access_inner().f_pos;
+    let mut offset = file.access_inner().f_pos;
     buf.iter_mut().for_each(|b| {
         let r = vfs_write_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
         count += r;
+        offset += r;
+        // if fd == 3{
+        //     println!("write {} bytes, buf len :{}", r,b.len());
+        // }
+
     });
     count as isize
 }
