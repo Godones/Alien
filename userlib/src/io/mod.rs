@@ -109,7 +109,6 @@ pub fn read_line() -> String {
         if buf[0] < 32 {
             continue;
         }
-
         print!("{}", buf[0] as char);
         res.push(buf[0] as char);
     }

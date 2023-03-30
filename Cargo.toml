@@ -21,6 +21,12 @@ members = [
     "apps/mkdir",
     "apps/pwd",
     "apps/shell",
+    "apps/time",
+    "apps/filetest_simple",
+    "apps/forktest",
+    "apps/hugewrite",
+    "apps/dbwrite",
+    "apps/hugeread"
 ]
 
 

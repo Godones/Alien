@@ -43,9 +43,9 @@ pub fn init_vfs() {
     // initialize the dbfs
     init_dbfs();
     let _db = do_mount::<VfsProvider>("block", "/db", "dbfs", MountFlags::empty(), None).unwrap();
-    // println!("db mnt:{:#?}", db);
     println!("vfs init done");
 }
+
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
     let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
