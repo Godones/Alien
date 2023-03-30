@@ -3,6 +3,7 @@ use crate::config::FRAME_SIZE;
 /// 使用位图实现
 /// 位图的每一位代表一个物理页帧
 use alloc::vec::Vec;
+use core::ops::{Deref, DerefMut};
 use lazy_static::lazy_static;
 use simple_bitmap::Bitmap;
 use spin::Mutex;
@@ -70,6 +71,20 @@ impl Drop for FrameTracker {
         trace!("drop frame:{}", self.id);
         zero_init_frame(self.start());
         FRAME_ALLOCATOR.lock().dealloc(self.id);
+    }
+}
+
+impl Deref for FrameTracker {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { core::slice::from_raw_parts(self.start() as *const u8, FRAME_SIZE) }
+    }
+}
+
+impl DerefMut for FrameTracker {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { core::slice::from_raw_parts_mut(self.start() as *mut u8, FRAME_SIZE) }
     }
 }
 

@@ -36,6 +36,7 @@ extern "C" {
 }
 
 global_asm!(include_str!("kernel_symbol.S"));
+
 pub fn init_kernel_trace() -> Vec<SymbolEntry> {
     let symbol_num_addr = symbol_num as usize as *const usize;
     let symbol_num = unsafe { symbol_num_addr.read_volatile() };
@@ -43,6 +44,7 @@ pub fn init_kernel_trace() -> Vec<SymbolEntry> {
     if symbol_num == 0 {
         return symbol_info;
     }
+    println!("symbol_num: {}", symbol_num);
     let symbol_addr = symbol_address as usize as *const usize; //符号地址存储区域
     let addr_data = unsafe { core::slice::from_raw_parts(symbol_addr, symbol_num) };
     let symbol_index = symbol_index as usize as *const usize; //符号字符串的起始位置
@@ -55,8 +57,12 @@ pub fn init_kernel_trace() -> Vec<SymbolEntry> {
                 index_data[i + 1] - index_data[i],
             )
         };
-        let name = core::str::from_utf8(name).unwrap();
-        symbol_info.push(SymbolEntry::new(addr_data[i], name.to_string()));
+        let name_ = core::str::from_utf8(name).unwrap();
+        // if name_.is_err() {
+        //     println!("symbol name error: {:?}", name);
+        //     continue;
+        // }
+        symbol_info.push(SymbolEntry::new(addr_data[i], name_.to_string()));
     }
     let mut name: Vec<u8> = Vec::new();
     unsafe {
