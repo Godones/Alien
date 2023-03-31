@@ -35,14 +35,7 @@ struct Stdout;
 /// 对`Stdout`实现输出的Trait
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
-        let mut buffer = [0u8; 4];
-        let stdout = UART.lock();
-        for c in s.chars() {
-            for code_point in c.encode_utf8(&mut buffer).as_bytes().iter() {
-                stdout.put(*code_point);
-            }
-        }
-        Ok(())
+        UART.lock().write_str(s)
     }
 }
 
@@ -60,14 +53,9 @@ pub fn __print(args: Arguments) {
 struct UStdout;
 
 impl Write for UStdout {
-    fn write_str(&mut self, s: &str) -> Result {
-        let mut buffer = [0u8; 4];
-        let stdout = USER_UART.get().unwrap();
-        for c in s.chars() {
-            for code_point in c.encode_utf8(&mut buffer).as_bytes().iter() {
-                stdout.put(*code_point);
-            }
-        }
+    fn write_str(&mut self, out: &str) -> Result {
+        let uart = USER_UART.get().unwrap();
+        uart.put_bytes(out.as_bytes());
         Ok(())
     }
 }

@@ -10,7 +10,7 @@ members = [
     "modules/syscall-table",
     "modules/systable-macro-derive",
     "modules/plic",
-
+    "modules/uart",
 
 
     "apps/cat",
