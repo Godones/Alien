@@ -26,7 +26,7 @@ fn test_uart(){
         println!("schedule ....");
     };
     for _i in 0..128{
-        uart.put(1u8,wait ,schedule);
+        uart.put_ch(1u8,wait ,schedule);
     }
     // uart.put(1u8,wait ,schedule);
 }
