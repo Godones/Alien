@@ -1,27 +1,30 @@
 use crate::driver::hal::HalImpl;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::num::NonZeroUsize;
-use downcast::{downcast, Any};
 use lazy_static::lazy_static;
 use lru::LruCache;
 use rvfs::superblock::Device;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::MmioTransport;
+use crate::config::FRAME_SIZE;
+use crate::memory::{frame_alloc, FrameTracker};
 
-type Cache = [u8; 512];
+
+const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 pub struct QemuBlockDevice {
     pub device: Mutex<VirtIOBlk<HalImpl, MmioTransport>>,
-    cache: Mutex<LruCache<usize, Cache>>,
+    cache: Mutex<LruCache<usize, FrameTracker>>,
 }
 
 impl QemuBlockDevice {
     pub fn new(device: VirtIOBlk<HalImpl, MmioTransport>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(2* 4* 1024).unwrap())), // 2MB cache
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(1024).unwrap())), // 2MB cache
         }
     }
 }
@@ -38,67 +41,77 @@ impl Debug for QemuBlockDevice {
     }
 }
 
-pub trait BlockDevice: Device + Any {}
-
-downcast!(dyn BlockDevice);
-
-impl BlockDevice for QemuBlockDevice {}
-
 impl Device for QemuBlockDevice {
     fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, ()> {
-        let mut block = offset / 512;
-        let mut offset = offset % 512;
+        let mut page_id = offset / PAGE_CACHE_SIZE;
+        let mut offset = offset % PAGE_CACHE_SIZE;
+
         let mut cache_lock = self.cache.lock();
         let len = buf.len();
         let mut count = 0;
 
         while count < len {
-            if !cache_lock.contains(&block) {
-                let mut cache = [0u8; 512];
+            if !cache_lock.contains(&page_id) {
                 let mut device = self.device.lock();
-                device.read_block(block, &mut cache).unwrap();
-                let old_cache = cache_lock.push(block, cache);
+                let mut cache = frame_alloc().unwrap();
+                let start_block = page_id * PAGE_CACHE_SIZE / 512;
+                let end_block = start_block + PAGE_CACHE_SIZE / 512;
+                for i in start_block..end_block {
+                    let target_buf = &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                    device.read_block(i, target_buf).unwrap();
+                }
+                let old_cache = cache_lock.push(page_id, cache);
                 if let Some((id, old_cache)) = old_cache {
-                    device.write_block(id, &old_cache).unwrap();
+                    let start_block = id * PAGE_CACHE_SIZE / 512;
+                    let end_block = start_block + PAGE_CACHE_SIZE / 512;
+                    for i in start_block..end_block {
+                        let target_buf = &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                        device.write_block(i, target_buf).unwrap();
+                    }
                 }
             }
-            let cache = cache_lock.get(&block).unwrap();
-            let mut copy_len = 512 - offset;
-            if copy_len > len - count {
-                copy_len = len - count;
-            }
+            let cache = cache_lock.get(&page_id).unwrap();
+            let copy_len = min(PAGE_CACHE_SIZE - offset, len - count);
             buf[count..count + copy_len].copy_from_slice(&cache[offset..offset + copy_len]);
             count += copy_len;
             offset = 0;
-            block += 1;
+            page_id += 1;
         }
         Ok(buf.len())
     }
     fn write(&self, buf: &[u8], offset: usize) -> Result<usize, ()> {
-        let mut block = offset / 512;
-        let mut offset = offset % 512;
+        let mut page_id = offset / PAGE_CACHE_SIZE;
+        let mut offset = offset % PAGE_CACHE_SIZE;
+
         let mut cache_lock = self.cache.lock();
         let len = buf.len();
         let mut count = 0;
         while count < len {
-            if !cache_lock.contains(&block) {
-                let mut cache = [0u8; 512];
+            if !cache_lock.contains(&page_id) {
                 let mut device = self.device.lock();
-                device.read_block(block, &mut cache).unwrap();
-                let old_cache = cache_lock.push(block, cache);
+                let mut cache = frame_alloc().unwrap();
+                let start_block = page_id * PAGE_CACHE_SIZE / 512;
+                let end_block = start_block + PAGE_CACHE_SIZE / 512;
+                for i in start_block..end_block {
+                    let target_buf = &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                    device.read_block(i, target_buf).unwrap();
+                }
+                let old_cache = cache_lock.push(page_id, cache);
                 if let Some((id, old_cache)) = old_cache {
-                    device.write_block(id, &old_cache).unwrap();
+                    let start_block = id * PAGE_CACHE_SIZE / 512;
+                    let end_block = start_block + PAGE_CACHE_SIZE / 512;
+                    for i in start_block..end_block {
+                        let target_buf = & old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                        device.write_block(i, target_buf).unwrap();
+                    }
                 }
             }
-            let cache = cache_lock.get_mut(&block).unwrap();
-            let mut copy_len = 512 - offset;
-            if copy_len > len - count {
-                copy_len = len - count;
-            }
+            let cache = cache_lock.get_mut(&page_id).unwrap();
+            let copy_len = min(PAGE_CACHE_SIZE - offset, len - count);
             cache[offset..offset + copy_len].copy_from_slice(&buf[count..count + copy_len]);
             count += copy_len;
             offset = 0;
-            block += 1;
+            page_id += 1;
         }
         Ok(buf.len())
     }
@@ -108,7 +121,15 @@ impl Device for QemuBlockDevice {
     fn flush(&self) {
         let mut device = self.device.lock();
         for (id, cache) in self.cache.lock().iter() {
-            device.write_block(*id, &cache.clone()).unwrap();
+            let start = id * PAGE_CACHE_SIZE;
+            let start_block = start / 512;
+            let end_block = (start + PAGE_CACHE_SIZE) / 512;
+            for i in start_block..end_block {
+                let target_buf = &cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                device
+                    .write_block(i, target_buf)
+                    .unwrap();
+            }
         }
     }
 }
