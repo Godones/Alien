@@ -48,9 +48,9 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         memory::build_kernel_address_space();
         memory::activate_paging_mode();
         thread_local_init();
-        trap::init_trap_subsystem();
-        // 设备树初始化
+        // dbt probe and register
         driver::init_dt(device_tree_addr);
+        trap::init_trap_subsystem();
         get_rtc_time()
             .map(|x| {
                 println!("Current time:{:?}", x);
