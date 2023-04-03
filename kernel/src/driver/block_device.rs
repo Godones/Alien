@@ -1,4 +1,6 @@
+use crate::config::FRAME_SIZE;
 use crate::driver::hal::HalImpl;
+use crate::memory::{frame_alloc, FrameTracker};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cmp::min;
@@ -10,9 +12,6 @@ use rvfs::superblock::Device;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::MmioTransport;
-use crate::config::FRAME_SIZE;
-use crate::memory::{frame_alloc, FrameTracker};
-
 
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 pub struct QemuBlockDevice {
@@ -57,7 +56,8 @@ impl Device for QemuBlockDevice {
                 let start_block = page_id * PAGE_CACHE_SIZE / 512;
                 let end_block = start_block + PAGE_CACHE_SIZE / 512;
                 for i in start_block..end_block {
-                    let target_buf = &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                    let target_buf =
+                        &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
                     device.read_block(i, target_buf).unwrap();
                 }
                 let old_cache = cache_lock.push(page_id, cache);
@@ -65,7 +65,8 @@ impl Device for QemuBlockDevice {
                     let start_block = id * PAGE_CACHE_SIZE / 512;
                     let end_block = start_block + PAGE_CACHE_SIZE / 512;
                     for i in start_block..end_block {
-                        let target_buf = &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                        let target_buf =
+                            &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
                         device.write_block(i, target_buf).unwrap();
                     }
                 }
@@ -93,7 +94,8 @@ impl Device for QemuBlockDevice {
                 let start_block = page_id * PAGE_CACHE_SIZE / 512;
                 let end_block = start_block + PAGE_CACHE_SIZE / 512;
                 for i in start_block..end_block {
-                    let target_buf = &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                    let target_buf =
+                        &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
                     device.read_block(i, target_buf).unwrap();
                 }
                 let old_cache = cache_lock.push(page_id, cache);
@@ -101,7 +103,8 @@ impl Device for QemuBlockDevice {
                     let start_block = id * PAGE_CACHE_SIZE / 512;
                     let end_block = start_block + PAGE_CACHE_SIZE / 512;
                     for i in start_block..end_block {
-                        let target_buf = & old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+                        let target_buf =
+                            &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
                         device.write_block(i, target_buf).unwrap();
                     }
                 }
@@ -126,9 +129,7 @@ impl Device for QemuBlockDevice {
             let end_block = (start + PAGE_CACHE_SIZE) / 512;
             for i in start_block..end_block {
                 let target_buf = &cache[(i - start_block) * 512..(i - start_block + 1) * 512];
-                device
-                    .write_block(i, target_buf)
-                    .unwrap();
+                device.write_block(i, target_buf).unwrap();
             }
         }
     }

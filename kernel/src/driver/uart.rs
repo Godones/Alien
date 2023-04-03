@@ -13,7 +13,7 @@ use uart::{Uart, UartRaw};
 pub trait CharDevice {
     fn put(&self, c: u8);
     fn get(&self) -> Option<u8>;
-    fn put_bytes(&self, bytes: &[u8]) ;
+    fn put_bytes(&self, bytes: &[u8]);
 }
 
 lazy_static! {
@@ -36,7 +36,7 @@ pub fn init_uart(base: usize) -> Arc<dyn DeviceBase> {
 
 pub struct UartWrapper(Uart<Arc<Process>>);
 
-impl UartWrapper{
+impl UartWrapper {
     pub fn new(base: usize) -> Self {
         let uart = Uart::new(base);
         uart.init();
@@ -44,44 +44,52 @@ impl UartWrapper{
     }
 }
 
-
 impl CharDevice for UartWrapper {
-    fn put(&self, c: u8){
-        self.0.put_ch(c, |queue| {
-            let task = current_process().unwrap();
-            queue.push(task.clone());
-            task.update_state(ProcessState::Waiting);
-        }, || {
-            schedule();
-        })
+    fn put(&self, c: u8) {
+        self.0.put_ch(
+            c,
+            |queue| {
+                let task = current_process().unwrap();
+                queue.push(task.clone());
+                task.update_state(ProcessState::Waiting);
+            },
+            || {
+                schedule();
+            },
+        )
     }
     fn get(&self) -> Option<u8> {
-        self.0.get_ch(|queue| {
-            let task = current_process().unwrap();
-            queue.push(task.clone());
-            task.update_state(ProcessState::Waiting);
-        }, || {
-            schedule();
-        })
+        self.0.get_ch(
+            |queue| {
+                let task = current_process().unwrap();
+                queue.push(task.clone());
+                task.update_state(ProcessState::Waiting);
+            },
+            || {
+                schedule();
+            },
+        )
     }
 
     fn put_bytes(&self, bytes: &[u8]) {
-        self.0.put_bytes(bytes, |queue| {
-            let task = current_process().unwrap();
-            queue.push(task.clone());
-            task.update_state(ProcessState::Waiting);
-        }, || {
-            schedule();
-        })
+        self.0.put_bytes(
+            bytes,
+            |queue| {
+                let task = current_process().unwrap();
+                queue.push(task.clone());
+                task.update_state(ProcessState::Waiting);
+            },
+            || {
+                schedule();
+            },
+        )
     }
 }
 
-
-
 impl DeviceBase for UartWrapper {
     fn hand_irq(&self) {
-        self.0.hand_irq(|queue|{
-            queue.into_iter().for_each(|task|{
+        self.0.hand_irq(|queue| {
+            queue.into_iter().for_each(|task| {
                 task.update_state(ProcessState::Ready);
                 PROCESS_MANAGER.lock().push_back(task);
             })
