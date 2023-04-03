@@ -14,7 +14,6 @@ members = [
 
 
     "apps/cat",
-    "apps/echo",
     "apps/dbfs",
     "apps/init",
     "apps/ls",
@@ -26,7 +25,12 @@ members = [
     "apps/forktest",
     "apps/hugewrite",
     "apps/dbwrite",
-    "apps/hugeread"
+    "apps/hugeread",
+    "apps/seektest",
+    "apps/linktest",
+    "apps/stattest",
+    "apps/dirtest",
+    "apps/attrtest"
 ]
 
 

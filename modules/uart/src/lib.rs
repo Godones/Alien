@@ -6,8 +6,7 @@ use alloc::vec::Vec;
 use core::fmt::Error;
 use core::fmt::Write;
 use preprint::pprintln;
-use spin::{Mutex};
-
+use spin::Mutex;
 
 const BUFFER_SIZE: usize = 128;
 
@@ -16,17 +15,17 @@ pub struct UartRaw {
     base: usize,
 }
 
-pub struct Uart<T:Send>{
+pub struct Uart<T: Send> {
     inner: Mutex<UartInner<T>>,
 }
-struct UartInner<T:Send> {
+struct UartInner<T: Send> {
     device: UartRaw,
     buffer: [u8; BUFFER_SIZE],
     read_pos: usize,
     write_pos: usize,
     read_queue: Vec<T>,
     write_queue: Vec<T>,
-    write_buffer:[u8; BUFFER_SIZE],
+    write_buffer: [u8; BUFFER_SIZE],
     write_head: usize,
     write_tail: usize,
 }
@@ -66,9 +65,7 @@ impl UartRaw {
     }
     pub fn interrupt_type(&self) -> UartInterruptType {
         let ptr = self.base as *mut u8;
-        let value = unsafe {
-            ptr.add(2).read_volatile()
-        };
+        let value = unsafe { ptr.add(2).read_volatile() };
         match value & 0xf {
             0x4 => UartInterruptType::ReceiveDataAvailable,
             0x2 => UartInterruptType::TransmitHoldingRegisterEmpty,
@@ -80,9 +77,7 @@ impl UartRaw {
     }
     pub fn disable_interrupt(&self, interrupt_type: UartInterruptType) {
         let ptr = self.base as *mut u8;
-        let value = unsafe {
-            ptr.add(1).read_volatile()
-        };
+        let value = unsafe { ptr.add(1).read_volatile() };
         let value = match interrupt_type {
             UartInterruptType::ReceiveDataAvailable => value & !0x1,
             UartInterruptType::TransmitHoldingRegisterEmpty => value & !0x2,
@@ -96,11 +91,9 @@ impl UartRaw {
             ptr.add(1).write_volatile(value);
         }
     }
-    pub fn enable_interrupt(&self,interrupt:UartInterruptType){
+    pub fn enable_interrupt(&self, interrupt: UartInterruptType) {
         let ptr = self.base as *mut u8;
-        let value = unsafe {
-            ptr.add(1).read_volatile()
-        };
+        let value = unsafe { ptr.add(1).read_volatile() };
         let value = match interrupt {
             UartInterruptType::ReceiveDataAvailable => value | 0x1,
             UartInterruptType::TransmitHoldingRegisterEmpty => value | 0x2,
@@ -136,7 +129,7 @@ impl Write for UartRaw {
 impl UartRaw {
     /// if the transmit holding register is empty, write the byte to it.
     /// otherwise, return the byte.
-    pub fn put(&self, out: u8)->Option<u8>{
+    pub fn put(&self, out: u8) -> Option<u8> {
         let ptr = self.base as *mut u8;
         unsafe {
             let c = ptr.add(5).read_volatile();
@@ -148,7 +141,7 @@ impl UartRaw {
             } else {
                 // otherwise, return the byte.
                 Some(out)
-            }
+            };
         }
     }
 
@@ -166,7 +159,7 @@ impl UartRaw {
     }
 }
 
-impl <T:Send> Uart<T> {
+impl<T: Send> Uart<T> {
     /// After call the new, we need call the init function
     pub const fn new(base: usize) -> Self {
         Self {
@@ -188,14 +181,15 @@ impl <T:Send> Uart<T> {
     }
 }
 
-impl <T:Send> Uart<T> {
-
+impl<T: Send> Uart<T> {
     /// **Please use the put_byte function instead of this function**
     ///
     /// print the char to the uart, the wait function is used to make current thread sleep,
     /// the schedule function is used to schedule the thread
-    pub fn put_ch<F,F1>(&self, c: u8, wait:F, schedule:F1)
-    where F: Fn(&mut Vec<T>),F1: Fn()
+    pub fn put_ch<F, F1>(&self, c: u8, wait: F, schedule: F1)
+    where
+        F: Fn(&mut Vec<T>),
+        F1: Fn(),
     {
         loop {
             let mut inner = self.inner.lock();
@@ -220,8 +214,10 @@ impl <T:Send> Uart<T> {
     }
 
     /// the batch version of put_ch
-    pub fn put_bytes<F,F1>(&self, bytes: &[u8], wait:F, schedule:F1)
-    where F: Fn(&mut Vec<T>),F1: Fn()
+    pub fn put_bytes<F, F1>(&self, bytes: &[u8], wait: F, schedule: F1)
+    where
+        F: Fn(&mut Vec<T>),
+        F1: Fn(),
     {
         let mut buf = bytes;
         loop {
@@ -257,8 +253,10 @@ impl <T:Send> Uart<T> {
 
     /// get a char from the read buffer, if the buffer is empty, the wait function will be called,
     /// the schedule function will be called when the wait function return.
-    pub fn get_ch<F,F1>(&self,wait:F,schedule:F1) -> Option<u8>
-    where F: Fn(&mut Vec<T>),F1: Fn()
+    pub fn get_ch<F, F1>(&self, wait: F, schedule: F1) -> Option<u8>
+    where
+        F: Fn(&mut Vec<T>),
+        F1: Fn(),
     {
         loop {
             let mut inner = self.inner.lock();
@@ -276,11 +274,10 @@ impl <T:Send> Uart<T> {
     }
 }
 
-
-
-impl <T:Send> Uart<T> {
-    pub fn hand_irq<F>(&self,wakeup:F)
-    where F: Fn(Vec<T>)
+impl<T: Send> Uart<T> {
+    pub fn hand_irq<F>(&self, wakeup: F)
+    where
+        F: Fn(Vec<T>),
     {
         let mut inner = self.inner.lock();
         // check the type of interrupt
@@ -288,18 +285,22 @@ impl <T:Send> Uart<T> {
         match interrupt_type {
             UartInterruptType::ReceiveDataAvailable => {
                 // read the data from the device
+                let mut count = 0;
                 while let Some(c) = inner.device.get() {
                     let index = inner.write_pos;
                     inner.buffer[index] = c;
                     inner.write_pos = (inner.write_pos + 1) % BUFFER_SIZE;
+                    count += 1;
                 }
-                let read_queue = inner.read_queue.drain(..).collect::<Vec<T>>();
+                let read_queue = inner.read_queue.drain(..count).collect::<Vec<T>>();
                 wakeup(read_queue);
             }
             UartInterruptType::TransmitHoldingRegisterEmpty => {
                 // if the write buffer is empty, close the interrupt
                 if inner.write_head == inner.write_tail {
-                    inner.device.disable_interrupt(UartInterruptType::TransmitHoldingRegisterEmpty);
+                    inner
+                        .device
+                        .disable_interrupt(UartInterruptType::TransmitHoldingRegisterEmpty);
                     return;
                 }
                 // write the data to the device
