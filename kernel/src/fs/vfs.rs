@@ -46,7 +46,6 @@ pub fn init_vfs() {
     println!("vfs init done");
 }
 
-
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
     let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
     if file.is_err() {
