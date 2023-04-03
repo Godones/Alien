@@ -8,7 +8,7 @@ pub fn register_all_syscall(){
 	(1002, sys_execute_user_func),
 	(1003, sys_show_dbfs),
 	(1004, sys_execute_user_operate),
-	(56, sys_open),
+	(56, sys_openat),
 	(57, sys_close),
 	(63, sys_read),
 	(64, sys_write),
@@ -17,6 +17,28 @@ pub fn register_all_syscall(){
 	(83, sys_mkdir),
 	(1000, sys_list),
 	(62, sys_lseek),
+	(80, sys_fstat),
+	(37, sys_linkat),
+	(35, sys_unlinkat),
+	(36, sys_symlinkat),
+	(78, sys_readlinkat),
+	(79, sys_fstateat),
+	(44, sys_fstatfs),
+	(43, sys_statfs),
+	(38, sys_renameat),
+	(34, sys_mkdirat),
+	(5, sys_setxattr),
+	(6, sys_lsetxattr),
+	(7, sys_fsetxattr),
+	(8, sys_getxattr),
+	(9, sys_lgetxattr),
+	(10, sys_fgetxattr),
+	(11, sys_listxattr),
+	(12, sys_llistxattr),
+	(13, sys_flistxattr),
+	(14, sys_removexattr),
+	(15, sys_lremovexattr),
+	(16, sys_fremovexattr),
 	(169, get_time_ms),
 	(1005, sleep),
 	(210, shutdown),
@@ -38,25 +60,47 @@ pub fn do_syscall(id:usize,args:&[usize])->isize{
 	    return res.unwrap();
 	}
 }
-use crate::fs::sys_list;
-use crate::sbi::shutdown;
-use crate::fs::sys_execute_user_operate;
-use crate::task::do_exit;
-use crate::task::get_pid;
-use crate::fs::sys_chdir;
 use crate::fs::sys_mkdir;
-use crate::timer::sleep;
-use crate::fs::sys_create_global_bucket;
-use crate::fs::sys_getcwd;
-use crate::fs::sys_write;
-use crate::fs::sys_close;
-use crate::timer::get_time_ms;
+use crate::fs::sys_setxattr;
 use crate::fs::sys_lseek;
-use crate::task::wait_pid;
+use crate::fs::sys_fsetxattr;
+use crate::fs::sys_removexattr;
+use crate::fs::sys_renameat;
+use crate::fs::sys_openat;
+use crate::sbi::shutdown;
+use crate::task::get_pid;
+use crate::fs::sys_create_global_bucket;
+use crate::fs::sys_getxattr;
+use crate::fs::sys_unlinkat;
 use crate::task::do_exec;
-use crate::fs::sys_read;
-use crate::fs::sys_open;
+use crate::fs::sys_mkdirat;
+use crate::fs::sys_readlinkat;
+use crate::fs::sys_lgetxattr;
 use crate::fs::sys_execute_user_func;
+use crate::fs::sys_fstatfs;
+use crate::fs::sys_llistxattr;
+use crate::fs::sys_listxattr;
+use crate::fs::sys_read;
+use crate::fs::sys_lremovexattr;
+use crate::fs::sys_lsetxattr;
 use crate::fs::sys_show_dbfs;
+use crate::fs::sys_getcwd;
+use crate::timer::get_time_ms;
+use crate::task::wait_pid;
+use crate::fs::sys_execute_user_operate;
+use crate::fs::sys_list;
+use crate::timer::sleep;
+use crate::fs::sys_symlinkat;
+use crate::task::do_exit;
 use crate::task::do_suspend;
+use crate::fs::sys_fstat;
+use crate::fs::sys_chdir;
+use crate::fs::sys_close;
+use crate::fs::sys_linkat;
+use crate::fs::sys_write;
+use crate::fs::sys_fstateat;
+use crate::fs::sys_statfs;
+use crate::fs::sys_fgetxattr;
+use crate::fs::sys_fremovexattr;
+use crate::fs::sys_flistxattr;
 use crate::task::do_fork;
