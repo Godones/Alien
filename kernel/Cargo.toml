@@ -35,11 +35,7 @@ trace_lib = {git = "https://github.com/os-module/rtrace"}
 preprint = "0.1.0"
 rslab = "0.2.1"
 syscall-table = {path = "../modules/syscall-table"}
-
-
-
 dbop = {path = "../../os-module/dbop"}
-
 plic = {path = "../modules/plic"}
 uart = {path = "../modules/uart"}
 

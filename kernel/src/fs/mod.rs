@@ -3,7 +3,7 @@ mod stdio;
 
 use crate::fs::vfs::VfsProvider;
 use crate::task::current_process;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use core::cmp::min;
 use rvfs::dentry::{vfs_rename, LookUpFlags};
 use rvfs::file::{
@@ -108,6 +108,11 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     let process = current_process().unwrap();
     let cwd = process.access_inner().cwd();
+
+    let path = vfs_lookup_path(cwd.cwd.clone(),cwd.cmnt.clone(),ParsePathType::Relative("".to_string()),LookUpFlags::empty()).unwrap();
+
+    let cwd = path;
+
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
     let mut cwd = cwd.as_bytes();
@@ -135,13 +140,13 @@ pub fn sys_chdir(path: *const u8) -> isize {
     if file.is_err() {
         return -1;
     }
-    let lookup = file.unwrap();
+    let file = file.unwrap();
 
-    if lookup.f_dentry.access_inner().d_inode.mode != InodeMode::S_DIR {
+    if file.f_dentry.access_inner().d_inode.mode != InodeMode::S_DIR {
         return -1;
     }
-    process.access_inner().fs_info.cwd = lookup.f_dentry.clone();
-    process.access_inner().fs_info.cmnt = lookup.f_mnt.clone();
+    process.access_inner().fs_info.cwd = file.f_dentry.clone();
+    process.access_inner().fs_info.cmnt = file.f_mnt.clone();
     0
 }
 
