@@ -202,30 +202,8 @@ impl Process {
 }
 
 impl ProcessInner {
-    pub fn cwd(&self) -> String {
-        let current_dir = &self.fs_info.cwd;
-        let mut res = Vec::new();
-        let mut current = current_dir.clone();
-        // /f1/f2
-        loop {
-            let parent = {
-                let inner = current.access_inner();
-                if inner.d_name == "/" {
-                    if res.is_empty() {
-                        res.push("/".to_string());
-                    }
-                    break;
-                }
-                res.push(inner.d_name.clone());
-                res.push("/".to_string());
-                inner.parent.upgrade().unwrap()
-            };
-            current = parent;
-        }
-        res.iter().rev().fold(String::new(), |mut acc, x| {
-            acc.push_str(x);
-            acc
-        })
+    pub fn cwd(&self) -> FsContext {
+        self.fs_info.clone()
     }
     pub fn transfer_raw(&self, ptr: usize) -> usize {
         self.address_space.virtual_to_physical(ptr).unwrap()

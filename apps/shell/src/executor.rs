@@ -47,7 +47,7 @@ pub struct Executor {
 impl Executor {
     pub fn new(input: &str) -> Self {
         let (cmd, args) = input.split_once(' ').unwrap_or((input, ""));
-        let cmd = cmd.to_owned();
+        let cmd = cmd.to_string();
         Self {
             parameter: Parameter::from_str(args),
             cmd,
@@ -75,7 +75,8 @@ impl Executor {
             }
             "exit" => shutdown(),
             _ => {
-                let mut cmd = self.cmd;
+                let mut cmd = "/".to_string()+ &self.cmd;
+
                 cmd.push('\0');
                 let pid = fork();
                 if pid == 0 {
