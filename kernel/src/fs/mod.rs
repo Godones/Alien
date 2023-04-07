@@ -109,13 +109,11 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     let process = current_process().unwrap();
     let cwd = process.access_inner().cwd();
 
-    let path = vfs_lookup_path(cwd.cwd.clone(),cwd.cmnt.clone(),ParsePathType::Relative("".to_string()),LookUpFlags::empty()).unwrap();
-
-    let cwd = path;
+    let mut path = vfs_lookup_path(cwd.cwd.clone(),cwd.cmnt.clone(),ParsePathType::Relative("".to_string()),LookUpFlags::empty()).unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
-    let mut cwd = cwd.as_bytes();
+    let mut cwd = path.as_bytes();
     buf.iter_mut().for_each(|buf| {
         // fill buf
         if !cwd.is_empty() {
