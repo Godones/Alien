@@ -1,3 +1,4 @@
+use crate::arch::riscv::sstatus::{self, SPP, Sstatus};
 #[repr(C)]
 #[derive(Debug)]
 pub struct TrapFrame {
@@ -12,6 +13,8 @@ pub struct TrapFrame {
     trap_handler: usize,
     /// 记录所在的核
     hart_id: usize,
+    ///
+    sstatus: Sstatus,
 }
 
 impl TrapFrame {
@@ -23,6 +26,7 @@ impl TrapFrame {
             k_sp: 0,
             trap_handler: 0,
             hart_id: 0,
+            sstatus: Sstatus::default(),
         }
     }
     pub fn update_sepc(&mut self) {
@@ -43,6 +47,8 @@ impl TrapFrame {
         k_sp: usize,
         trap_handler: usize,
     ) -> Self {
+        let mut sstatus = sstatus::read();
+        sstatus.set_spp(SPP::User);
         let mut res = Self {
             x: [0; 32],
             sepc: entry,
@@ -50,6 +56,7 @@ impl TrapFrame {
             k_sp,
             trap_handler,
             hart_id: 0,
+            sstatus,
         };
         res.x[2] = sp;
         res

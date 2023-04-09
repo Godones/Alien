@@ -23,6 +23,9 @@ syscall_id!(SYSCALL_CHDIR, 49);
 syscall_id!(SYSCALL_READ, 63);
 syscall_id!(SYSCALL_FSTATFS, 44);
 syscall_id!(SYSCALL_STATFS, 43);
+syscall_id!(SYSCALL_TRUNCATE,45);
+syscall_id!(SYSCALL_FTRUNCATE,46);
+syscall_id!(SYSCALL_GETDENTS, 61);
 syscall_id!(SYSCALL_WRITE, 64);
 syscall_id!(SYSCALL_FSTAT, 80);
 syscall_id!(SYSCALL_FSTATAT, 79);
@@ -220,3 +223,7 @@ syscall!(sys_flistxattr, SYSCALL_FLISTXATTR, usize, *mut u8, usize);
 syscall!(sys_removexattr, SYSCALL_REMOVEXATTR, *const u8, *const u8);
 syscall!(sys_lremovexattr, SYSCALL_LREMOVEXATTR, *const u8, *const u8);
 syscall!(sys_fremovexattr, SYSCALL_FREMOVEXATTR, usize, *const u8);
+syscall!(sys_getdents, SYSCALL_GETDENTS, usize, *mut u8, usize);
+
+syscall!(sys_truncate, SYSCALL_TRUNCATE, *const u8, usize);
+syscall!(sys_ftruncate, SYSCALL_FTRUNCATE, usize, usize);
