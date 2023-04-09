@@ -1,7 +1,7 @@
 # 编译的目标平台
 [build]
 target = "riscv64gc-unknown-none-elf"
-rustc-wrapper = "/home/linfeng/.cargo/bin/sccache"
+
 # 使用我们的 linker script 来进行链接
 [target.riscv64gc-unknown-none-elf]
 rustflags = [
