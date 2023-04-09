@@ -20,3 +20,8 @@ tools/fs.img
 */target
 std
 tools/fs1.img
+kernel/src/trace/kernel_symbol.S
+
+
+run.log
+nohup.out

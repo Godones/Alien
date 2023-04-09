@@ -5,7 +5,6 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::Error;
 use core::fmt::Write;
-use preprint::pprintln;
 use spin::Mutex;
 
 const BUFFER_SIZE: usize = 128;
@@ -129,6 +128,7 @@ impl Write for UartRaw {
 impl UartRaw {
     /// if the transmit holding register is empty, write the byte to it.
     /// otherwise, return the byte.
+    #[inline]
     pub fn put(&self, out: u8) -> Option<u8> {
         let ptr = self.base as *mut u8;
         unsafe {
@@ -144,7 +144,7 @@ impl UartRaw {
             };
         }
     }
-
+    #[inline]
     pub fn get(&self) -> Option<u8> {
         let ptr = self.base as *mut u8;
         unsafe {
@@ -289,7 +289,7 @@ impl<T: Send> Uart<T> {
                 while let Some(c) = inner.device.get() {
                     let index = inner.write_pos;
                     inner.buffer[index] = c;
-                    inner.write_pos = (inner.write_pos + 1) % BUFFER_SIZE;
+                    inner.write_pos = (index + 1) % BUFFER_SIZE;
                     count += 1;
                 }
                 let read_queue = inner.read_queue.drain(..count).collect::<Vec<T>>();

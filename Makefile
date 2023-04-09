@@ -111,7 +111,7 @@ gdb: compile $(img) user SecondFile
 			-device virtio-blk-device,drive=x1 \
             -nographic \
             -kernel  kernel-qemu\
-            -smp $(SMP) -m 128M \
+            -smp 1 -m 128M \
             -s -S
 
 debug: compile $(img) user
