@@ -1,2 +1,2 @@
 [build]
-rustc-wrapper = "/home/linfeng/.cargo/bin/sccache"
+#rustc-wrapper = "/home/linfeng/.cargo/bin/sccache"

@@ -16,8 +16,9 @@ virtio-drivers = {git = "https://github.com/rcore-os/virtio-drivers",rev = "6718
 fdt = "0.1.3"
 
 pci = {path = "../modules/pci-rs"}
-rtc = {path = "../../os-module/rtc"}
 
+
+rtc = {path = "../../os-module/rtc"}
 lru = "0.9.0"
 core2 = {version="0.4.0",default-features = false, features = ["alloc"]}
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
@@ -26,7 +27,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 page-table = {path = "../../os-module/page-table"}
 rvfs = {path = "../../os-module/rvfs"}
 fat32-vfs = {path = "../../os-module/fat32-vfs"}
-jammdb = {path = "../../os-module/jammdb"}
+jammdb = {git="https://github.com/Godones/jammdb"}
 dbfs2 = {path = "../../os-module/dbfs2"}
 dbop = {path = "../../os-module/dbop"}
 trace_lib = {git = "https://github.com/os-module/rtrace"}
