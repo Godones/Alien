@@ -1,0 +1,18 @@
+[package]
+name = "riscv"
+version = "0.1.0"
+authors = ["Runji Wang <wangrunji0408@163.com>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+cfg-if = "1.0"
+riscv = "0.6"
+opensbi-rt = { git = "https://github.com/rcore-os/opensbi-rt.git", rev = "1308cc5" }
+device_tree = { git = "https://github.com/rcore-os/device_tree-rs", rev = "2f2e55fb" }
+pci = { path = "../.." }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+
+[features]
+board-fu740 = []
