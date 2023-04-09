@@ -26,7 +26,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 page-table = {path = "../../os-module/page-table"}
 rvfs = {path = "../../os-module/rvfs"}
 fat32-vfs = {path = "../../os-module/fat32-vfs"}
-jammdb = {path = "../../os-module/jammdb"}
+jammdb = {git = "https://github.com/Godones/jammdb.git"}
 dbfs2 = {path = "../../os-module/dbfs2"}
 dbop = {path = "../../os-module/dbop"}
 trace_lib = {git = "https://github.com/os-module/rtrace"}
