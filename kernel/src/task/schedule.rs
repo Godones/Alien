@@ -34,9 +34,9 @@ pub fn schedule() {
         }
     }
     if let Some(process) = process_manager.pop_front() {
-        // if process.get_pid() == 1{
-        //     println!("schedule to pid:{}", 1);
-        // }
+        if process.get_pid() == 1{
+            // println!("schedule to pid:{}", 1);
+        }
         process.update_state(ProcessState::Running);
         let context = process.get_context_raw_ptr();
         cpu.process = Some(process);

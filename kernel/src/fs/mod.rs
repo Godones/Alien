@@ -5,7 +5,7 @@ use crate::fs::vfs::VfsProvider;
 use crate::task::current_process;
 use alloc::string::{String, ToString};
 use core::cmp::min;
-use rvfs::dentry::{vfs_rename, LookUpFlags};
+use rvfs::dentry::{vfs_rename, LookUpFlags, vfs_truncate, vfs_truncate_by_file};
 use rvfs::file::{
     vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file, FileMode,
     OpenFlags, SeekFrom,
@@ -67,6 +67,46 @@ pub fn sys_close(fd: usize) -> isize {
     }
     0
 }
+
+#[syscall_func(61)]
+pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return -1;
+    }
+    let file = file.unwrap();
+    // todo!()
+    0
+}
+
+/// Reference: https://man7.org/linux/man-pages/man2/truncate64.2.html
+#[syscall_func(45)]
+pub fn sys_truncate(path: usize, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let path = process.transfer_str(path as *const u8);
+    let res = vfs_truncate::<VfsProvider>(&path, len);
+    if res.is_err() {
+        return -1;
+    }
+    0
+}
+
+#[syscall_func(46)]
+pub fn sys_ftruncate(fd: usize, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return -1;
+    }
+    let file = file.unwrap();
+    let res = vfs_truncate_by_file(file, len);
+    if res.is_err() {
+        return -1;
+    }
+    0
+}
+
 #[syscall_func(63)]
 pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let process = current_process().unwrap();
@@ -109,7 +149,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     let process = current_process().unwrap();
     let cwd = process.access_inner().cwd();
 
-    let mut path = vfs_lookup_path(cwd.cwd.clone(),cwd.cmnt.clone(),ParsePathType::Relative("".to_string()),LookUpFlags::empty()).unwrap();
+    let path = vfs_lookup_path(cwd.cwd.clone(),cwd.cmnt.clone(),ParsePathType::Relative("".to_string()),LookUpFlags::empty()).unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;

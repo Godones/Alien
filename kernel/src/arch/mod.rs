@@ -1,5 +1,9 @@
+pub mod riscv;
+
 use core::arch::asm;
-use riscv::register::{scause, sie, sstatus};
+use self::riscv::register::{scause, sie};
+use self::riscv::sstatus;
+
 pub fn hart_id() -> usize {
     let id: usize;
     unsafe {
@@ -65,3 +69,14 @@ pub fn read_timer() -> usize {
 pub fn set_timer(addition: usize) {
     crate::sbi::set_timer(read_timer() + addition)
 }
+
+#[macro_export]
+macro_rules! write_csr {
+    ($csr:ident, $val:expr) => {
+        unsafe {
+            asm!(concat!("csrw ", stringify!($csr), ", {}"), in(reg) $val);
+        }
+    };
+}
+
+

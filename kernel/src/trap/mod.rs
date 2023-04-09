@@ -1,7 +1,8 @@
 use core::arch::{asm, global_asm};
-use riscv::register::scause::{Exception, Interrupt, Trap};
-use riscv::register::stvec::TrapMode;
-use riscv::register::{sscratch, sstatus, stvec};
+use riscv::register::sepc;
+use riscv::register::sstatus::SPP;
+use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
+use crate::arch::riscv::register::stvec::TrapMode;
 
 mod context;
 mod exception;
@@ -17,7 +18,9 @@ use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::task::current_user_token;
 use crate::timer::{check_timer_queue, set_next_trigger};
 pub use context::TrapFrame;
-use riscv::register::sstatus::SPP;
+use crate::arch::riscv::register::{stvec};
+use crate::arch::riscv::sstatus;
+
 
 extern "C" {
     fn kernel_v();
@@ -32,9 +35,6 @@ extern "C" {
 pub fn trap_return() -> ! {
     interrupt_disable();
     set_user_trap_entry();
-    unsafe {
-        sstatus::set_spp(SPP::User);
-    }
     let trap_cx_ptr = TRAP_CONTEXT_BASE;
     let user_satp = current_user_token();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
@@ -49,15 +49,15 @@ pub fn trap_return() -> ! {
         )
     }
 }
-
+#[inline]
 fn set_user_trap_entry() {
     unsafe {
         stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
     }
 }
+#[inline]
 fn set_kernel_trap_entry() {
     unsafe {
-        sscratch::write(kernel_trap_vector as usize);
         stvec::write(kernel_v as usize, TrapMode::Direct);
     }
 }
@@ -102,7 +102,12 @@ impl TrapHandler for Trap {
                 interrupt::external_interrupt_handler();
             }
             _ => {
-                panic!("unhandled trap: {:?}", self);
+                let stval = stvec::read();
+                let sepc = sepc::read();
+                panic!(
+                    "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
+                    self, stval, sepc
+                );
             }
         }
     }
@@ -128,6 +133,11 @@ impl TrapHandler for Trap {
 /// 用户态陷入处理
 #[no_mangle]
 pub fn user_trap_vector() {
+    let sstatus = sstatus::read();
+    let spp = sstatus.spp();
+    if spp == SPP::Supervisor{
+        panic!("user_trap_vector: spp == SPP::Supervisor");
+    }
     set_kernel_trap_entry();
     let cause = riscv::register::scause::read();
     cause.cause().do_user_handle();
@@ -138,6 +148,11 @@ pub fn user_trap_vector() {
 /// 避免嵌套中断发生这里不会再开启中断
 #[no_mangle]
 pub fn kernel_trap_vector() {
+    let sstatus = sstatus::read();
+    let spp = sstatus.spp();
+    if spp == SPP::User{
+        panic!("kernel_trap_vector: spp == SPP::User");
+    }
     let cause = riscv::register::scause::read().cause();
     cause.do_kernel_handle()
 }

@@ -22,8 +22,10 @@ user_v:
         .set n, n+1
     .endr
     # we can use t0/t1/t2 freely, because they have been saved in TrapContext
+    csrr t0, sstatus
     csrr t1, sepc
     sd t1, 32*8(sp)
+    sd t0, 37*8(sp)
     # read user stack from sscratch and save it in TrapContext
     csrr t2, sscratch
     sd t2, 2*8(sp)
@@ -55,7 +57,9 @@ user_r:
     # now sp points to TrapContext in user space, start restoring based on it
     # restore sstatus/sepc
     ld t1, 32*8(sp)
+    ld t0, 37*8(sp)
     csrw sepc, t1
+    csrw sstatus, t0
     # restore general purpose registers except x0/sp
     ld x1, 1*8(sp)
     .set n, 3
