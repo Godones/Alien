@@ -3,7 +3,7 @@
 .align 4
 kernel_v:
         # make room to save registers.
-        addi sp, sp, -256
+        addi sp, sp, -264
         # save the registers.
         sd ra, 0(sp)
         sd sp, 8(sp)
@@ -36,11 +36,15 @@ kernel_v:
         sd t4, 224(sp)
         sd t5, 232(sp)
         sd t6, 240(sp)
+        csrr t0,sstatus
+        sd t0,32*8(sp)
 
-        csrr t2, sscratch
-        jalr t2
         # call the C trap handler in trap.c
-        #call kernel_trap_vector
+        call kernel_trap_vector
+
+
+        ld t0,32*8(sp)
+        csrw sstatus,t0
 
         # restore registers.
         ld ra, 0(sp)
@@ -75,7 +79,7 @@ kernel_v:
         ld t5, 232(sp)
         ld t6, 240(sp)
 
-        addi sp, sp, 256
+        addi sp, sp, 264
 
         # return to whatever we were doing in the kernel.
         sret
