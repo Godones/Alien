@@ -1,10 +1,12 @@
-use crate::task::context::__switch;
+use core::arch::asm;
+use crate::task::context::{switch};
 use crate::task::cpu::{current_cpu, PROCESS_MANAGER};
 use crate::task::process::ProcessState;
 
+#[no_mangle]
 pub fn first_into_user() -> ! {
-    let cpu = current_cpu();
     loop {
+        let cpu = current_cpu();
         let mut process_manager = PROCESS_MANAGER.lock();
         if let Some(process) = process_manager.pop_front() {
             // update state to running
@@ -13,9 +15,14 @@ pub fn first_into_user() -> ! {
             let context = process.get_context_raw_ptr();
             cpu.process = Some(process);
             // switch to the process context
-            let cpu_context = cpu.get_context_raw_ptr();
+            let cpu_context = cpu.get_context_mut_raw_ptr();
             drop(process_manager);
-            __switch(cpu_context, context);
+            switch(cpu_context, context);
+        }else {
+            drop(process_manager);
+            unsafe {
+                asm!("wfi")
+            }
         }
     }
 }
@@ -24,24 +31,16 @@ pub fn schedule() {
     let mut process_manager = PROCESS_MANAGER.lock();
     // println!("There are {} processes in the process pool", process_manager.len());
     let cpu = current_cpu();
-    {
-        let process = cpu.take_process().unwrap();
-        match process.state() {
-            ProcessState::Zombie | ProcessState::Sleeping | ProcessState::Waiting => {}
-            _ => {
-                process_manager.push_back(process);
-            }
+    let process = cpu.take_process().unwrap();
+    match process.state() {
+        ProcessState::Zombie | ProcessState::Sleeping | ProcessState::Waiting => {}
+        _ => {
+            process_manager.push_back(process.clone());
         }
     }
-    if let Some(process) = process_manager.pop_front() {
-        if process.get_pid() == 1{
-            // println!("schedule to pid:{}", 1);
-        }
-        process.update_state(ProcessState::Running);
-        let context = process.get_context_raw_ptr();
-        cpu.process = Some(process);
-        let cpu_context = cpu.get_context_raw_ptr();
-        drop(process_manager);
-        __switch(cpu_context, context);
-    }
+    let cpu_context = cpu.get_context_raw_ptr();
+    let context = process.get_context_mut_raw_ptr();
+    drop(process);
+    drop(process_manager);
+    switch(context, cpu_context);
 }

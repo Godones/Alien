@@ -4,18 +4,21 @@ static SYSCALL_TABLE: Once<Table> = Once::new();
 pub fn register_all_syscall(){
 	let mut table = Table::new();
 	register_syscall!(table,
+	(160, sys_uname),
 	(210, shutdown),
-	(169, get_time_ms),
+	(169, get_time_of_day),
+	(153, times),
 	(1005, sleep),
+	(101, sys_nanosleep),
 	(93, do_exit),
 	(124, do_suspend),
 	(172, get_pid),
+	(173, get_ppid),
 	(220, do_fork),
 	(221, do_exec),
 	(260, wait_pid),
 	(56, sys_openat),
 	(57, sys_close),
-	(61, sys_getdents),
 	(45, sys_truncate),
 	(46, sys_ftruncate),
 	(63, sys_read),
@@ -63,50 +66,53 @@ pub fn do_syscall(id:usize,args:&[usize])->isize{
 	    return res.unwrap();
 	}
 }
-use crate::fs::sys_show_dbfs;
-use crate::task::get_pid;
-use crate::fs::sys_fgetxattr;
-use crate::fs::sys_linkat;
-use crate::fs::sys_symlinkat;
+use crate::fs::sys_fstat;
 use crate::fs::sys_openat;
-use crate::fs::sys_unlinkat;
-use crate::fs::sys_lgetxattr;
-use crate::fs::sys_write;
-use crate::fs::sys_readlinkat;
-use crate::fs::sys_removexattr;
+use crate::sbi::shutdown;
 use crate::timer::sleep;
-use crate::fs::sys_fstatfs;
-use crate::fs::sys_chdir;
-use crate::task::do_fork;
-use crate::fs::sys_mkdir;
-use crate::fs::sys_execute_user_operate;
-use crate::task::wait_pid;
-use crate::fs::sys_renameat;
+use crate::fs::sys_setxattr;
+use crate::timer::times;
+use crate::task::get_ppid;
+use crate::fs::sys_create_global_bucket;
+use crate::fs::sys_show_dbfs;
+use crate::fs::sys_read;
+use crate::fs::sys_ftruncate;
+use crate::fs::sys_lseek;
+use crate::fs::sys_write;
 use crate::fs::sys_getcwd;
-use crate::fs::sys_flistxattr;
-use crate::fs::sys_close;
-use crate::fs::sys_llistxattr;
-use crate::fs::sys_lremovexattr;
-use crate::fs::sys_mkdirat;
 use crate::fs::sys_fsetxattr;
 use crate::fs::sys_listxattr;
-use crate::fs::sys_setxattr;
-use crate::timer::get_time_ms;
-use crate::fs::sys_getdents;
-use crate::fs::sys_lseek;
+use crate::timer::sys_nanosleep;
 use crate::fs::sys_execute_user_func;
+use crate::fs::sys_execute_user_operate;
+use crate::fs::sys_readlinkat;
 use crate::fs::sys_fstateat;
-use crate::fs::sys_getxattr;
-use crate::fs::sys_statfs;
-use crate::fs::sys_create_global_bucket;
-use crate::fs::sys_lsetxattr;
-use crate::task::do_exit;
-use crate::task::do_exec;
-use crate::fs::sys_fremovexattr;
-use crate::fs::sys_truncate;
-use crate::fs::sys_ftruncate;
-use crate::fs::sys_fstat;
-use crate::fs::sys_read;
-use crate::sbi::shutdown;
-use crate::fs::sys_list;
+use crate::fs::sys_unlinkat;
+use crate::fs::sys_flistxattr;
+use crate::fs::sys_lgetxattr;
 use crate::task::do_suspend;
+use crate::fs::sys_fgetxattr;
+use crate::fs::sys_mkdirat;
+use crate::fs::sys_llistxattr;
+use crate::task::do_exit;
+use crate::fs::sys_removexattr;
+use crate::fs::sys_fstatfs;
+use crate::task::do_exec;
+use crate::fs::sys_mkdir;
+use crate::fs::sys_chdir;
+use crate::fs::sys_truncate;
+use crate::fs::sys_close;
+use crate::fs::sys_lremovexattr;
+use crate::system::sys_uname;
+use crate::task::get_pid;
+use crate::fs::sys_lsetxattr;
+use crate::fs::sys_fremovexattr;
+use crate::fs::sys_list;
+use crate::timer::get_time_of_day;
+use crate::fs::sys_getxattr;
+use crate::task::do_fork;
+use crate::task::wait_pid;
+use crate::fs::sys_symlinkat;
+use crate::fs::sys_statfs;
+use crate::fs::sys_renameat;
+use crate::fs::sys_linkat;

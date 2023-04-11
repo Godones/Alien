@@ -5,6 +5,7 @@ use std::path::Path;
 
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/");
+
     let path = Path::new("src/trace/kernel_symbol.S");
     if !path.exists() {
         let mut file = File::create(path).unwrap();
@@ -86,7 +87,7 @@ fn scan(import: &mut HashSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                 let mut buf_reader = std::io::BufReader::new(file);
                 let mut line = String::new();
                 while buf_reader.read_line(&mut line).unwrap() > 0 {
-                    if line.contains("#[syscall_func") {
+                    if line.contains("#[syscall_func")&& !line.starts_with("//") {
                         // #[syscall_func(1)]
                         // find the id from the line
                         let id = line.split("(").nth(1).unwrap().split(")").next().unwrap();

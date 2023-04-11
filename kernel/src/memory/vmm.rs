@@ -143,8 +143,8 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             address_space.push_with_data(area, data);
         }
     }
-    // 地址向上取整对齐4k
-    let ceil_addr = VPN::ceil_address(break_addr).0;
+    // 地址向上取整对齐4
+    let ceil_addr = VPN::ceil_address(break_addr).to_address();
     // 留出一个用户栈的位置+隔离页
     let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE;
 
