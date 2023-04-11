@@ -17,6 +17,7 @@ const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 pub struct QemuBlockDevice {
     pub device: Mutex<VirtIOBlk<HalImpl, MmioTransport>>,
     cache: Mutex<LruCache<usize, FrameTracker>>,
+    dirty: Mutex<Vec<usize>>,
 }
 
 impl QemuBlockDevice {
@@ -24,6 +25,7 @@ impl QemuBlockDevice {
         Self {
             device: Mutex::new(device),
             cache: Mutex::new(LruCache::new(NonZeroUsize::new(1024).unwrap())), // 2MB cache
+            dirty: Mutex::new(Vec::new()),
         }
     }
 }
@@ -68,6 +70,7 @@ impl Device for QemuBlockDevice {
                         let target_buf =
                             &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
                         device.write_block(i, target_buf).unwrap();
+                        self.dirty.lock().retain(|&x| x != id);
                     }
                 }
             }
@@ -106,10 +109,12 @@ impl Device for QemuBlockDevice {
                         let target_buf =
                             &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
                         device.write_block(i, target_buf).unwrap();
+                        self.dirty.lock().retain(|&x| x != id);
                     }
                 }
             }
             let cache = cache_lock.get_mut(&page_id).unwrap();
+            self.dirty.lock().push(page_id);
             let copy_len = min(PAGE_CACHE_SIZE - offset, len - count);
             cache[offset..offset + copy_len].copy_from_slice(&buf[count..count + copy_len]);
             count += copy_len;
@@ -123,14 +128,17 @@ impl Device for QemuBlockDevice {
     }
     fn flush(&self) {
         let mut device = self.device.lock();
-        for (id, cache) in self.cache.lock().iter() {
+        let mut lru = self.cache.lock();
+        self.dirty.lock().iter().for_each(|id|{
             let start = id * PAGE_CACHE_SIZE;
             let start_block = start / 512;
             let end_block = (start + PAGE_CACHE_SIZE) / 512;
+            let cache = lru.get(id).unwrap();
             for i in start_block..end_block {
                 let target_buf = &cache[(i - start_block) * 512..(i - start_block + 1) * 512];
                 device.write_block(i, target_buf).unwrap();
             }
-        }
+        });
+        self.dirty.lock().clear();
     }
 }

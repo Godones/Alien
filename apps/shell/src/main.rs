@@ -22,7 +22,7 @@ fn main() -> isize {
     loop {
         print!("{} > ", CURRENT_DIR.lock().as_ref().unwrap().as_str());
         let str = Mstd::io::read_line();
-        let executor = Executor::new(&str);
+        let mut executor = Executor::new(&str);
         executor.run();
     }
 }

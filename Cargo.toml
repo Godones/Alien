@@ -31,7 +31,8 @@ members = [
     "apps/stattest",
     "apps/dirtest",
     "apps/attrtest",
-    "apps/touch"
+    "apps/touch",
+    "apps/attrtest1"
 ]
 
 

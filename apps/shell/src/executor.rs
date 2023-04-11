@@ -54,7 +54,7 @@ impl Executor {
         }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         if self.cmd.is_empty() {
             return;
         }
@@ -80,6 +80,7 @@ impl Executor {
                 cmd.push('\0');
                 let pid = fork();
                 if pid == 0 {
+                    self.parameter.args.insert(0, cmd.clone());
                     exec(cmd.as_str(), self.parameter.get_args_raw().as_slice());
                 } else {
                     m_yield();

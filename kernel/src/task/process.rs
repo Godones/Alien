@@ -17,6 +17,8 @@ use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
 use rvfs::mount::VfsMount;
 use spin::{Mutex, MutexGuard};
+use crate::timer::read_timer;
+
 type FdManager = MinimalManager<Arc<File>>;
 
 lazy_static! {
@@ -51,8 +53,40 @@ pub struct ProcessInner {
     pub fd_table: FdManager,
     pub context: Context,
     pub fs_info: FsContext,
+    pub statistical_data: StatisticalData,
     pub exit_code: i32,
 }
+/// statistics of a process
+#[derive(Debug,Clone)]
+pub struct StatisticalData {
+    /// The number of times the process was scheduled in user mode. --ticks
+    pub tms_utime: usize,
+    /// The number of times the process was scheduled in kernel mode. --ticks
+    pub tms_stime: usize,
+    /// The last time the process was scheduled in user mode. --ticks
+    pub last_utime: usize,
+    /// The last time the process was scheduled in kernel mode. --ticks
+    pub last_stime: usize,
+
+    pub tms_cutime:usize,
+    pub tms_cstime:usize,
+}
+
+
+impl StatisticalData{
+    pub fn new()->Self{
+        let now = read_timer();
+        StatisticalData{
+            tms_utime:0,
+            tms_stime:0,
+            last_utime: now,
+            last_stime: now,
+            tms_cutime: 0,
+            tms_cstime: 0,
+        }
+    }
+}
+
 
 #[derive(Clone, Debug)]
 pub struct FsContext {
@@ -147,6 +181,10 @@ impl Process {
         let inner = self.inner.lock();
         &inner.context as *const Context
     }
+    pub fn get_context_mut_raw_ptr(&self) -> *mut Context {
+        let mut inner = self.inner.lock();
+        &mut inner.context as *mut Context
+    }
 
     pub fn children(&self) -> Vec<Arc<Process>> {
         let inner = self.inner.lock();
@@ -181,8 +219,19 @@ impl Process {
     pub fn add_file(&self, file: Arc<File>) -> Result<usize, ()> {
         self.access_inner().fd_table.insert(file).map_err(|_| {})
     }
-    pub fn remove_file(&self, fd: usize) -> Result<(), ()> {
-        self.access_inner().fd_table.remove(fd).map_err(|_| {})
+    pub fn remove_file(&self, fd: usize) -> Result<Arc<File>, ()> {
+        let mut inner = self.inner.lock();
+        let file = inner.fd_table.get(fd);
+        if file.is_err() {
+            return Err(());
+        }
+        let file = file.unwrap();
+        if file.is_none() {
+            return Err(());
+        }
+        let file = file.unwrap();
+        inner.fd_table.remove(fd).map_err(|_| {})?;
+        Ok(file)
     }
 
     pub fn transfer_raw(&self, ptr: usize) -> usize {
@@ -252,6 +301,29 @@ impl ProcessInner {
             .unwrap();
         unsafe { &mut *(physical as *mut T) }
     }
+
+    /// When process return to user mode, we need to update the user mode time
+    /// WARNING: If the cause of the process returning to the kernel is a timer interrupt,
+    /// We should not call this function.
+    pub fn update_kernel_mode_time(&mut self,) {
+        let now = read_timer(); // current cpu clocks
+        let time = now - self.statistical_data.last_stime;
+        self.statistical_data.tms_stime += time;
+        self.statistical_data.last_utime = now;
+    }
+
+    /// When process return to kernel mode, we need to update the user Mode Time
+    pub fn update_user_mode_time(&mut self,) {
+        let now = read_timer(); // current cpu clocks
+        let time = now - self.statistical_data.last_utime;
+        self.statistical_data.tms_utime += time;
+        self.statistical_data.last_stime = now;
+    }
+
+    pub fn statistical_data(&self) -> &StatisticalData {
+        &self.statistical_data
+    }
+
 }
 
 impl Process {
@@ -295,13 +367,14 @@ impl Process {
                 },
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: FsContext::empty(),
+                statistical_data: StatisticalData::new(),
                 exit_code: 0,
             }),
         };
         let trap_frame = process.trap_frame();
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
-            elf_info.stack_top,
+            elf_info.stack_top-16,
             kernel_satp(),
             process.kernel_stack.top(),
             user_trap_vector as usize,
@@ -331,6 +404,7 @@ impl Process {
                 fd_table: inner.fd_table.clone(),
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: inner.fs_info.clone(),
+                statistical_data: StatisticalData::new(),
                 exit_code: 0,
             }),
         };

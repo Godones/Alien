@@ -22,6 +22,7 @@ pub mod task;
 pub mod timer;
 mod trace;
 pub mod trap;
+pub mod system;
 
 // extern crate alloc;
 #[macro_use]

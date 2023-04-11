@@ -6,37 +6,58 @@ use bitflags::bitflags;
 use core::fmt::{Debug, Formatter};
 
 pub use attr::*;
+
 bitflags! {
     pub struct OpenFlags:u32{
-        const O_RDONLY = 0;
-        const O_WRONLY = 1;
-        const O_RDWR = 2;
-        const O_CREAT = 0100;
-        const O_EXCL = 0200;
-        const O_NOCTTY = 0400;
-        const O_TRUNC = 01000;
-        const O_APPEND = 02000;
-        const O_NONBLOCK = 04000;
+        const O_RDONLY = 0x0;
+        const O_WRONLY = 0x1;
+        const O_RDWR = 0x2;
+        const O_CREAT = 0x40;
+        const O_EXCL = 0x200;
+        const O_NOCTTY = 0x400;
+        const O_TRUNC = 0x1000;
+        const O_APPEND = 0x2000;
+        const O_NONBLOCK = 0x4000;
+        const O_NOFOLLOW = 0x400000;
+        const O_DIRECTORY = 0x200000;
+    }
+}
+bitflags! {
+    pub struct FileMode:u32{
+        const FMODE_READ = 0x0;
+        const FMODE_WRITE = 0x1;
+        const FMODE_RDWR = 0x2;
+        const FMODE_EXEC = 0x5; //read and execute
     }
 }
 
-#[derive(Debug, Clone, Default)]
+
+#[derive(Debug, Clone,Default)]
 #[repr(C)]
 pub struct Stat {
-    pub dev: u32,
-    pub ino: usize,
-    pub i_mod: InodeMode,
-    pub nlink: u32,
-    pub uid: u32,
-    pub gid: u32,
-    // pub rdev: u32,
-    pub size: usize,
-    pub blksize: u32,
-    pub blocks: usize,
-    pub atime: StatTime,
-    pub mtime: StatTime,
-    pub ctime: StatTime,
-}
+    pub st_dev:u64,
+    pub st_ino:u64,
+    pub st_mode:u32,
+    pub st_nlink:u32,
+    pub st_uid:u32,
+    pub st_gid:u32,
+    pub st_rdev:u64,
+    __pad:u64,
+    pub st_size:u64,
+    pub st_blksize:u32,
+    __pad2:u32,
+    pub st_blocks:u64,
+    pub st_atime_sec:u64,
+    pub st_atime_nsec:u64,
+    pub st_mtime_sec:u64,
+    pub st_mtime_nsec:u64,
+    pub st_ctime_sec:u64,
+    pub st_ctime_nsec:u64,
+    unused:u64,
+} //128
+
+
+
 #[derive(Default, Debug, Clone)]
 #[repr(C)]
 pub struct StatTime {
