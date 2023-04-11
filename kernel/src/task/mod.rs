@@ -12,7 +12,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 pub use cpu::{
     current_cpu, current_process, current_trap_frame, current_user_token, do_exec, do_exit,
-    do_fork, do_suspend, get_pid, wait_pid, PROCESS_MANAGER,
+    do_fork, do_suspend, get_pid, wait_pid, PROCESS_MANAGER,get_ppid
 };
 
 use lazy_static::lazy_static;

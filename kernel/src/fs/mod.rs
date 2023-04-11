@@ -6,19 +6,12 @@ use crate::task::current_process;
 use alloc::string::{String, ToString};
 use core::cmp::min;
 use rvfs::dentry::{vfs_rename, LookUpFlags, vfs_truncate, vfs_truncate_by_file};
-use rvfs::file::{
-    vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file, FileMode,
-    OpenFlags, SeekFrom,
-};
+use rvfs::file::{vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file, FileMode, OpenFlags, SeekFrom, vfs_close_file};
 
 use rvfs::inode::InodeMode;
 use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
 use rvfs::path::{vfs_lookup_path, ParsePathType};
-use rvfs::stat::{
-    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
-    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
-    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, FileAttribute, StatFlags,
-};
+use rvfs::stat::{vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, FileAttribute, StatFlags, KStat};
 use rvfs::superblock::StatFs;
 pub use stdio::*;
 use syscall_table::syscall_func;
@@ -34,7 +27,8 @@ const AT_FDCWD: isize = -100isize;
 #[syscall_func(56)]
 pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize {
     // we don't support mode yet
-    assert_eq!(mode, 0);
+    let file_mode = FileMode::from_bits_truncate(mode as u32);
+    let flag = OpenFlags::from_bits(flag as u32).unwrap();
     let process = current_process().unwrap();
     let path = process.transfer_str(path as *const u8);
     let path = user_path_at(dirfd, &path, LookUpFlags::empty()).map_err(|_| -1);
@@ -42,10 +36,11 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize 
         return -1;
     }
     let path = path.unwrap();
+    warn!("open file: {:?},flag:{:?}, mode:{:?}", path,flag,file_mode);
     let file = vfs_open_file::<VfsProvider>(
         &path,
-        OpenFlags::from_bits(flag as u32).unwrap(),
-        FileMode::FMODE_READ | FileMode::FMODE_WRITE,
+        flag,
+        file_mode,
     );
     if file.is_err() {
         return -1;
@@ -61,24 +56,26 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize 
 #[syscall_func(57)]
 pub fn sys_close(fd: usize) -> isize {
     let process = current_process().unwrap();
-    let fd = process.remove_file(fd);
-    if fd.is_err() {
-        return -1;
-    }
-    0
-}
-
-#[syscall_func(61)]
-pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
-    let process = current_process().unwrap();
-    let file = process.get_file(fd);
-    if file.is_none() {
+    let file = process.remove_file(fd);
+    if file.is_err() {
         return -1;
     }
     let file = file.unwrap();
-    // todo!()
+    let _ = vfs_close_file::<VfsProvider>(file);
     0
 }
+
+// #[syscall_func(61)]
+// pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
+//     let process = current_process().unwrap();
+//     let file = process.get_file(fd);
+//     if file.is_none() {
+//         return -1;
+//     }
+//     let file = file.unwrap();
+//     // todo!()
+//     0
+// }
 
 /// Reference: https://man7.org/linux/man-pages/man2/truncate64.2.html
 #[syscall_func(45)]
@@ -128,6 +125,7 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
 
 #[syscall_func(64)]
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+    // warn!("sys_write is not implemented yet");
     let process = current_process().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
@@ -146,6 +144,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 }
 #[syscall_func(17)]
 pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
+    assert!(!buf.is_null());
     let process = current_process().unwrap();
     let cwd = process.access_inner().cwd();
 
@@ -163,7 +162,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
             cwd = &cwd[min..];
         }
     });
-    count as isize
+    buf[0].as_ptr() as isize
 }
 
 #[syscall_func(49)]
@@ -239,13 +238,14 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
 }
 #[syscall_func(80)]
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
+    assert!(!stat.is_null());
     let process = current_process().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
     }
     let file = file.unwrap();
-    let stat = stat as *mut FileAttribute;
+    let stat = stat as *mut KStat;
     let stat = process.transfer_raw_ptr(stat);
     let attr = vfs_getattr_by_file(file);
     if attr.is_err() {
@@ -376,7 +376,7 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
         return -1;
     }
     let path = path.unwrap();
-    let stat = stat as *mut FileAttribute;
+    let stat = stat as *mut KStat;
     let stat = process.transfer_raw_ptr(stat);
     let flag = StatFlags::from_bits(flag as u32);
     if flag.is_none() {
@@ -467,11 +467,8 @@ pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
         return -1;
     }
     let path = path.unwrap();
-    let flag = OpenFlags::from_bits(flag as u32);
-    if flag.is_none() {
-        return -1;
-    }
-    let flag = flag.unwrap();
+    let flag = OpenFlags::from_bits_truncate(flag as u32);
+    warn!("mkdirat path: {}, flag: {:?}", path, flag);
     let mut mode = FileMode::FMODE_READ;
     if flag.contains(OpenFlags::O_WRONLY) {
         mode |= FileMode::FMODE_WRITE;

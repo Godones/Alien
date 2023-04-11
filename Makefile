@@ -61,10 +61,18 @@ user:
 build:compile
 
 
-run:install compile $(img) user SecondFile
+run:install compile $(img) user SecondFile testelf
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
 
+
+test:install compile $(img) SecondFile testelf
+	$(call boot_qemu)
+
+testelf:
+	@sudo mkdir /fat/ostest
+	@sudo cp test/* /fat/ostest -r
+	@sync
 
 dtb:
 	$(call boot_qemu, -machine dumpdtb=riscv.dtb)
@@ -100,7 +108,7 @@ img-hex:
 	@cat test.hex
 
 
-gdb: compile $(img) user SecondFile
+gdb: compile $(img)  user SecondFile testelf
 	@qemu-system-riscv64 \
             -M virt $(1)\
             -bios $(BOOTLOADER) \
@@ -127,8 +135,8 @@ fmt:
 	@cd userlib && cargo fmt
 	@cd modules && make fmt
 asm:compile
-	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
-	@lvim kernel.asm
+	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/boot > kernel.asm
+	@vim kernel.asm
 	@rm kernel.asm
 
 

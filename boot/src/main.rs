@@ -79,6 +79,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     // loop {
     //     // println!("Hello, world! I'm hart {}", hart_id);
     // }
+
     task::schedule::first_into_user();
 }
 

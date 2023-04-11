@@ -380,6 +380,7 @@ fn init_db(db: &DB) {
     bucket.put("continue_number", 0usize.to_be_bytes()).unwrap();
     bucket.put("magic", 1111u32.to_be_bytes()).unwrap();
     bucket.put("blk_size", 512u32.to_be_bytes()).unwrap();
+    bucket.put("disk_size", (1024*1024*64u64).to_be_bytes()).unwrap(); //64MB
     tx.commit().unwrap()
 }
 

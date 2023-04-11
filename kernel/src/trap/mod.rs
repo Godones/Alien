@@ -1,5 +1,5 @@
 use core::arch::{asm, global_asm};
-use riscv::register::sepc;
+use riscv::register::{sepc, stval};
 use riscv::register::sstatus::SPP;
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec::TrapMode;
@@ -15,7 +15,7 @@ use crate::arch::{
     external_interrupt_enable, interrupt_disable, interrupt_enable, timer_interrupt_enable,
 };
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
-use crate::task::current_user_token;
+use crate::task::{current_process, current_user_token};
 use crate::timer::{check_timer_queue, set_next_trigger};
 pub use context::TrapFrame;
 use crate::arch::riscv::register::{stvec};
@@ -78,6 +78,8 @@ pub trait TrapHandler {
 
 impl TrapHandler for Trap {
     fn do_user_handle(&self) {
+        let stval = stval::read();
+        let sepc = sepc::read();
         match self {
             Trap::Exception(Exception::UserEnvCall) => {
                 exception::syscall_exception_handler();
@@ -88,7 +90,10 @@ impl TrapHandler for Trap {
             | Trap::Exception(Exception::InstructionPageFault)
             | Trap::Exception(Exception::LoadFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                println!("[kernel] {:?} in application", self);
+                println!("[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}", self,stval,sepc);
+                let process = current_process().unwrap();
+                let phy = process.transfer_raw(stval);
+                println!("physical address: {:#x?}",phy);
                 exception::page_exception_handler()
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
@@ -102,8 +107,6 @@ impl TrapHandler for Trap {
                 interrupt::external_interrupt_handler();
             }
             _ => {
-                let stval = stvec::read();
-                let sepc = sepc::read();
                 panic!(
                     "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
                     self, stval, sepc
@@ -112,19 +115,25 @@ impl TrapHandler for Trap {
         }
     }
     fn do_kernel_handle(&self) {
+        let stval = stval::read();
+        let sepc = sepc::read();
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 check_timer_queue();
                 set_next_trigger();
             }
             Trap::Exception(_) => {
-                warn!("exception: {:?}", self);
+                panic!(
+                    "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
+                    self, stval, sepc)
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
                 interrupt::external_interrupt_handler();
             }
             _ => {
-                warn!("unhandled trap: {:?}", self);
+                panic!(
+                    "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
+                    self, stval, sepc)
             }
         }
     }
@@ -133,6 +142,11 @@ impl TrapHandler for Trap {
 /// 用户态陷入处理
 #[no_mangle]
 pub fn user_trap_vector() {
+    // update process statistics
+    {
+        let process = current_process().unwrap();
+        process.access_inner().update_user_mode_time();
+    }
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::Supervisor{
@@ -140,7 +154,13 @@ pub fn user_trap_vector() {
     }
     set_kernel_trap_entry();
     let cause = riscv::register::scause::read();
-    cause.cause().do_user_handle();
+    let cause = cause.cause();
+    cause.do_user_handle();
+    if cause != Trap::Interrupt(Interrupt::SupervisorTimer){
+        // update process statistics
+        let process = current_process().unwrap();
+        process.access_inner().update_kernel_mode_time();
+    }
     trap_return();
 }
 

@@ -79,3 +79,8 @@ pub fn truncate(path: &str, len: usize) -> isize {
 pub fn ftruncate(fd: usize, len: usize) -> isize {
     sys_ftruncate(fd, len)
 }
+
+
+pub fn getdents(path:&str, buf:&mut [u8]) -> isize {
+    sys_getdents(path.as_ptr(), buf.as_mut_ptr(), buf.len())
+}
