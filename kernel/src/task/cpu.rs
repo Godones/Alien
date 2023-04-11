@@ -12,6 +12,7 @@ use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use bitflags::bitflags;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use syscall_table::syscall_func;
@@ -36,6 +37,9 @@ impl CPU {
     }
     pub fn get_context_raw_ptr(&self) -> *const Context {
         &self.context as *const Context
+    }
+    pub fn get_context_mut_raw_ptr(&mut self) -> *mut Context {
+        &mut self.context as *mut Context
     }
 }
 /// save info for each cpu
@@ -74,6 +78,7 @@ pub fn current_trap_frame() -> &'static mut TrapFrame {
 #[syscall_func(93)]
 pub fn do_exit(exit_code: i32) -> isize {
     let c_process = current_process().unwrap();
+    let exit_code = (exit_code & 0xff) << 8;
     if c_process.get_pid() == 0 {
         println!("init process exit with code {}", exit_code);
         shutdown();
@@ -106,6 +111,20 @@ pub fn get_pid() -> isize {
     process.get_pid()
 }
 
+#[syscall_func(173)]
+pub fn get_ppid() -> isize {
+    let process = current_process().unwrap();
+    let parent = process.access_inner().parent.clone();
+    if parent.is_none() {
+        return 0;
+    }
+    else {
+        parent.unwrap().upgrade().unwrap().get_pid()
+    }
+}
+
+//pid_t ret = syscall(SYS_clone, flags, stack, ptid, tls, ctid)
+
 #[syscall_func(220)]
 pub fn do_fork() -> isize {
     let process = current_process().unwrap();
@@ -123,7 +142,7 @@ pub fn do_fork() -> isize {
     pid
 }
 #[syscall_func(221)]
-pub fn do_exec(path: *const u8, args_ptr: *const usize) -> isize {
+pub fn do_exec(path: *const u8, args_ptr: *const usize,_env:*const usize) -> isize {
     let process = current_process().unwrap();
     let str = process.transfer_str(path);
     let mut data = Vec::new();
@@ -138,7 +157,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize) -> isize {
         args.push(*arg);
         start = unsafe { start.add(1) };
     }
-    let mut args = args
+    let args = args
         .into_iter()
         .map(|arg| {
             let mut arg = process.transfer_str(arg as *const u8);
@@ -146,10 +165,6 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize) -> isize {
             arg
         })
         .collect::<Vec<String>>();
-    // push app name to the last args
-    let mut app_name = str.clone();
-    app_name.push('\0');
-    args.insert(0, app_name);
     if vfs::read_all(&str, &mut data) {
         let argc = args.len();
         let res = process.exec(data.as_slice(), args);
@@ -162,29 +177,49 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize) -> isize {
     }
 }
 
+/// Please care about the exit code,it may be null
 #[syscall_func(260)]
-pub fn wait_pid(pid: isize, exit_code: *mut i32) -> isize {
-    let process = current_process().unwrap();
-    if !process
-        .children()
-        .iter()
-        .any(|child| child.get_pid() == pid || pid == -1)
-    {
-        return -1;
-    }
-    let children = process.children();
-    let res = children.iter().enumerate().find(|(_, child)| {
-        child.state() == ProcessState::Zombie && (child.get_pid() == pid || pid == -1)
-    });
-    match res {
-        Some((index, _)) => {
+pub fn wait_pid(pid: isize, exit_code: *mut i32,options:u32,_rusage:*const u8) -> isize {
+    let process = current_process().unwrap().clone();
+    loop {
+        if process
+            .children()
+            .iter()
+            .find(|child| child.get_pid() == pid || pid == -1)
+            .is_none()
+        {
+            return -1;
+        }
+        let children = process.children();
+        let res = children.iter().enumerate().find(|(_, child)| {
+            child.state() == ProcessState::Zombie && (child.get_pid() == pid || pid == -1)
+        });
+        if let Some((index,_)) = res{
             drop(children);
             let child = process.remove_child(index);
             assert_eq!(Arc::strong_count(&child), 1);
-            let exit_code_ref = process.transfer_raw_ptr(exit_code);
-            *exit_code_ref = child.exit_code();
-            child.get_pid() as isize
+            if !exit_code.is_null(){
+                let exit_code_ref = process.transfer_raw_ptr(exit_code);
+                *exit_code_ref = child.exit_code();
+            }
+            return child.get_pid() as isize
+        }else {
+            drop(children);
+            let wait_options = WaitOptions::from_bits(options).unwrap();
+            if wait_options.contains(WaitOptions::WNOHANG) {
+                return 0;
+            }else {
+                do_suspend();
+            }
         }
-        _ => -2,
+    }
+}
+
+
+bitflags! {
+    pub struct WaitOptions:u32 {
+        const WNOHANG = 1;
+        const WUNTRACED = 2;
+        const WCONTINUED = 8;
     }
 }
