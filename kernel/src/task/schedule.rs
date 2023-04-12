@@ -9,6 +9,7 @@ pub fn first_into_user() -> ! {
         let cpu = current_cpu();
         let mut process_manager = PROCESS_MANAGER.lock();
         if let Some(process) = process_manager.pop_front() {
+            // warn!("switch to process {}", process.get_pid());
             // update state to running
             process.update_state(ProcessState::Running);
             // get the process context

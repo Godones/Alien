@@ -8,6 +8,7 @@ pub use dtb::{init_dt, DEVICE_TABLE, PLIC};
 pub use mpci::pci_probe;
 pub mod rtc;
 pub mod uart;
+pub mod uart1;
 
 pub trait DeviceBase: Sync + Send {
     fn hand_irq(&self);
