@@ -31,7 +31,8 @@ define boot_qemu
 		-device virtio-blk-device,drive=x1 \
         -nographic \
         -kernel  kernel-qemu\
-        -smp $(SMP) -m 128M
+        -smp $(SMP) -m 128M \
+        -serial mon:stdio
 endef
 
 install:

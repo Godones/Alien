@@ -16,7 +16,7 @@ pub use cpu::{
 };
 
 use lazy_static::lazy_static;
-pub use process::{Process, ProcessState};
+pub use process::{Process, ProcessState,StatisticalData};
 
 lazy_static! {
     pub static ref INIT_PROCESS: Arc<Process> = {

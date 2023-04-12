@@ -2,7 +2,6 @@ use crate::arch;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::sbi::shutdown;
-use crate::sync::IntrLock;
 use crate::task::context::Context;
 use crate::task::process::{Process, ProcessState};
 use crate::task::schedule::schedule;
@@ -14,14 +13,14 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::bitflags;
 use lazy_static::lazy_static;
-use spin::Mutex;
 use syscall_table::syscall_func;
+use crate::sync::IntrLock;
 
 #[derive(Debug)]
 pub struct CPU {
     pub process: Option<Arc<Process>>,
     pub context: Context,
-    pub intr_lock: IntrLock,
+    pub intr_lock: IntrLock<usize>,
 }
 
 impl CPU {
@@ -29,7 +28,7 @@ impl CPU {
         Self {
             process: None,
             context: Context::empty(),
-            intr_lock: IntrLock::new(),
+            intr_lock: IntrLock::new(0),
         }
     }
     pub fn take_process(&mut self) -> Option<Arc<Process>> {
@@ -48,7 +47,7 @@ static mut CPU_MANAGER: [CPU; CPU_NUM] = [CPU::empty(); CPU_NUM];
 /// the global process pool
 type ProcessPool = VecDeque<Arc<Process>>;
 lazy_static! {
-    pub static ref PROCESS_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
+    pub static ref PROCESS_MANAGER: IntrLock<ProcessPool> = IntrLock::new(ProcessPool::new());
 }
 
 /// get the current cpu info
