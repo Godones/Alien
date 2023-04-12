@@ -9,7 +9,7 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use spin::{Mutex, Once};
 use uart::{Uart, UartRaw};
-
+use super::uart1::Uart1;
 pub trait CharDevice {
     fn put(&self, c: u8);
     fn get(&self) -> Option<u8>;
@@ -23,17 +23,25 @@ lazy_static! {
     };
 }
 
+// lazy_static! {
+//     pub static ref USER_UART: Once<Arc<UartWrapper>> = Once::new();
+// }
+
 lazy_static! {
-    pub static ref USER_UART: Once<Arc<UartWrapper>> = Once::new();
+    pub static ref USER_UART: Once<Arc<Uart1>> = Once::new();
 }
 
+
 pub fn init_uart(base: usize) -> Arc<dyn DeviceBase> {
-    let uart = UartWrapper::new(base);
+    // let uart = UartWrapper::new(base);
+    let uart = Uart1::new(base);
+    uart.init();
     let uart = Arc::new(uart);
     USER_UART.call_once(|| uart.clone());
     uart
 }
 
+/// WARNING: We should checkout the implementation of Uart, it is not work
 pub struct UartWrapper(Uart<Arc<Process>>);
 
 impl UartWrapper {

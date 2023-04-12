@@ -99,12 +99,12 @@ pub fn list(path: &str) -> isize {
 }
 
 pub fn open(name: &str, flag: OpenFlags) -> isize {
-    sys_openat(AT_FDCWD, name.as_ptr(), flag.bits as usize, 0)
+    sys_openat(AT_FDCWD, name.as_ptr(), flag.bits as usize, FileMode::FMODE_RDWR.bits() as usize)
 }
 
 /// now we don't support mode
-pub fn openat(fd: isize, name: &str, flag: OpenFlags, mode: u32) -> isize {
-    sys_openat(fd, name.as_ptr(), flag.bits as usize, mode as usize)
+pub fn openat(fd: isize, name: &str, flag: OpenFlags, file_mode: FileMode) -> isize {
+    sys_openat(fd, name.as_ptr(), flag.bits as usize, file_mode.bits()as usize)
 }
 
 pub fn close(fd: usize) -> isize {
@@ -116,6 +116,12 @@ pub fn get_cwd(buf: &mut [u8]) -> Result<&str, IoError> {
     if len == -1 {
         return Err(IoError::BufferTooSmall);
     } else {
+        let res = buf.iter().enumerate().find(|(_, &x)| x == 0);
+        let len = if res.is_none(){
+            buf.len()
+        }else {
+            res.unwrap().0
+        };
         let s = core::str::from_utf8(&buf[..len as usize]).unwrap();
         Ok(s)
     }

@@ -75,8 +75,7 @@ impl Executor {
             }
             "exit" => shutdown(),
             _ => {
-                let mut cmd = "/".to_string()+ &self.cmd;
-
+                let mut cmd = self.cmd;
                 cmd.push('\0');
                 let pid = fork();
                 if pid == 0 {
