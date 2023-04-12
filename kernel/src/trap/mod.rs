@@ -1,5 +1,5 @@
 use core::arch::{asm, global_asm};
-use riscv::register::{sepc, stval};
+use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec::TrapMode;
@@ -11,9 +11,7 @@ mod interrupt;
 global_asm!(include_str!("./kernel_v.asm"));
 global_asm!(include_str!("./trampoline.asm"));
 
-use crate::arch::{
-    external_interrupt_enable, interrupt_disable, interrupt_enable, timer_interrupt_enable,
-};
+use crate::arch::{external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable, timer_interrupt_enable};
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::task::{current_process, current_user_token};
 use crate::timer::{check_timer_queue, set_next_trigger};
@@ -58,6 +56,7 @@ fn set_user_trap_entry() {
 #[inline]
 fn set_kernel_trap_entry() {
     unsafe {
+        sscratch::write(kernel_trap_vector as usize);
         stvec::write(kernel_v as usize, TrapMode::Direct);
     }
 }
@@ -173,6 +172,8 @@ pub fn kernel_trap_vector() {
     if spp == SPP::User{
         panic!("kernel_trap_vector: spp == SPP::User");
     }
+    let enable = is_interrupt_enable();
+    assert!(!enable);
     let cause = riscv::register::scause::read().cause();
     cause.do_kernel_handle()
 }

@@ -115,24 +115,10 @@ pub fn times(tms:*mut u8)->isize{
     0
 }
 
-
-#[syscall_func(1005)]
-pub fn sleep(ms: usize) -> isize {
-    let end_time = read_timer() + ms * (CLOCK_FREQ / MSEC_PER_SEC);
-    if read_timer() < end_time {
-        let process = current_process().unwrap();
-        process.update_state(ProcessState::Sleeping);
-        push_to_timer_queue(process.clone(), end_time);
-        schedule();
-    }
-    0
-}
-
-
 #[syscall_func(101)]
 pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
     let process = current_process().unwrap();
-    let req = process.transfer_raw_ptr(req as *mut TimeSpec);
+    let req = process.transfer_raw_ptr(req as *mut  TimeSpec);
     let end_time = read_timer() + req.tv_sec * CLOCK_FREQ + req.tv_nsec * CLOCK_FREQ / 1000000000;
     if read_timer() < end_time {
         let process = current_process().unwrap();
@@ -142,7 +128,6 @@ pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
     }
     0
 }
-
 
 
 #[derive(Debug)]

@@ -48,12 +48,14 @@ syscall_id!(SYSCALL_UNLINK, 87);
 syscall_id!(SYSCALL_RENAMEAT, 38);
 syscall_id!(SYSCALL_MKDIRAT, 34);
 
+
+syscall_id!(SYSCALL_NANO_SLEEP, 101);
+
 syscall_id!(SYSCALL_LIST, 1000);
 syscall_id!(SYSCALL_CREATE_GLOBAL_BUCKET, 1001);
 syscall_id!(SYSCALL_EXECUTE_USER_FUNC, 1002);
 syscall_id!(SYSCALL_SHOW_DBFS, 1003);
 syscall_id!(SYSCALL_EXECUTE_OPERATE, 1004);
-syscall_id!(SYSCALL_SLEEP, 1005);
 fn syscall(id: usize, args: [usize; 6]) -> isize {
     let mut ret: isize;
     unsafe {
@@ -76,7 +78,7 @@ syscall!(sys_write, SYSCALL_WRITE, usize, *const u8, usize);
 syscall!(sys_exit, SYSCALL_EXIT, i32);
 syscall!(sys_yield, SYSCALL_YIELD);
 syscall!(sys_getpid, SYSCALL_GETPID);
-syscall!(sys_get_time, SYSCALL_GET_TIME);
+syscall!(sys_get_time, SYSCALL_GET_TIME,*mut u8);
 syscall!(sys_fork, SYSCALL_FORK);
 syscall!(sys_execve, SYSCALL_EXEC, *const u8, *const usize);
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
@@ -87,6 +89,7 @@ syscall!(sys_close, SYSCALL_CLOSE, usize);
 syscall!(sys_get_cwd, SYSCALL_GETCWD, *mut u8, usize);
 syscall!(sys_chdir, SYSCALL_CHDIR, *const u8);
 syscall!(sys_mkdir, SYSCALL_MKDIR, *const u8);
+syscall!(sys_nanosleep, SYSCALL_NANO_SLEEP, *mut u8, *mut u8);
 
 syscall!(
     sys_create_global_bucket,
@@ -109,7 +112,6 @@ syscall!(
     *const u8
 );
 
-syscall!(sys_sleep, SYSCALL_SLEEP, usize);
 syscall!(sys_lseek, SYSCALL_LSEEK, usize, isize, usize);
 syscall!(sys_fstat, SYSCALL_FSTAT, usize, *mut u8);
 syscall!(

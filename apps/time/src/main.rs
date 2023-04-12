@@ -2,7 +2,7 @@
 #![no_main]
 
 use Mstd::println;
-use Mstd::thread::sleep;
+use Mstd::time::sleep;
 use Mstd::time::get_time_ms;
 
 #[no_mangle]
