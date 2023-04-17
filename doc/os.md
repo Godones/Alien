@@ -8,8 +8,8 @@
 
 [file system function](https://www.cnblogs.com/XNQC1314/p/9251197.html)
 
-
 # 已过测试
+
 1. wait
 2. waitpid
 3. write
@@ -31,15 +31,15 @@
 19. execve
 20. close
 21. chdir
-22. 
+22. pipe
+23. dup
+24. dup2
+25. unlink
 
 # 未过测试
+
 1. munmap
-2. unlink
-3. umount
-4. pipe
-5. getdents
-6. dup
-7. dup2
-8. clone
-9. brk
+2. umount
+3. getdents
+4. clone
+5. brk

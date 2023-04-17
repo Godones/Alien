@@ -32,7 +32,9 @@ members = [
     "apps/dirtest",
     "apps/attrtest",
     "apps/touch",
-    "apps/attrtest1"
+    "apps/attrtest1",
+    "apps/pipetest",
+    "apps/pipetest2"
 ]
 
 
