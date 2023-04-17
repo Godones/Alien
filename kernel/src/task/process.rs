@@ -28,6 +28,7 @@ lazy_static! {
 }
 #[derive(Debug)]
 pub struct PidHandle(usize);
+
 impl Drop for PidHandle {
     fn drop(&mut self) {
         PID_MANAGER.lock().remove(self.0).unwrap();
@@ -40,7 +41,9 @@ pub struct Process {
     kernel_stack: Stack,
     inner: Mutex<ProcessInner>,
 }
+
 unsafe impl Send for Process {}
+
 unsafe impl Sync for Process {}
 
 #[derive(Debug)]
@@ -56,8 +59,9 @@ pub struct ProcessInner {
     pub statistical_data: StatisticalData,
     pub exit_code: i32,
 }
+
 /// statistics of a process
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct StatisticalData {
     /// The number of times the process was scheduled in user mode. --ticks
     pub tms_utime: usize,
@@ -68,17 +72,17 @@ pub struct StatisticalData {
     /// The last time the process was scheduled in kernel mode. --ticks
     pub last_stime: usize,
 
-    pub tms_cutime:usize,
-    pub tms_cstime:usize,
+    pub tms_cutime: usize,
+    pub tms_cstime: usize,
 }
 
 
-impl StatisticalData{
-    pub fn new()->Self{
+impl StatisticalData {
+    pub fn new() -> Self {
         let now = read_timer();
-        StatisticalData{
-            tms_utime:0,
-            tms_stime:0,
+        StatisticalData {
+            tms_utime: 0,
+            tms_stime: 0,
             last_utime: now,
             last_stime: now,
             tms_cutime: 0,
@@ -124,6 +128,7 @@ impl FsContext {
         }
     }
 }
+
 impl Into<ProcessFsInfo> for FsContext {
     fn into(self) -> ProcessFsInfo {
         ProcessFsInfo {
@@ -219,6 +224,11 @@ impl Process {
     pub fn add_file(&self, file: Arc<File>) -> Result<usize, ()> {
         self.access_inner().fd_table.insert(file).map_err(|_| {})
     }
+    pub fn add_file_with_fd(&self, file: Arc<File>, fd: usize) -> Result<(), ()> {
+        let mut inner = self.access_inner();
+        inner.fd_table.insert_with_index(fd, file).map_err(|_| {})
+    }
+
     pub fn remove_file(&self, fd: usize) -> Result<Arc<File>, ()> {
         let mut inner = self.inner.lock();
         let file = inner.fd_table.get(fd);
@@ -305,7 +315,7 @@ impl ProcessInner {
     /// When process return to user mode, we need to update the user mode time
     /// WARNING: If the cause of the process returning to the kernel is a timer interrupt,
     /// We should not call this function.
-    pub fn update_kernel_mode_time(&mut self,) {
+    pub fn update_kernel_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_stime;
         self.statistical_data.tms_stime += time;
@@ -313,7 +323,7 @@ impl ProcessInner {
     }
 
     /// When process return to kernel mode, we need to update the user Mode Time
-    pub fn update_user_mode_time(&mut self,) {
+    pub fn update_user_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_utime;
         self.statistical_data.tms_utime += time;
@@ -323,7 +333,6 @@ impl ProcessInner {
     pub fn statistical_data(&self) -> &StatisticalData {
         &self.statistical_data
     }
-
 }
 
 impl Process {
@@ -374,7 +383,7 @@ impl Process {
         let trap_frame = process.trap_frame();
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
-            elf_info.stack_top-16,
+            elf_info.stack_top - 16,
             kernel_satp(),
             process.kernel_stack.top(),
             user_trap_vector as usize,

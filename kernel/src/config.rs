@@ -9,9 +9,11 @@ pub const CLOCK_FREQ: usize = 12500000;
 // 0x8020_0000
 pub const RISCV_UART_ADDR: usize = 0x10_000_000;
 pub const RISCV_UART_RANG: usize = 0x100;
-pub const MEMORY_END: usize = 0x88_000_000; //128
-                                            // pub const MEMORY_END: usize = 0x8820_0000; //2GB
-pub const FRAME_SIZE: usize = 0x1000; //4KB
+pub const MEMORY_END: usize = 0x88_000_000;
+//128
+// pub const MEMORY_END: usize = 0x8820_0000; //2GB
+pub const FRAME_SIZE: usize = 0x1000;
+//4KB
 pub const FRAME_BITS: usize = 12;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
@@ -37,4 +39,4 @@ pub const USER_STACK_SIZE: usize = 0x2000;
 pub const MAX_PROCESS_NUM: usize = 1024;
 pub const MAX_THREAD_NUM: usize = 1024;
 pub const MAX_SUB_PROCESS_NUM: usize = 1024;
-pub const MAX_FD_NUM: usize = 64;
+pub const MAX_FD_NUM: usize = 1024;

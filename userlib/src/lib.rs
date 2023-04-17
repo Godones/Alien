@@ -23,6 +23,7 @@ mod sys;
 mod syscall;
 pub mod thread;
 pub mod time;
+pub mod ipc;
 
 
 #[no_mangle]

@@ -15,6 +15,9 @@ syscall_id!(SYSCALL_LREMOVEXATTR, 15);
 syscall_id!(SYSCALL_FREMOVEXATTR, 16);
 
 syscall_id!(SYSCALL_GETCWD, 17);
+
+syscall_id!(SYSCALL_DUP,23);
+syscall_id!(SYSCALL_DUP3,24);
 syscall_id!(SYSCALL_LINKAT, 37);
 syscall_id!(SYSCALL_UNLINKAT, 35);
 syscall_id!(SYSCALL_SYMLINKAT, 36);
@@ -25,6 +28,8 @@ syscall_id!(SYSCALL_FSTATFS, 44);
 syscall_id!(SYSCALL_STATFS, 43);
 syscall_id!(SYSCALL_TRUNCATE,45);
 syscall_id!(SYSCALL_FTRUNCATE,46);
+syscall_id!(SYSCALL_PIPE,59);
+
 syscall_id!(SYSCALL_GETDENTS, 61);
 syscall_id!(SYSCALL_WRITE, 64);
 syscall_id!(SYSCALL_FSTAT, 80);
@@ -229,3 +234,9 @@ syscall!(sys_getdents, SYSCALL_GETDENTS, *const u8, *mut u8, usize);
 
 syscall!(sys_truncate, SYSCALL_TRUNCATE, *const u8, usize);
 syscall!(sys_ftruncate, SYSCALL_FTRUNCATE, usize, usize);
+
+
+// ipc
+syscall!(sys_pipe, SYSCALL_PIPE, *mut u32,usize);
+syscall!(sys_dup, SYSCALL_DUP, usize);
+syscall!(sys_dup3, SYSCALL_DUP3, usize, usize,usize);
