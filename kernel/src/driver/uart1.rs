@@ -1,13 +1,12 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use bitflags::bitflags;
-use spin::{Mutex, MutexGuard};
 use crate::driver::DeviceBase;
 use crate::driver::uart::CharDevice;
 use crate::task::{current_process, Process, PROCESS_MANAGER, ProcessState};
 use crate::task::schedule::schedule;
-
 use volatile::{ReadOnly, Volatile, WriteOnly};
+use crate::sync::{IntrLock, IntrLockGuard};
 bitflags! {
     /// InterruptEnableRegiste
     #[derive(Copy, Clone)]
@@ -125,7 +124,7 @@ impl NS16550aRaw {
 
 
 pub struct Uart1 {
-    inner:Mutex<UartInner>,
+    inner:IntrLock<UartInner>,
 }
 
 pub struct UartInner{
@@ -137,7 +136,7 @@ pub struct UartInner{
 impl Uart1 {
     pub fn new(base:usize)->Self{
         Self{
-            inner:Mutex::new(UartInner{
+            inner:IntrLock::new(UartInner{
                 uart_raw: NS16550aRaw::new(base),
                 rx_buf:VecDeque::new(),
                 wait_queue: VecDeque::new(),
@@ -147,7 +146,7 @@ impl Uart1 {
     pub fn init(&self){
         self.access_inner().uart_raw.init();
     }
-    pub fn access_inner(&self)->MutexGuard<UartInner>{
+    pub fn access_inner(&self)->IntrLockGuard<UartInner>{
         self.inner.lock()
     }
 }
