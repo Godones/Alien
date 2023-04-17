@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
 extern crate alloc;
+
 use alloc::vec::Vec;
 
 #[derive(Debug, Clone)]
@@ -30,18 +31,19 @@ impl<T: Clone> MinimalManager<T> {
         self.data[self.usable] = Some(val);
         let ans = self.usable;
         //查找下一个可用的位置
+        self.usable = self.find_next_index().unwrap_or(self.data.len());
+        Ok(ans)
+    }
+
+    pub fn find_next_index(&self) -> Option<usize> {
         let data = self
             .data
             .iter()
             .enumerate()
-            .find(|(_index, fd)| fd.is_none());
-        match data {
-            Some(_) => self.usable = data.unwrap().0,
-            None => self.usable = self.data.len(),
-        }
-        Ok(ans)
+            .find(|(_index, fd)| fd.is_none())
+            .map(|x| x.0);
+        data
     }
-
     pub fn remove(&mut self, index: usize) -> Result<(), ManagerError> {
         if index >= self.max {
             return Err(ManagerError::IndexOver);
@@ -60,8 +62,35 @@ impl<T: Clone> MinimalManager<T> {
         if index > self.max {
             return Err(ManagerError::IndexOver);
         }
-        let val = self.data.get(index).unwrap();
+        let val = self.data.get(index);
+        if val.is_none() {
+            return Err(ManagerError::NotExist);
+        }
+        let val = val.unwrap();
         Ok(val.clone())
+    }
+    #[allow(unused)]
+    pub fn is_usable(&self, index: usize) -> Result<bool, ManagerError> {
+        if index > self.max {
+            return Err(ManagerError::IndexOver);
+        }
+        let val = self.data.get(index).unwrap();
+        Ok(val.is_none())
+    }
+
+    /// User should ensure that the index is valid
+    pub fn insert_with_index(&mut self, index: usize, val: T) -> Result<(), ManagerError> {
+        if index >= self.max {
+            return Err(ManagerError::IndexOver);
+        }
+        if index >= self.data.len() {
+            self.data.resize(index + 1, None);
+        }
+        self.data[index] = Some(val);
+        if index == self.usable {
+            self.usable = self.find_next_index().unwrap_or(self.data.len());
+        }
+        Ok(())
     }
 }
 

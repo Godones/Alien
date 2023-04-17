@@ -23,7 +23,7 @@ fn main() {
     }
     scan_and_generate("src/syscall.rs".to_string());
 }
-use std::collections::HashSet;
+use std::collections::{BTreeSet};
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::path::PathBuf;
@@ -51,7 +51,7 @@ pub fn scan_and_generate(path: String) {
     ";
     context.extend_from_slice(import);
 
-    let mut import = HashSet::new();
+    let mut import = BTreeSet::new();
     scan(&mut import, &mut context, PathBuf::from("src"));
     let end = b"\n\
         \t);\n\
@@ -74,7 +74,7 @@ pub fn scan_and_generate(path: String) {
     target_file.write_all(&context).unwrap();
 }
 
-fn scan(import: &mut HashSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
+fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
     let entries = fs::read_dir(dir).unwrap();
     for entry in entries {
         let entry = entry.unwrap();

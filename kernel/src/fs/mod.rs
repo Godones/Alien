@@ -15,7 +15,9 @@ use rvfs::stat::{vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by
 use rvfs::superblock::StatFs;
 pub use stdio::*;
 use syscall_table::syscall_func;
+
 pub mod vfs;
+
 pub use dbfs::{
     init_dbfs, sys_create_global_bucket, sys_execute_user_func, sys_execute_user_operate,
     sys_show_dbfs,
@@ -142,13 +144,14 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     });
     count as isize
 }
+
 #[syscall_func(17)]
 pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     assert!(!buf.is_null());
     let process = current_process().unwrap();
     let cwd = process.access_inner().cwd();
 
-    let path = vfs_lookup_path(cwd.cwd.clone(),cwd.cmnt.clone(),ParsePathType::Relative("".to_string()),LookUpFlags::empty()).unwrap();
+    let path = vfs_lookup_path(cwd.cwd.clone(), cwd.cmnt.clone(), ParsePathType::Relative("".to_string()), LookUpFlags::empty()).unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
@@ -236,6 +239,7 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
     }
     0
 }
+
 #[syscall_func(80)]
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     assert!(!stat.is_null());
@@ -255,6 +259,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     *stat = attr;
     0
 }
+
 /// If the pathname given in oldpath is relative, then it is interpreted relative to
 /// the directory referred to by the file descriptor olddirfd (rather than relative
 /// to the current working directory of the calling process, as is done by link(2) for a relative pathname).
@@ -338,7 +343,6 @@ pub fn sys_symlinkat(old_name: *const u8, new_fd: isize, new_name: *const u8) ->
         return -1;
     }
     let new_path = new_path.unwrap();
-    println!("symlink old_name: {},new_path: {}", old_name, new_path);
     let res = vfs_symlink::<VfsProvider>(old_name.as_str(), new_path.as_str());
     if res.is_err() {
         return -1;
@@ -457,6 +461,7 @@ pub fn sys_renameat(
     }
     0
 }
+
 /// Reference: https://man7.org/linux/man-pages/man2/mkdirat.2.html
 #[syscall_func(34)]
 pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
@@ -538,6 +543,7 @@ pub fn sys_fsetxattr(
     }
     0
 }
+
 /// Reference: https://man7.org/linux/man-pages/man2/getxattr.2.html
 #[syscall_func(8)]
 pub fn sys_getxattr(path: *const u8, name: *const u8, value: *const u8, size: usize) -> isize {
