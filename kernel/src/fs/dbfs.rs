@@ -11,7 +11,7 @@ use core::num::NonZeroUsize;
 use core2::io::{Read, Seek, SeekFrom, Write};
 use dbop::{Operate, OperateSet};
 use jammdb::{
-    DbFile, File, FileExt, IOResult, IndexByPageID, MemoryMap, MetaData, Mmap, OpenOption,
+    DbFile, File, FileExt, IOResult, IndexByPageID, MemoryMap, MetaData, OpenOption,
     PathLike, DB,
 };
 use lru::LruCache;
@@ -26,6 +26,7 @@ pub struct CacheLayer {
     device: Arc<QemuBlockDevice>,
     lru: LruCache<usize, FrameTracker>,
 }
+
 impl CacheLayer {
     pub fn new(device: Arc<QemuBlockDevice>, limit: usize) -> Self {
         Self {
@@ -122,7 +123,6 @@ impl CacheLayer {
 pub struct FakeFile {
     offset: usize,
     size: usize,
-    device: Arc<QemuBlockDevice>,
 }
 
 impl FakeFile {
@@ -134,7 +134,6 @@ impl FakeFile {
         Self {
             offset: 0,
             size,
-            device,
         }
     }
 }
@@ -316,6 +315,7 @@ impl OpenOption for FakeOpenOptions {
         self
     }
 }
+
 #[derive(Debug)]
 struct FakePath {
     path: String,
@@ -336,6 +336,7 @@ impl PathLike for FakePath {
         size > 0
     }
 }
+
 impl FakePath {
     #[allow(unused)]
     pub fn new(path: &str) -> Self {
@@ -349,21 +350,17 @@ impl FakePath {
 pub struct FakeMMap;
 
 impl MemoryMap for FakeMMap {
-    fn map(&self, _file: &mut File) -> IOResult<Mmap>
-    where
-        Self: Sized,
-    {
-        let mmap = Mmap { size: 0, addr: 0 };
-        Ok(mmap)
-    }
-
-    fn do_map(&self, _file: &mut File) -> IOResult<Arc<dyn IndexByPageID>> {
-        let res = IndexByPageIDImpl;
+    fn do_map(&self, file: &mut File) -> IOResult<Arc<dyn IndexByPageID>> {
+        let res = IndexByPageIDImpl {
+            size: file.size()
+        };
         Ok(Arc::new(res))
     }
 }
 
-struct IndexByPageIDImpl;
+struct IndexByPageIDImpl {
+    size: usize,
+}
 
 impl IndexByPageID for IndexByPageIDImpl {
     fn index(&self, page_id: u64, page_size: usize) -> IOResult<&[u8]> {
@@ -371,6 +368,10 @@ impl IndexByPageID for IndexByPageIDImpl {
         let cache = layer.get_mut(page_id as usize + 1).unwrap();
         let start = cache.start();
         unsafe { Ok(core::slice::from_raw_parts(start as *const u8, page_size)) }
+    }
+
+    fn len(&self) -> usize {
+        self.size
     }
 }
 
@@ -380,12 +381,13 @@ fn init_db(db: &DB) {
     bucket.put("continue_number", 0usize.to_be_bytes()).unwrap();
     bucket.put("magic", 1111u32.to_be_bytes()).unwrap();
     bucket.put("blk_size", 512u32.to_be_bytes()).unwrap();
-    bucket.put("disk_size", (1024*1024*64u64).to_be_bytes()).unwrap(); //64MB
+    bucket.put("disk_size", (1024 * 1024 * 64u64).to_be_bytes()).unwrap(); //64MB
     tx.commit().unwrap()
 }
 
 pub fn init_dbfs() {
-    let db = DB::open::<FakeOpenOptions, _>(Arc::new(FakeMMap::default()), "dbfs").unwrap();
+    let path = FakePath::new("dbfs");
+    let db = DB::open::<FakeOpenOptions, _>(Arc::new(FakeMMap::default()), path).unwrap();
     init_db(&db);
     dbfs2::init_dbfs(db);
 }
