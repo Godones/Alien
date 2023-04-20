@@ -3,7 +3,6 @@ members = [
     "kernel",
     "userlib",
     "boot",
-
     "modules/gmanager",
     "modules/pci-rs",
     "modules/simple-bitmap",
@@ -11,8 +10,6 @@ members = [
     "modules/systable-macro-derive",
     "modules/plic",
     "modules/uart",
-
-
     "apps/cat",
     "apps/dbfs",
     "apps/init",
@@ -34,7 +31,10 @@ members = [
     "apps/touch",
     "apps/attrtest1",
     "apps/pipetest",
-    "apps/pipetest2"
+    "apps/pipetest2",
+    "apps/throughput",
+    "apps/randrw",
+    "apps/sequencewr",
 ]
 
 

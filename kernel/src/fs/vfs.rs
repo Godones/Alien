@@ -66,6 +66,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
         offset += res;
         buf.extend_from_slice(&tmp);
     }
+    assert_eq!(offset, size);
     true
 }
 
@@ -73,6 +74,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
 pub struct Fat32Data {
     device: Arc<dyn Device>,
 }
+
 impl Fat32Data {
     pub fn new(device: Arc<dyn Device>) -> Self {
         Fat32Data { device }
@@ -86,6 +88,7 @@ impl DataOps for Fat32Data {
 }
 
 pub struct VfsProvider;
+
 impl ProcessFs for VfsProvider {
     fn get_fs_info() -> ProcessFsInfo {
         if let Some(process) = current_process() {
