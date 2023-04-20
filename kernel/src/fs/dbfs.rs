@@ -50,7 +50,7 @@ impl CacheLayer {
             let old = self.lru.push(id, cache);
             // write back
             if let Some((id, frame)) = old {
-                warn!("write back frame {} to disk", id);
+                // warn!("write back frame {} to disk", id);
                 let start = id * PAGE_CACHE_SIZE;
                 let start_block = start / 512;
                 let end_block = (start + PAGE_CACHE_SIZE) / 512;
@@ -83,7 +83,7 @@ impl CacheLayer {
             let old = self.lru.push(id, cache);
             // write back
             if let Some((id, frame)) = old {
-                warn!("write back frame {} to disk", id);
+                // warn!("write back frame {} to disk", id);
                 let start = id * PAGE_CACHE_SIZE;
                 let start_block = start / 512;
                 let end_block = (start + PAGE_CACHE_SIZE) / 512;
@@ -101,6 +101,7 @@ impl CacheLayer {
         }
     }
     pub fn flush(&self) {
+        warn!("flush cache to disk");
         for (id, frame) in self.lru.iter() {
             let start = id * PAGE_CACHE_SIZE;
             let start_block = start / 512;
@@ -300,7 +301,6 @@ impl OpenOption for FakeOpenOptions {
     }
 
     fn open<T: ToString + PathLike>(&mut self, path: &T) -> core2::io::Result<jammdb::File> {
-        info!("open file: {}", path.to_string());
         let fake_file = FakeFile::open(path);
         if fake_file.is_none() {
             return Err(core2::io::Error::new(
@@ -362,12 +362,27 @@ struct IndexByPageIDImpl {
     size: usize,
 }
 
+unsafe fn make_slice<'a>(ptr: *const u8, len: usize) -> &'a [u8] {
+    // place pointer address and length in contiguous memory
+    let x: [usize; 2] = [ptr as usize, len];
+
+    // cast pointer to array as pointer to slice
+    let slice_ptr = &x as *const _ as *const &[u8];
+
+    // dereference pointer to slice, so we get a slice
+    *slice_ptr
+}
+
 impl IndexByPageID for IndexByPageIDImpl {
     fn index(&self, page_id: u64, page_size: usize) -> IOResult<&[u8]> {
         let mut layer = CACHE_LAYER.get().unwrap().lock();
         let cache = layer.get_mut(page_id as usize + 1).unwrap();
         let start = cache.start();
-        unsafe { Ok(core::slice::from_raw_parts(start as *const u8, page_size)) }
+        unsafe {
+            // Ok(core::mem::transmute::<*mut u8, &[u8]>(start as *mut u8))
+            // Ok(core::slice::from_raw_parts(start as *const u8, page_size))
+            Ok(make_slice(start as *const u8, page_size))
+        }
     }
 
     fn len(&self) -> usize {
@@ -378,10 +393,10 @@ impl IndexByPageID for IndexByPageIDImpl {
 fn init_db(db: &DB) {
     let tx = db.tx(true).unwrap();
     let bucket = tx.get_or_create_bucket("super_blk").unwrap();
-    bucket.put("continue_number", 0usize.to_be_bytes()).unwrap();
+    bucket.put("continue_number", 1usize.to_be_bytes()).unwrap();
     bucket.put("magic", 1111u32.to_be_bytes()).unwrap();
     bucket.put("blk_size", 512u32.to_be_bytes()).unwrap();
-    bucket.put("disk_size", (1024 * 1024 * 64u64).to_be_bytes()).unwrap(); //64MB
+    bucket.put("disk_size", (1024 * 1024 * 1024u64).to_be_bytes()).unwrap(); // 1GB
     tx.commit().unwrap()
 }
 

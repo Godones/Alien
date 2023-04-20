@@ -135,7 +135,7 @@ fmt:
 	@cd kernel && cargo fmt
 	@cd userlib && cargo fmt
 	@cd modules && make fmt
-asm:compile
+asm:
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/boot > kernel.asm
 	@vim kernel.asm
 	@rm kernel.asm
