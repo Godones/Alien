@@ -41,6 +41,7 @@ impl CPU {
         &mut self.context as *mut Context
     }
 }
+
 /// save info for each cpu
 static mut CPU_MANAGER: [CPU; CPU_NUM] = [CPU::empty(); CPU_NUM];
 
@@ -116,8 +117,7 @@ pub fn get_ppid() -> isize {
     let parent = process.access_inner().parent.clone();
     if parent.is_none() {
         return 0;
-    }
-    else {
+    } else {
         parent.unwrap().upgrade().unwrap().get_pid()
     }
 }
@@ -140,8 +140,9 @@ pub fn do_fork() -> isize {
     process_pool.push_back(new_process);
     pid
 }
+
 #[syscall_func(221)]
-pub fn do_exec(path: *const u8, args_ptr: *const usize,_env:*const usize) -> isize {
+pub fn do_exec(path: *const u8, args_ptr: *const usize, _env: *const usize) -> isize {
     let process = current_process().unwrap();
     let str = process.transfer_str(path);
     let mut data = Vec::new();
@@ -178,7 +179,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize,_env:*const usize) -> isi
 
 /// Please care about the exit code,it may be null
 #[syscall_func(260)]
-pub fn wait_pid(pid: isize, exit_code: *mut i32,options:u32,_rusage:*const u8) -> isize {
+pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
     let process = current_process().unwrap().clone();
     loop {
         if process
@@ -193,21 +194,21 @@ pub fn wait_pid(pid: isize, exit_code: *mut i32,options:u32,_rusage:*const u8) -
         let res = children.iter().enumerate().find(|(_, child)| {
             child.state() == ProcessState::Zombie && (child.get_pid() == pid || pid == -1)
         });
-        if let Some((index,_)) = res{
+        if let Some((index, _)) = res {
             drop(children);
             let child = process.remove_child(index);
             assert_eq!(Arc::strong_count(&child), 1);
-            if !exit_code.is_null(){
+            if !exit_code.is_null() {
                 let exit_code_ref = process.transfer_raw_ptr(exit_code);
                 *exit_code_ref = child.exit_code();
             }
-            return child.get_pid() as isize
-        }else {
+            return child.get_pid() as isize;
+        } else {
             drop(children);
             let wait_options = WaitOptions::from_bits(options).unwrap();
             if wait_options.contains(WaitOptions::WNOHANG) {
                 return 0;
-            }else {
+            } else {
                 do_suspend();
             }
         }

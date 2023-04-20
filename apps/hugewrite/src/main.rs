@@ -9,7 +9,7 @@ use Mstd::time::get_time_ms;
 
 #[no_mangle]
 pub fn main() -> i32 {
-    test_for_fs("FAT32", "f1.txt\0");
+    test_for_fs("FAT32", "fat.txt\0");
     test_for_fs("DBFS", "/db/f1.txt\0");
     0
 }
@@ -30,9 +30,8 @@ fn test_for_fs(name: &str, path: &str) {
 
     let f = f as usize;
     let start = get_time_ms();
-    let size_mb = 1usize;
     let mut count = 0;
-    for _ in 0..1024 * size_mb {
+    for _ in 0..1024 {
         let len = write(f, &buffer);
         if len as usize != buffer.len() {
             println!("count :{} len = {}", count, len);
