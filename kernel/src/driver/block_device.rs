@@ -14,6 +14,7 @@ use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::MmioTransport;
 
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
+
 pub struct QemuBlockDevice {
     pub device: Mutex<VirtIOBlk<HalImpl, MmioTransport>>,
     cache: Mutex<LruCache<usize, FrameTracker>>,
@@ -29,7 +30,9 @@ impl QemuBlockDevice {
         }
     }
 }
+
 unsafe impl Send for QemuBlockDevice {}
+
 unsafe impl Sync for QemuBlockDevice {}
 
 lazy_static! {
@@ -127,18 +130,18 @@ impl Device for QemuBlockDevice {
         self.device.lock().capacity() as usize * 512
     }
     fn flush(&self) {
-        let mut device = self.device.lock();
-        let mut lru = self.cache.lock();
-        self.dirty.lock().iter().for_each(|id|{
-            let start = id * PAGE_CACHE_SIZE;
-            let start_block = start / 512;
-            let end_block = (start + PAGE_CACHE_SIZE) / 512;
-            let cache = lru.get(id).unwrap();
-            for i in start_block..end_block {
-                let target_buf = &cache[(i - start_block) * 512..(i - start_block + 1) * 512];
-                device.write_block(i, target_buf).unwrap();
-            }
-        });
-        self.dirty.lock().clear();
+        // let mut device = self.device.lock();
+        // let mut lru = self.cache.lock();
+        // self.dirty.lock().iter().for_each(|id|{
+        //     let start = id * PAGE_CACHE_SIZE;
+        //     let start_block = start / 512;
+        //     let end_block = (start + PAGE_CACHE_SIZE) / 512;
+        //     let cache = lru.get(id).unwrap();
+        //     for i in start_block..end_block {
+        //         let target_buf = &cache[(i - start_block) * 512..(i - start_block + 1) * 512];
+        //         device.write_block(i, target_buf).unwrap();
+        //     }
+        // });
+        // self.dirty.lock().clear();
     }
 }

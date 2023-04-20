@@ -1,3 +1,5 @@
+pub const CLOCKS_PER_SEC: usize = 12500000;
+
 pub fn strlen(s: *const u8) -> usize {
     let mut len = 0;
     unsafe {

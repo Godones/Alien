@@ -14,7 +14,7 @@ const MSEC_PER_SEC: usize = 1000;
 
 
 #[repr(C)]
-#[derive(Debug,Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Times {
     /// the ticks of user mode
     pub tms_utime: usize,
@@ -23,7 +23,7 @@ pub struct Times {
     /// the ticks of user mode of child process
     pub tms_cutime: usize,
     /// the ticks of kernel mode of child process
-    pub tms_cstime:usize,
+    pub tms_cstime: usize,
 }
 
 impl Times {
@@ -36,43 +36,42 @@ impl Times {
         }
     }
 
-    pub fn from_process_data(data:&StatisticalData)->Self{
-        Self{
-            tms_stime:data.tms_stime,
-            tms_utime:data.tms_utime,
-            tms_cstime:data.tms_cstime,
-            tms_cutime:data.tms_cutime,
+    pub fn from_process_data(data: &StatisticalData) -> Self {
+        Self {
+            tms_stime: data.tms_stime,
+            tms_utime: data.tms_utime,
+            tms_cstime: data.tms_cstime,
+            tms_cutime: data.tms_cutime,
         }
     }
 }
 
 
 #[repr(C)]
-#[derive(Copy, Clone,Debug)]
-pub struct TimeVal{
+#[derive(Copy, Clone, Debug)]
+pub struct TimeVal {
     /// seconds
-    pub tv_sec:usize,
+    pub tv_sec: usize,
     /// microseconds
-    pub tv_usec:usize,
+    pub tv_usec: usize,
 }
 
-impl TimeVal{
-    pub fn now()->Self{
+impl TimeVal {
+    pub fn now() -> Self {
         let time = read_timer();
-        Self{
-            tv_sec:time / CLOCK_FREQ,
-            tv_usec:(time % CLOCK_FREQ) * 1000000 / CLOCK_FREQ,
+        Self {
+            tv_sec: time / CLOCK_FREQ,
+            tv_usec: (time % CLOCK_FREQ) * 1000000 / CLOCK_FREQ,
         }
     }
 }
 
 #[repr(C)]
-#[derive(Copy, Clone,Debug)]
-pub struct TimeSpec{
-    pub tv_sec:usize,
-    pub tv_nsec:usize,//0~999999999
+#[derive(Copy, Clone, Debug)]
+pub struct TimeSpec {
+    pub tv_sec: usize,
+    pub tv_nsec: usize,//0~999999999
 }
-
 
 
 /// 获取当前计时器的值
@@ -94,7 +93,7 @@ pub fn get_time_ms() -> isize {
 
 /// Reference: https://man7.org/linux/man-pages/man2/gettimeofday.2.html
 #[syscall_func(169)]
-pub fn get_time_of_day(tv:*mut u8)->isize{
+pub fn get_time_of_day(tv: *mut u8) -> isize {
     let time = TimeVal::now();
     let process = current_process().unwrap();
     let tv = process.transfer_raw_ptr(tv as *mut TimeVal);
@@ -105,7 +104,7 @@ pub fn get_time_of_day(tv:*mut u8)->isize{
 
 /// Reference: https://man7.org/linux/man-pages/man2/times.2.html
 #[syscall_func(153)]
-pub fn times(tms:*mut u8)->isize{
+pub fn times(tms: *mut u8) -> isize {
     let process = current_process().unwrap().access_inner();
     let statistic_data = process.statistical_data();
     let time = Times::from_process_data(statistic_data);
@@ -118,7 +117,7 @@ pub fn times(tms:*mut u8)->isize{
 #[syscall_func(101)]
 pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
     let process = current_process().unwrap();
-    let req = process.transfer_raw_ptr(req as *mut  TimeSpec);
+    let req = process.transfer_raw_ptr(req as *mut TimeSpec);
     let end_time = read_timer() + req.tv_sec * CLOCK_FREQ + req.tv_nsec * CLOCK_FREQ / 1000000000;
     if read_timer() < end_time {
         let process = current_process().unwrap();
@@ -135,6 +134,7 @@ pub struct Timer {
     end_time: usize,
     process: Arc<Process>,
 }
+
 impl Timer {
     pub fn new(end_time: usize, process: Arc<Process>) -> Self {
         Self { end_time, process }
@@ -146,6 +146,7 @@ impl PartialEq for Timer {
         self.end_time == other.end_time
     }
 }
+
 impl Eq for Timer {}
 
 impl PartialOrd for Timer {
