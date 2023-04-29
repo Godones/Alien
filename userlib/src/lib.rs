@@ -4,12 +4,14 @@
 #![allow(unused)]
 
 extern crate alloc;
-use crate::heap::init_heap;
-use crate::process::exit;
-use crate::syscall::sys_shutdown;
+
 use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
+
+// use crate::heap::init_heap;
+use crate::process::exit;
+use crate::syscall::sys_shutdown;
 
 pub mod common;
 pub mod dbfs;
@@ -24,11 +26,12 @@ mod syscall;
 pub mod thread;
 pub mod time;
 pub mod ipc;
+pub mod memory;
 
 
 #[no_mangle]
 fn _start(argc: usize, argv: usize) -> ! {
-    init_heap();
+    // init_heap();
     let argv = parse_args(argc, argv);
     exit(unsafe { main(argc, argv) });
 }

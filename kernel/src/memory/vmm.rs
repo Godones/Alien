@@ -1,14 +1,16 @@
-use crate::config::{FRAME_SIZE, MEMORY_END, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use crate::memory::frame::{addr_to_frame, frame_alloc};
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
 use core::intrinsics::forget;
+
 use lazy_static::lazy_static;
 use page_table::{
-    ap_from_str, vpn_f_c_range, AddressSpace, Area, AreaPermission, PageManager, PPN, VPN,
+    AddressSpace, ap_from_str, Area, AreaPermission, PageManager, PPN, VPN, vpn_f_c_range,
 };
 use spin::RwLock;
 use xmas_elf::program;
+
+use crate::config::{FRAME_SIZE, MEMORY_END, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::memory::frame::{addr_to_frame, frame_alloc};
 
 lazy_static! {
     pub static ref KERNEL_SPACE: Arc<RwLock<AddressSpace>> =
@@ -41,6 +43,7 @@ pub fn kernel_info() {
     );
     println!("kernel heap:   {:#x}-{:#x}", ekernel as usize, MEMORY_END);
 }
+
 /// 建立内核页表
 pub fn build_kernel_address_space() {
     info!("build kernel address space");
@@ -83,10 +86,12 @@ pub fn build_kernel_address_space() {
 
     info!("build kernel address space success");
 }
+
 pub struct ELFInfo {
     pub address_space: AddressSpace,
     pub entry: usize,
     pub stack_top: usize,
+    pub heap_bottom: usize,
 }
 
 impl Debug for ELFInfo {
@@ -99,6 +104,7 @@ impl Debug for ELFInfo {
         ))
     }
 }
+
 #[derive(Debug)]
 pub enum ELFError {
     NotELF,
@@ -146,13 +152,15 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
     // 地址向上取整对齐4
     let ceil_addr = VPN::ceil_address(break_addr).to_address();
     // 留出一个用户栈的位置+隔离页
-    let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE;
+    let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE; // 8k +4k
 
     // map user stack
     let vpn_range = vpn_f_c_range!(top - USER_STACK_SIZE, top);
     let stack_area = Area::new(vpn_range, None, ap_from_str!("rwu"));
     address_space.push(stack_area);
 
+    // todo!(heap)
+    let heap_bottom = top; // align to 4k
     // map trap context
     let vpn_range = vpn_f_c_range!(TRAP_CONTEXT_BASE, TRAMPOLINE);
     let trap_area = Area::new(vpn_range, None, ap_from_str!("rw"));
@@ -172,6 +180,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         address_space,
         entry: elf.header.pt2.entry_point() as usize,
         stack_top: top,
+        heap_bottom,
     })
 }
 

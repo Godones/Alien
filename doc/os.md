@@ -35,6 +35,7 @@
 23. dup
 24. dup2
 25. unlink
+26. brk
 
 # 未过测试
 
@@ -42,4 +43,3 @@
 2. umount
 3. getdents
 4. clone
-5. brk
