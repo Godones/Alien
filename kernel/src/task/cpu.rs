@@ -1,20 +1,23 @@
-use crate::arch;
-use crate::config::CPU_NUM;
-use crate::fs::vfs;
-use crate::sbi::shutdown;
-use crate::task::context::Context;
-use crate::task::process::{Process, ProcessState};
-use crate::task::schedule::schedule;
-use crate::task::INIT_PROCESS;
-use crate::trap::TrapFrame;
 use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+
 use bitflags::bitflags;
 use lazy_static::lazy_static;
+
 use syscall_table::syscall_func;
+
+use crate::arch;
+use crate::config::CPU_NUM;
+use crate::fs::vfs;
+use crate::sbi::shutdown;
 use crate::sync::IntrLock;
+use crate::task::context::Context;
+use crate::task::INIT_PROCESS;
+use crate::task::process::{Process, ProcessState};
+use crate::task::schedule::schedule;
+use crate::trap::TrapFrame;
 
 #[derive(Debug)]
 pub struct CPU {
@@ -122,7 +125,6 @@ pub fn get_ppid() -> isize {
     }
 }
 
-//pid_t ret = syscall(SYS_clone, flags, stack, ptid, tls, ctid)
 
 #[syscall_func(220)]
 pub fn do_fork() -> isize {
@@ -214,6 +216,29 @@ pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u
         }
     }
 }
+
+#[syscall_func(214)]
+pub fn do_brk(addr: usize) -> isize {
+    let process = current_process().unwrap();
+    let mut inner = process.access_inner();
+    let heap_info = inner.heap_info();
+    if addr == 0 {
+        return heap_info.end as isize;
+    }
+    if addr < heap_info.start {
+        return -1;
+    }
+    if addr > heap_info.end {
+        let additional = addr - heap_info.end;
+        let res = inner.extend_heap(additional);
+        if res.is_err() {
+            return -1;
+        }
+    }
+    addr as isize
+}
+
+
 
 
 bitflags! {

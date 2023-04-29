@@ -7,6 +7,12 @@
 #![feature(panic_info_message)]
 #![allow(semicolon_in_expressions_from_macros)]
 #![feature(trait_upcasting)]
+
+extern crate alloc;
+// extern crate alloc;
+#[macro_use]
+extern crate log;
+
 #[macro_use]
 pub mod print;
 pub mod arch;
@@ -24,11 +30,7 @@ mod trace;
 pub mod trap;
 pub mod system;
 pub mod ipc;
-
-// extern crate alloc;
-#[macro_use]
-extern crate log;
-extern crate alloc;
+mod error;
 
 pub fn thread_local_init() {
     // 允许内核读写用户态内存

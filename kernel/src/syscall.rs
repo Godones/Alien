@@ -19,6 +19,7 @@ pub fn register_all_syscall(){
 	(220, do_fork),
 	(221, do_exec),
 	(260, wait_pid),
+	(214, do_brk),
 	(56, sys_openat),
 	(57, sys_close),
 	(45, sys_truncate),
@@ -110,6 +111,7 @@ use crate::ipc::sys_dup2;
 use crate::ipc::sys_pipe;
 use crate::sbi::shutdown;
 use crate::system::sys_uname;
+use crate::task::do_brk;
 use crate::task::do_exec;
 use crate::task::do_exit;
 use crate::task::do_fork;

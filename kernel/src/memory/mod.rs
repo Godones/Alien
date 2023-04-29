@@ -1,16 +1,20 @@
-mod frame;
-mod vmm;
-
-use crate::arch::hart_id;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::alloc::GlobalAlloc;
-pub use frame::*;
+
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 pub use rslab::*;
+
+pub use frame::*;
 pub use vmm::*;
+
+use crate::arch::hart_id;
+
+mod frame;
+mod vmm;
+mod map;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
@@ -33,6 +37,7 @@ pub fn activate_paging_mode() {
 struct HeapAllocator {
     slab: SlabAllocator,
 }
+
 unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let ptr = self.slab.alloc(layout);
