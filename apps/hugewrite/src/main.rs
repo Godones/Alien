@@ -31,7 +31,7 @@ fn test_for_fs(name: &str, path: &str) {
     let f = f as usize;
     let start = get_time_ms();
     let mut count = 0;
-    for _ in 0..1024 {
+    for _ in 0..1024 * 10 {
         let len = write(f, &buffer);
         if len as usize != buffer.len() {
             println!("count :{} len = {}", count, len);

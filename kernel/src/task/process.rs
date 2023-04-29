@@ -1,23 +1,27 @@
-use crate::fs::{STDIN, STDOUT};
-use alloc::string::{String};
+use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
-use gmanager::MinimalManager;
-use lazy_static::lazy_static;
-use page_table::AddressSpace;
 
-use crate::config::FRAME_SIZE;
-use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
-use crate::memory::{build_elf_address_space, kernel_satp};
-use crate::task::context::Context;
-use crate::task::stack::Stack;
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use lazy_static::lazy_static;
+use page_table::{AddressSpace, PTableError, PTEFlags, vpn_f_c_range};
+use page_table::VPN;
 use rvfs::dentry::DirEntry;
 use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
 use rvfs::mount::VfsMount;
 use spin::{Mutex, MutexGuard};
+
+use gmanager::MinimalManager;
+
+use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
+use crate::config::FRAME_SIZE;
+use crate::error::AlienError;
+use crate::fs::{STDIN, STDOUT};
+use crate::memory::{build_elf_address_space, kernel_satp};
+use crate::task::context::Context;
+use crate::task::stack::Stack;
 use crate::timer::read_timer;
+use crate::trap::{trap_return, TrapFrame, user_trap_vector};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -58,7 +62,53 @@ pub struct ProcessInner {
     pub fs_info: FsContext,
     pub statistical_data: StatisticalData,
     pub exit_code: i32,
+    pub heap: HeapInfo,
 }
+
+
+#[derive(Debug, Clone)]
+pub struct HeapInfo {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl HeapInfo {
+    pub fn new(start: usize, end: usize) -> Self {
+        HeapInfo {
+            start,
+            end,
+        }
+    }
+
+    #[allow(unused)]
+    pub fn size(&self) -> usize {
+        self.end - self.start
+    }
+
+    #[allow(unused)]
+    pub fn contains(&self, addr: usize) -> bool {
+        addr >= self.start && addr < self.end
+    }
+
+    pub fn increase(&mut self, size: usize) {
+        self.end += size;
+    }
+
+    #[allow(unused)]
+    pub fn set_start(&mut self, start: usize) {
+        self.start = start;
+    }
+
+    pub fn set_end(&mut self, end: usize) {
+        self.end = end;
+    }
+
+    #[allow(unused)]
+    pub fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
+}
+
 
 /// statistics of a process
 #[derive(Debug, Clone)]
@@ -333,6 +383,30 @@ impl ProcessInner {
     pub fn statistical_data(&self) -> &StatisticalData {
         &self.statistical_data
     }
+
+    pub fn heap_info(&self) -> HeapInfo {
+        self.heap.clone()
+    }
+
+    /// extend heap
+    pub fn extend_heap(&mut self, addition: usize) -> Result<usize, AlienError> {
+        // increase heap size
+        let end = self.heap.end;
+        // align addition to PAGE_SIZE
+        let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+        let vpn_range = vpn_f_c_range!(end, end + addition);
+        vpn_range.for_each(|x| {
+            self.address_space.push_with_vpn(x, PTEFlags::V | PTEFlags::W | PTEFlags::R | PTEFlags::U).map_err(|x| {
+                match x {
+                    PTableError::AllocError => panic!("alloc error,the memory is not enough"),
+                    _ => {}
+                }
+            }).unwrap();
+        });
+        let new_end = end + addition;
+        self.heap.end = new_end;
+        Ok(end)
+    }
 }
 
 impl Process {
@@ -378,6 +452,7 @@ impl Process {
                 fs_info: FsContext::empty(),
                 statistical_data: StatisticalData::new(),
                 exit_code: 0,
+                heap: HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom),
             }),
         };
         let trap_frame = process.trap_frame();
@@ -390,11 +465,11 @@ impl Process {
         );
         Some(process)
     }
-    // fork a child
+    /// fork a child
     pub fn fork(self: &Arc<Self>) -> Option<Arc<Process>> {
         let pid = PID_MANAGER.lock().insert(0).unwrap();
         let mut inner = self.inner.lock();
-        let address_space = AddressSpace::copy_from_other(&inner.address_space);
+        let address_space = AddressSpace::copy_from_other(&inner.address_space).ok()?;
         let physical = address_space
             .virtual_to_physical(TRAP_CONTEXT_BASE)
             .unwrap();
@@ -415,6 +490,7 @@ impl Process {
                 fs_info: inner.fs_info.clone(),
                 statistical_data: StatisticalData::new(),
                 exit_code: 0,
+                heap: inner.heap.clone(),
             }),
         };
         let process = Arc::new(process);
@@ -423,6 +499,7 @@ impl Process {
         trap_frame.update_kernel_sp(k_stack_top);
         Some(process)
     }
+
     pub fn exec(&self, elf_data: &[u8], args: Vec<String>) -> Result<(), isize> {
         let elf_info = build_elf_address_space(elf_data);
         if elf_info.is_err() {
@@ -437,6 +514,7 @@ impl Process {
         let trap_frame = physical as *mut TrapFrame;
         inner.address_space = address_space;
         inner.trap_frame = trap_frame;
+        inner.heap = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);
 
         // push the args to the top of stack of the process
         // we have push '\0' into the arg string,so we don't need to push it again

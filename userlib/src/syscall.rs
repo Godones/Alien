@@ -1,5 +1,6 @@
-use crate::{syscall, syscall_id};
 use core::arch::asm;
+
+use crate::{syscall, syscall_id};
 
 syscall_id!(SYSCALL_SETXATTR, 5);
 syscall_id!(SYSCALL_LSETXATTR, 6);
@@ -53,7 +54,7 @@ syscall_id!(SYSCALL_UNLINK, 87);
 syscall_id!(SYSCALL_RENAMEAT, 38);
 syscall_id!(SYSCALL_MKDIRAT, 34);
 
-
+syscall_id!(SYSCALL_BRK, 214);
 syscall_id!(SYSCALL_NANO_SLEEP, 101);
 
 syscall_id!(SYSCALL_LIST, 1000);
@@ -240,3 +241,8 @@ syscall!(sys_ftruncate, SYSCALL_FTRUNCATE, usize, usize);
 syscall!(sys_pipe, SYSCALL_PIPE, *mut u32,usize);
 syscall!(sys_dup, SYSCALL_DUP, usize);
 syscall!(sys_dup3, SYSCALL_DUP3, usize, usize,usize);
+
+
+
+// alloc
+syscall!(sys_brk, SYSCALL_BRK, usize);
