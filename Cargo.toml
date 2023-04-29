@@ -35,6 +35,7 @@ members = [
     "apps/throughput",
     "apps/randrw",
     "apps/sequencewr",
+    "apps/alloctest"
 ]
 
 

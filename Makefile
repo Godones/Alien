@@ -53,10 +53,10 @@ trace_info:
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 
 user:
-	@cd apps && make build
-	@echo "Moving apps to /fat32"
-	@$(foreach dir, $(APPS_NAME), (sudo cp $(OUTPUT)$(dir) /fat/$(dir););)
-	@sync
+	@cd apps && make all
+#	@echo "Moving apps to /fat32"
+#	@$(foreach dir, $(APPS_NAME), (sudo cp $(OUTPUT)$(dir) /fat/$(dir););)
+#	@sync
 
 
 build:compile

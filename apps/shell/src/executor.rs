@@ -1,11 +1,13 @@
 use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+
 use spin::Mutex;
+
+use Mstd::{println, shutdown};
 use Mstd::fs::{chdir, get_cwd};
 use Mstd::process::{exec, fork, waitpid};
 use Mstd::thread::m_yield;
-use Mstd::{println, shutdown};
 
 #[derive(Debug)]
 pub struct Parameter {
@@ -38,6 +40,7 @@ impl Parameter {
         raw_points
     }
 }
+
 #[derive(Debug)]
 pub struct Executor {
     parameter: Parameter,
@@ -79,6 +82,7 @@ impl Executor {
                 cmd.push('\0');
                 let pid = fork();
                 if pid == 0 {
+                    println!("run user command");
                     self.parameter.args.insert(0, cmd.clone());
                     exec(cmd.as_str(), self.parameter.get_args_raw().as_slice());
                 } else {

@@ -3,15 +3,17 @@
 
 extern crate alloc;
 
-mod executor;
-
-use crate::executor::CURRENT_DIR;
 use alloc::string::ToString;
+
 use executor::Executor;
 use Mstd::{print, println};
 
+use crate::executor::CURRENT_DIR;
+
+mod executor;
+
 const BEGAN: &str = r#"
-    Modular OS Shell
+    Alien OS Shell
     Type 'help' for a list of commands
     "#;
 
