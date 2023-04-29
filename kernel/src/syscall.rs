@@ -57,6 +57,8 @@ pub fn register_all_syscall(){
 	(1002, sys_execute_user_func),
 	(1003, sys_show_dbfs),
 	(1004, sys_execute_user_operate),
+	(215, do_munmap),
+	(222, do_mmap),
 
 	);
 	SYSCALL_TABLE.call_once(||table);
@@ -109,6 +111,8 @@ use crate::fs::sys_write;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
 use crate::ipc::sys_pipe;
+use crate::memory::do_mmap;
+use crate::memory::do_munmap;
 use crate::sbi::shutdown;
 use crate::system::sys_uname;
 use crate::task::do_brk;

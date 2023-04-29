@@ -1,5 +1,7 @@
 use bitflags::bitflags;
 
+use syscall_table::syscall_func;
+
 bitflags! {
     pub struct ProtFlags: u32 {
         const PROT_NONE = 0x0;
