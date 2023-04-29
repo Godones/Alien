@@ -8,6 +8,7 @@ use riscv::register::satp;
 pub use rslab::*;
 
 pub use frame::*;
+pub use map::*;
 pub use vmm::*;
 
 use crate::arch::hart_id;
