@@ -36,10 +36,10 @@
 24. dup2
 25. unlink
 26. brk
+27. mount
+28. getdents
 
 # 未过测试
 
 1. munmap
-2. umount
-3. getdents
-4. clone
+3. clone
