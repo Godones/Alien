@@ -1,29 +1,80 @@
-mod dbfs;
-mod stdio;
-
-use crate::fs::vfs::VfsProvider;
-use crate::task::current_process;
 use alloc::string::{String, ToString};
 use core::cmp::min;
-use rvfs::dentry::{vfs_rename, LookUpFlags, vfs_truncate, vfs_truncate_by_file};
-use rvfs::file::{vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file, FileMode, OpenFlags, SeekFrom, vfs_close_file};
 
+use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
+use rvfs::file::{FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file};
 use rvfs::inode::InodeMode;
-use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
-use rvfs::path::{vfs_lookup_path, ParsePathType};
-use rvfs::stat::{vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, FileAttribute, StatFlags, KStat};
+use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
+use rvfs::mount::{do_mount, MountFlags};
+use rvfs::path::{ParsePathType, vfs_lookup_path};
+use rvfs::stat::{FileAttribute, KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file};
 use rvfs::superblock::StatFs;
-pub use stdio::*;
-use syscall_table::syscall_func;
-
-pub mod vfs;
 
 pub use dbfs::{
     init_dbfs, sys_create_global_bucket, sys_execute_user_func, sys_execute_user_operate,
     sys_show_dbfs,
 };
+pub use stdio::*;
+use syscall_table::syscall_func;
+
+use crate::fs::vfs::VfsProvider;
+use crate::task::current_process;
+
+mod dbfs;
+mod stdio;
+
+pub mod vfs;
 
 const AT_FDCWD: isize = -100isize;
+
+
+#[syscall_func(40)]
+pub fn sys_mount(special: *const u8, dir: *const u8, fs_type: *const u8, flags: usize, data: *const u8) -> isize {
+    let process = current_process().unwrap();
+    let special = process.transfer_str(special);
+    let dir = process.transfer_str(dir);
+    let fs_type = process.transfer_str(fs_type);
+    let data = process.transfer_str(data);
+    assert!(data.is_empty());
+    let special = user_path_at(AT_FDCWD, &special, LookUpFlags::empty()).map_err(|_| -1);
+    if special.is_err() {
+        return -1;
+    }
+    let special = special.unwrap();
+    let dir = user_path_at(AT_FDCWD, &dir, LookUpFlags::empty()).map_err(|_| -1);
+    if dir.is_err() {
+        return -1;
+    }
+    let dir = dir.unwrap();
+
+    let flags = MountFlags::from_bits(flags as u32).unwrap();
+    warn!("mount special:{:?},dir:{:?},fs_type:{:?},flags:{:?},data:{:?}",special,dir,fs_type,flags,data);
+
+    // now we return 0 directly
+    // todo! rvfs need implement the devfs
+
+    
+    // let ret = do_mount::<VfsProvider>(&special, &dir, &fs_type, flags, None);
+    // if ret.is_err() {
+    //     return -1;
+    // }
+    0
+}
+
+
+#[syscall_func(39)]
+pub fn sys_umount(dir: *const u8) -> isize {
+    let process = current_process().unwrap();
+    let dir = process.transfer_str(dir);
+    let dir = user_path_at(AT_FDCWD, &dir, LookUpFlags::empty()).map_err(|_| -1);
+    if dir.is_err() {
+        return -1;
+    }
+    let dir = dir.unwrap();
+    warn!("umount dir:{:?}",dir);
+    // todo! rvfs need implement
+    0
+}
 
 /// Reference: https://man7.org/linux/man-pages/man2/openat.2.html
 #[syscall_func(56)]
