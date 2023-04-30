@@ -1,10 +1,11 @@
 # Alien
 
 A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os,
-so the system is composed of a series of independent modules. At present, the system already supports user-mode programs and some simple functions.
-
+so the system is composed of a series of independent modules. At present, the system already supports user-mode programs
+and some simple functions.
 
 ## Modules
+
 `pci` ：pci driver to detect devices on the bus
 
 `rtc` ：rtc driver to get time
@@ -39,6 +40,14 @@ so the system is composed of a series of independent modules. At present, the sy
 
 Other modules are not listed here, you can find them in the cargo.toml file.
 
+## Run
+
+1. install qemu 7.0.0
+2. install rust nightly
+
+```
+make run LOG=WARN img=fat32
+```
 
 ## TODO
 
