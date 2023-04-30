@@ -20,6 +20,8 @@ pub fn register_all_syscall(){
 	(221, do_exec),
 	(260, wait_pid),
 	(214, do_brk),
+	(40, sys_mount),
+	(39, sys_umount),
 	(56, sys_openat),
 	(57, sys_close),
 	(45, sys_truncate),
@@ -96,6 +98,7 @@ use crate::fs::sys_lseek;
 use crate::fs::sys_lsetxattr;
 use crate::fs::sys_mkdir;
 use crate::fs::sys_mkdirat;
+use crate::fs::sys_mount;
 use crate::fs::sys_openat;
 use crate::fs::sys_read;
 use crate::fs::sys_readlinkat;
@@ -106,6 +109,7 @@ use crate::fs::sys_show_dbfs;
 use crate::fs::sys_statfs;
 use crate::fs::sys_symlinkat;
 use crate::fs::sys_truncate;
+use crate::fs::sys_umount;
 use crate::fs::sys_unlinkat;
 use crate::fs::sys_write;
 use crate::ipc::sys_dup;
