@@ -24,6 +24,7 @@ pub fn register_all_syscall(){
 	(39, sys_umount),
 	(56, sys_openat),
 	(57, sys_close),
+	(61, sys_getdents),
 	(45, sys_truncate),
 	(46, sys_ftruncate),
 	(63, sys_read),
@@ -87,6 +88,7 @@ use crate::fs::sys_fstateat;
 use crate::fs::sys_fstatfs;
 use crate::fs::sys_ftruncate;
 use crate::fs::sys_getcwd;
+use crate::fs::sys_getdents;
 use crate::fs::sys_getxattr;
 use crate::fs::sys_lgetxattr;
 use crate::fs::sys_linkat;

@@ -1,8 +1,9 @@
 use alloc::string::{String, ToString};
+use alloc::vec;
 use core::cmp::min;
 
 use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
-use rvfs::file::{FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file};
+use rvfs::file::{FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_readdir1, vfs_write_file};
 use rvfs::inode::InodeMode;
 use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
 use rvfs::mount::{do_mount, MountFlags};
@@ -53,7 +54,6 @@ pub fn sys_mount(special: *const u8, dir: *const u8, fs_type: *const u8, flags: 
     // now we return 0 directly
     // todo! rvfs need implement the devfs
 
-    
     // let ret = do_mount::<VfsProvider>(&special, &dir, &fs_type, flags, None);
     // if ret.is_err() {
     //     return -1;
@@ -118,17 +118,29 @@ pub fn sys_close(fd: usize) -> isize {
     0
 }
 
-// #[syscall_func(61)]
-// pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
-//     let process = current_process().unwrap();
-//     let file = process.get_file(fd);
-//     if file.is_none() {
-//         return -1;
-//     }
-//     let file = file.unwrap();
-//     // todo!()
-//     0
-// }
+#[syscall_func(61)]
+pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return -1;
+    }
+    let file = file.unwrap();
+    let user_bufs = process.transfer_raw_buffer(buf, len);
+    let mut buf = vec![0u8; len];
+    let res = vfs_readdir1(file, buf.as_mut_slice());
+    if res.is_err() {
+        return -1;
+    }
+    let mut offset = 0;
+    // copy dirent_buf to user space
+    for user_buf in user_bufs {
+        let copy_len = user_buf.len(); // user_bufs len is equal to buf len
+        user_buf.copy_from_slice(&buf[offset..offset + copy_len]);
+        offset += copy_len;
+    }
+    0
+}
 
 /// Reference: https://man7.org/linux/man-pages/man2/truncate64.2.html
 #[syscall_func(45)]
