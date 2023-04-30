@@ -321,7 +321,11 @@ impl ProcessInner {
         let mut res = String::new();
         let mut start = ptr as usize;
         loop {
-            let physical = self.address_space.virtual_to_physical(start).unwrap();
+            let physical = self.address_space.virtual_to_physical(start);
+            if physical.is_none() {
+                break;
+            }
+            let physical = physical.unwrap();
             let c = unsafe { &*(physical as *const u8) };
             if *c == 0 {
                 break;
