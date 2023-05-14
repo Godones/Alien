@@ -1,17 +1,19 @@
-use crate::config::FRAME_SIZE;
-use crate::driver::hal::HalImpl;
-use crate::memory::{frame_alloc, FrameTracker};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::num::NonZeroUsize;
+
 use lazy_static::lazy_static;
 use lru::LruCache;
 use rvfs::superblock::Device;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::MmioTransport;
+
+use crate::config::FRAME_SIZE;
+use crate::driver::hal::HalImpl;
+use crate::memory::{frame_alloc, FrameTracker};
 
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 
@@ -25,7 +27,7 @@ impl QemuBlockDevice {
     pub fn new(device: VirtIOBlk<HalImpl, MmioTransport>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(1024).unwrap())), // 2MB cache
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(1024 * 12).unwrap())), // 48MB cache
             dirty: Mutex::new(Vec::new()),
         }
     }
@@ -121,7 +123,7 @@ impl Device for QemuBlockDevice {
             let copy_len = min(PAGE_CACHE_SIZE - offset, len - count);
             cache[offset..offset + copy_len].copy_from_slice(&buf[count..count + copy_len]);
             count += copy_len;
-            offset = 0;
+            offset = (offset + copy_len) % PAGE_CACHE_SIZE;
             page_id += 1;
         }
         Ok(buf.len())

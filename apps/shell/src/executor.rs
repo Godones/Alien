@@ -82,7 +82,6 @@ impl Executor {
                 cmd.push('\0');
                 let pid = fork();
                 if pid == 0 {
-                    println!("run user command");
                     self.parameter.args.insert(0, cmd.clone());
                     exec(cmd.as_str(), self.parameter.get_args_raw().as_slice());
                 } else {
