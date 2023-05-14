@@ -49,6 +49,8 @@ Other modules are not listed here, you can find them in the cargo.toml file.
 make run LOG=WARN img=fat32
 ```
 
+
+
 ## TODO
 
 - [ ] Thread/Mutil-core
@@ -62,3 +64,6 @@ make run LOG=WARN img=fat32
 - [x] a simple shell
 - [x] memory management
 - [x] process management
+
+
+

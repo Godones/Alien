@@ -50,6 +50,8 @@ BUILD_CRATES := \
 	shell \
 	init \
 	mkdir \
-	cd \
 	ls \
-	alloctest
+	alloctest \
+	hugewrite \
+	hugeread \
+	randrw

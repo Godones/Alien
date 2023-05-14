@@ -1,8 +1,19 @@
 use core::arch::{asm, global_asm};
+
 use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
+
+pub use context::TrapFrame;
+
+use crate::arch::{external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable, timer_interrupt_enable};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
+use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
+use crate::arch::riscv::sstatus;
+use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
+use crate::memory::{KERNEL_SPACE, tmp_solve_disk_map_page_fault};
+use crate::task::{current_process, current_user_token};
+use crate::timer::{check_timer_queue, set_next_trigger};
 
 mod context;
 mod exception;
@@ -10,15 +21,6 @@ mod interrupt;
 
 global_asm!(include_str!("./kernel_v.asm"));
 global_asm!(include_str!("./trampoline.asm"));
-
-use crate::arch::{external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable, timer_interrupt_enable};
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
-use crate::task::{current_process, current_user_token};
-use crate::timer::{check_timer_queue, set_next_trigger};
-pub use context::TrapFrame;
-use crate::arch::riscv::register::{stvec};
-use crate::arch::riscv::sstatus;
-
 
 extern "C" {
     fn kernel_v();
@@ -47,12 +49,14 @@ pub fn trap_return() -> ! {
         )
     }
 }
+
 #[inline]
 fn set_user_trap_entry() {
     unsafe {
         stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
     }
 }
+
 #[inline]
 fn set_kernel_trap_entry() {
     unsafe {
@@ -89,10 +93,10 @@ impl TrapHandler for Trap {
             | Trap::Exception(Exception::InstructionPageFault)
             | Trap::Exception(Exception::LoadFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                println!("[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}", self,stval,sepc);
+                println!("[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}", self, stval, sepc);
                 let process = current_process().unwrap();
                 let phy = process.transfer_raw(stval);
-                println!("physical address: {:#x?}",phy);
+                println!("physical address: {:#x?}", phy);
                 exception::page_exception_handler()
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
@@ -121,6 +125,15 @@ impl TrapHandler for Trap {
                 check_timer_queue();
                 set_next_trigger();
             }
+            Trap::Exception(Exception::StorePageFault) => {
+                debug!("[kernel] {:?} in kernel, stval:{:#x?} sepc:{:#x?}", self, stval, sepc);
+                {
+                    let kernel_space = KERNEL_SPACE.read();
+                    let phy = kernel_space.virtual_to_physical(stval);
+                    debug!("physical address: {:#x?}", phy);
+                }
+                tmp_solve_disk_map_page_fault(stval);
+            }
             Trap::Exception(_) => {
                 panic!(
                     "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
@@ -148,14 +161,14 @@ pub fn user_trap_vector() {
     }
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
-    if spp == SPP::Supervisor{
+    if spp == SPP::Supervisor {
         panic!("user_trap_vector: spp == SPP::Supervisor");
     }
     set_kernel_trap_entry();
     let cause = riscv::register::scause::read();
     let cause = cause.cause();
     cause.do_user_handle();
-    if cause != Trap::Interrupt(Interrupt::SupervisorTimer){
+    if cause != Trap::Interrupt(Interrupt::SupervisorTimer) {
         // update process statistics
         let process = current_process().unwrap();
         process.access_inner().update_kernel_mode_time();
@@ -169,7 +182,7 @@ pub fn user_trap_vector() {
 pub fn kernel_trap_vector() {
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
-    if spp == SPP::User{
+    if spp == SPP::User {
         panic!("kernel_trap_vector: spp == SPP::User");
     }
     let enable = is_interrupt_enable();

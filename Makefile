@@ -31,7 +31,7 @@ define boot_qemu
 		-device virtio-blk-device,drive=x1 \
         -nographic \
         -kernel  kernel-qemu\
-        -smp $(SMP) -m 128M \
+        -smp $(SMP) -m 256M \
         -serial mon:stdio
 endef
 
@@ -81,7 +81,7 @@ dtb:
 	@rm riscv.dtb
 
 SecondFile:
-	#创建空白文件
+	#创建64MB大小空白文件
 	@dd if=/dev/zero of=$(IMG1) bs=1M count=64
 
 ZeroFile:
@@ -92,7 +92,7 @@ fat32:
 	@#rm -rf ./tools/fs.img
 	#创建64MB大小的fat32文件系统
 	@sudo chmod 777 $(IMG)
-	@sudo dd if=/dev/zero of=$(IMG) bs=512 count=131072
+	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=64
 	@sudo mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
 		sudo umount /fat; \
