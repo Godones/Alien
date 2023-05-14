@@ -12,6 +12,7 @@ pub use map::*;
 pub use vmm::*;
 
 use crate::arch::hart_id;
+use crate::config::FRAME_SIZE;
 
 mod frame;
 mod vmm;
@@ -41,11 +42,20 @@ struct HeapAllocator {
 
 unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        let ptr = self.slab.alloc(layout);
-        ptr
+        if layout.size() > 8 * 1024 * 1024 {
+            let frame = alloc_frames(layout.size() / FRAME_SIZE);
+            frame
+        } else {
+            let ptr = self.slab.alloc(layout);
+            ptr
+        }
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
-        self.slab.dealloc(ptr, layout);
+        if layout.size() > 8 * 1024 * 1024 {
+            free_frames(ptr, layout.size() / FRAME_SIZE);
+        } else {
+            self.slab.dealloc(ptr, layout);
+        }
     }
 }
 

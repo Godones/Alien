@@ -6,14 +6,14 @@ use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
 use rvfs::file::{FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_readdir1, vfs_write_file};
 use rvfs::inode::InodeMode;
 use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
-use rvfs::mount::{do_mount, MountFlags};
+use rvfs::mount::MountFlags;
 use rvfs::path::{ParsePathType, vfs_lookup_path};
-use rvfs::stat::{FileAttribute, KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file};
+use rvfs::stat::{KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file};
 use rvfs::superblock::StatFs;
 
 pub use dbfs::{
-    init_dbfs, sys_create_global_bucket, sys_execute_user_func, sys_execute_user_operate,
-    sys_show_dbfs,
+    DISK_DEVICE, init_dbfs, sys_create_global_bucket, sys_execute_user_func,
+    sys_execute_user_operate, sys_show_dbfs,
 };
 pub use stdio::*;
 use syscall_table::syscall_func;
