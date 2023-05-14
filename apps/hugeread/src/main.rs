@@ -4,8 +4,12 @@
 #[macro_use]
 extern crate Mstd;
 
-use Mstd::fs::{close, open, read, write, OpenFlags};
+use Mstd::fs::{close, open, OpenFlags, read, write};
 use Mstd::time::get_time_ms;
+
+const DATA_SIZE: usize = 1024 * 1024 * 10;
+//10MB
+const BUF_SIZE: usize = 1024;
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -17,7 +21,7 @@ pub fn main() -> i32 {
 }
 
 fn write_fs(name: &str, path: &str) {
-    let mut buffer = [0u8; 1024]; // 1KiB
+    let mut buffer = [0u8; BUF_SIZE]; // 1KiB
     for i in 0..buffer.len() {
         buffer[i] = i as u8;
     }
@@ -26,9 +30,8 @@ fn write_fs(name: &str, path: &str) {
         panic!("Open test file failed!");
     }
     let f = f as usize;
-    let size_mb = 1usize;
     let mut count = 0;
-    for _ in 0..1024 * size_mb {
+    for _ in 0..DATA_SIZE / BUF_SIZE {
         let len = write(f, &buffer);
         if len as usize != buffer.len() {
             println!("len = {}", len);
@@ -41,17 +44,16 @@ fn write_fs(name: &str, path: &str) {
 }
 
 fn test_read_fs(name: &str, path: &str) {
-    println!("{} read {}MiB", name, 1);
-    let mut buffer = [0u8; 1024]; // 1KiB
+    println!("{} read {}MB", name, 10);
+    let mut buffer = [0u8; BUF_SIZE]; // 1KiB
     let f = open(path, OpenFlags::O_RDWR);
     if f < 0 {
         panic!("Open test file failed!");
     }
     let f = f as usize;
     let start = get_time_ms();
-    let size_mb = 1usize;
     let mut count = 0;
-    for _ in 0..1024 * size_mb {
+    for _ in 0..DATA_SIZE / BUF_SIZE {
         let len = read(f, &mut buffer);
         if len as usize != buffer.len() {
             println!("count :{} len = {}", count, len);
@@ -62,6 +64,6 @@ fn test_read_fs(name: &str, path: &str) {
     close(f);
     let time_ms = (get_time_ms() - start) as usize;
     println!("read {} bytes", count);
-    let speed_kbs = size_mb * 1000000 / time_ms;
-    println!("time cost = {}ms, read speed = {}KiB/s", time_ms, speed_kbs);
+    let speed = 10.0 / (time_ms as f64 / 1000.0);
+    println!("time cost = {}ms, read speed = {}MB/s", time_ms, speed);
 }
