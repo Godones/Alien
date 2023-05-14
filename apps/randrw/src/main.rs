@@ -2,8 +2,9 @@
 #![no_std]
 
 
-use rand::rngs::SmallRng;
 use rand::{RngCore, SeedableRng};
+use rand::rngs::SmallRng;
+
 use Mstd::fs::{close, open, OpenFlags, read, seek, write};
 use Mstd::println;
 use Mstd::time::get_time_ms;
@@ -31,7 +32,7 @@ fn rand_read_write_test(path: &str) {
     println!("fd: {}", fd);
     let start = get_time_ms();
     let mut count = 0;
-    for i in 0..ITER {
+    for _ in 0..ITER {
         let offset = small_rng.next_u64();
         let offset = offset % FILE_SIZE as u64;
         let offset = offset as usize;

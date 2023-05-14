@@ -30,7 +30,7 @@ page-table = { git = "https://github.com/os-module/page-table.git" }
 rvfs = { git = "https://github.com/Godones/rvfs.git" }
 fat32-vfs = { git = "https://github.com/Godones/fat32-vfs.git" }
 jammdb = { git = "https://github.com/Godones/jammdb.git" }
-dbfs2 = { git = "https://github.com/Godones/dbfs2.git" }
+dbfs2 = { git = "https://github.com/Godones/dbfs2.git", branch = "dev3-1" }
 dbop = { git = "https://github.com/os-module/dbop.git" }
 trace_lib = { git = "https://github.com/os-module/rtrace" }
 preprint = "0.1.0"

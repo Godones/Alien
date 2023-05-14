@@ -7,9 +7,11 @@ use page_table::{
     AddressSpace, ap_from_str, Area, AreaPermission, PageManager, PPN, VPN, vpn_f_c_range,
 };
 use spin::RwLock;
+use virtio_drivers::PAGE_SIZE;
 use xmas_elf::program;
 
 use crate::config::{FRAME_SIZE, MEMORY_END, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::fs::DISK_DEVICE;
 use crate::memory::frame::{addr_to_frame, frame_alloc};
 
 lazy_static! {
@@ -83,9 +85,46 @@ pub fn build_kernel_address_space() {
         let mmio_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
         kernel_space.push(mmio_area);
     }
-
     info!("build kernel address space success");
 }
+
+
+const DISK_START_VA: usize = 0x90_000_000;
+
+pub fn tmp_insert_disk_map(size: usize) -> usize {
+    let mut kernel_space = KERNEL_SPACE.write();
+    let vpn_range = vpn_f_c_range!(DISK_START_VA, DISK_START_VA + size);
+    println!("disk range: {:x?}", vpn_range);
+    let disk_area = Area::new(vpn_range.clone(), None, ap_from_str!("rw"));
+    kernel_space.tmp_push(disk_area, false);
+    DISK_START_VA
+}
+
+pub fn tmp_solve_disk_map_page_fault(va: usize) {
+    assert!(va >= DISK_START_VA, "va:{:#x}", va);
+    let kernel_space = KERNEL_SPACE.write();
+    kernel_space.tmp_make_valid(VPN::floor_address(va));
+    let phy = kernel_space.virtual_to_physical(va).unwrap();
+    trace!("solve disk map page fault, va:{:#x}, phy:{:#x}", va, phy);
+    let disk = DISK_DEVICE.get().unwrap();
+    let mut device = disk.device.lock();
+    let va_to_read = va - DISK_START_VA;
+    trace!("va to read: {:#x}", va_to_read);
+    let buf = unsafe {
+        core::slice::from_raw_parts_mut(phy as *mut u8, PAGE_SIZE)
+    };
+    let start_block = va_to_read / 512;
+    let end_block = (va_to_read + PAGE_SIZE) / 512;
+    let mut offset = 0;
+    trace!("start block: {}, end block: {}", start_block, end_block);
+    for i in start_block..end_block {
+        let read_buf = &mut buf[offset..offset + 512];
+        device.read_block(i, read_buf).unwrap();
+        offset += 512;
+    }
+    trace!("read disk success");
+}
+
 
 pub struct ELFInfo {
     pub address_space: AddressSpace,
