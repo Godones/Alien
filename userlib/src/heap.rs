@@ -5,6 +5,7 @@ use buddy_system_allocator::LockedHeap;
 
 use crate::common::FRAME_SIZE;
 use crate::memory::sbrk;
+use crate::println;
 
 #[global_allocator]
 static HEAP: BuddyAllocator = BuddyAllocator::new();
@@ -28,7 +29,7 @@ unsafe impl GlobalAlloc for BuddyAllocator {
         let res = if res.is_err() {
             let size = layout.size();
             // align size to FRAME_SIZE
-            let size = (size + FRAME_SIZE - 1) / FRAME_SIZE * FRAME_SIZE;
+            let size = (size + FRAME_SIZE - 1) / FRAME_SIZE * FRAME_SIZE * 2;
             let res = sbrk(size as isize);
             if res == -1 {
                 panic!("oom");
