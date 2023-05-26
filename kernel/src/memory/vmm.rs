@@ -89,7 +89,7 @@ pub fn build_kernel_address_space() {
 }
 
 
-const DISK_START_VA: usize = 0x90_000_000;
+const DISK_START_VA: usize = 0x100_000_000;
 
 pub fn tmp_insert_disk_map(size: usize) -> usize {
     let mut kernel_space = KERNEL_SPACE.write();
@@ -101,6 +101,7 @@ pub fn tmp_insert_disk_map(size: usize) -> usize {
 }
 
 pub fn tmp_solve_disk_map_page_fault(va: usize) {
+    // println!("solve disk map page fault, va:{:#x}", va);
     assert!(va >= DISK_START_VA, "va:{:#x}", va);
     let kernel_space = KERNEL_SPACE.write();
     kernel_space.tmp_make_valid(VPN::floor_address(va));

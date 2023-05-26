@@ -119,7 +119,10 @@ impl Device for QemuBlockDevice {
                 }
             }
             let cache = cache_lock.get_mut(&page_id).unwrap();
-            self.dirty.lock().push(page_id);
+            if cache.as_ptr() as usize == 0x9000_0000 {
+                panic!("cache is null");
+            }
+            // self.dirty.lock().push(page_id);
             let copy_len = min(PAGE_CACHE_SIZE - offset, len - count);
             cache[offset..offset + copy_len].copy_from_slice(&buf[count..count + copy_len]);
             count += copy_len;
