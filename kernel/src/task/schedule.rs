@@ -1,7 +1,8 @@
+use core::arch::asm;
+
 use crate::task::context::switch;
 use crate::task::cpu::{current_cpu, PROCESS_MANAGER};
 use crate::task::process::ProcessState;
-use core::arch::asm;
 
 #[no_mangle]
 pub fn first_into_user() -> ! {

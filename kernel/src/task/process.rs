@@ -335,8 +335,8 @@ impl ProcessInner {
         let mut v = Vec::new();
         while start < end {
             let start_phy = address_space.virtual_to_physical(start).unwrap();
-            // find the value >= start && value%FRAME_SIZE == 0
-            let bound = (start_phy + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+            // start_phy向上取整到FRAME_SIZE
+            let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
             let len = if bound > end {
                 end - start
             } else {

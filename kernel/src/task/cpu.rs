@@ -14,9 +14,9 @@ use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::sync::IntrLock;
 use crate::task::context::Context;
+use crate::task::INIT_PROCESS;
 use crate::task::process::{Process, ProcessState};
 use crate::task::schedule::schedule;
-use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
 
 #[derive(Debug)]
@@ -195,8 +195,9 @@ pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u
         let res = children.iter().enumerate().find(|(_, child)| {
             child.state() == ProcessState::Zombie && (child.get_pid() == pid || pid == -1)
         });
-        if let Some((index, _)) = res {
-            drop(children);
+        let res = res.map(|(index, _)| index);
+        drop(children);
+        if let Some(index) = res {
             let child = process.remove_child(index);
             assert_eq!(Arc::strong_count(&child), 1);
             if !exit_code.is_null() {
@@ -205,7 +206,6 @@ pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u
             }
             return child.get_pid() as isize;
         } else {
-            drop(children);
             let wait_options = WaitOptions::from_bits(options).unwrap();
             if wait_options.contains(WaitOptions::WNOHANG) {
                 return 0;
