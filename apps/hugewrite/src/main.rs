@@ -12,7 +12,7 @@ use Mstd::time::get_time_ms;
 
 const DATA_SIZE: usize = 1024 * 1024 * 10;
 //10MB
-const BUF_SIZE: usize = 4096;
+const BUF_SIZE: usize = 1024 * 1024;
 
 #[no_mangle]
 pub fn main() -> i32 {
