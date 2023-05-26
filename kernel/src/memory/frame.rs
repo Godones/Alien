@@ -11,7 +11,7 @@ use simple_bitmap::Bitmap;
 
 use crate::config::FRAME_SIZE;
 
-const MAX_FRAME_COUNT: usize = 32768;
+const MAX_FRAME_COUNT: usize = 0xf000;
 lazy_static! {
     pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<MAX_FRAME_COUNT>> = Mutex::new(Bitmap::new());
 }
