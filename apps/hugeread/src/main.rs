@@ -3,25 +3,28 @@
 
 #[macro_use]
 extern crate Mstd;
+extern crate alloc;
+
+use alloc::vec;
 
 use Mstd::fs::{close, open, OpenFlags, read, write};
 use Mstd::time::get_time_ms;
 
 const DATA_SIZE: usize = 1024 * 1024 * 10;
 //10MB
-const BUF_SIZE: usize = 1024;
+const BUF_SIZE: usize = 1024 * 4;
 
 #[no_mangle]
 pub fn main() -> i32 {
-    write_fs("FAT32", "f1.txt\0");
-    write_fs("DBFS", "/db/f1.txt\0");
-    test_read_fs("FAT32", "f1.txt\0");
-    test_read_fs("DBFS", "/db/f1.txt\0");
+    write_fs("FAT32", "f1read.txt\0");
+    write_fs("DBFS", "/db/f1read.txt\0");
+    test_read_fs("FAT32", "f1read.txt\0");
+    test_read_fs("DBFS", "/db/f1read.txt\0");
     0
 }
 
 fn write_fs(name: &str, path: &str) {
-    let mut buffer = [0u8; BUF_SIZE]; // 1KiB
+    let mut buffer = vec![0u8; BUF_SIZE]; // 1KiB
     for i in 0..buffer.len() {
         buffer[i] = i as u8;
     }
@@ -45,7 +48,7 @@ fn write_fs(name: &str, path: &str) {
 
 fn test_read_fs(name: &str, path: &str) {
     println!("{} read {}MB", name, 10);
-    let mut buffer = [0u8; BUF_SIZE]; // 1KiB
+    let mut buffer = vec![0u8; BUF_SIZE]; // 1KiB
     let f = open(path, OpenFlags::O_RDWR);
     if f < 0 {
         panic!("Open test file failed!");

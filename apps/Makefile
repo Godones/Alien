@@ -54,4 +54,5 @@ BUILD_CRATES := \
 	alloctest \
 	hugewrite \
 	hugeread \
-	randrw
+	randrw \
+	filetest_simple
