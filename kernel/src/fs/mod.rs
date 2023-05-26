@@ -147,7 +147,7 @@ pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
         user_buf.copy_from_slice(&buf[offset..offset + copy_len]);
         offset += copy_len;
     }
-    0
+    res.unwrap() as isize
 }
 
 /// Reference: https://man7.org/linux/man-pages/man2/truncate64.2.html
