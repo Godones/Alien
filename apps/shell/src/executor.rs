@@ -4,10 +4,10 @@ use alloc::vec::Vec;
 
 use spin::Mutex;
 
-use Mstd::{println, shutdown};
 use Mstd::fs::{chdir, get_cwd};
 use Mstd::process::{exec, fork, waitpid};
 use Mstd::thread::m_yield;
+use Mstd::{println, shutdown};
 
 #[derive(Debug)]
 pub struct Parameter {

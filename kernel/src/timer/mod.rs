@@ -1,7 +1,7 @@
 use crate::arch;
 use crate::config::CLOCK_FREQ;
 use crate::task::schedule::schedule;
-use crate::task::{current_process, Process, ProcessState, PROCESS_MANAGER, StatisticalData};
+use crate::task::{current_process, Process, ProcessState, StatisticalData, PROCESS_MANAGER};
 use alloc::collections::BinaryHeap;
 use alloc::sync::Arc;
 use core::cmp::Ordering;
@@ -11,7 +11,6 @@ use syscall_table::syscall_func;
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
-
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -46,7 +45,6 @@ impl Times {
     }
 }
 
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct TimeVal {
@@ -70,9 +68,8 @@ impl TimeVal {
 #[derive(Copy, Clone, Debug)]
 pub struct TimeSpec {
     pub tv_sec: usize,
-    pub tv_nsec: usize,//0~999999999
+    pub tv_nsec: usize, //0~999999999
 }
-
 
 /// 获取当前计时器的值
 #[inline]
@@ -101,7 +98,6 @@ pub fn get_time_of_day(tv: *mut u8) -> isize {
     0
 }
 
-
 /// Reference: https://man7.org/linux/man-pages/man2/times.2.html
 #[syscall_func(153)]
 pub fn times(tms: *mut u8) -> isize {
@@ -127,7 +123,6 @@ pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
     }
     0
 }
-
 
 #[derive(Debug)]
 pub struct Timer {

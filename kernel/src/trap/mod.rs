@@ -1,17 +1,20 @@
 use core::arch::{asm, global_asm};
 
-use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
+use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 
-use crate::arch::{external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable, timer_interrupt_enable};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
 use crate::arch::riscv::sstatus;
+use crate::arch::{
+    external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable,
+    timer_interrupt_enable,
+};
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
-use crate::memory::{KERNEL_SPACE, tmp_solve_disk_map_page_fault};
+use crate::memory::KERNEL_SPACE;
 use crate::task::{current_process, current_user_token};
 use crate::timer::{check_timer_queue, set_next_trigger};
 
@@ -93,7 +96,10 @@ impl TrapHandler for Trap {
             | Trap::Exception(Exception::InstructionPageFault)
             | Trap::Exception(Exception::LoadFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                println!("[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}", self, stval, sepc);
+                println!(
+                    "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                    self, stval, sepc
+                );
                 let process = current_process().unwrap();
                 let phy = process.transfer_raw(stval);
                 println!("physical address: {:#x?}", phy);
@@ -126,18 +132,21 @@ impl TrapHandler for Trap {
                 set_next_trigger();
             }
             Trap::Exception(Exception::StorePageFault) => {
-                debug!("[kernel] {:?} in kernel, stval:{:#x?} sepc:{:#x?}", self, stval, sepc);
+                debug!(
+                    "[kernel] {:?} in kernel, stval:{:#x?} sepc:{:#x?}",
+                    self, stval, sepc
+                );
                 {
                     let kernel_space = KERNEL_SPACE.read();
                     let phy = kernel_space.virtual_to_physical(stval);
                     debug!("physical address: {:#x?}", phy);
                 }
-                tmp_solve_disk_map_page_fault(stval);
             }
             Trap::Exception(_) => {
                 panic!(
                     "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
-                    self, stval, sepc)
+                    self, stval, sepc
+                )
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
                 interrupt::external_interrupt_handler();
@@ -145,7 +154,8 @@ impl TrapHandler for Trap {
             _ => {
                 panic!(
                     "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
-                    self, stval, sepc)
+                    self, stval, sepc
+                )
             }
         }
     }

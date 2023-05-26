@@ -1,4 +1,4 @@
-use crate::arch::{interrupt_enable};
+use crate::arch::interrupt_enable;
 use crate::syscall;
 use crate::task::current_trap_frame;
 

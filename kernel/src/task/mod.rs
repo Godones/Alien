@@ -4,8 +4,8 @@ use alloc::vec::Vec;
 use lazy_static::lazy_static;
 
 pub use cpu::{
-    current_cpu, current_process, current_trap_frame, current_user_token, do_brk, do_exec,
-    do_exit, do_fork, do_suspend, get_pid, get_ppid, PROCESS_MANAGER, wait_pid,
+    current_cpu, current_process, current_trap_frame, current_user_token, do_brk, do_exec, do_exit,
+    do_fork, do_suspend, get_pid, get_ppid, wait_pid, PROCESS_MANAGER,
 };
 pub use process::{Process, ProcessState, StatisticalData};
 

@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use Mstd::fs::{close, open, OpenFlags, read, seek, write};
+use Mstd::fs::{close, open, read, seek, write, OpenFlags};
 
 #[no_mangle]
 pub fn main() -> i32 {
@@ -17,13 +17,12 @@ pub fn main() -> i32 {
     0
 }
 
-
 fn base_read_write_test_fs(file: &str) {
     const DATA_SIZE: usize = 1024 * 1024 * 2;
     const STR: &[u8] = b"Hello, world!";
     println!("Test basic read/write on file {}", file);
-    let data = (0..DATA_SIZE).
-        map(|index| { STR[index % STR.len()] })
+    let data = (0..DATA_SIZE)
+        .map(|index| STR[index % STR.len()])
         .collect::<Vec<u8>>();
     let fd = open(file, OpenFlags::O_CREAT | OpenFlags::O_WRONLY);
     assert!(fd > 0);
