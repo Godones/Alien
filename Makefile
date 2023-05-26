@@ -62,7 +62,7 @@ user:
 build:compile
 
 
-run:install compile $(img) user SecondFile testelf
+run:install compile $(img) user testelf
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
 
