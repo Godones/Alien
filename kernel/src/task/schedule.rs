@@ -1,7 +1,7 @@
-use core::arch::asm;
-use crate::task::context::{switch};
+use crate::task::context::switch;
 use crate::task::cpu::{current_cpu, PROCESS_MANAGER};
 use crate::task::process::ProcessState;
+use core::arch::asm;
 
 #[no_mangle]
 pub fn first_into_user() -> ! {
@@ -19,11 +19,9 @@ pub fn first_into_user() -> ! {
             let cpu_context = cpu.get_context_mut_raw_ptr();
             drop(process_manager);
             switch(cpu_context, context);
-        }else {
+        } else {
             drop(process_manager);
-            unsafe {
-                asm!("wfi")
-            }
+            unsafe { asm!("wfi") }
         }
     }
 }

@@ -1,6 +1,7 @@
 // uart.rs
 // UART routines and driver
 
+use super::uart1::Uart1;
 use crate::config::RISCV_UART_ADDR;
 use crate::driver::DeviceBase;
 use crate::task::schedule::schedule;
@@ -9,7 +10,6 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use spin::{Mutex, Once};
 use uart::{Uart, UartRaw};
-use super::uart1::Uart1;
 pub trait CharDevice {
     fn put(&self, c: u8);
     fn get(&self) -> Option<u8>;
@@ -30,7 +30,6 @@ lazy_static! {
 lazy_static! {
     pub static ref USER_UART: Once<Arc<Uart1>> = Once::new();
 }
-
 
 pub fn init_uart(base: usize) -> Arc<dyn DeviceBase> {
     // let uart = UartWrapper::new(base);

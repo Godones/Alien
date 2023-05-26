@@ -1,10 +1,8 @@
 use crate::syscall::{sys_dup, sys_dup3, sys_pipe};
 
-
 pub fn pipe(fd: &mut [u32; 2]) -> isize {
     sys_pipe(fd.as_mut_ptr(), 0)
 }
-
 
 pub fn dup(old_fd: usize) -> isize {
     sys_dup(old_fd)
