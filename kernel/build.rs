@@ -23,7 +23,7 @@ fn main() {
     }
     scan_and_generate("src/syscall.rs".to_string());
 }
-use std::collections::{BTreeSet};
+use std::collections::BTreeSet;
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::path::PathBuf;
@@ -87,7 +87,7 @@ fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                 let mut buf_reader = std::io::BufReader::new(file);
                 let mut line = String::new();
                 while buf_reader.read_line(&mut line).unwrap() > 0 {
-                    if line.contains("#[syscall_func")&& !line.starts_with("//") {
+                    if line.contains("#[syscall_func") && !line.starts_with("//") {
                         // #[syscall_func(1)]
                         // find the id from the line
                         let id = line.split("(").nth(1).unwrap().split(")").next().unwrap();

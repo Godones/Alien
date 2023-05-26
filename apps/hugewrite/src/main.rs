@@ -7,7 +7,7 @@ extern crate alloc;
 
 use alloc::vec;
 
-use Mstd::fs::{close, open, OpenFlags, write};
+use Mstd::fs::{close, open, write, OpenFlags};
 use Mstd::time::get_time_ms;
 
 const DATA_SIZE: usize = 1024 * 1024 * 10;

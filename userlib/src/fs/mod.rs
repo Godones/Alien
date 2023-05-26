@@ -31,32 +31,29 @@ bitflags! {
     }
 }
 
-
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 #[repr(C)]
 pub struct Stat {
-    pub st_dev:u64,
-    pub st_ino:u64,
-    pub st_mode:u32,
-    pub st_nlink:u32,
-    pub st_uid:u32,
-    pub st_gid:u32,
-    pub st_rdev:u64,
-    __pad:u64,
-    pub st_size:u64,
-    pub st_blksize:u32,
-    __pad2:u32,
-    pub st_blocks:u64,
-    pub st_atime_sec:u64,
-    pub st_atime_nsec:u64,
-    pub st_mtime_sec:u64,
-    pub st_mtime_nsec:u64,
-    pub st_ctime_sec:u64,
-    pub st_ctime_nsec:u64,
-    unused:u64,
+    pub st_dev: u64,
+    pub st_ino: u64,
+    pub st_mode: u32,
+    pub st_nlink: u32,
+    pub st_uid: u32,
+    pub st_gid: u32,
+    pub st_rdev: u64,
+    __pad: u64,
+    pub st_size: u64,
+    pub st_blksize: u32,
+    __pad2: u32,
+    pub st_blocks: u64,
+    pub st_atime_sec: u64,
+    pub st_atime_nsec: u64,
+    pub st_mtime_sec: u64,
+    pub st_mtime_nsec: u64,
+    pub st_ctime_sec: u64,
+    pub st_ctime_nsec: u64,
+    unused: u64,
 } //128
-
-
 
 #[derive(Default, Debug, Clone)]
 #[repr(C)]
@@ -99,12 +96,22 @@ pub fn list(path: &str) -> isize {
 }
 
 pub fn open(name: &str, flag: OpenFlags) -> isize {
-    sys_openat(AT_FDCWD, name.as_ptr(), flag.bits as usize, FileMode::FMODE_RDWR.bits() as usize)
+    sys_openat(
+        AT_FDCWD,
+        name.as_ptr(),
+        flag.bits as usize,
+        FileMode::FMODE_RDWR.bits() as usize,
+    )
 }
 
 /// now we don't support mode
 pub fn openat(fd: isize, name: &str, flag: OpenFlags, file_mode: FileMode) -> isize {
-    sys_openat(fd, name.as_ptr(), flag.bits as usize, file_mode.bits()as usize)
+    sys_openat(
+        fd,
+        name.as_ptr(),
+        flag.bits as usize,
+        file_mode.bits() as usize,
+    )
 }
 
 pub fn close(fd: usize) -> isize {
@@ -117,9 +124,9 @@ pub fn get_cwd(buf: &mut [u8]) -> Result<&str, IoError> {
         return Err(IoError::BufferTooSmall);
     } else {
         let res = buf.iter().enumerate().find(|(_, &x)| x == 0);
-        let len = if res.is_none(){
+        let len = if res.is_none() {
             buf.len()
-        }else {
+        } else {
             res.unwrap().0
         };
         let s = core::str::from_utf8(&buf[..len as usize]).unwrap();
@@ -193,7 +200,6 @@ pub fn renameat(old_fd: isize, old_path: &str, new_fd: isize, new_path: &str) ->
 pub fn mkdirat(fd: isize, path: &str, flag: OpenFlags) -> isize {
     sys_mkdirat(fd, path.as_ptr(), flag.bits as usize)
 }
-
 
 #[derive(Debug)]
 pub enum IoError {

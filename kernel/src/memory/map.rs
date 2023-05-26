@@ -20,33 +20,32 @@ bitflags! {
     }
 }
 
-#[syscall_func(215)]
-pub fn do_munmap(start: usize, len: usize) -> isize {
-    // let process = current_process().unwrap();
-    // let mut inner = process.access_inner();
-    // let heap_info = inner.heap_info();
-    // if start == 0 {
-    //     return heap_info.end as isize;
-    // }
-    // if start < heap_info.start {
-    //     return -1;
-    // }
-    // if start > heap_info.end {
-    //     let additional = start - heap_info.end;
-    //     let res = inner.extend_heap(additional);
-    //     if res.is_err() {
-    //         return -1;
-    //     }
-    // }
-    // start as isize
-    0
-}
+// #[syscall_func(215)]
+// pub fn do_munmap(start: usize, len: usize) -> isize {
+//     // let process = current_process().unwrap();
+//     // let mut inner = process.access_inner();
+//     // let heap_info = inner.heap_info();
+//     // if start == 0 {
+//     //     return heap_info.end as isize;
+//     // }
+//     // if start < heap_info.start {
+//     //     return -1;
+//     // }
+//     // if start > heap_info.end {
+//     //     let additional = start - heap_info.end;
+//     //     let res = inner.extend_heap(additional);
+//     //     if res.is_err() {
+//     //         return -1;
+//     //     }
+//     // }
+//     // start as isize
+//     0
+// }
 
-
-/// #Reference: https://man7.org/linux/man-pages/man2/mmap.2.html
-#[syscall_func(222)]
-pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> isize {
-    0
-}
-
-
+// /// #Reference: https://man7.org/linux/man-pages/man2/mmap.2.html
+// #[syscall_func(222)]
+// pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> isize {
+//     0
+// }
+//
+//

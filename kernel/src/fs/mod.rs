@@ -2,35 +2,42 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
-use rvfs::file::{FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_readdir1, vfs_write_file};
+use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
+use rvfs::file::{
+    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_readdir1,
+    vfs_write_file, FileMode, OpenFlags, SeekFrom,
+};
 use rvfs::inode::InodeMode;
-use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
+use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
 use rvfs::mount::MountFlags;
-use rvfs::path::{ParsePathType, vfs_lookup_path};
-use rvfs::stat::{KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file};
+use rvfs::path::{vfs_lookup_path, ParsePathType};
+use rvfs::stat::{
+    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
+    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
+    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
+};
 use rvfs::superblock::StatFs;
 
-pub use dbfs::{
-    DISK_DEVICE, init_dbfs, sys_create_global_bucket, sys_execute_user_func,
-    sys_execute_user_operate, sys_show_dbfs,
-};
 pub use stdio::*;
 use syscall_table::syscall_func;
 
 use crate::fs::vfs::VfsProvider;
 use crate::task::current_process;
 
-mod dbfs;
 mod stdio;
 
 pub mod vfs;
 
 const AT_FDCWD: isize = -100isize;
 
-
 #[syscall_func(40)]
-pub fn sys_mount(special: *const u8, dir: *const u8, fs_type: *const u8, flags: usize, data: *const u8) -> isize {
+pub fn sys_mount(
+    special: *const u8,
+    dir: *const u8,
+    fs_type: *const u8,
+    flags: usize,
+    data: *const u8,
+) -> isize {
     let process = current_process().unwrap();
     let special = process.transfer_str(special);
     let dir = process.transfer_str(dir);
@@ -49,7 +56,10 @@ pub fn sys_mount(special: *const u8, dir: *const u8, fs_type: *const u8, flags: 
     let dir = dir.unwrap();
 
     let flags = MountFlags::from_bits(flags as u32).unwrap();
-    warn!("mount special:{:?},dir:{:?},fs_type:{:?},flags:{:?},data:{:?}",special,dir,fs_type,flags,data);
+    warn!(
+        "mount special:{:?},dir:{:?},fs_type:{:?},flags:{:?},data:{:?}",
+        special, dir, fs_type, flags, data
+    );
 
     // now we return 0 directly
     // todo! rvfs need implement the devfs
@@ -61,7 +71,6 @@ pub fn sys_mount(special: *const u8, dir: *const u8, fs_type: *const u8, flags: 
     0
 }
 
-
 #[syscall_func(39)]
 pub fn sys_umount(dir: *const u8) -> isize {
     let process = current_process().unwrap();
@@ -71,7 +80,7 @@ pub fn sys_umount(dir: *const u8) -> isize {
         return -1;
     }
     let dir = dir.unwrap();
-    warn!("umount dir:{:?}",dir);
+    warn!("umount dir:{:?}", dir);
     // todo! rvfs need implement
     0
 }
@@ -89,12 +98,11 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize 
         return -1;
     }
     let path = path.unwrap();
-    warn!("open file: {:?},flag:{:?}, mode:{:?}", path,flag,file_mode);
-    let file = vfs_open_file::<VfsProvider>(
-        &path,
-        flag,
-        file_mode,
+    warn!(
+        "open file: {:?},flag:{:?}, mode:{:?}",
+        path, flag, file_mode
     );
+    let file = vfs_open_file::<VfsProvider>(&path, flag, file_mode);
     if file.is_err() {
         return -1;
     }
@@ -215,7 +223,13 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     let process = current_process().unwrap();
     let cwd = process.access_inner().cwd();
 
-    let path = vfs_lookup_path(cwd.cwd.clone(), cwd.cmnt.clone(), ParsePathType::Relative("".to_string()), LookUpFlags::empty()).unwrap();
+    let path = vfs_lookup_path(
+        cwd.cwd.clone(),
+        cwd.cmnt.clone(),
+        ParsePathType::Relative("".to_string()),
+        LookUpFlags::empty(),
+    )
+    .unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;

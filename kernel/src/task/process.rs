@@ -3,8 +3,8 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
-use page_table::{AddressSpace, PTableError, PTEFlags, vpn_f_c_range};
 use page_table::VPN;
+use page_table::{vpn_f_c_range, AddressSpace, PTEFlags, PTableError};
 use rvfs::dentry::DirEntry;
 use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
@@ -13,15 +13,15 @@ use spin::{Mutex, MutexGuard};
 
 use gmanager::MinimalManager;
 
-use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::config::FRAME_SIZE;
+use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::error::AlienError;
 use crate::fs::{STDIN, STDOUT};
 use crate::memory::{build_elf_address_space, kernel_satp};
 use crate::task::context::Context;
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, TrapFrame, user_trap_vector};
+use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -65,7 +65,6 @@ pub struct ProcessInner {
     pub heap: HeapInfo,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct HeapInfo {
     pub start: usize,
@@ -74,10 +73,7 @@ pub struct HeapInfo {
 
 impl HeapInfo {
     pub fn new(start: usize, end: usize) -> Self {
-        HeapInfo {
-            start,
-            end,
-        }
+        HeapInfo { start, end }
     }
 
     #[allow(unused)]
@@ -109,7 +105,6 @@ impl HeapInfo {
     }
 }
 
-
 /// statistics of a process
 #[derive(Debug, Clone)]
 pub struct StatisticalData {
@@ -126,7 +121,6 @@ pub struct StatisticalData {
     pub tms_cstime: usize,
 }
 
-
 impl StatisticalData {
     pub fn new() -> Self {
         let now = read_timer();
@@ -140,7 +134,6 @@ impl StatisticalData {
         }
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub struct FsContext {
@@ -400,12 +393,13 @@ impl ProcessInner {
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
         let vpn_range = vpn_f_c_range!(end, end + addition);
         vpn_range.for_each(|x| {
-            self.address_space.push_with_vpn(x, PTEFlags::V | PTEFlags::W | PTEFlags::R | PTEFlags::U).map_err(|x| {
-                match x {
+            self.address_space
+                .push_with_vpn(x, PTEFlags::V | PTEFlags::W | PTEFlags::R | PTEFlags::U)
+                .map_err(|x| match x {
                     PTableError::AllocError => panic!("alloc error,the memory is not enough"),
                     _ => {}
-                }
-            }).unwrap();
+                })
+                .unwrap();
         });
         let new_end = end + addition;
         self.heap.end = new_end;
