@@ -17,8 +17,8 @@ syscall_id!(SYSCALL_FREMOVEXATTR, 16);
 
 syscall_id!(SYSCALL_GETCWD, 17);
 
-syscall_id!(SYSCALL_DUP,23);
-syscall_id!(SYSCALL_DUP3,24);
+syscall_id!(SYSCALL_DUP, 23);
+syscall_id!(SYSCALL_DUP3, 24);
 syscall_id!(SYSCALL_LINKAT, 37);
 syscall_id!(SYSCALL_UNLINKAT, 35);
 syscall_id!(SYSCALL_SYMLINKAT, 36);
@@ -27,9 +27,9 @@ syscall_id!(SYSCALL_CHDIR, 49);
 syscall_id!(SYSCALL_READ, 63);
 syscall_id!(SYSCALL_FSTATFS, 44);
 syscall_id!(SYSCALL_STATFS, 43);
-syscall_id!(SYSCALL_TRUNCATE,45);
-syscall_id!(SYSCALL_FTRUNCATE,46);
-syscall_id!(SYSCALL_PIPE,59);
+syscall_id!(SYSCALL_TRUNCATE, 45);
+syscall_id!(SYSCALL_FTRUNCATE, 46);
+syscall_id!(SYSCALL_PIPE, 59);
 
 syscall_id!(SYSCALL_GETDENTS, 61);
 syscall_id!(SYSCALL_WRITE, 64);
@@ -55,6 +55,9 @@ syscall_id!(SYSCALL_RENAMEAT, 38);
 syscall_id!(SYSCALL_MKDIRAT, 34);
 
 syscall_id!(SYSCALL_BRK, 214);
+syscall_id!(SYSCALL_MUNMAP, 215);
+syscall_id!(SYSCALL_MMAP, 222);
+
 syscall_id!(SYSCALL_NANO_SLEEP, 101);
 
 syscall_id!(SYSCALL_LIST, 1000);
@@ -84,7 +87,7 @@ syscall!(sys_write, SYSCALL_WRITE, usize, *const u8, usize);
 syscall!(sys_exit, SYSCALL_EXIT, i32);
 syscall!(sys_yield, SYSCALL_YIELD);
 syscall!(sys_getpid, SYSCALL_GETPID);
-syscall!(sys_get_time, SYSCALL_GET_TIME,*mut u8);
+syscall!(sys_get_time, SYSCALL_GET_TIME, *mut u8);
 syscall!(sys_fork, SYSCALL_FORK);
 syscall!(sys_execve, SYSCALL_EXEC, *const u8, *const usize);
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
@@ -231,18 +234,28 @@ syscall!(sys_flistxattr, SYSCALL_FLISTXATTR, usize, *mut u8, usize);
 syscall!(sys_removexattr, SYSCALL_REMOVEXATTR, *const u8, *const u8);
 syscall!(sys_lremovexattr, SYSCALL_LREMOVEXATTR, *const u8, *const u8);
 syscall!(sys_fremovexattr, SYSCALL_FREMOVEXATTR, usize, *const u8);
-syscall!(sys_getdents, SYSCALL_GETDENTS, *const u8, *mut u8, usize);
+syscall!(sys_getdents, SYSCALL_GETDENTS, usize, *mut u8, usize);
 
 syscall!(sys_truncate, SYSCALL_TRUNCATE, *const u8, usize);
 syscall!(sys_ftruncate, SYSCALL_FTRUNCATE, usize, usize);
 
-
 // ipc
-syscall!(sys_pipe, SYSCALL_PIPE, *mut u32,usize);
+syscall!(sys_pipe, SYSCALL_PIPE, *mut u32, usize);
 syscall!(sys_dup, SYSCALL_DUP, usize);
-syscall!(sys_dup3, SYSCALL_DUP3, usize, usize,usize);
-
-
+syscall!(sys_dup3, SYSCALL_DUP3, usize, usize, usize);
 
 // alloc
 syscall!(sys_brk, SYSCALL_BRK, usize);
+
+// memory
+syscall!(
+    sys_mmap,
+    SYSCALL_MMAP,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize
+);
+syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);

@@ -1,13 +1,17 @@
+use plic::Mode;
+
 use crate::arch::hart_id;
 use crate::driver::{DEVICE_TABLE, PLIC};
 use crate::task::schedule::schedule;
+use crate::task::{current_process, ProcessState};
 use crate::timer::{check_timer_queue, set_next_trigger};
-use plic::Mode;
 
 /// 时钟中断处理函数
 pub fn timer_interrupt_handler() {
     check_timer_queue();
     set_next_trigger();
+    let process = current_process().unwrap();
+    process.update_state(ProcessState::Ready);
     schedule();
 }
 

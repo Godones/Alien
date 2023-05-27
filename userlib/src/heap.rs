@@ -10,7 +10,6 @@ use crate::println;
 #[global_allocator]
 static HEAP: BuddyAllocator = BuddyAllocator::new();
 
-
 struct BuddyAllocator {
     heap: LockedHeap<32>,
 }
@@ -42,9 +41,7 @@ unsafe impl GlobalAlloc for BuddyAllocator {
             res
         };
         match res {
-            Ok(p) => {
-                p.as_ptr()
-            }
+            Ok(p) => p.as_ptr(),
             Err(_) => {
                 panic!("oom");
             }
@@ -54,4 +51,3 @@ unsafe impl GlobalAlloc for BuddyAllocator {
         self.heap.lock().dealloc(NonNull::new(ptr).unwrap(), layout);
     }
 }
-

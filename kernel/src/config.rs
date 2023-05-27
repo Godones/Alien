@@ -10,7 +10,7 @@ pub const CLOCK_FREQ: usize = 12500000;
 pub const RISCV_UART_ADDR: usize = 0x10_000_000;
 pub const RISCV_UART_RANG: usize = 0x100;
 // pub const MEMORY_END: usize = 0x88_000_000;
-pub const MEMORY_END: usize = 0x80000000 + 0x8000000 * 2;// 256MB ==0x90_000_0000
+pub const MEMORY_END: usize = 0x80000000 + 0x8000000 * 2; // 256MB ==0x90_000_0000
 
 pub const FRAME_SIZE: usize = 0x1000;
 //4KB
@@ -27,6 +27,10 @@ pub const MMIO: &[(usize, usize)] = &[
     (0x30_000_000, 0x10000000),
 ];
 
+// pub const PROCESS_HEAP_MAX: usize = 0x1_000_000_000_000; // 2^48 256TB
+
+pub const PROCESS_HEAP_MAX: usize = u32::MAX as usize + 1;
+// 2^32 4GB
 // 跳板页定义
 pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
