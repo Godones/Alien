@@ -55,7 +55,6 @@ pub struct MMapInfo {
     regions: Vec<MMapRegion>,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct MMapRegion {
     /// The start address of the mapping
@@ -71,7 +70,6 @@ pub struct MMapRegion {
     /// The offset in the file to start from
     pub offset: usize,
 }
-
 
 impl MMapInfo {
     pub fn new() -> Self {
@@ -114,9 +112,15 @@ impl MMapInfo {
     }
 }
 
-
 impl MMapRegion {
-    pub fn new(start: usize, len: usize, prot: ProtFlags, flags: MapFlags, fd: Arc<File>, offset: usize) -> Self {
+    pub fn new(
+        start: usize,
+        len: usize,
+        prot: ProtFlags,
+        flags: MapFlags,
+        fd: Arc<File>,
+        offset: usize,
+    ) -> Self {
         Self {
             start,
             len,
@@ -127,7 +131,6 @@ impl MMapRegion {
         }
     }
 }
-
 
 #[syscall_func(215)]
 pub fn do_munmap(start: usize, len: usize) -> isize {
@@ -153,4 +156,3 @@ pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offse
     }
     res.unwrap() as isize
 }
-

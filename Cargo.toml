@@ -11,7 +11,7 @@ members = [
     "modules/plic",
     "modules/uart",
     "apps/cat",
-    "apps/dbfs",
+    #    "apps/dbfs",
     "apps/init",
     "apps/ls",
     "apps/mkdir",
