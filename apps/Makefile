@@ -51,4 +51,5 @@ BUILD_CRATES := \
 	init \
 	mkdir \
 	ls \
-	cat
+	cat \
+	mmap 
