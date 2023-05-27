@@ -2,7 +2,7 @@
 #![no_main]
 
 use Mstd::println;
-use Mstd::process::{exec, fork, getpid, wait};
+use Mstd::process::{exec, fork, wait};
 use Mstd::thread::m_yield;
 
 #[no_mangle]

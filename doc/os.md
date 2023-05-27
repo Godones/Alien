@@ -38,11 +38,11 @@
 26. brk
 27. mount
 28. getdents
+29. munmap
+30. clone
 
 # 未过测试
 
-1. munmap
-3. clone
 
 
 
