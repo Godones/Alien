@@ -55,6 +55,10 @@ syscall_id!(SYSCALL_RENAMEAT, 38);
 syscall_id!(SYSCALL_MKDIRAT, 34);
 
 syscall_id!(SYSCALL_BRK, 214);
+syscall_id!(SYSCALL_MUNMAP, 215);
+syscall_id!(SYSCALL_MMAP, 222);
+
+
 syscall_id!(SYSCALL_NANO_SLEEP, 101);
 
 syscall_id!(SYSCALL_LIST, 1000);
@@ -231,7 +235,7 @@ syscall!(sys_flistxattr, SYSCALL_FLISTXATTR, usize, *mut u8, usize);
 syscall!(sys_removexattr, SYSCALL_REMOVEXATTR, *const u8, *const u8);
 syscall!(sys_lremovexattr, SYSCALL_LREMOVEXATTR, *const u8, *const u8);
 syscall!(sys_fremovexattr, SYSCALL_FREMOVEXATTR, usize, *const u8);
-syscall!(sys_getdents, SYSCALL_GETDENTS, *const u8, *mut u8, usize);
+syscall!(sys_getdents, SYSCALL_GETDENTS, usize, *mut u8, usize);
 
 syscall!(sys_truncate, SYSCALL_TRUNCATE, *const u8, usize);
 syscall!(sys_ftruncate, SYSCALL_FTRUNCATE, usize, usize);
@@ -243,3 +247,8 @@ syscall!(sys_dup3, SYSCALL_DUP3, usize, usize, usize);
 
 // alloc
 syscall!(sys_brk, SYSCALL_BRK, usize);
+
+
+// memory
+syscall!(sys_mmap, SYSCALL_MMAP, usize, usize, usize, usize, usize, usize);
+syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);

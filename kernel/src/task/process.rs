@@ -3,8 +3,8 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
+use page_table::{AddressSpace, Area, PTableError, PTEFlags, vpn_f_c_range};
 use page_table::VPN;
-use page_table::{vpn_f_c_range, AddressSpace, PTEFlags, PTableError};
 use rvfs::dentry::DirEntry;
 use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
@@ -13,15 +13,15 @@ use spin::{Mutex, MutexGuard};
 
 use gmanager::MinimalManager;
 
-use crate::config::FRAME_SIZE;
 use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
+use crate::config::FRAME_SIZE;
 use crate::error::AlienError;
 use crate::fs::{STDIN, STDOUT};
-use crate::memory::{build_elf_address_space, kernel_satp};
+use crate::memory::{build_elf_address_space, kernel_satp, MapFlags, MMapInfo, MMapRegion, ProtFlags};
 use crate::task::context::Context;
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::trap::{trap_return, TrapFrame, user_trap_vector};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -63,6 +63,7 @@ pub struct ProcessInner {
     pub statistical_data: StatisticalData,
     pub exit_code: i32,
     pub heap: HeapInfo,
+    pub mmap: MMapInfo,
 }
 
 #[derive(Debug, Clone)]
@@ -405,6 +406,71 @@ impl ProcessInner {
         self.heap.end = new_end;
         Ok(end)
     }
+
+    pub fn add_mmap(&mut self, _start: usize, len: usize, prot: ProtFlags, flags: MapFlags, fd: usize, offset: usize) -> Result<usize, isize> {
+        let file = self.fd_table.get(fd).map_err(|_| -1isize)?;
+        if file.is_none() {
+            return Err(-1);
+        }
+        let v_range = self.mmap.alloc(len);
+        let region = MMapRegion::new(v_range.start, len, prot, flags, file.unwrap(), offset);
+        // warn!("add mmap region:{:#x?}",region);
+        self.mmap.add_region(region);
+        let start = v_range.start;
+        let v_range = vpn_f_c_range!(start,v_range.end);
+        let map_area = Area::new(v_range, None, prot.into());
+        // we need solve page fault
+        self.address_space.tmp_push(map_area, false);
+
+        Ok(start)
+    }
+
+    pub fn unmap(&mut self, start: usize, len: usize) -> Result<(), isize> {
+        // check whether the start is in mmap
+        let x = self.mmap.get_region(start);
+        if x.is_none() {
+            return Err(-1);
+        }
+        // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
+        let region = x.unwrap();
+        if region.start != start || len != region.len {
+            return Err(-1);
+        }
+        // unmap
+        // let end  = (start+len+FRAME_SIZE-1)&!(FRAME_SIZE-1);// align to FRAME_SIZE
+        let area = self.address_space.find_area(VPN::floor_address(start));
+        assert!(area.is_some());
+        let map_area = area.unwrap().clone();
+        self.address_space.unmap(&map_area).unwrap();
+        self.mmap.remove_region(start);
+
+        Ok(())
+    }
+
+
+    pub fn do_load_page_fault(&mut self, addr: usize) -> Result<(Arc<File>, &'static mut [u8], u64), isize> {
+        // check whether the addr is in mmap
+        let x = self.mmap.get_region(addr);
+        if x.is_none() {
+            return Err(-1);
+        }
+        // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
+        let region = x.unwrap();
+        assert_eq!(addr % FRAME_SIZE, 0);
+        // update page table
+        // let pte = self.address_space.find_pte(VPN::floor_address(addr));
+        self.address_space.tmp_make_valid(VPN::floor_address(addr));
+        // load page
+        let phy = self.address_space.virtual_to_physical(addr).unwrap();
+        let buf = unsafe {
+            core::slice::from_raw_parts_mut(phy as *mut u8, FRAME_SIZE)
+        };
+        let file = &region.fd;
+
+        let read_offset = region.offset + (addr - region.start);
+
+        Ok((file.clone(), buf, read_offset as u64))
+    }
 }
 
 impl Process {
@@ -451,6 +517,7 @@ impl Process {
                 statistical_data: StatisticalData::new(),
                 exit_code: 0,
                 heap: HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom),
+                mmap: MMapInfo::new(),
             }),
         };
         let trap_frame = process.trap_frame();
@@ -489,6 +556,7 @@ impl Process {
                 statistical_data: StatisticalData::new(),
                 exit_code: 0,
                 heap: inner.heap.clone(),
+                mmap: inner.mmap.clone(),
             }),
         };
         let process = Arc::new(process);
@@ -513,6 +581,7 @@ impl Process {
         inner.address_space = address_space;
         inner.trap_frame = trap_frame;
         inner.heap = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);
+        inner.mmap = MMapInfo::new();
 
         // push the args to the top of stack of the process
         // we have push '\0' into the arg string,so we don't need to push it again

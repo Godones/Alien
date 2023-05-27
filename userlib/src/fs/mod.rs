@@ -1,11 +1,14 @@
-mod attr;
+use alloc::format;
+use alloc::string::{String, ToString};
+use core::fmt::{Debug, Formatter, Pointer};
 
-use crate::syscall::*;
-use alloc::string::String;
 use bitflags::bitflags;
-use core::fmt::{Debug, Formatter};
 
 pub use attr::*;
+
+use crate::syscall::*;
+
+mod attr;
 
 bitflags! {
     pub struct OpenFlags:u32{
@@ -74,6 +77,67 @@ bitflags! {
     }
 }
 
+#[repr(C)]
+#[derive(Debug)]
+pub struct Dirent64 {
+    /// ino is an inode number
+    pub ino: u64,
+    /// off is an offset to next linux_dirent
+    pub off: i64,
+    /// reclen is the length of this linux_dirent
+    pub reclen: u16,
+    /// type is the file type
+    pub type_: DirentType,
+    /// name is the filename (null-terminated)
+    pub name: [u8; 0],
+}
+
+impl Dirent64 {
+    pub fn get_name(&self) -> &str {
+        unsafe {
+            let name = self.name.as_ptr();
+            let name = core::ffi::CStr::from_ptr(name as *const i8);
+            name.to_str().unwrap()
+        }
+    }
+    pub fn len(&self) -> usize {
+        self.reclen as usize
+    }
+}
+
+
+bitflags! {
+    pub struct DirentType:u8{
+        const DT_UNKNOWN = 0;
+        const DT_FIFO = 1;
+        const DT_CHR = 2;
+        const DT_DIR = 4;
+        const DT_BLK = 6;
+        const DT_REG = 8;
+        const DT_LNK = 10;
+        const DT_SOCK = 12;
+        const DT_WHT = 14;
+    }
+}
+
+impl ToString for DirentType {
+    fn to_string(&self) -> String {
+        match *self {
+            DirentType::DT_UNKNOWN => "unknown".to_string(),
+            DirentType::DT_FIFO => "fifo".to_string(),
+            DirentType::DT_CHR => "char".to_string(),
+            DirentType::DT_DIR => "dir".to_string(),
+            DirentType::DT_BLK => "block".to_string(),
+            DirentType::DT_REG => "regular".to_string(),
+            DirentType::DT_LNK => "link".to_string(),
+            DirentType::DT_SOCK => "sock".to_string(),
+            DirentType::DT_WHT => "whiteout".to_string(),
+            _ => "unknown".to_string(),
+        }
+    }
+}
+
+
 pub fn read(fd: usize, buf: &mut [u8]) -> isize {
     sys_read(fd, buf.as_mut_ptr(), buf.len())
 }
@@ -137,6 +201,7 @@ pub fn get_cwd(buf: &mut [u8]) -> Result<&str, IoError> {
 pub fn chdir(path: &str) -> isize {
     sys_chdir(path.as_ptr())
 }
+
 pub fn mkdir(path: &str) -> isize {
     sys_mkdir(path.as_ptr())
 }
@@ -164,6 +229,7 @@ pub fn linkat(
         flag.bits() as usize,
     )
 }
+
 pub fn unlinkat(fd: isize, path: &str, flag: usize) -> isize {
     sys_unlinkat(fd, path.as_ptr(), flag)
 }
@@ -249,4 +315,5 @@ impl Debug for StatFs {
             .finish()
     }
 }
+
 pub const AT_FDCWD: isize = -100isize;

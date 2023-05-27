@@ -1,6 +1,15 @@
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::ops::Range;
+
 use bitflags::bitflags;
+use page_table::AreaPermission;
+use rvfs::file::File;
 
 use syscall_table::syscall_func;
+
+use crate::config::{FRAME_SIZE, PROCESS_HEAP_MAX};
+use crate::task::current_process;
 
 bitflags! {
     pub struct ProtFlags: u32 {
@@ -8,6 +17,23 @@ bitflags! {
         const PROT_READ = 0x1;
         const PROT_WRITE = 0x2;
         const PROT_EXEC = 0x4;
+    }
+}
+
+impl Into<AreaPermission> for ProtFlags {
+    fn into(self) -> AreaPermission {
+        let mut perm = AreaPermission::empty();
+        if self.contains(ProtFlags::PROT_READ) {
+            perm |= AreaPermission::R;
+        }
+        if self.contains(ProtFlags::PROT_WRITE) {
+            perm |= AreaPermission::W;
+        }
+        if self.contains(ProtFlags::PROT_EXEC) {
+            perm |= AreaPermission::X;
+        }
+        perm |= AreaPermission::U;
+        perm
     }
 }
 
@@ -20,32 +46,111 @@ bitflags! {
     }
 }
 
-// #[syscall_func(215)]
-// pub fn do_munmap(start: usize, len: usize) -> isize {
-//     // let process = current_process().unwrap();
-//     // let mut inner = process.access_inner();
-//     // let heap_info = inner.heap_info();
-//     // if start == 0 {
-//     //     return heap_info.end as isize;
-//     // }
-//     // if start < heap_info.start {
-//     //     return -1;
-//     // }
-//     // if start > heap_info.end {
-//     //     let additional = start - heap_info.end;
-//     //     let res = inner.extend_heap(additional);
-//     //     if res.is_err() {
-//     //         return -1;
-//     //     }
-//     // }
-//     // start as isize
-//     0
-// }
+#[derive(Debug, Clone)]
+/// The Process should manage the mmap info
+pub struct MMapInfo {
+    /// The start address of the mmap, it is a constant
+    map_start: usize,
+    /// The regions of the mmap
+    regions: Vec<MMapRegion>,
+}
 
-// /// #Reference: https://man7.org/linux/man-pages/man2/mmap.2.html
-// #[syscall_func(222)]
-// pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> isize {
-//     0
-// }
-//
-//
+
+#[derive(Debug, Clone)]
+pub struct MMapRegion {
+    /// The start address of the mapping
+    pub start: usize,
+    /// The length of the mapping
+    pub len: usize,
+    /// The protection flags of the mapping
+    pub prot: ProtFlags,
+    /// The flags of the mapping
+    pub flags: MapFlags,
+    /// The file descriptor to map
+    pub fd: Arc<File>,
+    /// The offset in the file to start from
+    pub offset: usize,
+}
+
+
+impl MMapInfo {
+    pub fn new() -> Self {
+        Self {
+            map_start: PROCESS_HEAP_MAX,
+            regions: Vec::new(),
+        }
+    }
+
+    pub fn alloc(&mut self, len: usize) -> Range<usize> {
+        let addr = self.map_start;
+        self.map_start += len;
+        // align to Frame size
+        self.map_start = (self.map_start + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+        addr..self.map_start
+    }
+
+    pub fn add_region(&mut self, region: MMapRegion) {
+        self.regions.push(region);
+    }
+
+    pub fn get_region(&self, addr: usize) -> Option<&MMapRegion> {
+        for region in self.regions.iter() {
+            if region.start <= addr && addr < region.start + region.len {
+                return Some(region);
+            }
+        }
+        None
+    }
+
+    pub fn remove_region(&mut self, addr: usize) {
+        let mut index = 0;
+        for region in self.regions.iter() {
+            if region.start <= addr && addr < region.start + region.len {
+                break;
+            }
+            index += 1;
+        }
+        self.regions.remove(index);
+    }
+}
+
+
+impl MMapRegion {
+    pub fn new(start: usize, len: usize, prot: ProtFlags, flags: MapFlags, fd: Arc<File>, offset: usize) -> Self {
+        Self {
+            start,
+            len,
+            prot,
+            flags,
+            fd,
+            offset,
+        }
+    }
+}
+
+
+#[syscall_func(215)]
+pub fn do_munmap(start: usize, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let res = process.access_inner().unmap(start, len);
+    if res.is_err() {
+        return -1;
+    }
+    0
+}
+
+/// #Reference: https://man7.org/linux/man-pages/man2/mmap.2.html
+#[syscall_func(222)]
+pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> isize {
+    let process = current_process().unwrap();
+    let mut process_inner = process.access_inner();
+    let prot = ProtFlags::from_bits_truncate(prot);
+    let flags = MapFlags::from_bits_truncate(flags);
+
+    let res = process_inner.add_mmap(start, len, prot, flags, fd, offset);
+    if res.is_err() {
+        return -1;
+    }
+    res.unwrap() as isize
+}
+
