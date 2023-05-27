@@ -1,4 +1,4 @@
-use core::arch::{global_asm};
+use core::arch::global_asm;
 
 /// 线程切换需要保存的上下文
 ///
@@ -23,7 +23,6 @@ impl Context {
         }
     }
 }
-
 
 global_asm!(include_str!("switch.asm"));
 

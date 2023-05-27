@@ -14,24 +14,21 @@ use crate::process::exit;
 use crate::syscall::sys_shutdown;
 
 pub mod common;
-pub mod dbfs;
 pub mod fs;
 mod heap;
 pub mod io;
+pub mod ipc;
 mod macros;
+pub mod memory;
 mod panic;
 pub mod process;
 mod sys;
 mod syscall;
 pub mod thread;
 pub mod time;
-pub mod ipc;
-pub mod memory;
-
 
 #[no_mangle]
 fn _start(argc: usize, argv: usize) -> ! {
-    // init_heap();
     let argv = parse_args(argc, argv);
     exit(unsafe { main(argc, argv) });
 }

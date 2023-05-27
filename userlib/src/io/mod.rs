@@ -1,10 +1,12 @@
-mod stdio;
 use alloc::string::String;
 use core::fmt;
-use core2::io::{BufRead, Read, Write};
-use stdio::*;
 
+use core2::io::{BufRead, Read, Write};
+
+use stdio::*;
 pub use stdio::{stdin, stdout, StdinLock, StdoutLock};
+
+mod stdio;
 
 type Result<T> = core2::io::Result<T>;
 
@@ -51,16 +53,17 @@ impl<B: BufRead> Iterator for Lines<B> {
 
 #[macro_export]
 macro_rules! print {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::io::_print(format_args!($fmt $(, $($arg)+)?));
-    }
+    ($($arg:tt)*) => {
+        $crate::io::_print(format_args!($($arg)*))
+    };
 }
 
 #[macro_export]
 macro_rules! println {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::io::_print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
-    }
+    () => ($crate::print!("\n"));
+    ($fmt:expr) => ($crate::print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::print!(
+        concat!($fmt, "\n"), $($arg)*));
 }
 
 fn print_to<T>(args: fmt::Arguments<'_>, global_s: fn() -> T, label: &str)

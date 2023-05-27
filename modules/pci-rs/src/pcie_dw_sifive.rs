@@ -41,10 +41,10 @@ const PCIE_ATU_DEV(x)                 (((x) & 0x1f) << 19);
 const PCIE_ATU_FUNC(x)                (((x) & 0x7) << 16);
 
 const PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(region)        ((region) << 9)
-*/ 
- /* Parameters for the waiting for iATU enabled routine */
+*/
+/* Parameters for the waiting for iATU enabled routine */
 const LINK_WAIT_MAX_IATU_RETRIES: u32 = 5;
-const LINK_WAIT_IATU            : u32 = 10000;
+const LINK_WAIT_IATU: u32 = 10000;
 
 #[derive(Debug)]
 pub enum PciSize {
@@ -59,7 +59,7 @@ fn pci_bus(d: u32) -> u32 {
 }
 fn pci_dev(d: u32) -> u32 {
     (d >> 11) & 0x1f
-}    
+}
 fn pci_func(d: u32) -> u32 {
     (d >> 8) & 0x7
 }
@@ -103,13 +103,15 @@ fn udelay(n: u32) {
     let mut i = 0;
     loop {
         i += 1;
-        if i > n { break; }
+        if i > n {
+            break;
+        }
     }
 }
 
 fn pci_get_ff(size: PciSize) -> u32 {
     match size {
-        PciSize::Pci8  => 0xff,
+        PciSize::Pci8 => 0xff,
         PciSize::Pci16 => 0xffff,
         PciSize::Pci32 => 0xffffffff,
     }
@@ -117,7 +119,7 @@ fn pci_get_ff(size: PciSize) -> u32 {
 
 fn pci_conv_32_to_size(value: u64, offset: u32, size: PciSize) -> u64 {
     match size {
-        PciSize::Pci8  => (value >> ((offset & 3) * 8)) & 0xff,
+        PciSize::Pci8 => (value >> ((offset & 3) * 8)) & 0xff,
         PciSize::Pci16 => (value >> ((offset & 2) * 8)) & 0xffff,
         PciSize::Pci32 => value,
     }
@@ -129,14 +131,14 @@ fn pci_conv_size_to_32(old: u64, value: u64, offset: u32, size: PciSize) -> u64 
         PciSize::Pci8 => {
             off_mask = 3;
             val_mask = 0xff;
-        },
+        }
         PciSize::Pci16 => {
             off_mask = 2;
             val_mask = 0xffff;
-        },
+        }
         PciSize::Pci32 => {
             return value;
-        },
+        }
     }
     let shift = (offset & off_mask) * 8;
     let ldata = (value & val_mask) << shift;
@@ -165,10 +167,20 @@ fn dw_pcie_readl_ob_unroll(index: u32, reg: u32) -> u32 {
 // @pci_addr: the pcie bus address for the translation entry
 // @size: the size of the translation entry
 // Return: 0 is successful and -1 is failure
-fn pcie_dw_prog_outbound_atu_unroll(index: u32, atu_type: u32, cpu_addr: u64, pci_addr: u64, size: u64) -> Result<i32, &'static str> {
+fn pcie_dw_prog_outbound_atu_unroll(
+    index: u32,
+    atu_type: u32,
+    cpu_addr: u64,
+    pci_addr: u64,
+    size: u64,
+) -> Result<i32, &'static str> {
     dw_pcie_writel_ob_unroll(index, PCIE_ATU_UNR_LOWER_BASE, lower_32_bits(cpu_addr));
     dw_pcie_writel_ob_unroll(index, PCIE_ATU_UNR_UPPER_BASE, upper_32_bits(cpu_addr));
-    dw_pcie_writel_ob_unroll(index, PCIE_ATU_UNR_LIMIT, lower_32_bits(cpu_addr + size - 1));
+    dw_pcie_writel_ob_unroll(
+        index,
+        PCIE_ATU_UNR_LIMIT,
+        lower_32_bits(cpu_addr + size - 1),
+    );
 
     dw_pcie_writel_ob_unroll(index, PCIE_ATU_UNR_LOWER_TARGET, lower_32_bits(pci_addr));
     dw_pcie_writel_ob_unroll(index, PCIE_ATU_UNR_UPPER_TARGET, upper_32_bits(pci_addr));
@@ -180,7 +192,10 @@ fn pcie_dw_prog_outbound_atu_unroll(index: u32, atu_type: u32, cpu_addr: u64, pc
 
     for _ in 0..LINK_WAIT_MAX_IATU_RETRIES {
         let val = dw_pcie_readl_ob_unroll(index, PCIE_ATU_UNR_REGION_CTRL2);
-        trace!("dw_pcie_readl_ob_unroll PCIE_ATU_UNR_REGION_CTRL2: {:#x}", val);
+        trace!(
+            "dw_pcie_readl_ob_unroll PCIE_ATU_UNR_REGION_CTRL2: {:#x}",
+            val
+        );
         if (val & PCIE_ATU_ENABLE) != 0 {
             return Ok(0);
         }
@@ -190,7 +205,7 @@ fn pcie_dw_prog_outbound_atu_unroll(index: u32, atu_type: u32, cpu_addr: u64, pc
 
     error!("outbound iATU is not being enabled");
 
-    return Err("outbound iATU is not being enabled"); 
+    return Err("outbound iATU is not being enabled");
 }
 
 fn set_cfg_address(bdf: u32, offset: u32) -> Option<u64> {
@@ -201,8 +216,8 @@ fn set_cfg_address(bdf: u32, offset: u32) -> Option<u64> {
         va_address = DBI_BASE;
     } else {
         let atu_type = if bus == 1 {
-        // For local bus whose primary bus number is root bridge,
-        // change TLP Type field to 4.
+            // For local bus whose primary bus number is root bridge,
+            // change TLP Type field to 4.
             PCIE_ATU_TYPE_CFG0
         } else {
             // Otherwise, change TLP Type field to 5.
@@ -211,12 +226,18 @@ fn set_cfg_address(bdf: u32, offset: u32) -> Option<u64> {
 
         // PCI_ADD_BUS, PCI_MASK_BUS
         let bdf = (bus << 16) | (bdf & 0xffff);
-        let ret = pcie_dw_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX1, atu_type, CFG_BASE, (bdf as u64) << 8, CFG_SIZE);
+        let ret = pcie_dw_prog_outbound_atu_unroll(
+            PCIE_ATU_REGION_INDEX1,
+            atu_type,
+            CFG_BASE,
+            (bdf as u64) << 8,
+            CFG_SIZE,
+        );
 
         match ret {
             Ok(_) => {
                 va_address = CFG_BASE;
-            },
+            }
             Err(_) => return None,
         }
     }
@@ -225,8 +246,20 @@ fn set_cfg_address(bdf: u32, offset: u32) -> Option<u64> {
     Some(va_address)
 }
 
-pub fn pcie_dw_read_config(bdf: u32, offset: u32, valuep: &mut u64, size: PciSize) -> Result<i32, &str> {
-    trace!("PCIE CFG  read: bdf={:#x}= {:2}:{:2}:{:2}, offset={:#x}", bdf, pci_bus(bdf), pci_dev(bdf), pci_func(bdf), offset);
+pub fn pcie_dw_read_config(
+    bdf: u32,
+    offset: u32,
+    valuep: &mut u64,
+    size: PciSize,
+) -> Result<i32, &str> {
+    trace!(
+        "PCIE CFG  read: bdf={:#x}= {:2}:{:2}:{:2}, offset={:#x}",
+        bdf,
+        pci_bus(bdf),
+        pci_dev(bdf),
+        pci_func(bdf),
+        offset
+    );
     if !pcie_dw_addr_valid(bdf, FIRST_BUSNO) {
         trace!("bdf: {:#x} to read - out of range", bdf);
         *valuep = pci_get_ff(size) as u64;
@@ -238,16 +271,40 @@ pub fn pcie_dw_read_config(bdf: u32, offset: u32, valuep: &mut u64, size: PciSiz
         let value: u32 = readv(va_address);
 
         *valuep = pci_conv_32_to_size(value as u64, offset, size);
-        trace!("Read @ {:#x}, value: {:#x}, converted to value: {:#x}", va_address, value, valuep);
+        trace!(
+            "Read @ {:#x}, value: {:#x}, converted to value: {:#x}",
+            va_address,
+            value,
+            valuep
+        );
     } else {
         error!("Set config address failed !");
     }
 
-    pcie_dw_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX1, PCIE_ATU_TYPE_IO, IO_BASE, IO_BUS_ADDR, IO_SIZE)
+    pcie_dw_prog_outbound_atu_unroll(
+        PCIE_ATU_REGION_INDEX1,
+        PCIE_ATU_TYPE_IO,
+        IO_BASE,
+        IO_BUS_ADDR,
+        IO_SIZE,
+    )
 }
 
-pub fn pcie_dw_write_config(bdf: u32, offset: u32, value: u64, size: PciSize) -> Result<i32, &'static str> {
-    trace!("PCIE CFG write: bdf={:#x} ={:2}:{:2}:{:2}, offset={:#x}, value={:#x}", bdf, pci_bus(bdf), pci_dev(bdf), pci_func(bdf), offset, value);
+pub fn pcie_dw_write_config(
+    bdf: u32,
+    offset: u32,
+    value: u64,
+    size: PciSize,
+) -> Result<i32, &'static str> {
+    trace!(
+        "PCIE CFG write: bdf={:#x} ={:2}:{:2}:{:2}, offset={:#x}, value={:#x}",
+        bdf,
+        pci_bus(bdf),
+        pci_dev(bdf),
+        pci_func(bdf),
+        offset,
+        value
+    );
     if !pcie_dw_addr_valid(bdf, FIRST_BUSNO) {
         trace!("bdf: {:#x} to write - out of range", bdf);
         return Ok(0);
@@ -256,14 +313,25 @@ pub fn pcie_dw_write_config(bdf: u32, offset: u32, value: u64, size: PciSize) ->
     if let Some(va_address) = set_cfg_address(bdf, offset) {
         let old: u32 = readv(va_address);
         let value = pci_conv_size_to_32(old as u64, value, offset, size);
-        
+
         writev(va_address, value as u32);
-        trace!("Write @ {:#x}, old: {:#x}, converted to value: {:#x}", va_address, old, value);
+        trace!(
+            "Write @ {:#x}, old: {:#x}, converted to value: {:#x}",
+            va_address,
+            old,
+            value
+        );
     } else {
         error!("Set config address failed !");
     }
 
-    pcie_dw_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX1, PCIE_ATU_TYPE_IO, IO_BASE, IO_BUS_ADDR, IO_SIZE)
+    pcie_dw_prog_outbound_atu_unroll(
+        PCIE_ATU_REGION_INDEX1,
+        PCIE_ATU_TYPE_IO,
+        IO_BASE,
+        IO_BUS_ADDR,
+        IO_SIZE,
+    )
 }
 
 #[inline(always)]

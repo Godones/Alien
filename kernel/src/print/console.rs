@@ -1,33 +1,37 @@
-use crate::driver::uart::{CharDevice, UART, USER_UART};
 use core::fmt::{Arguments, Result, Write};
+
 use preprint::Print;
+
+use crate::driver::uart::{CharDevice, UART, USER_UART};
 
 #[macro_export]
 macro_rules! print {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::print::console::__print(format_args!($fmt $(, $($arg)+)?));
-    }
+    ($($arg:tt)*) => {
+        $crate::print::console::__print(format_args!($($arg)*))
+    };
 }
 
 #[macro_export]
 macro_rules! println {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::print::console::__print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
-    }
+    () => ($crate::print!("\n"));
+    ($fmt:expr) => ($crate::print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::print!(
+        concat!($fmt, "\n"), $($arg)*));
 }
 
 #[macro_export]
 macro_rules! uprint {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::print::console::__uprint(format_args!($fmt $(, $($arg)+)?));
-    }
+   ($($arg:tt)*) => {
+        $crate::print::console::__uprint(format_args!($($arg)*))
+    };
 }
 
 #[macro_export]
 macro_rules! uprintln {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::print::console::__uprint(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
-    }
+     () => ($crate::uprint!("\n"));
+    ($fmt:expr) => ($crate::uprint!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::uprint!(
+        concat!($fmt, "\n"), $($arg)*));
 }
 
 struct Stdout;
@@ -71,6 +75,7 @@ impl Print for PrePrint {
         print!("{}", args);
     }
 }
+
 impl Write for PrePrint {
     fn write_str(&mut self, s: &str) -> Result {
         print!("{}", s);

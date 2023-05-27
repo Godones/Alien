@@ -15,8 +15,8 @@ use crate::arch::hart_id;
 use crate::config::FRAME_SIZE;
 
 mod frame;
-mod vmm;
 mod map;
+mod vmm;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {

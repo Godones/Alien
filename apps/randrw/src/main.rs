@@ -1,15 +1,14 @@
 #![no_main]
 #![no_std]
 
-
 extern crate alloc;
 
 use alloc::vec;
 
-use rand::{RngCore, SeedableRng};
 use rand::rngs::SmallRng;
+use rand::{RngCore, SeedableRng};
 
-use Mstd::fs::{close, open, OpenFlags, read, seek, write};
+use Mstd::fs::{close, open, read, seek, write, OpenFlags};
 use Mstd::println;
 use Mstd::time::get_time_ms;
 

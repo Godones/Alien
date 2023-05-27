@@ -2,18 +2,17 @@
 
 mod pipe;
 
-use syscall_table::syscall_func;
 use crate::task::current_process;
+use syscall_table::syscall_func;
 
-pub use pipe::RingBuffer;
 use crate::fs::sys_close;
+pub use pipe::RingBuffer;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 struct FdPair {
     fd: [u32; 2],
 }
-
 
 #[syscall_func(59)]
 pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
@@ -36,7 +35,6 @@ pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
     0
 }
 
-
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(23)]
 pub fn sys_dup(old_fd: usize) -> isize {
@@ -52,7 +50,6 @@ pub fn sys_dup(old_fd: usize) -> isize {
     }
     new_fd.unwrap() as isize
 }
-
 
 #[syscall_func(24)]
 pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
