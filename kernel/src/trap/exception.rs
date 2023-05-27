@@ -1,6 +1,10 @@
+use riscv::register::scause::{Exception, Trap};
+use rvfs::file::vfs_read_file;
+
 use crate::arch::interrupt_enable;
+use crate::fs::vfs::VfsProvider;
 use crate::syscall;
-use crate::task::current_trap_frame;
+use crate::task::{current_process, current_trap_frame, do_exit};
 
 pub fn syscall_exception_handler() {
     // enable interrupt
@@ -17,13 +21,32 @@ pub fn syscall_exception_handler() {
 }
 
 /// the solution for page fault
-pub fn page_exception_handler() {
-    let args = [-1isize as usize];
-    syscall::do_syscall(93, &args);
+pub fn page_exception_handler(trap: Trap, addr: usize) {
+    match trap {
+        Trap::Exception(Exception::LoadPageFault) => {
+            load_page_fault_exception_handler(addr)
+        }
+        _ => {
+            do_exit(-1);
+        }
+    }
+}
+
+
+pub fn load_page_fault_exception_handler(addr: usize) {
+    let info = {
+        let process = current_process().unwrap();
+        process.access_inner().do_load_page_fault(addr)
+    };
+    if info.is_err() {
+        do_exit(-1);
+    }
+    let (file, buf, offset) = info.unwrap();
+    let r = vfs_read_file::<VfsProvider>(file, buf, offset);
+    println!("read file result: {:?}", r);
 }
 
 /// the solution for illegal instruction
 pub fn illegal_instruction_exception_handler() {
-    let args = [-3isize as usize];
-    syscall::do_syscall(93, &args);
+    do_exit(-3);
 }

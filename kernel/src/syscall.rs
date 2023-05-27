@@ -56,6 +56,8 @@ pub fn register_all_syscall(){
 	(14, sys_removexattr),
 	(15, sys_lremovexattr),
 	(16, sys_fremovexattr),
+	(215, do_munmap),
+	(222, do_mmap),
 
 	);
 	SYSCALL_TABLE.call_once(||table);
@@ -107,6 +109,8 @@ use crate::fs::sys_write;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
 use crate::ipc::sys_pipe;
+use crate::memory::do_mmap;
+use crate::memory::do_munmap;
 use crate::sbi::shutdown;
 use crate::system::sys_uname;
 use crate::task::do_brk;
