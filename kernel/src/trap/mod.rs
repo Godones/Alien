@@ -1,18 +1,18 @@
 use core::arch::{asm, global_asm};
 
-use riscv::register::sstatus::SPP;
 use riscv::register::{sepc, sscratch, stval};
+use riscv::register::sstatus::SPP;
 
 pub use context::TrapFrame;
 
-use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
-use crate::arch::riscv::register::stvec;
-use crate::arch::riscv::register::stvec::TrapMode;
-use crate::arch::riscv::sstatus;
 use crate::arch::{
     external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable,
     timer_interrupt_enable,
 };
+use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
+use crate::arch::riscv::register::stvec;
+use crate::arch::riscv::register::stvec::TrapMode;
+use crate::arch::riscv::sstatus;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_process, current_user_token};
@@ -96,20 +96,17 @@ impl TrapHandler for Trap {
             | Trap::Exception(Exception::InstructionPageFault)
             | Trap::Exception(Exception::LoadFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                println!(
+                error!(
                     "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
                     self, stval, sepc
                 );
-                let process = current_process().unwrap();
-                let phy = process.transfer_raw(stval);
-                println!("physical address: {:#x?}", phy);
-                exception::page_exception_handler()
+                exception::page_exception_handler(self.clone(), stval)
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 interrupt::timer_interrupt_handler();
             }
             Trap::Exception(Exception::IllegalInstruction) => {
-                println!("[kernel] IllegalInstruction in application, kernel killed it.");
+                error!("[kernel] IllegalInstruction in application, kernel killed it.");
                 exception::illegal_instruction_exception_handler()
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
