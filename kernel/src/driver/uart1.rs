@@ -4,11 +4,11 @@ use alloc::sync::Arc;
 use bitflags::bitflags;
 use volatile::{ReadOnly, Volatile, WriteOnly};
 
-use crate::driver::DeviceBase;
 use crate::driver::uart::CharDevice;
+use crate::driver::DeviceBase;
 use crate::sync::{IntrLock, IntrLockGuard};
-use crate::task::{current_process, Process, PROCESS_MANAGER, ProcessState};
 use crate::task::schedule::schedule;
+use crate::task::{current_process, Process, ProcessState, PROCESS_MANAGER};
 
 bitflags! {
     /// InterruptEnableRegiste
@@ -121,7 +121,6 @@ impl NS16550aRaw {
     }
 }
 
-
 pub struct Uart1 {
     inner: IntrLock<UartInner>,
 }
@@ -198,4 +197,3 @@ impl DeviceBase for Uart1 {
         }
     }
 }
-

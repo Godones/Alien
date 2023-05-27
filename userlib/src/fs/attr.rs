@@ -1,4 +1,5 @@
 use crate::syscall::*;
+
 pub fn setxattr(path: &str, name: &str, value: &[u8], flag: usize) -> isize {
     sys_setxattr(
         path.as_ptr(),
@@ -71,7 +72,6 @@ pub fn fremovexattr(fd: usize, name: &str) -> isize {
     sys_fremovexattr(fd, name.as_ptr())
 }
 
-
 pub fn truncate(path: &str, len: usize) -> isize {
     sys_truncate(path.as_ptr(), len)
 }
@@ -80,7 +80,6 @@ pub fn ftruncate(fd: usize, len: usize) -> isize {
     sys_ftruncate(fd, len)
 }
 
-
-pub fn getdents(path:&str, buf:&mut [u8]) -> isize {
-    sys_getdents(path.as_ptr(), buf.as_mut_ptr(), buf.len())
+pub fn getdents(fd: usize, buf: &mut [u8]) -> isize {
+    sys_getdents(fd, buf.as_mut_ptr(), buf.len())
 }

@@ -54,15 +54,13 @@ trace_info:
 
 user:
 	@cd apps && make all
-#	@echo "Moving apps to /fat32"
-#	@$(foreach dir, $(APPS_NAME), (sudo cp $(OUTPUT)$(dir) /fat/$(dir););)
-#	@sync
+
 
 
 build:compile
 
 
-run:install compile $(img) user SecondFile testelf
+run:install compile $(img) user testelf
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
 
