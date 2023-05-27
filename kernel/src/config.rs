@@ -27,7 +27,6 @@ pub const MMIO: &[(usize, usize)] = &[
     (0x30_000_000, 0x10000000),
 ];
 
-
 // pub const PROCESS_HEAP_MAX: usize = 0x1_000_000_000_000; // 2^48 256TB
 
 pub const PROCESS_HEAP_MAX: usize = u32::MAX as usize + 1;
