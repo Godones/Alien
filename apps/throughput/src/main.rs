@@ -1,12 +1,11 @@
 #![no_std]
 #![no_main]
 //! Test filesystem of throughput
-use Mstd::fs::{close, open, OpenFlags, read, write};
+use Mstd::fs::{close, open, read, write, OpenFlags};
 use Mstd::println;
 use Mstd::time::{get_time_ms, get_time_of_day, TimeVal};
 
 const FILE_SIZE: usize = 1024 * 1024 * 10;
-
 
 #[cfg(feature = "8k")]
 const BLOCK_SIZE: usize = 8192;
@@ -18,7 +17,6 @@ const BLOCK_SIZE: usize = 1024;
 const BLOCK_SIZE: usize = 512;
 #[cfg(feature = "256")]
 const BLOCK_SIZE: usize = 256;
-
 
 // generate a file with FILE_SIZE
 
@@ -59,7 +57,6 @@ fn test_throughput(path: &str) {
     let speed_kbs = total / time_ms;
     println!("time cost = {}ms, read speed = {}KB/s", time_ms, speed_kbs);
 }
-
 
 fn fat32() {
     generate_file("/fattest\0");

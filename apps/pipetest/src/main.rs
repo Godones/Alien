@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-
 use Mstd::fs::{close, read, write};
 use Mstd::ipc::pipe;
 use Mstd::println;

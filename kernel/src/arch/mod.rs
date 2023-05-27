@@ -1,8 +1,8 @@
 pub mod riscv;
 
-use core::arch::asm;
 use self::riscv::register::{scause, sie};
 use self::riscv::sstatus;
+use core::arch::asm;
 
 pub fn hart_id() -> usize {
     let id: usize;
@@ -78,5 +78,3 @@ macro_rules! write_csr {
         }
     };
 }
-
-

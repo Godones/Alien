@@ -51,8 +51,5 @@ BUILD_CRATES := \
 	init \
 	mkdir \
 	ls \
-	alloctest \
-	hugewrite \
-	hugeread \
-	randrw \
-	filetest_simple
+	cat \
+	mmap 
