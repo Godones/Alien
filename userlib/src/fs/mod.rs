@@ -105,7 +105,6 @@ impl Dirent64 {
     }
 }
 
-
 bitflags! {
     pub struct DirentType:u8{
         const DT_UNKNOWN = 0;
@@ -136,7 +135,6 @@ impl ToString for DirentType {
         }
     }
 }
-
 
 pub fn read(fd: usize, buf: &mut [u8]) -> isize {
     sys_read(fd, buf.as_mut_ptr(), buf.len())

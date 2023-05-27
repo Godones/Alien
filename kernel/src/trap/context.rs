@@ -1,4 +1,5 @@
 use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct TrapFrame {

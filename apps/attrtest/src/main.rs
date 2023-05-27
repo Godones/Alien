@@ -5,7 +5,7 @@ extern crate alloc;
 
 use alloc::vec;
 use alloc::vec::Vec;
-use Mstd::fs::{close, fgetxattr, flistxattr, fsetxattr, open, setxattr, OpenFlags};
+use Mstd::fs::{close, fgetxattr, flistxattr, fsetxattr, open, OpenFlags};
 use Mstd::println;
 
 #[no_mangle]

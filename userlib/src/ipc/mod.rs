@@ -1,5 +1,5 @@
-use bitflags::bitflags;
 use crate::syscall::{sys_dup, sys_dup3, sys_mmap, sys_munmap, sys_pipe};
+use bitflags::bitflags;
 
 pub fn pipe(fd: &mut [u32; 2]) -> isize {
     sys_pipe(fd.as_mut_ptr(), 0)
@@ -16,8 +16,6 @@ pub fn dup2(old_fd: usize, new_fd: usize) -> isize {
 pub fn dup3(old_fd: usize, new_fd: usize, flag: usize) -> isize {
     sys_dup3(old_fd, new_fd, flag)
 }
-
-
 
 bitflags! {
     pub struct ProtFlags: u32 {
@@ -36,8 +34,22 @@ bitflags! {
         const MAP_ANONYMOUS = 0x20;
     }
 }
-pub fn mmap(start: usize, len: usize, prot: ProtFlags, flag: MapFlags, fd: usize, offset: usize) -> isize {
-    sys_mmap(start, len, prot.bits() as usize, flag.bits() as usize, fd, offset)
+pub fn mmap(
+    start: usize,
+    len: usize,
+    prot: ProtFlags,
+    flag: MapFlags,
+    fd: usize,
+    offset: usize,
+) -> isize {
+    sys_mmap(
+        start,
+        len,
+        prot.bits() as usize,
+        flag.bits() as usize,
+        fd,
+        offset,
+    )
 }
 
 pub fn munmap(start: usize, len: usize) -> isize {

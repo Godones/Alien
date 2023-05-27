@@ -3,8 +3,8 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
-use page_table::{AddressSpace, Area, PTableError, PTEFlags, vpn_f_c_range};
 use page_table::VPN;
+use page_table::{vpn_f_c_range, AddressSpace, Area, PTEFlags, PTableError};
 use rvfs::dentry::DirEntry;
 use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
@@ -13,15 +13,18 @@ use spin::{Mutex, MutexGuard};
 
 use gmanager::MinimalManager;
 
-use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::config::FRAME_SIZE;
+use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::error::AlienError;
 use crate::fs::{STDIN, STDOUT};
-use crate::memory::{build_elf_address_space, kernel_satp, MapFlags, MMapInfo, MMapRegion, ProtFlags};
+use crate::memory::{
+    build_elf_address_space, kernel_satp, MMapInfo, MMapRegion, MapFlags, ProtFlags,
+};
 use crate::task::context::Context;
+use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, TrapFrame, user_trap_vector};
+use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -407,7 +410,15 @@ impl ProcessInner {
         Ok(end)
     }
 
-    pub fn add_mmap(&mut self, _start: usize, len: usize, prot: ProtFlags, flags: MapFlags, fd: usize, offset: usize) -> Result<usize, isize> {
+    pub fn add_mmap(
+        &mut self,
+        _start: usize,
+        len: usize,
+        prot: ProtFlags,
+        flags: MapFlags,
+        fd: usize,
+        offset: usize,
+    ) -> Result<usize, isize> {
         let file = self.fd_table.get(fd).map_err(|_| -1isize)?;
         if file.is_none() {
             return Err(-1);
@@ -417,7 +428,7 @@ impl ProcessInner {
         // warn!("add mmap region:{:#x?}",region);
         self.mmap.add_region(region);
         let start = v_range.start;
-        let v_range = vpn_f_c_range!(start,v_range.end);
+        let v_range = vpn_f_c_range!(start, v_range.end);
         let map_area = Area::new(v_range, None, prot.into());
         // we need solve page fault
         self.address_space.tmp_push(map_area, false);
@@ -447,8 +458,10 @@ impl ProcessInner {
         Ok(())
     }
 
-
-    pub fn do_load_page_fault(&mut self, addr: usize) -> Result<(Arc<File>, &'static mut [u8], u64), isize> {
+    pub fn do_load_page_fault(
+        &mut self,
+        addr: usize,
+    ) -> Result<(Arc<File>, &'static mut [u8], u64), isize> {
         // check whether the addr is in mmap
         let x = self.mmap.get_region(addr);
         if x.is_none() {
@@ -462,9 +475,7 @@ impl ProcessInner {
         self.address_space.tmp_make_valid(VPN::floor_address(addr));
         // load page
         let phy = self.address_space.virtual_to_physical(addr).unwrap();
-        let buf = unsafe {
-            core::slice::from_raw_parts_mut(phy as *mut u8, FRAME_SIZE)
-        };
+        let buf = unsafe { core::slice::from_raw_parts_mut(phy as *mut u8, FRAME_SIZE) };
         let file = &region.fd;
 
         let read_offset = region.offset + (addr - region.start);
@@ -563,6 +574,56 @@ impl Process {
         inner.children.push(process.clone());
         let trap_frame = process.trap_frame();
         trap_frame.update_kernel_sp(k_stack_top);
+        Some(process)
+    }
+
+    pub fn t_clone(
+        self: &Arc<Self>,
+        flag: CloneFlags,
+        stack: usize,
+        _sig: SignalFlags,
+        _ptid: usize,
+        _tls: usize,
+        _ctid: usize,
+    ) -> Option<Arc<Process>> {
+        assert_eq!(flag, CloneFlags::empty());
+        let pid = PID_MANAGER.lock().insert(0).unwrap();
+        let mut inner = self.inner.lock();
+        let address_space = AddressSpace::copy_from_other(&inner.address_space).ok()?;
+        let physical = address_space
+            .virtual_to_physical(TRAP_CONTEXT_BASE)
+            .unwrap();
+        let trap_frame = physical as *mut TrapFrame;
+        let k_stack = Stack::new(1)?;
+        let k_stack_top = k_stack.top();
+        let process = Process {
+            kernel_stack: k_stack,
+            pid: PidHandle(pid),
+            inner: Mutex::new(ProcessInner {
+                address_space,
+                state: ProcessState::Ready,
+                parent: Some(Arc::downgrade(self)),
+                children: Vec::new(),
+                trap_frame,
+                fd_table: inner.fd_table.clone(),
+                context: Context::new(trap_return as usize, k_stack_top),
+                fs_info: inner.fs_info.clone(),
+                statistical_data: StatisticalData::new(),
+                exit_code: 0,
+                heap: inner.heap.clone(),
+                mmap: inner.mmap.clone(),
+            }),
+        };
+        let process = Arc::new(process);
+        inner.children.push(process.clone());
+        let trap_frame = process.trap_frame();
+        trap_frame.update_kernel_sp(k_stack_top);
+
+        if stack != 0 {
+            // set the sp of the new process
+            trap_frame.regs()[2] = stack;
+        }
+
         Some(process)
     }
 

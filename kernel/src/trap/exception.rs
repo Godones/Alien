@@ -23,15 +23,12 @@ pub fn syscall_exception_handler() {
 /// the solution for page fault
 pub fn page_exception_handler(trap: Trap, addr: usize) {
     match trap {
-        Trap::Exception(Exception::LoadPageFault) => {
-            load_page_fault_exception_handler(addr)
-        }
+        Trap::Exception(Exception::LoadPageFault) => load_page_fault_exception_handler(addr),
         _ => {
             do_exit(-1);
         }
     }
 }
-
 
 pub fn load_page_fault_exception_handler(addr: usize) {
     let info = {
@@ -42,8 +39,7 @@ pub fn load_page_fault_exception_handler(addr: usize) {
         do_exit(-1);
     }
     let (file, buf, offset) = info.unwrap();
-    let r = vfs_read_file::<VfsProvider>(file, buf, offset);
-    println!("read file result: {:?}", r);
+    let _r = vfs_read_file::<VfsProvider>(file, buf, offset);
 }
 
 /// the solution for illegal instruction

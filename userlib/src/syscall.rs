@@ -58,7 +58,6 @@ syscall_id!(SYSCALL_BRK, 214);
 syscall_id!(SYSCALL_MUNMAP, 215);
 syscall_id!(SYSCALL_MMAP, 222);
 
-
 syscall_id!(SYSCALL_NANO_SLEEP, 101);
 
 syscall_id!(SYSCALL_LIST, 1000);
@@ -248,7 +247,15 @@ syscall!(sys_dup3, SYSCALL_DUP3, usize, usize, usize);
 // alloc
 syscall!(sys_brk, SYSCALL_BRK, usize);
 
-
 // memory
-syscall!(sys_mmap, SYSCALL_MMAP, usize, usize, usize, usize, usize, usize);
+syscall!(
+    sys_mmap,
+    SYSCALL_MMAP,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize,
+    usize
+);
 syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);
