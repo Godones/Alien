@@ -19,6 +19,6 @@ jobs:
           git fetch --all
           for branch in $(git branch --format='%(refname:short)'); do
             if [[ "$branch" != "gitlab-sync" ]]; then
-              git -c http.extraHeader="Authorization: Basic $(echo -n ${{ secrets.GITLAB_AUTH }} | base64)" push gitlab "$branch"
+              git -c http.extraHeader="Authorization: Basic $(echo -n ${{ secrets.GITLAB_AUTH }} | base64)" push gitlab "$branch" -f
             fi
           done
