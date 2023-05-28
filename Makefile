@@ -9,7 +9,6 @@ DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
 OBJDUMP     := rust-objdump --arch-name=riscv64
 OBJCOPY     := rust-objcopy --binary-architecture=riscv64
-BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
@@ -29,9 +28,9 @@ define boot_qemu
         -device virtio-blk-device,drive=x0 \
 	  	-drive file=$(IMG1),if=none,format=raw,id=x1 \
 		-device virtio-blk-device,drive=x1 \
-        -nographic \
+        -nographic \	
         -kernel  kernel-qemu\
-        -smp $(SMP) -m 256M \
+        -smp $(SMP) -m 128M \
         -serial mon:stdio
 endef
 
