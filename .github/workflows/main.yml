@@ -1,1 +1,24 @@
+name: Sync to GitLab
 
+on:
+  push:
+    branches-ignore:
+      - 'gitlab-sync'  # 忽略 'gitlab-sync' 分支，避免无限循环同步
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Push to GitLab
+        run: |
+          git remote add gitlab https://gitlab.eduxiji.net/202310007101563/Alien.git
+          git fetch --all
+          for branch in $(git branch --format='%(refname:short)'); do
+            if [[ "$branch" != "gitlab-sync" ]]; then
+              git -c http.extraHeader="Authorization: Basic $(echo -n ${{ secrets.GITLAB_AUTH }} | base64)" push gitlab "$branch"
+            fi
+          done
