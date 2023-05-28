@@ -12,6 +12,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # 获取完整的历史记录
+        
 
       - name: Push to GitLab
         run: |
