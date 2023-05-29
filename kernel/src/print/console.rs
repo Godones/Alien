@@ -2,7 +2,8 @@ use core::fmt::{Arguments, Result, Write};
 
 use preprint::Print;
 
-use crate::driver::uart::{CharDevice, UART, USER_UART};
+use crate::driver::uart::{CharDevice, USER_UART};
+use crate::sbi::console_putchar;
 
 #[macro_export]
 macro_rules! print {
@@ -39,7 +40,10 @@ struct Stdout;
 /// 对`Stdout`实现输出的Trait
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
-        UART.lock().write_str(s)
+        s.as_bytes().iter().for_each(|x| {
+            console_putchar(*x);
+        });
+        Ok(())
     }
 }
 
