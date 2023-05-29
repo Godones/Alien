@@ -11,7 +11,7 @@ use simple_bitmap::Bitmap;
 
 use crate::config::FRAME_SIZE;
 
-const MAX_FRAME_COUNT: usize = 0xf000;
+const MAX_FRAME_COUNT: usize = 0xf000 / 8;
 lazy_static! {
     pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<MAX_FRAME_COUNT>> = Mutex::new(Bitmap::new());
 }
@@ -20,12 +20,11 @@ extern "C" {
     fn ekernel();
 }
 
-#[no_mangle]
-pub fn init_frame_allocator() {
+
+pub fn init_frame_allocator(memory_end: usize) {
     let start = ekernel as usize;
-    let end = crate::config::MEMORY_END;
+    let end = memory_end;
     println!("memory start:{:#x},end:{:#x}", start, end);
-    // 计算页面数量
     let page_start = start / FRAME_SIZE;
     let page_end = end / FRAME_SIZE;
     let page_count = page_end - page_start;
@@ -33,7 +32,6 @@ pub fn init_frame_allocator() {
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
-    // FRAME_ALLOCATOR.lock().insert(0..page_count);
     println!("Frame allocator init success");
 }
 
