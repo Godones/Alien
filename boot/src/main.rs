@@ -44,12 +44,12 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
-        kernel_info();
+        kernel_info(machine_info.memory.end);
         print::init_logger();
         preprint::init_print(&print::PrePrint);
-        memory::init_frame_allocator();
+        memory::init_frame_allocator(machine_info.memory.end);
         memory::init_slab_system(FRAME_SIZE, 32);
-        memory::build_kernel_address_space();
+        memory::build_kernel_address_space(machine_info.memory.end);
         memory::activate_paging_mode();
         thread_local_init();
         // dbt probe and register
@@ -79,11 +79,6 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     // 等待其它cpu核启动
     wait_all_cpu_start();
     timer::set_next_trigger();
-
-    // loop {
-    //     // println!("Hello, world! I'm hart {}", hart_id);
-    // }
-
     task::schedule::first_into_user();
 }
 
