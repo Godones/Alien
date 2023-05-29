@@ -10,6 +10,8 @@ members = [
     "modules/systable-macro-derive",
     "modules/plic",
     "modules/uart",
+    "modules/syscall",
+    "modules/basemachine",
     "apps/cat",
     #    "apps/dbfs",
     "apps/init",
