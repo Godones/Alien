@@ -1,7 +1,10 @@
 use core::arch::asm;
+
 use syscall_table::syscall_func;
 
 const SBI_SET_TIMER: usize = 0;
+const SBI_CONSOLE_PUT_CHAR: usize = 1;
+const SBI_CONSOLE_GET_CHAR: usize = 2;
 // const SBI_CLEAR_IPI: usize = 3;
 // const SBI_SEND_IPI: usize = 4;
 // const SBI_REMOTE_FENCE_I: usize = 5;
@@ -34,6 +37,16 @@ pub fn shutdown() -> isize {
     sbi_call(SBI_SHUTDOWN, 0, 0, 0);
     // unreachable!()
     0
+}
+
+
+pub fn console_putchar(ch: u8) {
+    sbi_call(SBI_CONSOLE_PUT_CHAR, ch as usize, 0, 0);
+}
+
+
+pub fn console_getchar() -> char {
+    sbi_call(SBI_CONSOLE_GET_CHAR, 0, 0, 0) as u8 as char
 }
 
 // #[repr(C)]
