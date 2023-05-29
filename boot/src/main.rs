@@ -4,15 +4,17 @@
 use core::arch::global_asm;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use kernel::config::{CPU_NUM, FRAME_SIZE};
-use kernel::driver::rtc::get_rtc_time;
+
+use riscv::register::sstatus::{set_spp, SPP};
+
+use basemachine::machine_info_from_dtb;
 use kernel::{
     config, driver, memory, print, println, syscall, task, thread_local_init, timer, trap,
 };
-
+use kernel::config::{CPU_NUM, FRAME_SIZE};
+use kernel::driver::rtc::get_rtc_time;
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::kernel_info;
-use riscv::register::sstatus::{set_spp, SPP};
 
 global_asm!(include_str!("./boot.asm"));
 // 多核启动标志
@@ -40,6 +42,8 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
     if hart_id == 0 {
         clear_bss();
         println!("{}", config::FLAG);
+        let machine_info = machine_info_from_dtb(device_tree_addr);
+        println!("{:#x?}", machine_info);
         kernel_info();
         print::init_logger();
         preprint::init_print(&print::PrePrint);
