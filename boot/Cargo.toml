@@ -6,10 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kernel = {path = "../kernel"}
+kernel = { path = "../kernel" }
 cfg-if = "1.0.0"
 riscv = "0.10.0"
 preprint = "0.1.0"
+basemachine = { path = "../modules/basemachine" }
+
 
 [features]
 default = []
