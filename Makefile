@@ -1,4 +1,3 @@
-.PHONY: all run clean
 
 TRACE_EXE_PATH:= ../os-module/elfinfo/
 TRACE_EXE  := ../os-module/elfinfo/target/release/trace_exe
@@ -17,7 +16,6 @@ SMP :=1
 
 IMG1 := tools/fs1.img
 
-FS_TYPE := fat32
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
 
 define boot_qemu
@@ -85,10 +83,9 @@ ZeroFile:
 	@dd if=/dev/zero of=$(IMG) bs=1M count=64
 
 fat32:
-	@#rm -rf ./tools/fs.img
-	#创建64MB大小的fat32文件系统
-	@sudo chmod 777 $(IMG)
+	#创建fat32文件系统
 	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=64
+	@sudo chmod 777 $(IMG)
 	@sudo mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
 		sudo umount /fat; \
@@ -139,7 +136,9 @@ asm:
 
 
 clean:
-	@cd boot && cargo clean
-	@cd apps && make clean
+	@cargo clean
 	@rm riscv.*
+
+
+.PHONY: all run clean
 

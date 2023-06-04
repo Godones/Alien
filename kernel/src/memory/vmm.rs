@@ -4,12 +4,12 @@ use core::intrinsics::forget;
 
 use lazy_static::lazy_static;
 use page_table::{
-    ap_from_str, vpn_f_c_range, AddressSpace, Area, AreaPermission, PageManager, PPN, VPN,
+    AddressSpace, ap_from_str, Area, AreaPermission, PageManager, PPN, VPN, vpn_f_c_range,
 };
 use spin::RwLock;
 use xmas_elf::program;
 
-use crate::config::{FRAME_SIZE, MEMORY_END, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::config::{FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
 
 lazy_static! {
@@ -27,7 +27,7 @@ extern "C" {
     fn strampoline();
 }
 
-pub fn kernel_info() {
+pub fn kernel_info(memory_end: usize) {
     println!(
         "kernel text:   {:#x}-{:#x}",
         stext as usize, srodata as usize
@@ -41,11 +41,11 @@ pub fn kernel_info() {
         "kernel bss:    {:#x}-{:#x}",
         sbss as usize, ekernel as usize
     );
-    println!("kernel heap:   {:#x}-{:#x}", ekernel as usize, MEMORY_END);
+    println!("kernel heap:   {:#x}-{:#x}", ekernel as usize, memory_end);
 }
 
 /// 建立内核页表
-pub fn build_kernel_address_space() {
+pub fn build_kernel_address_space(memory_end: usize) {
     info!("build kernel address space");
     let mut kernel_space = KERNEL_SPACE.write();
     let vpn_range = vpn_f_c_range!(stext as usize, srodata as usize);
@@ -60,7 +60,7 @@ pub fn build_kernel_address_space() {
     let vpn_range = vpn_f_c_range!(sbss as usize, ekernel as usize);
     info!("kernel bss range: {:x?}", vpn_range);
     let bss_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
-    let vpn_range = vpn_f_c_range!(ekernel as usize, MEMORY_END);
+    let vpn_range = vpn_f_c_range!(ekernel as usize, memory_end);
     info!("kernel heap range: {:x?}", vpn_range);
     let heap_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
     let tramppoline_area = Area::new(
@@ -160,7 +160,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
 
     // todo!(heap)
     let heap_bottom = top; // align to 4k
-                           // map trap context
+    // map trap context
     let vpn_range = vpn_f_c_range!(TRAP_CONTEXT_BASE, TRAMPOLINE);
     let trap_area = Area::new(vpn_range, None, ap_from_str!("rw"));
     address_space.push(trap_area);

@@ -3,8 +3,8 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
+use page_table::{AddressSpace, Area, PTableError, PTEFlags, vpn_f_c_range};
 use page_table::VPN;
-use page_table::{vpn_f_c_range, AddressSpace, Area, PTEFlags, PTableError};
 use rvfs::dentry::DirEntry;
 use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
@@ -13,18 +13,18 @@ use spin::{Mutex, MutexGuard};
 
 use gmanager::MinimalManager;
 
-use crate::config::FRAME_SIZE;
 use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
+use crate::config::FRAME_SIZE;
 use crate::error::AlienError;
 use crate::fs::{STDIN, STDOUT};
 use crate::memory::{
-    build_elf_address_space, kernel_satp, MMapInfo, MMapRegion, MapFlags, ProtFlags,
+    build_elf_address_space, kernel_satp, MapFlags, MMapInfo, MMapRegion, ProtFlags,
 };
 use crate::task::context::Context;
 use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::trap::{trap_return, TrapFrame, user_trap_vector};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -71,13 +71,14 @@ pub struct ProcessInner {
 
 #[derive(Debug, Clone)]
 pub struct HeapInfo {
+    pub current: usize,
     pub start: usize,
     pub end: usize,
 }
 
 impl HeapInfo {
     pub fn new(start: usize, end: usize) -> Self {
-        HeapInfo { start, end }
+        HeapInfo { current: start, start, end }
     }
 
     #[allow(unused)]
@@ -389,8 +390,17 @@ impl ProcessInner {
         self.heap.clone()
     }
 
+    pub fn shrink_heap(_addr: usize) -> Result<usize, AlienError> {
+        todo!()
+    }
+
     /// extend heap
-    pub fn extend_heap(&mut self, addition: usize) -> Result<usize, AlienError> {
+    pub fn extend_heap(&mut self, addr: usize) -> Result<usize, AlienError> {
+        self.heap.current = addr;
+        if addr < self.heap.end {
+            return Ok(self.heap.current);
+        }
+        let addition = addr - self.heap.end;
         // increase heap size
         let end = self.heap.end;
         // align addition to PAGE_SIZE
@@ -407,7 +417,7 @@ impl ProcessInner {
         });
         let new_end = end + addition;
         self.heap.end = new_end;
-        Ok(end)
+        Ok(self.heap.current)
     }
 
     pub fn add_mmap(

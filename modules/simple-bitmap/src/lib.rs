@@ -1,6 +1,5 @@
 #![cfg_attr(not(test), no_std)]
-extern crate alloc;
-// 128
+
 pub struct Bitmap<const N: usize> {
     data: [u8; N],
 }
@@ -82,6 +81,7 @@ impl<const N: usize> Bitmap<N> {
 #[cfg(test)]
 mod test {
     use crate::Bitmap;
+
     #[allow(unused)]
     #[test]
     fn test_alloc() {
