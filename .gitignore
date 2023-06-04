@@ -25,3 +25,4 @@ kernel/src/trace/kernel_symbol.S
 
 run.log
 nohup.out
+*.img

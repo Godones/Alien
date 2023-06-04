@@ -14,9 +14,9 @@ use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::sync::IntrLock;
 use crate::task::context::Context;
+use crate::task::INIT_PROCESS;
 use crate::task::process::{Process, ProcessState};
 use crate::task::schedule::schedule;
-use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
 
 #[derive(Debug)]
@@ -128,7 +128,7 @@ pub fn get_ppid() -> isize {
 #[syscall_func(220)]
 pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) -> isize {
     // now we ignore ptid, tls, ctid
-    assert!(ptid == 0 && tls == 0 && ctid == 0);
+    // assert!(ptid == 0 && tls == 0 && ctid == 0);
     let clone_flag = CloneFlags::from_bits_truncate(flag as u32);
     // check whether flag include signal
     let sig = flag & 0xff;
@@ -228,19 +228,16 @@ pub fn do_brk(addr: usize) -> isize {
     let mut inner = process.access_inner();
     let heap_info = inner.heap_info();
     if addr == 0 {
-        return heap_info.end as isize;
+        return heap_info.current as isize;
     }
-    if addr < heap_info.start {
+    if addr < heap_info.start || addr < heap_info.current {
         return -1;
     }
-    if addr > heap_info.end {
-        let additional = addr - heap_info.end;
-        let res = inner.extend_heap(additional);
-        if res.is_err() {
-            return -1;
-        }
+    let res = inner.extend_heap(addr);
+    if res.is_err() {
+        return -1;
     }
-    addr as isize
+    res.unwrap() as isize
 }
 
 bitflags! {

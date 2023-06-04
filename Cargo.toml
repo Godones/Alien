@@ -38,10 +38,11 @@ members = [
     "apps/randrw",
     "apps/sequencewr",
     "apps/alloctest",
-    "apps/mmap"
+    "apps/mmmap",
+    "apps/run_test"
 ]
 
 
 [profile.release]
-#lto = "fat"
-#codegen-units = 1
+lto = true
+codegen-units = 1
