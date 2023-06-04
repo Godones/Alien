@@ -2,6 +2,7 @@
 #![no_std]
 #![feature(linkage)]
 #![allow(unused)]
+#![allow(non_snake_case)]
 
 extern crate alloc;
 
@@ -9,7 +10,6 @@ use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
-// use crate::heap::init_heap;
 use crate::process::exit;
 use crate::syscall::sys_shutdown;
 

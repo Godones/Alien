@@ -6,8 +6,8 @@ extern crate alloc;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use Mstd::fs::{close, open, read, OpenFlags};
 use Mstd::{print, println};
+use Mstd::fs::{close, open, OpenFlags, read};
 
 #[no_mangle]
 fn main(_argc: usize, argv: Vec<String>) -> isize {
@@ -15,7 +15,8 @@ fn main(_argc: usize, argv: Vec<String>) -> isize {
     let fd = open(file_name, OpenFlags::O_RDONLY);
     if fd != -1 {
         let mut buf = [0u8; 10];
-        while let len = read(fd as usize, &mut buf) {
+        loop {
+            let len = read(fd as usize, &mut buf);
             if len == 0 || len == -1 {
                 break;
             }
