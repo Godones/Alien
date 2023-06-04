@@ -1,5 +1,5 @@
 [package]
-name = "mmap"
+name = "mmmap"
 version = "0.1.0"
 edition = "2021"
 

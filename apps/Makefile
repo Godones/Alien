@@ -52,4 +52,5 @@ BUILD_CRATES := \
 	mkdir \
 	ls \
 	cat \
-	mmap 
+	mmmap \
+	run_test
