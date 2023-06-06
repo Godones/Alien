@@ -1,4 +1,6 @@
+#![feature(generic_const_exprs)]
 #![cfg_attr(not(test), no_std)]
+#![allow(incomplete_features)]
 //! Buddy memory allocator
 
 
@@ -9,6 +11,7 @@ pub use crate::buddy::Zone;
 
 mod buddy;
 mod error;
+mod bitmap;
 
 type BuddyResult<T> = Result<T, error::BuddyError>;
 
