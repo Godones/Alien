@@ -1,8 +1,12 @@
 # Alien
 
-A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os,
-so the system is composed of a series of independent modules. At present, the system already supports user-mode programs
-and some simple functions.
+A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os,so the system is composed of a series of independent modules. At present, the system already supports user-mode programsand some simple functions.
+
+
+
+![image-20230607222452791](assert/image-20230607222452791.png)
+
+
 
 ## Modules
 
@@ -12,7 +16,7 @@ and some simple functions.
 
 `page-table `： page table to manage virtual memory
 
-`simple-bitmap`： a simple bitmap to manage frames
+`pager`： buddy and bitmap to manage frames
 
 `gmanager`: a simple allocator to manage `process`/ `fd` and so on
 
@@ -40,6 +44,8 @@ and some simple functions.
 
 Other modules are not listed here, you can find them in the cargo.toml file.
 
+
+
 ## Run
 
 1. install qemu 7.0.0
@@ -51,19 +57,34 @@ make run LOG=WARN img=fat32
 
 
 
+## Doc
+
+[文件系统接口](./doc/fs.md)
+
+[下一步规划](./doc/target.md)
+
+[测试](./doc/test.md)
+
+[slab](https://github.com/os-module/rslab/blob/main/src/slab.rs)
+
+[dbfs](https://github.com/Godones/dbfs2)
+
+[物理页帧分配器](./modules/pager/README.md)
+
 ## TODO
 
 - [ ] Thread/Mutil-core
 - [x] full vfs
 - [x] fat32
 - [x] dbfs
-- [ ] Mutex
+- [x] Mutex
 - [x] sleep task queue
 - [x] uart task queue
 - [ ] block driver task queue
 - [x] a simple shell
 - [x] memory management
 - [x] process management
+- [ ] ....
 
 
 
