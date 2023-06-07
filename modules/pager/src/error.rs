@@ -1,4 +1,7 @@
 use core::fmt::Display;
+use core::ops::Range;
+
+use crate::BuddyResult;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BuddyError {
@@ -8,6 +11,7 @@ pub enum BuddyError {
     MemoryStartNotAligned,
     MemorySizeNotAligned,
     MemorySizeTooSmall,
+    PageNotAllocated,
 }
 
 impl Display for BuddyError {
@@ -18,8 +22,22 @@ impl Display for BuddyError {
             BuddyError::PageOutOfRange => write!(f, "Page out of range"),
             BuddyError::MemoryStartNotAligned => write!(f, "Memory start not aligned"),
             BuddyError::MemorySizeNotAligned => write!(f, "Memory size not aligned"),
-            BuddyError::MemorySizeTooSmall => write!(f, "Memory size too small")
+            BuddyError::MemorySizeTooSmall => write!(f, "Memory size too small"),
+            BuddyError::PageNotAllocated => write!(f, "Page not allocated")
         }
     }
 }
 
+
+pub fn check(memory: Range<usize>) -> BuddyResult<()> {
+    if memory.start & 0xfff != 0 {
+        return Err(BuddyError::MemoryStartNotAligned);
+    }
+    if memory.end & 0xfff != 0 {
+        return Err(BuddyError::MemorySizeNotAligned);
+    }
+    if memory.end - memory.start < 0x1000 {
+        return Err(BuddyError::MemorySizeTooSmall);
+    }
+    Ok(())
+}
