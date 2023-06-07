@@ -5,7 +5,7 @@ use core::ops::Range;
 use doubly_linked_list::{*};
 use log::trace;
 
-use crate::{BuddyResult, PageAllocator};
+use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
 use crate::error::{BuddyError, check};
 
 pub struct Zone<const MAX_ORDER: usize> {
@@ -186,6 +186,19 @@ impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
             return Err(BuddyError::PageOutOfRange);
         }
         self.free_inner(page, order)
+    }
+}
+
+
+impl<const MAX_ORDER: usize> PageAllocatorExt for Zone<MAX_ORDER> {
+    fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize> {
+        let order = pages.next_power_of_two().trailing_zeros() as usize;
+        self.alloc(order)
+    }
+
+    fn free_pages(&mut self, page: usize, pages: usize) -> BuddyResult<()> {
+        let order = pages.next_power_of_two().trailing_zeros() as usize;
+        self.free(page, order)
     }
 }
 
