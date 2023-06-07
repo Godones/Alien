@@ -1,7 +1,7 @@
 use std::alloc::{alloc, dealloc};
 use std::ops::Range;
 
-use buddy::{PageAllocator, Zone};
+use pager::{PageAllocator, Zone};
 
 fn main() {
     env_logger::init();

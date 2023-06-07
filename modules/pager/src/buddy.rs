@@ -6,7 +6,7 @@ use doubly_linked_list::{*};
 use log::trace;
 
 use crate::{BuddyResult, PageAllocator};
-use crate::error::BuddyError;
+use crate::error::{BuddyError, check};
 
 pub struct Zone<const MAX_ORDER: usize> {
     /// The pages in this zone
@@ -58,24 +58,6 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
             start_page: 0,
             free_areas: [FreeArea::new(); MAX_ORDER],
         }
-    }
-
-    pub fn init(&mut self, memory: Range<usize>) -> BuddyResult<()> {
-        // init free areas
-        self.free_areas.iter_mut().for_each(|area| {
-            list_head_init!(area.list_head);
-        });
-        // check
-        check(memory.clone())?;
-        let start_page = memory.start >> 12;
-        let end_page = memory.end >> 12;
-        let manage_pages = end_page - start_page;
-        self.manage_pages = manage_pages;
-        self.start_page = start_page;
-        trace!("page: {:#x?}-{:#x?}", start_page, end_page);
-        // init free area
-        self.init_free_area(start_page, end_page, MAX_ORDER - 1);
-        Ok(())
     }
 
     fn init_free_area(&mut self, start_page: usize, end_page: usize, order: usize) {
@@ -157,6 +139,23 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
 
 
 impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
+    fn init(&mut self, memory: Range<usize>) -> BuddyResult<()> {
+        // init free areas
+        self.free_areas.iter_mut().for_each(|area| {
+            list_head_init!(area.list_head);
+        });
+        // check
+        check(memory.clone())?;
+        let start_page = memory.start >> 12;
+        let end_page = memory.end >> 12;
+        let manage_pages = end_page - start_page;
+        self.manage_pages = manage_pages;
+        self.start_page = start_page;
+        trace!("page: {:#x?}-{:#x?}", start_page, end_page);
+        // init free area
+        self.init_free_area(start_page, end_page, MAX_ORDER - 1);
+        Ok(())
+    }
     fn alloc(&mut self, order: usize) -> BuddyResult<usize> {
         // check order
         if order >= MAX_ORDER {
@@ -190,19 +189,6 @@ impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
     }
 }
 
-fn check(memory: Range<usize>) -> BuddyResult<()> {
-    if memory.start & 0xfff != 0 {
-        return Err(BuddyError::MemoryStartNotAligned);
-    }
-    if memory.end & 0xfff != 0 {
-        return Err(BuddyError::MemorySizeNotAligned);
-    }
-    if memory.end - memory.start <= 0x1000 {
-        return Err(BuddyError::MemorySizeTooSmall);
-    }
-    Ok(())
-}
-
 
 #[cfg(test)]
 mod buddy_test {
@@ -211,18 +197,6 @@ mod buddy_test {
     use core::ops::Range;
 
     use crate::{PageAllocator, Zone};
-    use crate::error::BuddyError;
-
-    #[test]
-    fn test_buddy_init() {
-        let memory = 0x1001..0x100000;
-        let mut zone = Zone::<12>::new();
-        assert_eq!(zone.init(memory), Err(BuddyError::MemoryStartNotAligned));
-        let memory = 0x0..0x0;
-        assert_eq!(zone.init(memory), Err(BuddyError::MemorySizeTooSmall));
-        let memory = 0x1000..0x1001;
-        assert_eq!(zone.init(memory), Err(BuddyError::MemorySizeNotAligned));
-    }
 
     #[test]
     fn test_buddy_alloc() {
