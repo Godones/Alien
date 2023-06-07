@@ -9,7 +9,6 @@
 #![feature(trait_upcasting)]
 
 extern crate alloc;
-// extern crate alloc;
 #[macro_use]
 extern crate log;
 

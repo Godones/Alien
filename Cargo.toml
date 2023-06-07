@@ -12,6 +12,7 @@ members = [
     "modules/uart",
     "modules/syscall",
     "modules/basemachine",
+    "modules/pager",
     "apps/cat",
     #    "apps/dbfs",
     "apps/init",
