@@ -70,31 +70,13 @@ pub fn test_heap() {
     for i in 0..100 {
         v.push(i);
     }
-    // println!("vector size: {}",core::mem::size_of_val(&v));
+    trace!("vector size: {}",core::mem::size_of_val(&v));
     assert_eq!(v.capacity(), 100);
     drop(v);
     let x = Box::new(5);
     assert_eq!(*x, 5);
     let _str = String::from("Test heap should success！");
-    // println!("{}: {}", core::mem::size_of_val(&str),str);
-    println!("heap test passed!");
-}
-
-#[allow(unused)]
-pub fn test_simple_bitmap() {
-    use simple_bitmap::Bitmap;
-    let mut bitmap = Bitmap::<16>::new();
-    assert_eq!(bitmap.alloc(), Some(0));
-    bitmap.set(1);
-    assert_eq!(bitmap.alloc(), Some(2));
-    let x = bitmap.alloc_contiguous(3, 0);
-    assert_eq!(x, Some(3));
-    let x = bitmap.alloc_contiguous(3, 0);
-    assert_eq!(x, Some(6));
-    bitmap.dealloc(7);
-    let x = bitmap.alloc_contiguous(3, 0);
-    assert_eq!(x, Some(9));
-    info!("bitmap test passed");
+    trace!("heap test passed!");
 }
 
 #[no_mangle]

@@ -38,7 +38,7 @@ rslab = "0.2.1"
 syscall-table = { path = "../modules/syscall-table" }
 plic = { path = "../modules/plic" }
 uart = { path = "../modules/uart" }
-simple-bitmap = { path = "../modules/simple-bitmap" }
+pager = { path = "../modules/pager" }
 gmanager = { path = "../modules/gmanager" }
 
 

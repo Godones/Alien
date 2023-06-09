@@ -1,25 +1,20 @@
-/// 物理页帧管理器
-/// 使用位图实现
-/// 位图的每一位代表一个物理页帧
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use simple_bitmap::Bitmap;
+use pager::{PageAllocator, PageAllocatorExt, Zone};
 
-use crate::config::FRAME_SIZE;
+use crate::config::{FRAME_BITS, FRAME_MAX_ORDER, FRAME_SIZE};
 
-const MAX_FRAME_COUNT: usize = 0xf000 / 8;
 lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<MAX_FRAME_COUNT>> = Mutex::new(Bitmap::new());
+    pub static ref FRAME_ALLOCATOR: Mutex<Zone<FRAME_MAX_ORDER>> = Mutex::new(Zone::<FRAME_MAX_ORDER>::new());
 }
 
 extern "C" {
     fn ekernel();
 }
-
 
 pub fn init_frame_allocator(memory_end: usize) {
     let start = ekernel as usize;
@@ -32,6 +27,7 @@ pub fn init_frame_allocator(memory_end: usize) {
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
+    FRAME_ALLOCATOR.lock().init(start..end).unwrap();
     println!("Frame allocator init success");
 }
 
@@ -40,19 +36,9 @@ pub struct FrameTracker {
     id: usize,
 }
 
-#[allow(unused)]
-fn zero_init_frame(start_addr: usize) {
-    unsafe {
-        core::ptr::write_bytes(start_addr as *mut u8, 0, FRAME_SIZE);
-    }
-}
-
-pub fn frame_to_addr(index: usize) -> usize {
-    index * FRAME_SIZE + ekernel as usize
-}
-
 pub fn addr_to_frame(addr: usize) -> FrameTracker {
-    FrameTracker::new((addr - ekernel as usize) / FRAME_SIZE)
+    assert_eq!(addr % FRAME_SIZE, 0);
+    FrameTracker::new(addr >> FRAME_BITS)
 }
 
 impl FrameTracker {
@@ -61,7 +47,7 @@ impl FrameTracker {
     }
     #[allow(unused)]
     pub fn start(&self) -> usize {
-        frame_to_addr(self.id)
+        self.id << FRAME_BITS
     }
     #[allow(unused)]
     pub fn end(&self) -> usize {
@@ -70,13 +56,20 @@ impl FrameTracker {
     pub fn id(&self) -> usize {
         self.id
     }
+
+    pub fn zero_init(&self) {
+        let start_addr = self.start();
+        unsafe {
+            core::ptr::write_bytes(start_addr as *mut u8, 0, FRAME_SIZE);
+        }
+    }
 }
 
 impl Drop for FrameTracker {
     fn drop(&mut self) {
         trace!("drop frame:{}", self.id);
-        zero_init_frame(self.start());
-        FRAME_ALLOCATOR.lock().dealloc(self.id);
+        self.zero_init();
+        FRAME_ALLOCATOR.lock().free(self.id, 0).unwrap();
     }
 }
 
@@ -98,54 +91,53 @@ impl DerefMut for FrameTracker {
 /// 这些页面需要保持连续
 #[no_mangle]
 pub fn alloc_frames(num: usize) -> *mut u8 {
-    let start = FRAME_ALLOCATOR.lock().alloc_contiguous(num, 0);
-    if start.is_none() {
+    assert_eq!(num.count_ones(), 1);
+    let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num);
+    if start_page.is_err() {
+        error!("alloc frame failed");
         return core::ptr::null_mut();
     }
-    let start = start.unwrap();
-    let start_addr = frame_to_addr(start);
-    trace!("slab alloc frame {} start:{:#x}", start, start_addr);
+    let start_page = start_page.unwrap();
+    let start_addr = start_page << FRAME_BITS;
+    trace!("slab alloc frame {} start:{:#x}", num, start_addr);
     start_addr as *mut u8
 }
 
 /// 提供给slab分配器的接口
 #[no_mangle]
 pub fn free_frames(addr: *mut u8, num: usize) {
-    let start = (addr as usize - ekernel as usize) / FRAME_SIZE;
-    trace!("slab free frame {} start:{:#x}", start, addr as usize);
-    for i in 0..num {
-        FRAME_ALLOCATOR.lock().dealloc(start + i);
-    }
-    // FRAME_ALLOCATOR
-    //     .lock()
-    //     .de(start..start + num);
+    let start = addr as usize >> FRAME_BITS;
+    trace!("slab free frame {} start:{:#x}", num, addr as usize);
+    // make sure the num is 2^n
+    assert_eq!(num.count_ones(), 1);
+    FRAME_ALLOCATOR.lock().free_pages(start, num).unwrap();
 }
 
 pub fn frame_alloc() -> Option<FrameTracker> {
-    FRAME_ALLOCATOR.lock().alloc().map(FrameTracker::new)
+    let frame = FRAME_ALLOCATOR.lock().alloc(0);
+    if frame.is_err() {
+        return None;
+    }
+    Some(FrameTracker::new(frame.unwrap()))
 }
 
 pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
     let mut ans = Vec::new();
     for _ in 0..count {
-        let id = FRAME_ALLOCATOR.lock().alloc()?;
-        ans.push(FrameTracker::new(id));
+        let id = FRAME_ALLOCATOR.lock().alloc(0);
+        if id.is_err() {
+            return None;
+        }
+        ans.push(FrameTracker::new(id.unwrap()));
     }
     Some(ans)
 }
 
-#[allow(unused)]
-pub fn frame_allocator_test() {
-    let mut v: Vec<FrameTracker> = Vec::new();
-    for i in 0..5 {
-        let frame = frame_alloc().unwrap();
-        v.push(frame);
+
+pub fn frame_alloc_contiguous(count: usize) -> Option<FrameTracker> {
+    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count);
+    if frame.is_err() {
+        return None;
     }
-    v.clear();
-    for i in 0..5 {
-        let frame = frame_alloc().unwrap();
-        v.push(frame);
-    }
-    drop(v);
-    println!("frame_allocator_test passed!");
+    Some(FrameTracker::new(frame.unwrap()))
 }
