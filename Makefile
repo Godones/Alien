@@ -122,12 +122,8 @@ debug: compile $(img) user
 		-drive file=$(IMG),if=none,format=raw,id=x0  -device virtio-blk-device,drive=x0 -smp 1 -m 128M -s -S" && \
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
-fmt:
-	@cd boot && cargo fmt
-	@cd apps && make fmt
-	@cd kernel && cargo fmt
-	@cd userlib && cargo fmt
-	@cd modules && make fmt
+
+
 asm:
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/boot > kernel.asm
 	@vim kernel.asm

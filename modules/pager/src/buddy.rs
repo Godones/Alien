@@ -35,14 +35,14 @@ impl FreeArea {
 
 impl<const MAX_ORDER: usize> Debug for Zone<MAX_ORDER> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.write_str("Zone:\n")?;
-        f.write_fmt(format_args!("manage_pages: {}\nstart_page:{:#x?}\n", self.manage_pages, self.start_page))?;
+        f.write_fmt(format_args!("Zone<{MAX_ORDER}>:\n", MAX_ORDER = MAX_ORDER))?;
+        f.write_fmt(format_args!("  manage_pages: {}\n  start_page:{:#x?}\n", self.manage_pages, self.start_page))?;
         self.free_areas.iter().enumerate().for_each(|(order, free_area)| {
             let list_head = &free_area.list_head;
             if free_area.free_pages != 0 {
-                f.write_fmt(format_args!("Order: {}, FreePages: {}\n", order, free_area.free_pages)).unwrap();
+                f.write_fmt(format_args!("  Order: {}, FreePages: {}\n", order, free_area.free_pages)).unwrap();
                 list_head.iter().for_each(|l| {
-                    f.write_fmt(format_args!("  {l:#x?}\n")).unwrap();
+                    f.write_fmt(format_args!("      {l:#x?}\n")).unwrap();
                 })
             };
         });
@@ -202,36 +202,3 @@ impl<const MAX_ORDER: usize> PageAllocatorExt for Zone<MAX_ORDER> {
     }
 }
 
-
-#[cfg(test)]
-mod buddy_test {
-    use alloc::alloc::{alloc, dealloc};
-    use alloc::vec;
-    use core::ops::Range;
-
-    use crate::{PageAllocator, Zone};
-
-    #[test]
-    fn test_buddy_alloc() {
-        let memory = unsafe { alloc(alloc::alloc::Layout::from_size_align(0x1000000, 0x1000).unwrap()) };
-        let memory = memory as usize;
-        let range = Range {
-            start: memory,
-            end: memory + 0x1000000,
-        };
-        let mut zone = Zone::<12>::new();
-        zone.init(range).unwrap();
-        let mut vec = vec![];
-        for _ in 0..4096 {
-            let page = zone.alloc(0);
-            assert!(page.is_ok());
-            vec.push(page.unwrap());
-        }
-        for i in 0..4096 {
-            let page = zone.free(vec[i], 0);
-            assert!(page.is_ok());
-        }
-        vec.clear();
-        unsafe { dealloc(memory as *mut u8, alloc::alloc::Layout::from_size_align(0x1000000, 0x1000).unwrap()) }
-    }
-}

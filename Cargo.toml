@@ -5,7 +5,6 @@ members = [
     "boot",
     "modules/gmanager",
     "modules/pci-rs",
-    "modules/simple-bitmap",
     "modules/syscall-table",
     "modules/systable-macro-derive",
     "modules/plic",
