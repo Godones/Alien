@@ -49,6 +49,7 @@ pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
         preprint::init_print(&print::PrePrint);
         memory::init_frame_allocator(machine_info.memory.end);
         memory::init_slab_system(FRAME_SIZE, 32);
+        println!("slab allocator init success");
         memory::build_kernel_address_space(machine_info.memory.end);
         memory::activate_paging_mode();
         thread_local_init();

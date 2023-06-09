@@ -1,6 +1,7 @@
-use crate::sbi::shutdown;
 use core::panic::PanicInfo;
 use core::sync::atomic::AtomicBool;
+
+use crate::sbi::shutdown;
 
 static RECURSION: AtomicBool = AtomicBool::new(false);
 
@@ -19,8 +20,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
     } else {
         println!("no location information available");
     }
-    if !RECURSION.load(core::sync::atomic::Ordering::SeqCst) {
-        RECURSION.store(true, core::sync::atomic::Ordering::SeqCst);
+    if !RECURSION.swap(true, core::sync::atomic::Ordering::SeqCst) {
         back_trace();
     }
     shutdown();

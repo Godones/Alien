@@ -50,8 +50,14 @@ pub trait PageAllocatorExt {
 
 #[cfg(test)]
 mod common_test {
+    use alloc::alloc::alloc;
+    use alloc::boxed::Box;
+    use alloc::vec;
+    use core::alloc::Layout;
+    use core::ops::Range;
+
+    use crate::{bitmap, PageAllocator, PageAllocatorExt, Zone};
     use crate::error::BuddyError;
-    use crate::PageAllocator;
 
     fn init(allocator: &mut impl PageAllocator) {
         let memory = 0x1001..0x100000;
@@ -64,9 +70,63 @@ mod common_test {
 
     #[test]
     fn test_init() {
-        let mut zone = crate::buddy::Zone::<12>::new();
+        let mut zone = Zone::<12>::new();
         init(&mut zone);
-        let mut bitmap = crate::bitmap::Bitmap::<12>::new();
+        let mut bitmap = bitmap::Bitmap::<12>::new();
         init(&mut bitmap);
+    }
+
+
+    fn init_allocator_success(allocator: &mut impl PageAllocator, size: usize) -> *mut u8 {
+        let memory = unsafe { alloc(Layout::from_size_align(size, 0x1000).unwrap()) };
+        let memory = memory as usize;
+        let range = Range {
+            start: memory,
+            end: memory + 0x1000000,
+        };
+        allocator.init(range).unwrap();
+        memory as *mut u8
+    }
+
+    fn dealloc(ptr: *mut u8, size: usize) {
+        unsafe { alloc::alloc::dealloc(ptr, Layout::from_size_align(size, 0x1000).unwrap()) }
+    }
+
+
+    fn alloc_dealloc<T: PageAllocator + PageAllocatorExt>(allocator: &mut T) {
+        let mut vec = vec![];
+        for _ in 0..4096 {
+            let page = allocator.alloc(0);
+            assert!(page.is_ok());
+            vec.push(page.unwrap());
+        }
+        for i in 0..4096 {
+            let page = allocator.free(vec[i], 0);
+            assert!(page.is_ok());
+        }
+        vec.clear();
+
+
+        let page_list = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
+        page_list.iter().for_each(|&x| {
+            let page = allocator.alloc_pages(x).unwrap();
+            vec.push(page);
+        });
+        page_list.iter().for_each(|&x| {
+            allocator.free_pages(vec[x], x).unwrap();
+        });
+        vec.clear();
+    }
+
+    #[test]
+    fn test_alloc_dealloc() {
+        const SIZE: usize = 0x1000000;
+        let mut zone = Zone::<12>::new();
+        let ptr = init_allocator_success(&mut zone, SIZE);
+        dealloc(ptr, SIZE);
+
+        let mut bitmap = bitmap::Bitmap::<{ SIZE / 0x1000 / 8 }>::new();
+        let ptr = init_allocator_success(&mut bitmap, SIZE);
+        dealloc(ptr, SIZE);
     }
 }
