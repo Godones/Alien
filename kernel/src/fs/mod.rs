@@ -2,19 +2,19 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
+use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
 use rvfs::file::{
-    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_readdir1,
-    vfs_write_file, FileMode, OpenFlags, SeekFrom,
+    FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir,
+    vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file,
 };
 use rvfs::inode::InodeMode;
-use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
+use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
 use rvfs::mount::MountFlags;
-use rvfs::path::{vfs_lookup_path, ParsePathType};
+use rvfs::path::{ParsePathType, vfs_lookup_path};
 use rvfs::stat::{
-    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
-    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
-    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
+    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
+    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
+    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
 };
 use rvfs::superblock::StatFs;
 
@@ -136,7 +136,7 @@ pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
     let file = file.unwrap();
     let user_bufs = process.transfer_raw_buffer(buf, len);
     let mut buf = vec![0u8; len];
-    let res = vfs_readdir1(file, buf.as_mut_slice());
+    let res = vfs_readdir(file, buf.as_mut_slice());
     if res.is_err() {
         return -1;
     }
@@ -229,7 +229,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-    .unwrap();
+        .unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
@@ -277,28 +277,6 @@ pub fn sys_mkdir(path: *const u8) -> isize {
     if file.is_err() {
         return -1;
     }
-    0
-}
-
-#[syscall_func(1000)]
-pub fn sys_list(path: *const u8) -> isize {
-    let process = current_process().unwrap();
-    let path = process.transfer_str(path);
-    do_list(path.as_str())
-}
-
-fn do_list(path: &str) -> isize {
-    let file = vfs_open_file::<VfsProvider>(
-        path,
-        OpenFlags::O_RDWR | OpenFlags::O_DIRECTORY,
-        FileMode::FMODE_READ,
-    );
-    if file.is_err() {
-        return -1;
-    }
-    vfs_readdir(file.unwrap()).unwrap().for_each(|x| {
-        println!("name: {}", x);
-    });
     0
 }
 

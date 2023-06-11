@@ -32,7 +32,6 @@ pub fn register_all_syscall(){
 	(17, sys_getcwd),
 	(49, sys_chdir),
 	(83, sys_mkdir),
-	(1000, sys_list),
 	(62, sys_lseek),
 	(80, sys_fstat),
 	(37, sys_linkat),
@@ -85,7 +84,6 @@ use crate::fs::sys_getdents;
 use crate::fs::sys_getxattr;
 use crate::fs::sys_lgetxattr;
 use crate::fs::sys_linkat;
-use crate::fs::sys_list;
 use crate::fs::sys_listxattr;
 use crate::fs::sys_llistxattr;
 use crate::fs::sys_lremovexattr;

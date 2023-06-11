@@ -1,12 +1,7 @@
 #![no_std]
 #![feature(core_intrinsics)]
-#![feature(naked_functions)]
-#![feature(let_chains)]
 #![feature(error_in_core)]
-#![feature(associated_type_bounds)]
 #![feature(panic_info_message)]
-#![allow(semicolon_in_expressions_from_macros)]
-#![feature(trait_upcasting)]
 
 extern crate alloc;
 #[macro_use]
