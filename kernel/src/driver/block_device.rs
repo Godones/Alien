@@ -6,6 +6,7 @@ use core::num::NonZeroUsize;
 
 use lazy_static::lazy_static;
 use lru::LruCache;
+use rvfs::info::VfsError;
 use rvfs::superblock::Device;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
@@ -48,7 +49,7 @@ impl Debug for QemuBlockDevice {
 }
 
 impl Device for QemuBlockDevice {
-    fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, ()> {
+    fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, VfsError> {
         let mut page_id = offset / PAGE_CACHE_SIZE;
         let mut offset = offset % PAGE_CACHE_SIZE;
 
@@ -88,7 +89,7 @@ impl Device for QemuBlockDevice {
         }
         Ok(buf.len())
     }
-    fn write(&self, buf: &[u8], offset: usize) -> Result<usize, ()> {
+    fn write(&self, buf: &[u8], offset: usize) -> Result<usize, VfsError> {
         let mut page_id = offset / PAGE_CACHE_SIZE;
         let mut offset = offset % PAGE_CACHE_SIZE;
 
