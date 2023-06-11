@@ -6,15 +6,16 @@ use alloc::vec::Vec;
 use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
-use rvfs::file::{vfs_open_file, vfs_read_file, FileMode, OpenFlags};
+use rvfs::devfs::DEVFS_TYPE;
+use rvfs::file::{FileMode, OpenFlags, vfs_mkdir, vfs_open_file, vfs_read_file};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
-use rvfs::superblock::{register_filesystem, DataOps, Device};
+use rvfs::superblock::{DataOps, Device, register_filesystem};
 use spin::Mutex;
 
-use crate::driver::rtc::get_rtc_time;
 use crate::driver::QEMU_BLOCK_DEVICE;
+use crate::driver::rtc::get_rtc_time;
 use crate::task::current_process;
 
 // only call once before the first process is created
@@ -36,6 +37,12 @@ pub fn init_vfs() {
     let mnt = do_mount::<VfsProvider>("fat", "/", "fat", MountFlags::empty(), Some(data)).unwrap();
     *TMP_MNT.lock() = mnt.clone();
     *TMP_DIR.lock() = mnt.root.clone();
+    vfs_mkdir::<VfsProvider>("/dev", FileMode::FMODE_RDWR).unwrap();
+    vfs_mkdir::<VfsProvider>("/tmp", FileMode::FMODE_RDWR).unwrap();
+
+    register_filesystem(DEVFS_TYPE).unwrap();
+    do_mount::<VfsProvider>("none", "/dev", "devfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    do_mount::<VfsProvider>("root", "/tmp", "rootfs", MountFlags::MNT_NO_DEV, None).unwrap();
     println!("vfs init done");
 }
 
