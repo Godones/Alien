@@ -28,7 +28,6 @@ pub fn init_frame_allocator(memory_end: usize) {
         page_start, page_end, page_count
     );
     FRAME_ALLOCATOR.lock().init(start..end).unwrap();
-    println!("Frame allocator init success");
 }
 
 #[derive(Debug)]

@@ -1,14 +1,15 @@
-pub mod riscv;
+use core::arch::asm;
 
 use self::riscv::register::{scause, sie};
 use self::riscv::sstatus;
-use core::arch::asm;
+
+pub mod riscv;
 
 pub fn hart_id() -> usize {
     let id: usize;
     unsafe {
         asm!(
-        "mv {},tp", out(reg)id
+        "mv {},tp", out(reg)id,
         );
     }
     id
@@ -23,6 +24,7 @@ pub fn interrupt_disable() {
         sstatus::clear_sie();
     }
 }
+
 /// enable the global interrupt
 pub fn interrupt_enable() {
     unsafe {

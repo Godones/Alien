@@ -44,4 +44,3 @@ gmanager = { path = "../modules/gmanager" }
 
 [build-dependencies]
 #syscall-table = {path = "../modules/syscall-table",features = ["std"]}
-
