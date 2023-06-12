@@ -12,7 +12,7 @@ BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
-SMP :=1
+SMP ?= 4
 
 IMG1 := tools/fs1.img
 
@@ -38,10 +38,10 @@ install:
 all:run
 
 compile:
-	@cd boot && cargo build --release
+	cargo build --release -p boot --target riscv64gc-unknown-none-elf
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 	@#call trace_info
-	@cd boot && cargo build --release
+	@cargo build --release -p boot --target riscv64gc-unknown-none-elf
 	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
 
@@ -57,9 +57,13 @@ build:compile
 
 
 run:install compile $(img) user testelf
+	@echo qemu booot $(SMP)
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
 
+
+fake_run:
+	@$(call boot_qemu)
 
 test:install compile $(img) SecondFile testelf
 	$(call boot_qemu)
@@ -102,15 +106,13 @@ img-hex:
 	@cat test.hex
 
 
-gdb: compile $(img)  user SecondFile testelf
+gdb: compile $(img) user  testelf
 	@qemu-system-riscv64 \
             -M virt $(1)\
             -bios $(BOOTLOADER) \
             -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
             -drive file=$(IMG),if=none,format=raw,id=x0 \
             -device virtio-blk-device,drive=x0 \
-			-drive file=$(IMG1),if=none,format=raw,id=x1 \
-			-device virtio-blk-device,drive=x1 \
             -nographic \
             -kernel  kernel-qemu\
             -smp 1 -m 128M \
@@ -136,5 +138,5 @@ clean:
 	@rm riscv.*
 
 
-.PHONY: all run clean
+.PHONY: all run clean fake_run
 

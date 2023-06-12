@@ -1,6 +1,7 @@
 use core::fmt::{Arguments, Result, Write};
 
 use preprint::Print;
+use spin::{Lazy, Mutex};
 
 use crate::driver::uart::{CharDevice, USER_UART};
 use crate::sbi::console_putchar;
@@ -8,7 +9,9 @@ use crate::sbi::console_putchar;
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
-        $crate::print::console::__print(format_args!($($arg)*))
+        let hard_id = $crate::arch::hart_id();
+        // [hart_id] xxx
+        $crate::print::console::__print(format_args!("[{}] {}", hard_id, format_args!($($arg)*)))
     };
 }
 
@@ -37,6 +40,8 @@ macro_rules! uprintln {
 
 struct Stdout;
 
+static STDOUT: Lazy<Mutex<Stdout>> = Lazy::new(|| Mutex::new(Stdout));
+
 /// 对`Stdout`实现输出的Trait
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
@@ -55,7 +60,7 @@ pub fn get_char() -> Option<u8> {
 /// 输出函数
 /// 对参数进行输出 主要使用在输出相关的宏中 如println
 pub fn __print(args: Arguments) {
-    Stdout.write_fmt(args).unwrap();
+    STDOUT.lock().write_fmt(args).unwrap();
 }
 
 struct UStdout;
