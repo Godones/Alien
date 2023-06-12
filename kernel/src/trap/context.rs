@@ -1,4 +1,5 @@
-use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
+use crate::arch::hart_id;
+use crate::arch::riscv::sstatus::{self, SPP, Sstatus};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -60,6 +61,7 @@ impl TrapFrame {
             sstatus,
         };
         res.x[2] = sp;
+        res.x[4] = hart_id(); // set tp to save hart_id
         res
     }
     pub fn update_res(&mut self, val: usize) {

@@ -14,6 +14,7 @@ kernel_v:
     addi sp, sp, -34*8
     sd x1, 1*8(sp)
     sd x3, 3*8(sp)
+    sd x4, 4*8(sp)
     .set n, 5
     .rept 27
         KSAVE_GP %n
@@ -35,6 +36,7 @@ kernel_v:
      csrw sepc, t1
      ld x1, 1*8(sp)
      ld x3, 3*8(sp)
+     ld x4, 4*8(sp)
      .set n, 5
      .rept 27
          KLOAD_GP %n

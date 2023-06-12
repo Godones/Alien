@@ -1,6 +1,12 @@
+use console::PrePrint;
+use logging::init_logger;
+
 #[macro_use]
 pub mod console;
 mod logging;
 
-pub use console::PrePrint;
-pub use logging::init_logger;
+pub fn init_print() {
+    init_logger();
+    preprint::init_print(&PrePrint);
+    println!("Print init success");
+}

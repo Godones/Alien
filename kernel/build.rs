@@ -1,11 +1,18 @@
+use std::{format, fs};
+use std::collections::BTreeSet;
 use std::fs::File;
+use std::fs::OpenOptions;
+use std::io::BufRead;
 use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
+use std::string::{String, ToString};
+use std::vec::Vec;
+
 // use syscall_table::scan::scan_and_generate;
 
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/");
-
     let path = Path::new("src/trace/kernel_symbol.S");
     if !path.exists() {
         let mut file = File::create(path).unwrap();
@@ -22,14 +29,31 @@ fn main() {
         write!(file, "symbol_name:\n").unwrap();
     }
     scan_and_generate("src/syscall.rs".to_string());
+
+    rewrite_config();
 }
-use std::collections::BTreeSet;
-use std::fs::OpenOptions;
-use std::io::BufRead;
-use std::path::PathBuf;
-use std::string::{String, ToString};
-use std::vec::Vec;
-use std::{format, fs};
+
+
+pub fn rewrite_config() {
+    let cpus = option_env!("SMP").unwrap_or("1");
+    let cpus = cpus.parse::<usize>().unwrap();
+    let config_file = Path::new("src/config.rs");
+    let config = fs::read_to_string(config_file).unwrap();
+    let cpus = format!("pub const CPU_NUM: usize = {};\n", cpus);
+    // let regex = regex::Regex::new(r"pub const CPU_NUM: usize = \d+;").unwrap();
+    // config = regex.replace_all(&config, cpus.as_str()).to_string();
+    let mut new_config = String::new();
+    for line in config.lines() {
+        if line.starts_with("pub const CPU_NUM: usize = ") {
+            new_config.push_str(cpus.as_str());
+        } else {
+            new_config.push_str(line);
+            new_config.push_str("\n");
+        }
+    }
+    fs::write(config_file, new_config).unwrap();
+}
+
 
 pub fn scan_and_generate(path: String) {
     // read all files in the directory rescursively
@@ -120,8 +144,7 @@ fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                             component.len() - 1
                         };
                         for i in 0..correct {
-                            if component[i] == "src" {
-                            } else {
+                            if component[i] == "src" {} else {
                                 mod_name.push_str("::");
                                 if component[i].ends_with(".rs") {
                                     mod_name.push_str(component[i].strip_suffix(".rs").unwrap());
