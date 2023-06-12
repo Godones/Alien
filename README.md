@@ -71,7 +71,7 @@ make run LOG=WARN img=fat32
 
 [物理页帧分配器](./modules/pager/README.md)
 
-## TODO
+## Feature
 
 - [ ] Thread/Mutil-core
 - [x] full vfs
@@ -84,7 +84,68 @@ make run LOG=WARN img=fat32
 - [x] a simple shell
 - [x] memory management
 - [x] process management
+- [x] stack trace
+- [ ] signal
 - [ ] ....
+
+
+
+## Project Structure
+
+```
+├── apps 一些测试程序+shell
+│   ├── cat
+│   ├── forktest
+│   ├── init
+│   ├── ls
+│   ├── mkdir
+│   ├── mmmap
+│   ├── pipetest
+│   ├── pipetest2
+│   ├── pwd
+│   ├── run_test
+│   ├── shell
+│   ├── time
+│   └── touch
+│── boot 启动模块
+│   └── src
+├── doc  相关文档
+├── kernel
+│   └── src
+│       ├── arch  riscv
+│       ├── driver 驱动模块
+│       ├── fs	   文件系统
+│       ├── ipc    进程间通信
+│       ├── memory 内存管理
+│       ├── print  输出
+│       ├── sync   同步机制
+│       ├── task   进程与线程模块
+│       ├── timer  时钟
+│       ├── trace  内核堆栈回溯
+│       └── trap   异常处理
+├── modules
+│   ├── basemachine  dtb基本信息获取
+│   ├── gmanager     最小索引分配与管理
+│   ├── pager        页分配
+│   ├── pci-rs       PCI
+│   ├── plic         riscv平台中断控制器
+│   ├── syscall		 
+│   ├── syscall-table  系统调用过程宏
+│   ├── systable-macro-derive  
+│   └── uart           串口驱动c le |
+└── userlib   		用户库
+    └── src
+```
+
+
+
+
+
+## Reference
+
+- rCoreTutorial-v3 http://rcore-os.cn/rCore-Tutorial-Book-v3/chapter0/index.html
+- Maturin https://gitlab.eduxiji.net/scPointer/maturin
+- Redox https://gitlab.redox-os.org/redox-os/
 
 
 
