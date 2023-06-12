@@ -1,18 +1,18 @@
 use core::arch::{asm, global_asm};
 
-use riscv::register::sstatus::SPP;
 use riscv::register::{sepc, sscratch, stval};
+use riscv::register::sstatus::SPP;
 
 pub use context::TrapFrame;
 
-use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
-use crate::arch::riscv::register::stvec;
-use crate::arch::riscv::register::stvec::TrapMode;
-use crate::arch::riscv::sstatus;
 use crate::arch::{
     external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable,
     timer_interrupt_enable,
 };
+use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
+use crate::arch::riscv::register::stvec;
+use crate::arch::riscv::register::stvec::TrapMode;
+use crate::arch::riscv::sstatus;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_process, current_user_token};
@@ -70,7 +70,6 @@ fn set_kernel_trap_entry() {
 
 /// 开启中断/异常
 pub fn init_trap_subsystem() {
-    println!("kernel_v:{:x}", kernel_v as usize);
     set_kernel_trap_entry();
     interrupt_enable();
     external_interrupt_enable();
@@ -161,15 +160,15 @@ impl TrapHandler for Trap {
 /// 用户态陷入处理
 #[no_mangle]
 pub fn user_trap_vector() {
-    // update process statistics
-    {
-        let process = current_process().unwrap();
-        process.access_inner().update_user_mode_time();
-    }
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::Supervisor {
         panic!("user_trap_vector: spp == SPP::Supervisor");
+    }
+    // update process statistics
+    {
+        let process = current_process().unwrap();
+        process.access_inner().update_user_mode_time();
     }
     set_kernel_trap_entry();
     let cause = riscv::register::scause::read();

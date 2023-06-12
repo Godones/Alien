@@ -1,6 +1,3 @@
-use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::vec::Vec;
 use core::alloc::GlobalAlloc;
 
 use riscv::asm::sfence_vma_all;
@@ -23,8 +20,26 @@ static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
     slab: SlabAllocator,
 };
 
+
+pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
+    if is_first_cpu {
+        init_frame_allocator(memory_end);
+        println!("Frame allocator init success");
+        init_slab_system(FRAME_SIZE, 32);
+        println!("slab allocator init success");
+        build_kernel_address_space(memory_end);
+        println!("build kernel address space success");
+        activate_paging_mode();
+        println!("activate paging mode success");
+    } else {
+        activate_paging_mode();
+    }
+}
+
+
 /// 激活页表模式
 pub fn activate_paging_mode() {
+    // let ppn = KERNEL_SPACE.read().root_ppn().unwrap().0;
     unsafe {
         sfence_vma_all();
         satp::set(
@@ -63,22 +78,7 @@ pub fn kernel_satp() -> usize {
     8usize << 60 | (KERNEL_SPACE.read().root_ppn().unwrap().0)
 }
 
-#[allow(unused)]
-pub fn test_heap() {
-    let mut v = Vec::<i32>::new();
-    v.reserve(100);
-    for i in 0..100 {
-        v.push(i);
-    }
-    trace!("vector size: {}",core::mem::size_of_val(&v));
-    assert_eq!(v.capacity(), 100);
-    drop(v);
-    let x = Box::new(5);
-    assert_eq!(*x, 5);
-    let _str = String::from("Test heap should success！");
-    trace!("heap test passed!");
-}
-
+/// This function will be call in slab allocator
 #[no_mangle]
 fn current_cpu_id() -> usize {
     hart_id()

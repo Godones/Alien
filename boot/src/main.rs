@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+#![feature(naked_functions)]
+#![feature(asm_const)]
 
 use core::arch::global_asm;
 use core::hint::spin_loop;
@@ -9,18 +11,20 @@ use riscv::register::sstatus::{set_spp, SPP};
 
 use basemachine::machine_info_from_dtb;
 use kernel::{
-    config, driver, memory, print, println, syscall, task, thread_local_init, timer, trap,
+    config, driver, println, syscall, task, thread_local_init, timer, trap,
 };
-use kernel::config::{CPU_NUM, FRAME_SIZE};
-use kernel::driver::rtc::get_rtc_time;
+use kernel::config::CPU_NUM;
 use kernel::fs::vfs::init_vfs;
-use kernel::memory::kernel_info;
+use kernel::memory::{init_memory_system, kernel_info};
+use kernel::print::init_print;
+use kernel::sbi::hart_start;
+use kernel::task::init_per_cpu;
 
-global_asm!(include_str!("./boot.asm"));
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
-
 static CPUS: AtomicUsize = AtomicUsize::new(0);
+
+global_asm!(include_str!("boot.asm"));
 
 fn clear_bss() {
     extern "C" {
@@ -35,56 +39,62 @@ fn clear_bss() {
 
 /// rust_main is the entry of the kernel
 #[no_mangle]
-pub fn rust_main(hart_id: usize, device_tree_addr: usize) -> ! {
+pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
     unsafe {
         set_spp(SPP::Supervisor);
     }
-    if hart_id == 0 {
+    if !STARTED.load(Ordering::Relaxed) {
         clear_bss();
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
         kernel_info(machine_info.memory.end);
-        print::init_logger();
-        preprint::init_print(&print::PrePrint);
-        memory::init_frame_allocator(machine_info.memory.end);
-        memory::init_slab_system(FRAME_SIZE, 32);
-        println!("slab allocator init success");
-        memory::build_kernel_address_space(machine_info.memory.end);
-        memory::activate_paging_mode();
+        init_print();
+        init_memory_system(machine_info.memory.end, true);
         thread_local_init();
-        // dbt probe and register
         driver::init_dt(device_tree_addr);
         trap::init_trap_subsystem();
-        get_rtc_time()
-            .map(|x| {
-                println!("Current time:{:?}", x);
-            })
-            .unwrap();
+        init_per_cpu();
         init_vfs();
         syscall::register_all_syscall();
         task::init_process();
-
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
+        init_other_hart(hart_id);
     } else {
         while !STARTED.load(Ordering::Relaxed) {
             spin_loop();
         }
-        memory::activate_paging_mode();
+        thread_local_init();
+        println!("hart {:#x} start", kernel::arch::hart_id());
+        init_memory_system(0, false);
         thread_local_init();
         trap::init_trap_subsystem();
-        timer::set_next_trigger();
         CPUS.fetch_add(1, Ordering::Release);
+        loop {}
     }
-    // 等待其它cpu核启动
-    wait_all_cpu_start();
     timer::set_next_trigger();
     task::schedule::first_into_user();
 }
+
+fn init_other_hart(hart_id: usize) {
+    for i in 0..CPU_NUM {
+        extern "C" {
+            fn _start();
+        }
+        if i != hart_id {
+            let res = hart_start(i, _start as usize, 0);
+            assert_eq!(res.error, 0);
+        }
+    }
+    // 等待其它cpu核启动
+    wait_all_cpu_start();
+}
+
 
 fn wait_all_cpu_start() {
     while CPUS.load(Ordering::Acquire) < CPU_NUM {
         spin_loop()
     }
+    println!("all cpu start");
 }

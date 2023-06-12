@@ -83,7 +83,6 @@ pub fn build_kernel_address_space(memory_end: usize) {
         let mmio_area = Area::new(vpn_range.clone(), Some(vpn_range), ap_from_str!("rw"));
         kernel_space.push(mmio_area);
     }
-    info!("build kernel address space success");
 }
 
 pub struct ELFInfo {

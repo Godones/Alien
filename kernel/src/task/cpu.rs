@@ -1,10 +1,13 @@
 use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::sync::Arc;
+use alloc::vec;
 use alloc::vec::Vec;
+use core::ops::{Index, IndexMut};
 
 use bitflags::bitflags;
 use lazy_static::lazy_static;
+use spin::Once;
 
 use syscall_table::syscall_func;
 
@@ -19,11 +22,37 @@ use crate::task::process::{Process, ProcessState};
 use crate::task::schedule::schedule;
 use crate::trap::TrapFrame;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CPU {
     pub process: Option<Arc<Process>>,
     pub context: Context,
-    pub intr_lock: IntrLock<usize>,
+}
+
+
+pub struct CpuManager<const CPUS: usize> {
+    cpus: Vec<CPU>,
+}
+
+impl<const CPUS: usize> CpuManager<CPUS> {
+    pub fn new() -> Self {
+        Self {
+            cpus: vec![CPU::empty(); CPUS],
+        }
+    }
+}
+
+impl<const CPUS: usize> Index<usize> for CpuManager<CPUS> {
+    type Output = CPU;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.cpus[index]
+    }
+}
+
+impl<const CPUS: usize> IndexMut<usize> for CpuManager<CPUS> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.cpus[index]
+    }
 }
 
 impl CPU {
@@ -31,7 +60,6 @@ impl CPU {
         Self {
             process: None,
             context: Context::empty(),
-            intr_lock: IntrLock::new(0),
         }
     }
     pub fn take_process(&mut self) -> Option<Arc<Process>> {
@@ -46,7 +74,7 @@ impl CPU {
 }
 
 /// save info for each cpu
-static mut CPU_MANAGER: [CPU; CPU_NUM] = [CPU::empty(); CPU_NUM];
+static mut CPU_MANAGER: Once<CpuManager<CPU_NUM>> = Once::new();
 
 /// the global process pool
 type ProcessPool = VecDeque<Arc<Process>>;
@@ -54,10 +82,21 @@ lazy_static! {
     pub static ref PROCESS_MANAGER: IntrLock<ProcessPool> = IntrLock::new(ProcessPool::new());
 }
 
+pub fn init_per_cpu() {
+    unsafe {
+        CPU_MANAGER.call_once(|| CpuManager::new());
+    }
+    println!("{} cpus in total", CPU_NUM);
+}
+
 /// get the current cpu info
 pub fn current_cpu() -> &'static mut CPU {
     let hart_id = arch::hart_id();
-    unsafe { &mut CPU_MANAGER[hart_id] }
+    unsafe {
+        let cpu_manager = CPU_MANAGER.get_mut().unwrap();
+        cpu_manager.index_mut(hart_id)
+    }
+    // unsafe { &mut CPU_MANAGER[hart_id] }
 }
 
 /// get the current_process
