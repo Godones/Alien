@@ -3,7 +3,7 @@
 #![feature(naked_functions)]
 #![feature(asm_const)]
 
-use core::arch::global_asm;
+use core::arch::asm;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
@@ -13,7 +13,7 @@ use basemachine::machine_info_from_dtb;
 use kernel::{
     config, driver, println, syscall, task, thread_local_init, timer, trap,
 };
-use kernel::config::CPU_NUM;
+use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
@@ -23,8 +23,6 @@ use kernel::task::init_per_cpu;
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
 static CPUS: AtomicUsize = AtomicUsize::new(0);
-
-global_asm!(include_str!("boot.asm"));
 
 fn clear_bss() {
     extern "C" {
@@ -37,6 +35,28 @@ fn clear_bss() {
     }
 }
 
+#[link_section = ".bss.stack"]
+static mut STACK: [u8; STACK_SIZE * CPU_NUM] = [0; STACK_SIZE * CPU_NUM];
+
+#[naked]
+#[no_mangle]
+#[link_section = ".text.entry"]
+extern "C" fn _start() {
+    unsafe {
+        asm!("\
+        mv tp, a0
+        add t0, a0, 1
+        slli t0, t0, 16
+        la sp, {boot_stack}
+        add sp, sp, t0
+        call main
+        ",
+        boot_stack = sym STACK,
+        options(noreturn)
+        );
+    }
+}
+
 /// rust_main is the entry of the kernel
 #[no_mangle]
 pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
@@ -45,6 +65,7 @@ pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
     }
     if !STARTED.load(Ordering::Relaxed) {
         clear_bss();
+        unsafe { println!("{:#x?}", STACK.as_ptr() as usize); }
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
