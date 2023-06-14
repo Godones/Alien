@@ -1,4 +1,3 @@
-use std::{format, fs};
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -8,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::string::{String, ToString};
 use std::vec::Vec;
+use std::{format, fs};
 
 // use syscall_table::scan::scan_and_generate;
 
@@ -33,7 +33,6 @@ fn main() {
     rewrite_config();
 }
 
-
 pub fn rewrite_config() {
     let cpus = option_env!("SMP").unwrap_or("1");
     let cpus = cpus.parse::<usize>().unwrap();
@@ -53,7 +52,6 @@ pub fn rewrite_config() {
     }
     fs::write(config_file, new_config).unwrap();
 }
-
 
 pub fn scan_and_generate(path: String) {
     // read all files in the directory rescursively
@@ -144,7 +142,8 @@ fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                             component.len() - 1
                         };
                         for i in 0..correct {
-                            if component[i] == "src" {} else {
+                            if component[i] == "src" {
+                            } else {
                                 mod_name.push_str("::");
                                 if component[i].ends_with(".rs") {
                                     mod_name.push_str(component[i].strip_suffix(".rs").unwrap());

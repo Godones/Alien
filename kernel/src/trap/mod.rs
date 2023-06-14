@@ -1,5 +1,6 @@
 use core::arch::{asm, global_asm};
 
+use page_table::addr::VirtAddr;
 use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
 
@@ -105,7 +106,7 @@ impl TrapHandler for Trap {
                 interrupt::timer_interrupt_handler();
             }
             Trap::Exception(Exception::IllegalInstruction) => {
-                error!("[kernel] IllegalInstruction in application, kernel killed it.");
+                error!("[kernel] IllegalInstruction {:#x?} in application, kernel killed it.",stval);
                 exception::illegal_instruction_exception_handler()
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -134,7 +135,7 @@ impl TrapHandler for Trap {
                 );
                 {
                     let kernel_space = KERNEL_SPACE.read();
-                    let phy = kernel_space.virtual_to_physical(stval);
+                    let phy = kernel_space.query(VirtAddr::from(stval));
                     debug!("physical address: {:#x?}", phy);
                 }
             }

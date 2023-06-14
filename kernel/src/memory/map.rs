@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use core::ops::Range;
 
 use bitflags::bitflags;
-use page_table::AreaPermission;
+use page_table::pte::MappingFlags;
 use rvfs::file::File;
 
 use syscall_table::syscall_func;
@@ -20,19 +20,19 @@ bitflags! {
     }
 }
 
-impl Into<AreaPermission> for ProtFlags {
-    fn into(self) -> AreaPermission {
-        let mut perm = AreaPermission::empty();
+impl Into<MappingFlags> for ProtFlags {
+    fn into(self) -> MappingFlags {
+        let mut perm = MappingFlags::empty();
         if self.contains(ProtFlags::PROT_READ) {
-            perm |= AreaPermission::R;
+            perm |= MappingFlags::R;
         }
         if self.contains(ProtFlags::PROT_WRITE) {
-            perm |= AreaPermission::W;
+            perm |= MappingFlags::W;
         }
         if self.contains(ProtFlags::PROT_EXEC) {
-            perm |= AreaPermission::X;
+            perm |= MappingFlags::X;
         }
-        perm |= AreaPermission::U;
+        perm |= MappingFlags::U;
         perm
     }
 }
@@ -61,6 +61,7 @@ pub struct MMapRegion {
     pub start: usize,
     /// The length of the mapping
     pub len: usize,
+    pub map_len: usize,
     /// The protection flags of the mapping
     pub prot: ProtFlags,
     /// The flags of the mapping
@@ -116,6 +117,7 @@ impl MMapRegion {
     pub fn new(
         start: usize,
         len: usize,
+        map_len: usize,
         prot: ProtFlags,
         flags: MapFlags,
         fd: Arc<File>,
@@ -124,6 +126,7 @@ impl MMapRegion {
         Self {
             start,
             len,
+            map_len,
             prot,
             flags,
             fd,

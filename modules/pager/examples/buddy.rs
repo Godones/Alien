@@ -43,9 +43,13 @@ fn main() {
 
     println!("alloc 4096 pages");
 
-    unsafe { dealloc(memory as *mut u8, std::alloc::Layout::from_size_align(0x1000000, 0x1000).unwrap()) }
+    unsafe {
+        dealloc(
+            memory as *mut u8,
+            std::alloc::Layout::from_size_align(0x1000000, 0x1000).unwrap(),
+        )
+    }
 }
-
 
 fn show(zone: &Zone<12>) {
     println!("{zone:#x?}");

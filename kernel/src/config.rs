@@ -22,9 +22,9 @@ pub const CPU_NUM: usize = 4;
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
     (0x2000000, 0x10000),
-    (0xc000000, 0x210000),  // VIRT_PLIC in virt machine
-    (0x10_000_000, 0x9000), // VIRT_UART0 with GPU  in virt machine
-    (0x30_000_000, 0x10000000),
+    (0xc00_0000, 0x21_0000),  // VIRT_PLIC in virt machine
+    (0x1000_0000, 0x9000), // VIRT_UART0 with GPU  in virt machine
+    (0x3000_0000, 0x1000_0000),
 ];
 
 pub const FRAME_MAX_ORDER: usize = 16;
