@@ -23,11 +23,10 @@ impl Display for BuddyError {
             BuddyError::MemoryStartNotAligned => write!(f, "Memory start not aligned"),
             BuddyError::MemorySizeNotAligned => write!(f, "Memory size not aligned"),
             BuddyError::MemorySizeTooSmall => write!(f, "Memory size too small"),
-            BuddyError::PageNotAllocated => write!(f, "Page not allocated")
+            BuddyError::PageNotAllocated => write!(f, "Page not allocated"),
         }
     }
 }
-
 
 pub fn check(memory: Range<usize>) -> BuddyResult<()> {
     if memory.start & 0xfff != 0 {

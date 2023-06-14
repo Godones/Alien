@@ -3,7 +3,6 @@
 #![allow(incomplete_features)]
 //! Buddy memory allocator
 
-
 extern crate alloc;
 
 use core::ops::Range;
@@ -13,12 +12,11 @@ pub use crate::bitmap::Bitmap;
 #[cfg(feature = "buddy")]
 pub use crate::buddy::Zone;
 
+mod bitmap;
 mod buddy;
 mod error;
-mod bitmap;
 
 type BuddyResult<T> = Result<T, error::BuddyError>;
-
 
 pub trait PageAllocator {
     /// init the allocator according to the memory range
@@ -34,7 +32,6 @@ pub trait PageAllocator {
     fn free(&mut self, page: usize, order: usize) -> BuddyResult<()>;
 }
 
-
 pub trait PageAllocatorExt {
     /// allocate pages
     /// # Params
@@ -47,7 +44,6 @@ pub trait PageAllocatorExt {
     fn free_pages(&mut self, page: usize, pages: usize) -> BuddyResult<()>;
 }
 
-
 #[cfg(test)]
 mod common_test {
     use alloc::alloc::alloc;
@@ -56,16 +52,22 @@ mod common_test {
     use core::alloc::Layout;
     use core::ops::Range;
 
-    use crate::{bitmap, PageAllocator, PageAllocatorExt, Zone};
     use crate::error::BuddyError;
+    use crate::{bitmap, PageAllocator, PageAllocatorExt, Zone};
 
     fn init(allocator: &mut impl PageAllocator) {
         let memory = 0x1001..0x100000;
-        assert_eq!(allocator.init(memory), Err(BuddyError::MemoryStartNotAligned));
+        assert_eq!(
+            allocator.init(memory),
+            Err(BuddyError::MemoryStartNotAligned)
+        );
         let memory = 0x0..0x0;
         assert_eq!(allocator.init(memory), Err(BuddyError::MemorySizeTooSmall));
         let memory = 0x1000..0x1001;
-        assert_eq!(allocator.init(memory), Err(BuddyError::MemorySizeNotAligned));
+        assert_eq!(
+            allocator.init(memory),
+            Err(BuddyError::MemorySizeNotAligned)
+        );
     }
 
     #[test]
@@ -75,7 +77,6 @@ mod common_test {
         let mut bitmap = bitmap::Bitmap::<12>::new();
         init(&mut bitmap);
     }
-
 
     fn init_allocator_success(allocator: &mut impl PageAllocator, size: usize) -> *mut u8 {
         let memory = unsafe { alloc(Layout::from_size_align(size, 0x1000).unwrap()) };
@@ -92,7 +93,6 @@ mod common_test {
         unsafe { alloc::alloc::dealloc(ptr, Layout::from_size_align(size, 0x1000).unwrap()) }
     }
 
-
     fn alloc_dealloc<T: PageAllocator + PageAllocatorExt>(allocator: &mut T) {
         let mut vec = vec![];
         for _ in 0..4096 {
@@ -105,7 +105,6 @@ mod common_test {
             assert!(page.is_ok());
         }
         vec.clear();
-
 
         let page_list = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
         page_list.iter().for_each(|&x| {

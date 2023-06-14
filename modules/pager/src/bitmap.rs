@@ -1,8 +1,8 @@
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 
+use crate::error::{check, BuddyError};
 use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
-use crate::error::{BuddyError, check};
 
 pub struct Bitmap<const N: usize> {
     /// Current number of allocated pages
@@ -12,7 +12,6 @@ pub struct Bitmap<const N: usize> {
     /// The bitmap data
     data: [u8; N],
 }
-
 
 impl<const N: usize> Debug for Bitmap<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -27,7 +26,6 @@ impl<const N: usize> Debug for Bitmap<N> {
         f.write_str("\n")
     }
 }
-
 
 impl<const N: usize> Bitmap<N> {
     /// after new, you should init
@@ -73,9 +71,7 @@ impl<const N: usize> Bitmap<N> {
                 self.current = 0;
                 continue;
             }
-            let busy_index = (self.current..end).find(|x| {
-                self.test(*x)
-            });
+            let busy_index = (self.current..end).find(|x| self.test(*x));
 
             if let Some(index) = busy_index {
                 self.current = index + 1;
@@ -107,7 +103,6 @@ impl<const N: usize> Bitmap<N> {
         Ok(())
     }
 }
-
 
 impl<const N: usize> PageAllocator for Bitmap<N> {
     fn init(&mut self, memory: Range<usize>) -> BuddyResult<()> {
@@ -143,4 +138,3 @@ impl<const N: usize> PageAllocatorExt for Bitmap<N> {
         Ok(())
     }
 }
-

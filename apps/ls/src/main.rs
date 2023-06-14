@@ -7,7 +7,7 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use Mstd::fs::{Dirent64, DirentType, getdents, open, OpenFlags};
+use Mstd::fs::{getdents, open, Dirent64, DirentType, OpenFlags};
 use Mstd::println;
 
 #[no_mangle]
@@ -44,7 +44,6 @@ fn parse_args(path: &str) {
         ptr = unsafe { ptr.add(dirent.len()) };
     }
 }
-
 
 fn trans(type_: DirentType) -> char {
     match type_ {

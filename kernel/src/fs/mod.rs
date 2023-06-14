@@ -2,19 +2,19 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
+use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
 use rvfs::file::{
-    FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir,
-    vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file,
+    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
+    vfs_write_file, FileMode, OpenFlags, SeekFrom,
 };
 use rvfs::inode::InodeMode;
-use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
+use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
 use rvfs::mount::MountFlags;
-use rvfs::path::{ParsePathType, vfs_lookup_path};
+use rvfs::path::{vfs_lookup_path, ParsePathType};
 use rvfs::stat::{
-    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
-    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
-    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
+    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
+    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
+    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
 };
 use rvfs::superblock::StatFs;
 
@@ -229,7 +229,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-        .unwrap();
+    .unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
