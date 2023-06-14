@@ -2,11 +2,11 @@ use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 
-use doubly_linked_list::{*};
+use doubly_linked_list::*;
 use log::trace;
 
+use crate::error::{check, BuddyError};
 use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
-use crate::error::{BuddyError, check};
 
 pub struct Zone<const MAX_ORDER: usize> {
     /// The pages in this zone
@@ -23,7 +23,6 @@ struct FreeArea {
     list_head: ListHead,
 }
 
-
 impl FreeArea {
     pub const fn new() -> Self {
         Self {
@@ -36,20 +35,29 @@ impl FreeArea {
 impl<const MAX_ORDER: usize> Debug for Zone<MAX_ORDER> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.write_fmt(format_args!("Zone<{MAX_ORDER}>:\n", MAX_ORDER = MAX_ORDER))?;
-        f.write_fmt(format_args!("  manage_pages: {}\n  start_page:{:#x?}\n", self.manage_pages, self.start_page))?;
-        self.free_areas.iter().enumerate().for_each(|(order, free_area)| {
-            let list_head = &free_area.list_head;
-            if free_area.free_pages != 0 {
-                f.write_fmt(format_args!("  Order: {}, FreePages: {}\n", order, free_area.free_pages)).unwrap();
-                list_head.iter().for_each(|l| {
-                    f.write_fmt(format_args!("      {l:#x?}\n")).unwrap();
-                })
-            };
-        });
+        f.write_fmt(format_args!(
+            "  manage_pages: {}\n  start_page:{:#x?}\n",
+            self.manage_pages, self.start_page
+        ))?;
+        self.free_areas
+            .iter()
+            .enumerate()
+            .for_each(|(order, free_area)| {
+                let list_head = &free_area.list_head;
+                if free_area.free_pages != 0 {
+                    f.write_fmt(format_args!(
+                        "  Order: {}, FreePages: {}\n",
+                        order, free_area.free_pages
+                    ))
+                    .unwrap();
+                    list_head.iter().for_each(|l| {
+                        f.write_fmt(format_args!("      {l:#x?}\n")).unwrap();
+                    })
+                };
+            });
         Ok(())
     }
 }
-
 
 impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
     pub const fn new() -> Self {
@@ -65,7 +73,12 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
             return;
         }
         let buddy = start_page + (1 << order);
-        trace!("--{:#x?}-{:#x?}-{:#x?}  {order}", start_page, buddy, end_page);
+        trace!(
+            "--{:#x?}-{:#x?}-{:#x?}  {order}",
+            start_page,
+            buddy,
+            end_page
+        );
         if buddy <= end_page {
             let mut free_area = &mut self.free_areas[order];
             free_area.free_pages += 1;
@@ -73,7 +86,7 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
             let list_head = unsafe { &mut *(addr as *mut ListHead) };
             list_head_init!(*list_head);
             let ptr = to_list_head_ptr!(*list_head);
-            list_add_tail!(ptr,to_list_head_ptr!(free_area.list_head));
+            list_add_tail!(ptr, to_list_head_ptr!(free_area.list_head));
             self.init_free_area(buddy, end_page, order);
         } else {
             self.init_free_area(start_page, end_page, order - 1);
@@ -86,7 +99,11 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
         if order >= MAX_ORDER {
             return Err(BuddyError::OutOfMemory);
         }
-        trace!("alloc_inner:{}, free_pages:{}", order, self.free_areas[order].free_pages);
+        trace!(
+            "alloc_inner:{}, free_pages:{}",
+            order,
+            self.free_areas[order].free_pages
+        );
         if self.free_areas[order].free_pages == 0 {
             self.alloc_inner(order)?;
         }
@@ -99,12 +116,14 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
         let buddy_list_head = unsafe { &mut *(buddy as *mut ListHead) };
         list_head_init!(*buddy_list_head);
         let ptr = to_list_head_ptr!(*buddy_list_head);
-        list_add_tail!(list_head,to_list_head_ptr!(self.free_areas[order-1].list_head));
-        list_add_tail!(ptr, to_list_head_ptr!(self.free_areas[order-1].list_head));
+        list_add_tail!(
+            list_head,
+            to_list_head_ptr!(self.free_areas[order - 1].list_head)
+        );
+        list_add_tail!(ptr, to_list_head_ptr!(self.free_areas[order - 1].list_head));
         self.free_areas[order - 1].free_pages += 2;
         Ok(())
     }
-
 
     fn free_inner(&mut self, page: usize, order: usize) -> BuddyResult<()> {
         let page_addr = page << 12;
@@ -116,9 +135,10 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
         let buddy_addr = buddy << 12;
         let buddy_list_head = unsafe { &mut *(buddy_addr as *mut ListHead) };
         // check buddy is free
-        let is_free = self.free_areas[order].list_head.iter().any(|head| {
-            head == buddy_list_head as *mut ListHead
-        });
+        let is_free = self.free_areas[order]
+            .list_head
+            .iter()
+            .any(|head| head == buddy_list_head as *mut ListHead);
         if is_free && order != MAX_ORDER - 1 {
             // remove buddy from free area
             list_del!(to_list_head_ptr!(*buddy_list_head));
@@ -136,7 +156,6 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
         Ok(())
     }
 }
-
 
 impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
     fn init(&mut self, memory: Range<usize>) -> BuddyResult<()> {
@@ -189,7 +208,6 @@ impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
     }
 }
 
-
 impl<const MAX_ORDER: usize> PageAllocatorExt for Zone<MAX_ORDER> {
     fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize> {
         let order = pages.next_power_of_two().trailing_zeros() as usize;
@@ -201,4 +219,3 @@ impl<const MAX_ORDER: usize> PageAllocatorExt for Zone<MAX_ORDER> {
         self.free(page, order)
     }
 }
-

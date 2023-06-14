@@ -9,7 +9,8 @@ use pager::{PageAllocator, PageAllocatorExt, Zone};
 use crate::config::{FRAME_BITS, FRAME_MAX_ORDER, FRAME_SIZE};
 
 lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<Zone<FRAME_MAX_ORDER>> = Mutex::new(Zone::<FRAME_MAX_ORDER>::new());
+    pub static ref FRAME_ALLOCATOR: Mutex<Zone<FRAME_MAX_ORDER>> =
+        Mutex::new(Zone::<FRAME_MAX_ORDER>::new());
 }
 
 extern "C" {
@@ -131,7 +132,6 @@ pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
     }
     Some(ans)
 }
-
 
 pub fn frame_alloc_contiguous(count: usize) -> Option<FrameTracker> {
     let frame = FRAME_ALLOCATOR.lock().alloc_pages(count);

@@ -10,15 +10,13 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use riscv::register::sstatus::{set_spp, SPP};
 
 use basemachine::machine_info_from_dtb;
-use kernel::{
-    config, driver, println, syscall, task, thread_local_init, timer, trap,
-};
 use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
+use kernel::{config, driver, println, syscall, task, thread_local_init, timer, trap};
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
@@ -65,7 +63,9 @@ pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
     }
     if !STARTED.load(Ordering::Relaxed) {
         clear_bss();
-        unsafe { println!("{:#x?}", STACK.as_ptr() as usize); }
+        unsafe {
+            println!("{:#x?}", STACK.as_ptr() as usize);
+        }
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
@@ -111,7 +111,6 @@ fn init_other_hart(hart_id: usize) {
     // 等待其它cpu核启动
     wait_all_cpu_start();
 }
-
 
 fn wait_all_cpu_start() {
     while CPUS.load(Ordering::Acquire) < CPU_NUM {

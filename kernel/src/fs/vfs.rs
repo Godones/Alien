@@ -7,15 +7,15 @@ use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
-use rvfs::file::{FileMode, OpenFlags, vfs_mkdir, vfs_open_file, vfs_read_file};
+use rvfs::file::{vfs_mkdir, vfs_open_file, vfs_read_file, FileMode, OpenFlags};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
-use rvfs::superblock::{DataOps, Device, register_filesystem};
+use rvfs::superblock::{register_filesystem, DataOps, Device};
 use spin::Mutex;
 
-use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::driver::rtc::get_rtc_time;
+use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::task::current_process;
 
 // only call once before the first process is created

@@ -130,6 +130,3 @@ pub const SYS_MMAP: usize = 222;
 pub const SYS_MPROTECT: usize = 226;
 pub const SYS_MUNMAP: usize = 215;
 pub const SYS_WAIT4: usize = 260;
-
-
-

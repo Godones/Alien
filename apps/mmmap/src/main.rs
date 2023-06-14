@@ -39,5 +39,9 @@ pub fn main() {
     let res = munmap(start as usize, stat.st_size as usize);
     assert_eq!(res, 0);
 
+    println!(
+        "The content of the file is {}",
+        core::str::from_utf8(mmap).unwrap()
+    ); // this will cause a page fault, and be killed by kernel
     println!("Test mmap and munmap passed!")
 }

@@ -20,7 +20,6 @@ static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
     slab: SlabAllocator,
 };
 
-
 pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     if is_first_cpu {
         init_frame_allocator(memory_end);
@@ -36,7 +35,6 @@ pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     }
 }
 
-
 /// 激活页表模式
 pub fn activate_paging_mode() {
     // let ppn = KERNEL_SPACE.read().root_ppn().unwrap().0;
@@ -45,7 +43,7 @@ pub fn activate_paging_mode() {
         satp::set(
             satp::Mode::Sv39,
             0,
-            KERNEL_SPACE.read().root_ppn().unwrap().0,
+            KERNEL_SPACE.read().root_paddr().as_usize() >> 12,
         );
         sfence_vma_all();
     }
@@ -75,7 +73,7 @@ unsafe impl GlobalAlloc for HeapAllocator {
 }
 
 pub fn kernel_satp() -> usize {
-    8usize << 60 | (KERNEL_SPACE.read().root_ppn().unwrap().0)
+    8usize << 60 | (KERNEL_SPACE.read().root_paddr().as_usize() >> 12)
 }
 
 /// This function will be call in slab allocator
