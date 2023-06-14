@@ -3,8 +3,8 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
-use page_table::{AddressSpace, Area, PTableError, PTEFlags, vpn_f_c_range};
-use page_table::VPN;
+use page_table::addr::VirtAddr;
+use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
 use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
@@ -17,9 +17,7 @@ use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::config::FRAME_SIZE;
 use crate::error::AlienError;
 use crate::fs::{STDIN, STDOUT};
-use crate::memory::{
-    build_elf_address_space, kernel_satp, MapFlags, MMapInfo, MMapRegion, ProtFlags,
-};
+use crate::memory::{build_elf_address_space, kernel_satp, MapFlags, MMapInfo, MMapRegion, PageAllocator, ProtFlags};
 use crate::task::context::Context;
 use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::stack::Stack;
@@ -55,7 +53,7 @@ unsafe impl Sync for Process {}
 
 #[derive(Debug)]
 pub struct ProcessInner {
-    pub address_space: AddressSpace,
+    pub address_space: Sv39PageTable<PageAllocator>,
     pub state: ProcessState,
     pub parent: Option<Weak<Process>>,
     pub children: Vec<Arc<Process>>,
@@ -78,7 +76,11 @@ pub struct HeapInfo {
 
 impl HeapInfo {
     pub fn new(start: usize, end: usize) -> Self {
-        HeapInfo { current: start, start, end }
+        HeapInfo {
+            current: start,
+            start,
+            end,
+        }
     }
 
     #[allow(unused)]
@@ -207,7 +209,8 @@ impl Process {
     }
     pub fn token(&self) -> usize {
         let inner = self.inner.lock();
-        8usize << 60 | inner.address_space.root_ppn().unwrap().0
+        let paddr = inner.address_space.root_paddr();
+        (8usize << 60) | (paddr.as_usize() >> 12)
     }
 
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
@@ -313,18 +316,19 @@ impl ProcessInner {
         self.fs_info.clone()
     }
     pub fn transfer_raw(&self, ptr: usize) -> usize {
-        self.address_space.virtual_to_physical(ptr).unwrap()
+        let (phy, ..) = self.address_space.query(VirtAddr::from(ptr)).unwrap();
+        phy.as_usize()
     }
     pub fn transfer_str(&self, ptr: *const u8) -> String {
         let mut res = String::new();
         let mut start = ptr as usize;
         loop {
-            let physical = self.address_space.virtual_to_physical(start);
-            if physical.is_none() {
+            let physical = self.address_space.query(VirtAddr::from(start));
+            if physical.is_err() {
                 break;
             }
-            let physical = physical.unwrap();
-            let c = unsafe { &*(physical as *const u8) };
+            let (physical, _, _) = physical.unwrap();
+            let c = unsafe { &*(physical.as_usize() as *const u8) };
             if *c == 0 {
                 break;
             }
@@ -339,7 +343,7 @@ impl ProcessInner {
         let end = start + len;
         let mut v = Vec::new();
         while start < end {
-            let start_phy = address_space.virtual_to_physical(start).unwrap();
+            let (start_phy, _, _) = address_space.query(VirtAddr::from(start)).unwrap();
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
             let len = if bound > end {
@@ -348,7 +352,7 @@ impl ProcessInner {
                 bound - start
             };
             unsafe {
-                let buf = core::slice::from_raw_parts_mut(start_phy as *mut u8, len);
+                let buf = core::slice::from_raw_parts_mut(start_phy.as_usize() as *mut u8, len);
                 v.push(buf);
             }
             start = bound;
@@ -357,11 +361,11 @@ impl ProcessInner {
     }
 
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
-        let physical = self
+        let (physical, _, _) = self
             .address_space
-            .virtual_to_physical(ptr as usize)
+            .query(VirtAddr::from(ptr as usize))
             .unwrap();
-        unsafe { &mut *(physical as *mut T) }
+        unsafe { &mut *(physical.as_usize() as *mut T) }
     }
 
     /// When process return to user mode, we need to update the user mode time
@@ -405,16 +409,15 @@ impl ProcessInner {
         let end = self.heap.end;
         // align addition to PAGE_SIZE
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
-        let vpn_range = vpn_f_c_range!(end, end + addition);
-        vpn_range.for_each(|x| {
-            self.address_space
-                .push_with_vpn(x, PTEFlags::V | PTEFlags::W | PTEFlags::R | PTEFlags::U)
-                .map_err(|x| match x {
-                    PTableError::AllocError => panic!("alloc error,the memory is not enough"),
-                    _ => {}
-                })
-                .unwrap();
-        });
+        self.address_space
+            .map_region_no_target(
+                VirtAddr::from(end),
+                addition,
+                "RWUVAD".into(),
+                true,
+                false,
+            ).unwrap();
+
         let new_end = end + addition;
         self.heap.end = new_end;
         Ok(self.heap.current)
@@ -434,15 +437,19 @@ impl ProcessInner {
             return Err(-1);
         }
         let v_range = self.mmap.alloc(len);
-        let region = MMapRegion::new(v_range.start, len, prot, flags, file.unwrap(), offset);
+        let region = MMapRegion::new(v_range.start, len, v_range.end - v_range.start, prot, flags, file.unwrap(), offset);
         // warn!("add mmap region:{:#x?}",region);
         self.mmap.add_region(region);
         let start = v_range.start;
-        let v_range = vpn_f_c_range!(start, v_range.end);
-        let map_area = Area::new(v_range, None, prot.into());
-        // we need solve page fault
-        self.address_space.tmp_push(map_area, false);
-
+        let map_flags = prot.into(); // no V A D flag
+        self.address_space
+            .map_region_no_target(
+                VirtAddr::from(start),
+                v_range.end - start,
+                map_flags,
+                true,
+                true,
+            ).unwrap();
         Ok(start)
     }
 
@@ -457,14 +464,8 @@ impl ProcessInner {
         if region.start != start || len != region.len {
             return Err(-1);
         }
-        // unmap
-        // let end  = (start+len+FRAME_SIZE-1)&!(FRAME_SIZE-1);// align to FRAME_SIZE
-        let area = self.address_space.find_area(VPN::floor_address(start));
-        assert!(area.is_some());
-        let map_area = area.unwrap().clone();
-        self.address_space.unmap(&map_area).unwrap();
+        self.address_space.unmap_region(VirtAddr::from(start), region.map_len).unwrap();
         self.mmap.remove_region(start);
-
         Ok(())
     }
 
@@ -481,15 +482,15 @@ impl ProcessInner {
         let region = x.unwrap();
         assert_eq!(addr % FRAME_SIZE, 0);
         // update page table
-        // let pte = self.address_space.find_pte(VPN::floor_address(addr));
-        self.address_space.tmp_make_valid(VPN::floor_address(addr));
-        // load page
-        let phy = self.address_space.virtual_to_physical(addr).unwrap();
-        let buf = unsafe { core::slice::from_raw_parts_mut(phy as *mut u8, FRAME_SIZE) };
+        let mut map_flags = region.prot.into();
+        map_flags |= "VAD".into();
+        self.address_space.validate(VirtAddr::from(addr), map_flags).unwrap();
+
+        let (phy, _, size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+        let buf = unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
         let file = &region.fd;
 
         let read_offset = region.offset + (addr - region.start);
-
         Ok((file.clone(), buf, read_offset as u64))
     }
 }
@@ -500,7 +501,6 @@ impl Process {
         // delete child process
         inner.children.clear();
         // recycle page
-        inner.address_space.recycle();
     }
     /// only call once
     pub fn from_elf(elf: &[u8]) -> Option<Process> {
@@ -511,10 +511,9 @@ impl Process {
             return None;
         }
         let elf_info = elf_info.unwrap();
-        // info!("elf_info: {:#x?}", elf_info);
         let address_space = elf_info.address_space;
-        let physical = address_space.virtual_to_physical(TRAP_CONTEXT_BASE)?;
-        let trap_frame = physical as *mut TrapFrame;
+        let (physical, _, _) = address_space.query(VirtAddr::from(TRAP_CONTEXT_BASE)).unwrap();
+        let trap_frame = physical.as_usize() as *mut TrapFrame;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
         let process = Process {
@@ -552,41 +551,6 @@ impl Process {
         Some(process)
     }
     /// fork a child
-    pub fn fork(self: &Arc<Self>) -> Option<Arc<Process>> {
-        let pid = PID_MANAGER.lock().insert(0).unwrap();
-        let mut inner = self.inner.lock();
-        let address_space = AddressSpace::copy_from_other(&inner.address_space).ok()?;
-        let physical = address_space
-            .virtual_to_physical(TRAP_CONTEXT_BASE)
-            .unwrap();
-        let trap_frame = physical as *mut TrapFrame;
-        let k_stack = Stack::new(1)?;
-        let k_stack_top = k_stack.top();
-        let process = Process {
-            kernel_stack: k_stack,
-            pid: PidHandle(pid),
-            inner: Mutex::new(ProcessInner {
-                address_space,
-                state: ProcessState::Ready,
-                parent: Some(Arc::downgrade(self)),
-                children: Vec::new(),
-                trap_frame,
-                fd_table: inner.fd_table.clone(),
-                context: Context::new(trap_return as usize, k_stack_top),
-                fs_info: inner.fs_info.clone(),
-                statistical_data: StatisticalData::new(),
-                exit_code: 0,
-                heap: inner.heap.clone(),
-                mmap: inner.mmap.clone(),
-            }),
-        };
-        let process = Arc::new(process);
-        inner.children.push(process.clone());
-        let trap_frame = process.trap_frame();
-        trap_frame.update_kernel_sp(k_stack_top);
-        Some(process)
-    }
-
     pub fn t_clone(
         self: &Arc<Self>,
         flag: CloneFlags,
@@ -599,11 +563,11 @@ impl Process {
         assert_eq!(flag, CloneFlags::empty());
         let pid = PID_MANAGER.lock().insert(0).unwrap();
         let mut inner = self.inner.lock();
-        let address_space = AddressSpace::copy_from_other(&inner.address_space).ok()?;
-        let physical = address_space
-            .virtual_to_physical(TRAP_CONTEXT_BASE)
+        let address_space = inner.address_space.clone();
+        let (physical, _, _) = address_space
+            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
             .unwrap();
-        let trap_frame = physical as *mut TrapFrame;
+        let trap_frame = physical.as_usize() as *mut TrapFrame;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
         let process = Process {
@@ -645,10 +609,10 @@ impl Process {
         let elf_info = elf_info.unwrap();
         let mut inner = self.inner.lock();
         let address_space = elf_info.address_space;
-        let physical = address_space
-            .virtual_to_physical(TRAP_CONTEXT_BASE)
+        let (physical, _, _) = address_space
+            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
             .unwrap();
-        let trap_frame = physical as *mut TrapFrame;
+        let trap_frame = physical.as_usize() as *mut TrapFrame;
         inner.address_space = address_space;
         inner.trap_frame = trap_frame;
         inner.heap = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);

@@ -38,11 +38,9 @@ pub fn shutdown() -> isize {
     0
 }
 
-
 pub fn console_putchar(ch: u8) {
     sbi_call(SBI_CONSOLE_PUT_CHAR, ch as usize, 0, 0);
 }
-
 
 pub fn console_getchar() -> char {
     sbi_call(SBI_CONSOLE_GET_CHAR, 0, 0, 0) as u8 as char

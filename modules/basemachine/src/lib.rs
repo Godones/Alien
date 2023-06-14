@@ -45,14 +45,12 @@ pub struct RtcInfo {
     pub irq: usize,
 }
 
-
 #[derive(Debug, Default, Copy, Clone)]
 #[allow(unused)]
 pub struct UartInfo {
     base: usize,
     irq: usize,
 }
-
 
 pub fn machine_info_from_dtb(ptr: usize) -> MachineInfo {
     let fdt = unsafe { Fdt::from_ptr(ptr as *const u8).unwrap() };
@@ -130,10 +128,7 @@ fn walk_dt(fdt: Fdt) -> MachineInfo {
                     end: x.starting_address as usize + x.size.unwrap(),
                 }
             });
-            machine.rtc = RtcInfo {
-                range,
-                irq,
-            }
+            machine.rtc = RtcInfo { range, irq }
         }
     }
     machine.uart_count = uart_count;

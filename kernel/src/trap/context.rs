@@ -1,5 +1,5 @@
 use crate::arch::hart_id;
-use crate::arch::riscv::sstatus::{self, SPP, Sstatus};
+use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
 
 #[repr(C)]
 #[derive(Debug)]
