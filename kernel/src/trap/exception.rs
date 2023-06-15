@@ -24,8 +24,8 @@ pub fn syscall_exception_handler() {
 /// the solution for page fault
 pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     match trap {
-        Trap::Exception(Exception::LoadPageFault) => load_page_fault_exception_handler(addr),
-        Trap::Exception(Exception::StorePageFault) => store_page_fault_exception_handler(addr),
+        Trap::Exception(Exception::LoadPageFault) => load_page_fault_exception_handler(addr)?,
+        Trap::Exception(Exception::StorePageFault) => store_page_fault_exception_handler(addr)?,
         _ => {
             return Err(AlienError::Other);
         }
@@ -33,29 +33,32 @@ pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     Ok(())
 }
 
-pub fn load_page_fault_exception_handler(addr: usize) {
+pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let info = {
         let process = current_process().unwrap();
         process.access_inner().do_load_page_fault(addr)
     };
     if info.is_err() {
-        do_exit(-1);
+        return Err(AlienError::Other);
     }
     let (file, buf, offset) = info.unwrap();
     let _r = vfs_read_file::<VfsProvider>(file, buf, offset);
+    Ok(())
 }
 
-pub fn store_page_fault_exception_handler(addr: usize) {
+pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let process = current_process().unwrap();
     trace!(
         "[pid: {}] do store page fault addr:{:#x}",
         process.get_pid(),
         addr
     );
-    let res = process.access_inner().do_store_page_fault(addr);
-    if res.is_err() {
-        do_exit(-1);
+    let res = process.access_inner().do_store_page_fault(addr)?;
+    if res.is_some() {
+        let (file, buf, offset) = res.unwrap();
+        let _r = vfs_read_file::<VfsProvider>(file, buf, offset);
     }
+    Ok(())
 }
 
 /// the solution for illegal instruction
