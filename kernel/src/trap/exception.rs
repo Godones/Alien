@@ -2,6 +2,7 @@ use riscv::register::scause::{Exception, Trap};
 use rvfs::file::vfs_read_file;
 
 use crate::arch::interrupt_enable;
+use crate::error::{AlienError, AlienResult};
 use crate::fs::vfs::VfsProvider;
 use crate::syscall;
 use crate::task::{current_process, current_trap_frame, do_exit};
@@ -21,13 +22,15 @@ pub fn syscall_exception_handler() {
 }
 
 /// the solution for page fault
-pub fn page_exception_handler(trap: Trap, addr: usize) {
+pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     match trap {
         Trap::Exception(Exception::LoadPageFault) => load_page_fault_exception_handler(addr),
+        Trap::Exception(Exception::StorePageFault) => store_page_fault_exception_handler(addr),
         _ => {
-            do_exit(-1);
+            return Err(AlienError::Other);
         }
     }
+    Ok(())
 }
 
 pub fn load_page_fault_exception_handler(addr: usize) {
@@ -42,7 +45,20 @@ pub fn load_page_fault_exception_handler(addr: usize) {
     let _r = vfs_read_file::<VfsProvider>(file, buf, offset);
 }
 
+pub fn store_page_fault_exception_handler(addr: usize) {
+    let process = current_process().unwrap();
+    trace!(
+        "[pid: {}] do store page fault addr:{:#x}",
+        process.get_pid(),
+        addr
+    );
+    let res = process.access_inner().do_store_page_fault(addr);
+    if res.is_err() {
+        do_exit(-1);
+    }
+}
+
 /// the solution for illegal instruction
-pub fn illegal_instruction_exception_handler() {
-    do_exit(-3);
+pub fn illegal_instruction_exception_handler() -> AlienResult<()> {
+    Err(AlienError::Other)
 }

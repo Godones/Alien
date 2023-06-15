@@ -12,6 +12,7 @@ use crate::arch::hart_id;
 use crate::config::FRAME_SIZE;
 
 mod frame;
+mod manager;
 mod map;
 mod vmm;
 

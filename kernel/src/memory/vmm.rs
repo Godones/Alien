@@ -6,21 +6,13 @@ use core::intrinsics::forget;
 use lazy_static::lazy_static;
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
-// use page_table::{
-//     AddressSpace, ap_from_str, Area, AreaPermission, PageManager, PPN, VPN, vpn_f_c_range,
-// };
 use page_table::table::{PagingIf, Sv39PageTable};
 use spin::RwLock;
 use xmas_elf::program;
 
-use crate::config::{FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use crate::memory::alloc_frames;
+use crate::config::{FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
-
-// lazy_static! {
-//     pub static ref KERNEL_SPACE: Arc<RwLock<AddressSpace>> =
-//         Arc::new(RwLock::new(AddressSpace::new(Arc::new(PageAllocator))));
-// }
+use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 
 lazy_static! {
     pub static ref KERNEL_SPACE: Arc<RwLock<Sv39PageTable<PageAllocator>>> = Arc::new(RwLock::new(
@@ -83,7 +75,8 @@ pub fn build_kernel_address_space(memory_end: usize) {
             sbss as usize - sdata as usize,
             "RWVAD".into(),
             true,
-        ).unwrap();
+        )
+        .unwrap();
     kernel_space
         .map_region(
             VirtAddr::from(sbss as usize),
@@ -91,7 +84,8 @@ pub fn build_kernel_address_space(memory_end: usize) {
             ekernel as usize - sbss as usize,
             "RWVAD".into(),
             true,
-        ).unwrap();
+        )
+        .unwrap();
     kernel_space
         .map_region(
             VirtAddr::from(ekernel as usize),
@@ -99,7 +93,8 @@ pub fn build_kernel_address_space(memory_end: usize) {
             memory_end - ekernel as usize,
             "RWVAD".into(),
             true,
-        ).unwrap();
+        )
+        .unwrap();
     kernel_space
         .map_region(
             VirtAddr::from(TRAMPOLINE),
@@ -107,7 +102,8 @@ pub fn build_kernel_address_space(memory_end: usize) {
             FRAME_SIZE,
             "RXVAD".into(),
             true,
-        ).unwrap();
+        )
+        .unwrap();
     for pair in MMIO {
         kernel_space
             .map_region(
@@ -116,7 +112,8 @@ pub fn build_kernel_address_space(memory_end: usize) {
                 pair.1,
                 "RWVAD".into(),
                 true,
-            ).unwrap();
+            )
+            .unwrap();
     }
 }
 
@@ -146,6 +143,55 @@ pub enum ELFError {
     NoLoadableSegment,
     NoStackSegment,
     NoEntrySegment,
+}
+
+pub fn build_clone_address_space(
+    p_table: &mut Sv39PageTable<PageAllocator>,
+) -> Sv39PageTable<PageAllocator> {
+    let mut address_space = Sv39PageTable::<PageAllocator>::try_new().unwrap();
+    p_table
+        .get_record()
+        .into_iter()
+        .for_each(|(v_addr, target)| {
+            let (phy, mut flag, page_size) = p_table.query(v_addr).unwrap();
+            if v_addr.as_usize() == TRAP_CONTEXT_BASE {
+                // for Trap_context, we remap it
+                assert_eq!(usize::from(page_size), TRAMPOLINE - TRAP_CONTEXT_BASE);
+                let dst = address_space
+                    .map_no_target(v_addr, page_size, flag, false)
+                    .unwrap();
+                // copy data
+                let src_ptr = phy.as_usize() as *const u8;
+                let dst_ptr = dst.as_usize() as *mut u8;
+                unsafe {
+                    core::ptr::copy(src_ptr, dst_ptr, usize::from(page_size));
+                }
+            } else {
+                // cow
+                // checkout whether pte flags has `W` flag
+                let new_flag = if flag.contains(MappingFlags::W) {
+                    flag -= MappingFlags::W;
+                    flag |= MappingFlags::RSD; // we use the RSD flag to indicate that this page is a cow page
+                                               // update parent's flag and clear dirty
+                    p_table.modify_pte_flags(v_addr, flag, false).unwrap();
+                    flag
+                } else {
+                    flag
+                };
+                address_space.map(v_addr, phy, page_size, new_flag).unwrap();
+                // add ref for alloc page
+                let page_info = address_space.alloc_pages_info_mut();
+                if target.is_none() {
+                    for i in 0..usize::from(page_size) / FRAME_SIZE {
+                        page_info.push(phy + FRAME_SIZE * i);
+                        let page_number = (phy + FRAME_SIZE * i).as_usize() >> FRAME_BITS;
+                        FRAME_REF_MANAGER.lock().get_ref(page_number);
+                        FRAME_REF_MANAGER.lock().add_ref(page_number);
+                    }
+                }
+            }
+        });
+    address_space
 }
 
 pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
@@ -178,24 +224,32 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             }
             trace!(
                 "load segment: {:#x} - {:#x}, permission: {:?}",
-                start_addr, end_addr, permission);
-            let mut data = &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
-            let map_info = address_space.map_region_no_target(
-                VirtAddr::from(start_addr).align_down_4k(),
-                align_up_4k(end_addr - start_addr),
-                permission,
-                true,
-                false,
-            ).unwrap();
+                start_addr,
+                end_addr,
+                permission
+            );
+            let mut data =
+                &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
+            let map_info = address_space
+                .map_region_no_target(
+                    VirtAddr::from(start_addr).align_down_4k(),
+                    align_up_4k(end_addr - start_addr),
+                    permission,
+                    true,
+                    false,
+                )
+                .unwrap();
             // copy data
-            map_info.into_iter().for_each(|(vir, phy, page_size)| unsafe {
-                trace!("{:#x} {:#x} {:#x?}",vir,phy,page_size);
-                let size: usize = page_size.into();
-                let min = min(size, data.len());
-                let dst = phy.as_usize() as *mut u8;
-                core::ptr::copy(data.as_ptr(), dst, min);
-                data = &data[min..];
-            })
+            map_info
+                .into_iter()
+                .for_each(|(vir, phy, page_size)| unsafe {
+                    trace!("{:#x} {:#x} {:#x?}", vir, phy, page_size);
+                    let size: usize = page_size.into();
+                    let min = min(size, data.len());
+                    let dst = phy.as_usize() as *mut u8;
+                    core::ptr::copy(data.as_ptr(), dst, min);
+                    data = &data[min..];
+                })
         }
     }
     // 地址向上取整对齐4
@@ -211,7 +265,8 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             "RWUVAD".into(),
             true,
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
     // todo!(heap)
     let heap_bottom = top; // align to 4k
@@ -222,7 +277,8 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             "RWVAD".into(),
             true,
             false,
-        ).unwrap();
+        )
+        .unwrap();
     address_space
         .map_region(
             VirtAddr::from(TRAMPOLINE),
@@ -230,7 +286,8 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             FRAME_SIZE,
             "RXVAD".into(),
             true,
-        ).unwrap();
+        )
+        .unwrap();
 
     Ok(ELFInfo {
         address_space,
@@ -262,7 +319,7 @@ impl PagingIf for PageAllocator {
     }
 
     fn alloc_contiguous_frames(size: usize) -> Option<PhysAddr> {
-        let ptr = alloc_frames(size);
+        let ptr = frame_alloc_contiguous(size);
         if ptr.is_null() {
             return None;
         }
