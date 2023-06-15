@@ -1,7 +1,7 @@
-use crate::arch::hart_id;
 use log::{self, Level, LevelFilter, Log, Metadata, Record};
 
 struct SimpleLogger;
+
 impl Log for SimpleLogger {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         true
@@ -17,11 +17,9 @@ impl Log for SimpleLogger {
             Level::Debug => 32, // Green
             Level::Trace => 90, // BrightBlack
         };
-        let hart_id = hart_id();
         println!(
-            "\u{1B}[{}m[{:>5}][{:>1}] {}\u{1B}[0m",
+            "\u{1B}[{}m[{:>1}] {}\u{1B}[0m",
             color,
-            hart_id,
             record.level(),
             record.args(),
         );
