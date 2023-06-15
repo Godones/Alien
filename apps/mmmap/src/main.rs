@@ -1,8 +1,8 @@
 #![no_std]
 #![no_main]
 
-use Mstd::fs::{close, fstat, open, write, OpenFlags, Stat};
-use Mstd::ipc::{mmap, munmap, MapFlags, ProtFlags};
+use Mstd::fs::{close, fstat, open, OpenFlags, Stat, write};
+use Mstd::ipc::{MapFlags, mmap, munmap, ProtFlags};
 use Mstd::println;
 
 #[no_mangle]
@@ -29,8 +29,12 @@ pub fn main() {
 
     close(fd as usize);
 
+
     // after close ,we still can access the mmap
-    let mmap = unsafe { core::slice::from_raw_parts(start as *const u8, stat.st_size as usize) };
+    let mmap = unsafe { core::slice::from_raw_parts_mut(start as *mut u8, stat.st_size as usize + 10) };
+
+    mmap[str.len()] = b'!';
+
     println!(
         "The content of the file is {}",
         core::str::from_utf8(mmap).unwrap()

@@ -3,7 +3,7 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
-use page_table::addr::{align_down_4k, VirtAddr};
+use page_table::addr::{align_down_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
@@ -14,19 +14,19 @@ use spin::{Mutex, MutexGuard};
 
 use gmanager::MinimalManager;
 
-use crate::config::FRAME_SIZE;
 use crate::config::{FRAME_BITS, MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
+use crate::config::FRAME_SIZE;
 use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
 use crate::memory::{
-    build_clone_address_space, build_elf_address_space, kernel_satp, MMapInfo, MMapRegion,
-    MapFlags, PageAllocator, ProtFlags, FRAME_REF_MANAGER,
+    build_clone_address_space, build_elf_address_space, FRAME_REF_MANAGER, kernel_satp, MapFlags,
+    MMapInfo, MMapRegion, PageAllocator, ProtFlags,
 };
 use crate::task::context::Context;
 use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::trap::{trap_return, TrapFrame, user_trap_vector};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -414,7 +414,12 @@ impl ProcessInner {
         // align addition to PAGE_SIZE
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
         self.address_space
-            .map_region_no_target(VirtAddr::from(end), addition, "RWUVAD".into(), true, false)
+            .map_region_no_target(
+                VirtAddr::from(end),
+                addition,
+                "RWUVAD".into(),
+                true,
+                false)
             .unwrap();
 
         let new_end = end + addition;
@@ -422,6 +427,7 @@ impl ProcessInner {
         Ok(self.heap.current)
     }
 
+    /// the len will be aligned to 4k
     pub fn add_mmap(
         &mut self,
         _start: usize,
@@ -448,7 +454,8 @@ impl ProcessInner {
         // warn!("add mmap region:{:#x?}",region);
         self.mmap.add_region(region);
         let start = v_range.start;
-        let map_flags = prot.into(); // no V A D flag
+        let mut map_flags = prot.into(); // no V  flag
+        map_flags |= "AD".into();
         self.address_space
             .map_region_no_target(
                 VirtAddr::from(start),
@@ -493,7 +500,7 @@ impl ProcessInner {
         assert_eq!(addr % FRAME_SIZE, 0);
         // update page table
         let mut map_flags = region.prot.into();
-        map_flags |= "VAD".into();
+        map_flags |= "V".into();
         let (_, flags, _) = self.address_space.query(VirtAddr::from(addr)).unwrap();
         assert!(!flags.contains(MappingFlags::V));
         self.address_space
@@ -508,9 +515,38 @@ impl ProcessInner {
         Ok((file.clone(), buf, read_offset as u64))
     }
 
-    pub fn do_store_page_fault(&mut self, addr: usize) -> AlienResult<()> {
+    fn invalid_page_solver(&mut self, addr: usize) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
+        let is_mmap = self.mmap.get_region(addr);
+        let is_heap = self.heap.contains(addr);
+        if is_mmap.is_none() && !is_heap {
+            return Err(AlienError::Other);
+        }
+        if is_heap {} else {
+            let region = is_mmap.unwrap();
+            assert_eq!(addr % FRAME_SIZE, 0);
+            // update page table
+            let mut map_flags = region.prot.into();
+            map_flags |= "V".into();
+            self.address_space
+                .validate(VirtAddr::from(addr), map_flags)
+                .unwrap();
+            let (phy, _, size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+            let buf =
+                unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
+            let file = &region.fd;
+
+            let read_offset = region.offset + (addr - region.start);
+            return Ok(Some((file.clone(), buf, read_offset as u64)));
+        }
+        Ok(None)
+    }
+
+    pub fn do_store_page_fault(&mut self, addr: usize) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
         let addr = align_down_4k(addr);
         let (phy, flags, page_size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+        if !flags.contains(MappingFlags::V) {
+            return self.invalid_page_solver(addr);
+        }
         assert!(flags.contains(MappingFlags::RSD));
         // decrease the reference count
         let mut flags = flags | "W".into();
@@ -534,7 +570,7 @@ impl ProcessInner {
                 .lock()
                 .dec_ref(t_phy.as_usize() >> FRAME_BITS);
         }
-        Ok(())
+        Ok(None)
     }
 }
 

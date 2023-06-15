@@ -1,73 +1,73 @@
 use spin::Once;
 use syscall_table::{register_syscall, Table};
 static SYSCALL_TABLE: Once<Table> = Once::new();
-pub fn register_all_syscall() {
-    let mut table = Table::new();
-    register_syscall!(
-        table,
-        (160, sys_uname),
-        (210, shutdown),
-        (169, get_time_of_day),
-        (153, times),
-        (101, sys_nanosleep),
-        (59, sys_pipe),
-        (23, sys_dup),
-        (24, sys_dup2),
-        (93, do_exit),
-        (124, do_suspend),
-        (172, get_pid),
-        (173, get_ppid),
-        (220, clone),
-        (221, do_exec),
-        (260, wait_pid),
-        (214, do_brk),
-        (40, sys_mount),
-        (39, sys_umount),
-        (56, sys_openat),
-        (57, sys_close),
-        (61, sys_getdents),
-        (45, sys_truncate),
-        (46, sys_ftruncate),
-        (63, sys_read),
-        (64, sys_write),
-        (17, sys_getcwd),
-        (49, sys_chdir),
-        (83, sys_mkdir),
-        (62, sys_lseek),
-        (80, sys_fstat),
-        (37, sys_linkat),
-        (35, sys_unlinkat),
-        (36, sys_symlinkat),
-        (78, sys_readlinkat),
-        (79, sys_fstateat),
-        (44, sys_fstatfs),
-        (43, sys_statfs),
-        (38, sys_renameat),
-        (34, sys_mkdirat),
-        (5, sys_setxattr),
-        (6, sys_lsetxattr),
-        (7, sys_fsetxattr),
-        (8, sys_getxattr),
-        (9, sys_lgetxattr),
-        (10, sys_fgetxattr),
-        (11, sys_listxattr),
-        (12, sys_llistxattr),
-        (13, sys_flistxattr),
-        (14, sys_removexattr),
-        (15, sys_lremovexattr),
-        (16, sys_fremovexattr),
-        (215, do_munmap),
-        (222, do_mmap),
-    );
-    SYSCALL_TABLE.call_once(|| table);
+pub fn register_all_syscall(){
+	let mut table = Table::new();
+	register_syscall!(table,
+	(160, sys_uname),
+	(210, shutdown),
+	(169, get_time_of_day),
+	(153, times),
+	(101, sys_nanosleep),
+	(59, sys_pipe),
+	(23, sys_dup),
+	(24, sys_dup2),
+	(93, do_exit),
+	(124, do_suspend),
+	(172, get_pid),
+	(173, get_ppid),
+	(220, clone),
+	(221, do_exec),
+	(260, wait_pid),
+	(214, do_brk),
+	(40, sys_mount),
+	(39, sys_umount),
+	(56, sys_openat),
+	(57, sys_close),
+	(61, sys_getdents),
+	(45, sys_truncate),
+	(46, sys_ftruncate),
+	(63, sys_read),
+	(64, sys_write),
+	(17, sys_getcwd),
+	(49, sys_chdir),
+	(83, sys_mkdir),
+	(62, sys_lseek),
+	(80, sys_fstat),
+	(37, sys_linkat),
+	(35, sys_unlinkat),
+	(36, sys_symlinkat),
+	(78, sys_readlinkat),
+	(79, sys_fstateat),
+	(44, sys_fstatfs),
+	(43, sys_statfs),
+	(38, sys_renameat),
+	(34, sys_mkdirat),
+	(5, sys_setxattr),
+	(6, sys_lsetxattr),
+	(7, sys_fsetxattr),
+	(8, sys_getxattr),
+	(9, sys_lgetxattr),
+	(10, sys_fgetxattr),
+	(11, sys_listxattr),
+	(12, sys_llistxattr),
+	(13, sys_flistxattr),
+	(14, sys_removexattr),
+	(15, sys_lremovexattr),
+	(16, sys_fremovexattr),
+	(215, do_munmap),
+	(222, do_mmap),
+
+	);
+	SYSCALL_TABLE.call_once(||table);
 }
-pub fn do_syscall(id: usize, args: &[usize]) -> isize {
-    let res = SYSCALL_TABLE.get().unwrap().do_call(id, &args);
-    if res.is_none() {
-        return -1;
-    } else {
-        return res.unwrap();
-    }
+pub fn do_syscall(id:usize,args:&[usize])->isize{
+	let res = SYSCALL_TABLE.get().unwrap().do_call(id,&args);
+	if res.is_none(){
+		    return -1;
+	}else {
+	    return res.unwrap();
+	}
 }
 use crate::fs::sys_chdir;
 use crate::fs::sys_close;
