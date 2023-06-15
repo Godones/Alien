@@ -53,4 +53,5 @@ BUILD_CRATES := \
 	ls \
 	cat \
 	mmmap \
-	run_test
+	run_test \
+	forktest
