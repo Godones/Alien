@@ -11,9 +11,14 @@
 
 ## 虚拟内存管理
 
-- [ ] 重构 `page-table` 的实现，规范接口
+- [x] 重构 `page-table` 的实现，规范接口
+  - [x] 使用来自`Arceos`的实现，添加了额外的函数可以更灵活管理页表
+
 - [ ] 添加内核缺页异常处理，支持内核中大内存分配
 - [ ] Copy on Write | Lazy allocation
+  - [x] fork - -> Cow
+  - [ ] mmap/sbrk/exec --> Lazy
+
 
 ## Device
 

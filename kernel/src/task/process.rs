@@ -3,7 +3,8 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
-use page_table::addr::VirtAddr;
+use page_table::addr::{align_down_4k, VirtAddr};
+use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
 use rvfs::file::File;
@@ -13,16 +14,19 @@ use spin::{Mutex, MutexGuard};
 
 use gmanager::MinimalManager;
 
-use crate::config::{MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::config::FRAME_SIZE;
-use crate::error::AlienError;
+use crate::config::{FRAME_BITS, MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
+use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
-use crate::memory::{build_elf_address_space, kernel_satp, MapFlags, MMapInfo, MMapRegion, PageAllocator, ProtFlags};
+use crate::memory::{
+    build_clone_address_space, build_elf_address_space, kernel_satp, MMapInfo, MMapRegion,
+    MapFlags, PageAllocator, ProtFlags, FRAME_REF_MANAGER,
+};
 use crate::task::context::Context;
 use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, TrapFrame, user_trap_vector};
+use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -410,13 +414,8 @@ impl ProcessInner {
         // align addition to PAGE_SIZE
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
         self.address_space
-            .map_region_no_target(
-                VirtAddr::from(end),
-                addition,
-                "RWUVAD".into(),
-                true,
-                false,
-            ).unwrap();
+            .map_region_no_target(VirtAddr::from(end), addition, "RWUVAD".into(), true, false)
+            .unwrap();
 
         let new_end = end + addition;
         self.heap.end = new_end;
@@ -437,7 +436,15 @@ impl ProcessInner {
             return Err(-1);
         }
         let v_range = self.mmap.alloc(len);
-        let region = MMapRegion::new(v_range.start, len, v_range.end - v_range.start, prot, flags, file.unwrap(), offset);
+        let region = MMapRegion::new(
+            v_range.start,
+            len,
+            v_range.end - v_range.start,
+            prot,
+            flags,
+            file.unwrap(),
+            offset,
+        );
         // warn!("add mmap region:{:#x?}",region);
         self.mmap.add_region(region);
         let start = v_range.start;
@@ -449,7 +456,8 @@ impl ProcessInner {
                 map_flags,
                 true,
                 true,
-            ).unwrap();
+            )
+            .unwrap();
         Ok(start)
     }
 
@@ -464,7 +472,9 @@ impl ProcessInner {
         if region.start != start || len != region.len {
             return Err(-1);
         }
-        self.address_space.unmap_region(VirtAddr::from(start), region.map_len).unwrap();
+        self.address_space
+            .unmap_region(VirtAddr::from(start), region.map_len)
+            .unwrap();
         self.mmap.remove_region(start);
         Ok(())
     }
@@ -484,14 +494,47 @@ impl ProcessInner {
         // update page table
         let mut map_flags = region.prot.into();
         map_flags |= "VAD".into();
-        self.address_space.validate(VirtAddr::from(addr), map_flags).unwrap();
-
+        let (_, flags, _) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+        assert!(!flags.contains(MappingFlags::V));
+        self.address_space
+            .validate(VirtAddr::from(addr), map_flags)
+            .unwrap();
         let (phy, _, size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
-        let buf = unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
+        let buf =
+            unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
         let file = &region.fd;
 
         let read_offset = region.offset + (addr - region.start);
         Ok((file.clone(), buf, read_offset as u64))
+    }
+
+    pub fn do_store_page_fault(&mut self, addr: usize) -> AlienResult<()> {
+        let addr = align_down_4k(addr);
+        let (phy, flags, page_size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+        assert!(flags.contains(MappingFlags::RSD));
+        // decrease the reference count
+        let mut flags = flags | "W".into();
+        flags -= MappingFlags::RSD;
+        let new_phy = self
+            .address_space
+            .modify_pte_flags(VirtAddr::from(addr), flags, true)
+            .unwrap();
+        assert!(new_phy.is_some());
+        // copy data
+        let src_ptr = phy.as_usize() as *const u8;
+        let dst_ptr = new_phy.unwrap().as_usize() as *mut u8;
+        unsafe {
+            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, usize::from(page_size));
+        }
+        let page_info = self.address_space.alloc_pages_info_mut();
+        for i in 0..usize::from(page_size) / FRAME_SIZE {
+            let t_phy = phy + i * FRAME_SIZE;
+            page_info.retain(|x| *x != t_phy);
+            FRAME_REF_MANAGER
+                .lock()
+                .dec_ref(t_phy.as_usize() >> FRAME_BITS);
+        }
+        Ok(())
     }
 }
 
@@ -512,7 +555,9 @@ impl Process {
         }
         let elf_info = elf_info.unwrap();
         let address_space = elf_info.address_space;
-        let (physical, _, _) = address_space.query(VirtAddr::from(TRAP_CONTEXT_BASE)).unwrap();
+        let (physical, _, _) = address_space
+            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
+            .unwrap();
         let trap_frame = physical.as_usize() as *mut TrapFrame;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
@@ -563,7 +608,7 @@ impl Process {
         assert_eq!(flag, CloneFlags::empty());
         let pid = PID_MANAGER.lock().insert(0).unwrap();
         let mut inner = self.inner.lock();
-        let address_space = inner.address_space.clone();
+        let address_space = build_clone_address_space(&mut inner.address_space);
         let (physical, _, _) = address_space
             .query(VirtAddr::from(TRAP_CONTEXT_BASE))
             .unwrap();
