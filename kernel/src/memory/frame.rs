@@ -1,5 +1,6 @@
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
+use core::ptr::null_mut;
 
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -8,9 +9,15 @@ use pager::{PageAllocator, PageAllocatorExt, Zone};
 
 use crate::config::{FRAME_BITS, FRAME_MAX_ORDER, FRAME_SIZE};
 
+use super::manager::FrameRefManager;
+
 lazy_static! {
     pub static ref FRAME_ALLOCATOR: Mutex<Zone<FRAME_MAX_ORDER>> =
         Mutex::new(Zone::<FRAME_MAX_ORDER>::new());
+}
+
+lazy_static! {
+    pub static ref FRAME_REF_MANAGER: Mutex<FrameRefManager> = Mutex::new(FrameRefManager::new());
 }
 
 extern "C" {
@@ -68,8 +75,7 @@ impl FrameTracker {
 impl Drop for FrameTracker {
     fn drop(&mut self) {
         trace!("drop frame:{}", self.id);
-        self.zero_init();
-        FRAME_ALLOCATOR.lock().free(self.id, 0).unwrap();
+        let _id = FRAME_REF_MANAGER.lock().dec_ref(self.id);
     }
 }
 
@@ -118,7 +124,9 @@ pub fn frame_alloc() -> Option<FrameTracker> {
     if frame.is_err() {
         return None;
     }
-    Some(FrameTracker::new(frame.unwrap()))
+    let frame = frame.unwrap();
+    FRAME_REF_MANAGER.lock().add_ref(frame);
+    Some(FrameTracker::new(frame))
 }
 
 pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
@@ -128,15 +136,22 @@ pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
         if id.is_err() {
             return None;
         }
-        ans.push(FrameTracker::new(id.unwrap()));
+        let id = id.unwrap();
+        FRAME_REF_MANAGER.lock().add_ref(id);
+        ans.push(FrameTracker::new(id));
     }
     Some(ans)
 }
 
-pub fn frame_alloc_contiguous(count: usize) -> Option<FrameTracker> {
+pub fn frame_alloc_contiguous(count: usize) -> *mut u8 {
     let frame = FRAME_ALLOCATOR.lock().alloc_pages(count);
     if frame.is_err() {
-        return None;
+        return null_mut();
     }
-    Some(FrameTracker::new(frame.unwrap()))
+    let frame = frame.unwrap();
+    for i in 0..count {
+        let refs = FRAME_REF_MANAGER.lock().add_ref(frame + i);
+        assert_eq!(refs, 1)
+    }
+    (frame << FRAME_BITS as u64) as *mut u8
 }

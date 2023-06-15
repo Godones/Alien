@@ -1,8 +1,8 @@
 #![no_std]
 #![no_main]
 
-use Mstd::fs::{close, fstat, open, OpenFlags, Stat, write};
-use Mstd::ipc::{MapFlags, mmap, munmap, ProtFlags};
+use Mstd::fs::{close, fstat, open, write, OpenFlags, Stat};
+use Mstd::ipc::{mmap, munmap, MapFlags, ProtFlags};
 use Mstd::println;
 
 #[no_mangle]
