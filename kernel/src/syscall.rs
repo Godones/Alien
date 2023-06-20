@@ -9,6 +9,8 @@ pub fn register_all_syscall(){
 	(169, get_time_of_day),
 	(153, times),
 	(101, sys_nanosleep),
+	(2000, sys_framebuffer),
+	(2001, sys_framebuffer_flush),
 	(59, sys_pipe),
 	(23, sys_dup),
 	(24, sys_dup2),
@@ -104,6 +106,8 @@ use crate::fs::sys_truncate;
 use crate::fs::sys_umount;
 use crate::fs::sys_unlinkat;
 use crate::fs::sys_write;
+use crate::gui::sys_framebuffer;
+use crate::gui::sys_framebuffer_flush;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
 use crate::ipc::sys_pipe;
