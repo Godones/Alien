@@ -25,6 +25,7 @@ pub mod task;
 pub mod timer;
 mod trace;
 pub mod trap;
+mod gui;
 
 pub fn thread_local_init() {
     // 允许内核读写用户态内存
