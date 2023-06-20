@@ -17,9 +17,9 @@ use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::sync::IntrLock;
 use crate::task::context::Context;
+use crate::task::INIT_PROCESS;
 use crate::task::process::{Process, ProcessState};
 use crate::task::schedule::schedule;
-use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
 
 #[derive(Debug, Clone)]

@@ -3,7 +3,7 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
-use page_table::addr::{align_down_4k, PhysAddr, VirtAddr};
+use page_table::addr::{align_down_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
@@ -417,11 +417,10 @@ impl ProcessInner {
             .map_region_no_target(
                 VirtAddr::from(end),
                 addition,
-                "RWUVAD".into(),
+                "RWUAD".into(), // no V flag
                 true,
-                false)
+                true)
             .unwrap();
-
         let new_end = end + addition;
         self.heap.end = new_end;
         Ok(self.heap.current)
@@ -521,7 +520,13 @@ impl ProcessInner {
         if is_mmap.is_none() && !is_heap {
             return Err(AlienError::Other);
         }
-        if is_heap {} else {
+        if is_heap {
+            trace!("invalid page fault in heap");
+            let map_flags = "RWUVAD".into();
+            self.address_space
+                .validate(VirtAddr::from(addr), map_flags)
+                .unwrap();
+        } else {
             let region = is_mmap.unwrap();
             assert_eq!(addr % FRAME_SIZE, 0);
             // update page table
@@ -534,7 +539,6 @@ impl ProcessInner {
             let buf =
                 unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
             let file = &region.fd;
-
             let read_offset = region.offset + (addr - region.start);
             return Ok(Some((file.clone(), buf, read_offset as u64)));
         }
@@ -542,6 +546,7 @@ impl ProcessInner {
     }
 
     pub fn do_store_page_fault(&mut self, addr: usize) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
+        trace!("do store page fault:{:#x}",addr);
         let addr = align_down_4k(addr);
         let (phy, flags, page_size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
         if !flags.contains(MappingFlags::V) {
@@ -562,10 +567,8 @@ impl ProcessInner {
         unsafe {
             core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, usize::from(page_size));
         }
-        let page_info = self.address_space.alloc_pages_info_mut();
         for i in 0..usize::from(page_size) / FRAME_SIZE {
             let t_phy = phy + i * FRAME_SIZE;
-            page_info.retain(|x| *x != t_phy);
             FRAME_REF_MANAGER
                 .lock()
                 .dec_ref(t_phy.as_usize() >> FRAME_BITS);
