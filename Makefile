@@ -13,10 +13,22 @@ BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
 SMP ?= 4
-
+GUI ?=n
 IMG1 := tools/fs1.img
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
+
+
+QEMU_ARGS :=
+
+
+ifeq ($(GUI),y)
+QEMU_ARGS += -device virtio-gpu-device \
+			 -device virtio-keyboard-device \
+			 -device virtio-mouse-device
+else
+QEMU_ARGS += -nographic
+endif
 
 define boot_qemu
 	qemu-system-riscv64 \
@@ -25,8 +37,8 @@ define boot_qemu
         -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \
         -device virtio-blk-device,drive=x0 \
-        -nographic \
         -kernel  kernel-qemu\
+        -$(QEMU_ARGS) \
         -smp $(SMP) -m 256M \
         -serial mon:stdio
 endef
