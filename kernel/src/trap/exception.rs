@@ -5,7 +5,7 @@ use crate::arch::interrupt_enable;
 use crate::error::{AlienError, AlienResult};
 use crate::fs::vfs::VfsProvider;
 use crate::syscall;
-use crate::task::{current_process, current_trap_frame, do_exit};
+use crate::task::{current_process, current_trap_frame};
 
 pub fn syscall_exception_handler() {
     // enable interrupt
@@ -23,6 +23,12 @@ pub fn syscall_exception_handler() {
 
 /// the solution for page fault
 pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
+    trace!(
+        "[pid: {}] page fault addr:{:#x} trap:{:?}",
+        current_process().unwrap().get_pid(),
+        addr,
+        trap
+    );
     match trap {
         Trap::Exception(Exception::LoadPageFault) => load_page_fault_exception_handler(addr)?,
         Trap::Exception(Exception::StorePageFault) => store_page_fault_exception_handler(addr)?,
