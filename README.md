@@ -1,12 +1,10 @@
 # Alien
 
-A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os,so the system is composed of a series of independent modules. At present, the system already supports user-mode programsand some simple functions.
-
-
+A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os,so
+the system is composed of a series of independent modules. At present, the system already supports user-mode programsand
+some simple functions.
 
 ![image-20230607222452791](assert/image-20230607222452791.png)
-
-
 
 ## Modules
 
@@ -44,18 +42,14 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 
 Other modules are not listed here, you can find them in the cargo.toml file.
 
-
-
 ## Run
 
 1. install qemu 7.0.0
 2. install rust nightly
 
 ```
-make run LOG=WARN img=fat32
+make run LOG=WARN img=fat32 SMP=4
 ```
-
-
 
 ## Doc
 
@@ -87,8 +81,6 @@ make run LOG=WARN img=fat32
 - [x] stack trace
 - [ ] signal
 - [ ] ....
-
-
 
 ## Project Structure
 
@@ -136,10 +128,6 @@ make run LOG=WARN img=fat32
 └── userlib   		用户库
     └── src
 ```
-
-
-
-
 
 ## Reference
 
