@@ -4,17 +4,23 @@ use core::fmt;
 use core2::io::{BufRead, Read, Write};
 
 use stdio::*;
-pub use stdio::{stdin, stdout, StdinLock, StdoutLock};
+pub use stdio::{stdin, StdinLock, stdout, StdoutLock};
+
+use crate::syscall::{sys_framebuffer, sys_framebuffer_flush};
 
 mod stdio;
 
 type Result<T> = core2::io::Result<T>;
 
+pub const VIRTGPU_XRES: usize = 1280;
+pub const VIRTGPU_YRES: usize = 800;
+pub const VIRTGPU_LEN: usize = VIRTGPU_XRES * VIRTGPU_YRES * 4;
+
 pub trait BufferReadExt {
     fn read_line(&mut self, buf: &mut String) -> Result<usize>;
     fn lines(self) -> Lines<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         Lines { buf: self }
     }
@@ -67,8 +73,8 @@ macro_rules! println {
 }
 
 fn print_to<T>(args: fmt::Arguments<'_>, global_s: fn() -> T, label: &str)
-where
-    T: Write,
+    where
+        T: Write,
 {
     if let Err(e) = global_s().write_fmt(args) {
         panic!("failed printing to {label}: {e}");
@@ -117,4 +123,30 @@ pub fn read_line() -> String {
     }
     print!("\n");
     res
+}
+
+pub fn get_char() -> u8 {
+    use super::sys::io::Stdin;
+    let mut buf = [0u8; 1];
+    loop {
+        Stdin.read(&mut buf).unwrap();
+        if buf[0] == 127 {
+            continue;
+        }
+        if buf[0] < 32 {
+            continue;
+        }
+        break;
+    }
+    buf[0]
+}
+
+
+pub fn frame_buffer() -> &'static mut [u8] {
+    let buf_ptr = sys_framebuffer() as usize;
+    unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, VIRTGPU_LEN) }
+}
+
+pub fn flush_frame_buffer() {
+    sys_framebuffer_flush();
 }

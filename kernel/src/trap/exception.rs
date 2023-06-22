@@ -9,7 +9,7 @@ use crate::task::{current_process, current_trap_frame};
 
 pub fn syscall_exception_handler() {
     // enable interrupt
-    // interrupt_enable();
+    interrupt_enable();
     // jump to next instruction anyway
     let mut cx = current_trap_frame();
     cx.update_sepc();
