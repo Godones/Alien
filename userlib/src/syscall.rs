@@ -65,6 +65,8 @@ syscall_id!(SYSCALL_CREATE_GLOBAL_BUCKET, 1001);
 syscall_id!(SYSCALL_EXECUTE_USER_FUNC, 1002);
 syscall_id!(SYSCALL_SHOW_DBFS, 1003);
 syscall_id!(SYSCALL_EXECUTE_OPERATE, 1004);
+syscall_id!(SYSCALL_FRAME_BUFFER,2000);
+syscall_id!(SYSCALL_FRAME_FLUSH,2001);
 fn syscall(id: usize, args: [usize; 6]) -> isize {
     let mut ret: isize;
     unsafe {
@@ -259,3 +261,8 @@ syscall!(
     usize
 );
 syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);
+
+
+// gui
+syscall!(sys_framebuffer, SYSCALL_FRAME_BUFFER );
+syscall!(sys_framebuffer_flush,SYSCALL_FRAME_FLUSH);
