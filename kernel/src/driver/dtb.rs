@@ -1,23 +1,28 @@
-use crate::arch::hart_id;
-use crate::config::CPU_NUM;
-use crate::driver::hal::HalImpl;
-use crate::driver::rtc::init_rtc;
-use crate::driver::uart::init_uart;
-use crate::driver::DeviceBase;
-use crate::driver::{pci_probe, QemuBlockDevice, QEMU_BLOCK_DEVICE};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::ptr::NonNull;
+
+use fdt::Fdt;
 use fdt::node::FdtNode;
 use fdt::standard_nodes::Compatible;
-use fdt::Fdt;
 use lazy_static::lazy_static;
-use plic::{Mode, PLIC};
 use spin::{Mutex, Once};
 use virtio_drivers::device::blk::VirtIOBlk;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::transport::{DeviceType, Transport};
+use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+
+use plic::{Mode, PLIC};
+
+use crate::arch::hart_id;
+use crate::config::CPU_NUM;
+use crate::driver::{pci_probe, QEMU_BLOCK_DEVICE, QemuBlockDevice};
+use crate::driver::DeviceBase;
+use crate::driver::gpu::{GPU_DEVICE, VirtIOGpuWrapper};
+use crate::driver::hal::HalImpl;
+use crate::driver::rtc::init_rtc;
+use crate::driver::uart::init_uart;
 
 pub static PLIC: Once<PLIC> = Once::new();
 
@@ -138,6 +143,7 @@ fn virtio_probe(node: FdtNode) {
 fn virtio_device(transport: MmioTransport) {
     match transport.device_type() {
         DeviceType::Block => virtio_blk(transport),
+        DeviceType::GPU => virtio_gpu(transport),
         t => warn!("Unrecognized virtio device: {:?}", t),
     }
 }
@@ -150,4 +156,12 @@ fn virtio_blk(transport: MmioTransport) {
     let qemu_block_device = QemuBlockDevice::new(blk);
     QEMU_BLOCK_DEVICE.lock().push(Arc::new(qemu_block_device));
     info!("virtio-blk init finished");
+}
+
+fn virtio_gpu(transport: MmioTransport) {
+    let gpu = VirtIOGpu::<HalImpl, MmioTransport>::new(transport)
+        .expect("failed to create gpu driver");
+    let qemu_gpu_device = VirtIOGpuWrapper::new(gpu);
+    GPU_DEVICE.call_once(|| Arc::new(qemu_gpu_device));
+    info!("virtio-gpu init finished");
 }
