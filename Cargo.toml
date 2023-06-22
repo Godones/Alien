@@ -39,7 +39,8 @@ members = [
     "apps/sequencewr",
     "apps/alloctest",
     "apps/mmmap",
-    "apps/run_test"
+    "apps/run_test",
+    "apps/guitest",
 ]
 
 

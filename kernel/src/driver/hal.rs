@@ -1,17 +1,18 @@
-use crate::memory::{addr_to_frame, frames_alloc};
 use core::intrinsics::forget;
 use core::ptr::NonNull;
+
+use virtio_drivers::{BufferDirection, Hal, PAGE_SIZE, PhysAddr};
+
 use pci::PortOps;
-use virtio_drivers::{BufferDirection, Hal, PhysAddr, PAGE_SIZE};
+
+use crate::memory::{addr_to_frame, frame_alloc_contiguous, frames_alloc};
 
 pub struct HalImpl;
 
 unsafe impl Hal for HalImpl {
     fn dma_alloc(pages: usize, _direction: BufferDirection) -> (PhysAddr, NonNull<u8>) {
-        let addr = frames_alloc(pages);
-        let start = addr.as_ref().unwrap()[0].start();
-        forget(addr);
-        (start, NonNull::new(start as *mut u8).unwrap())
+        let start = frame_alloc_contiguous(pages);
+        (start as usize, NonNull::new(start).unwrap())
     }
 
     unsafe fn dma_dealloc(paddr: PhysAddr, _vaddr: NonNull<u8>, pages: usize) -> i32 {
@@ -35,6 +36,7 @@ unsafe impl Hal for HalImpl {
 }
 
 pub struct PortImpl;
+
 impl PortOps for PortImpl {
     unsafe fn read8(&self, _port: u16) -> u8 {
         0
