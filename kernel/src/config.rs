@@ -36,9 +36,9 @@ pub const PROCESS_HEAP_MAX: usize = u32::MAX as usize + 1;
 pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 
-// 栈大小8k
+// 栈大小16k
 pub const KERNEL_STACK_SIZE: usize = 0x2000;
-pub const USER_STACK_SIZE: usize = 0x2000;
+pub const USER_STACK_SIZE: usize = 0x4000;
 
 // 进程数量/线程数量/描述符表大小限制
 pub const MAX_PROCESS_NUM: usize = 1024;
