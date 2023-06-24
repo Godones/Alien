@@ -14,10 +14,10 @@
 - [x] 重构 `page-table` 的实现，规范接口
   - [x] 使用来自`Arceos`的实现，添加了额外的函数可以更灵活管理页表
 
-- [ ] 添加内核缺页异常处理，支持内核中大内存分配
-- [ ] Copy on Write | Lazy allocation
+- [x] 添加内核缺页异常处理
+- [x] Copy on Write | Lazy allocation
   - [x] fork - -> Cow
-  - [ ] mmap/sbrk/exec --> Lazy
+  - [x] mmap/sbrk --> Lazy
 
 
 ## Device
@@ -39,7 +39,7 @@
 ## 进程/线程管理
 
 - [ ] 
-  添加合适的数据结构并修改相关方法，在进程已有的抽象上添加线程抽象，需要保证两者使用同一个数据结构，参考linux系统与另一个同学实现的`Maturn`
+  添加合适的数据结构并修改相关方法，在进程已有的抽象上添加线程抽象，需要保证两者使用同一个数据结构，参考linux系统与另一个同学实现的`Maturin`
 - [ ] 添加多核调度的支持
 
 ## 文件系统
@@ -53,8 +53,11 @@
 ## Special
 
 - [ ] GUI
-    - Porting from other frameworks
-    - From scratch
+    - [ ] `embedded-graphics `较为底层，需要在次基础上构建
+    - [ ] `slint` 较为成熟，并且可以在裸机器上运行，可以配合`embedded-graphics`使用
+        - [x] 简易显示程序
+        - [ ] 键盘、鼠标事件
+        - [ ] shell
 - [ ] Network
     - smoltcp
     - From scratch
