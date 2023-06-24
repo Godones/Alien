@@ -134,6 +134,7 @@ impl TrapHandler for Trap {
         let sepc = sepc::read();
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
+                trace!("timer interrupt");
                 check_timer_queue();
                 set_next_trigger();
             }

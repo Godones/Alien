@@ -51,6 +51,13 @@ Other modules are not listed here, you can find them in the cargo.toml file.
 make run LOG=WARN img=fat32 SMP=4
 ```
 
+## Run with Gui
+
+```
+make run LOG=WARN img=fat32 SMP=4 GUI=y
+./slint or ./guitest
+```
+
 ## Doc
 
 [文件系统接口](./doc/fs.md)

@@ -38,9 +38,10 @@ preprint = "0.1.0"
 rslab = "0.2.1"
 syscall-table = { path = "../modules/syscall-table" }
 plic = { path = "../modules/plic" }
-uart = { path = "../modules/uart" }
+#uart = { path = "../modules/uart" }
 pager = { path = "../modules/pager" }
 gmanager = { path = "../modules/gmanager" }
+kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
 
 
 [build-dependencies]

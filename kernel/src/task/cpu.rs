@@ -9,13 +9,13 @@ use bitflags::bitflags;
 use lazy_static::lazy_static;
 use spin::Once;
 
+use kernel_sync::Mutex;
 use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::sbi::shutdown;
-use crate::sync::IntrLock;
 use crate::task::context::Context;
 use crate::task::INIT_PROCESS;
 use crate::task::process::{Process, ProcessState};
@@ -78,7 +78,7 @@ static mut CPU_MANAGER: Once<CpuManager<CPU_NUM>> = Once::new();
 /// the global process pool
 type ProcessPool = VecDeque<Arc<Process>>;
 lazy_static! {
-    pub static ref PROCESS_MANAGER: IntrLock<ProcessPool> = IntrLock::new(ProcessPool::new());
+    pub static ref PROCESS_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
 }
 
 pub fn init_per_cpu() {
