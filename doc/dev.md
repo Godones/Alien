@@ -125,3 +125,14 @@ pub fn dec_ref(&mut self, id: usize) -> Option<usize> {
 2. 添加`brk`和 `mmap` 的`lazy page allocation`功能
 
 在处理`COW`时，需要考虑页表项无效的情况，这时候不需要共享页面，也不需要将写标志去除，只需要按照原样映射即可。
+
+
+
+## 2023.6.21/6.24
+
+1. 添加gui的支持，第一个测试程序`guitest`来自`rcore` ，主要使用的是**embedded-graphics** 库
+2. 添加`slint` 框架的测试，显示一个简单的图形界面
+
+<img src="assert/image-20230624171412459.png" alt="image-20230624171412459" style="zoom:50%;" />
+
+由于包含图形界面的程序需要的栈空间较大，因此需要调高应用程序的栈大小。
