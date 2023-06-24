@@ -1,11 +1,10 @@
-use core::intrinsics::forget;
 use core::ptr::NonNull;
 
 use virtio_drivers::{BufferDirection, Hal, PAGE_SIZE, PhysAddr};
 
 use pci::PortOps;
 
-use crate::memory::{addr_to_frame, frame_alloc_contiguous, frames_alloc};
+use crate::memory::{addr_to_frame, frame_alloc_contiguous};
 
 pub struct HalImpl;
 
