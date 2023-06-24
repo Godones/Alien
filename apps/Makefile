@@ -55,4 +55,5 @@ BUILD_CRATES := \
 	mmmap \
 	run_test \
 	forktest \
-	guitest
+	guitest \
+	slint

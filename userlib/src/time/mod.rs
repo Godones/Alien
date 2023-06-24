@@ -12,6 +12,7 @@ pub struct Times {
     /// the ticks of kernel mode of child process
     pub tms_cstime: usize,
 }
+
 impl Times {
     pub fn new() -> Self {
         Self {
@@ -37,6 +38,24 @@ pub struct TimeVal {
 pub struct TimeSpec {
     pub tv_sec: usize,
     pub tv_nsec: usize, //0~999999999
+}
+
+impl From<TimeVal> for TimeSpec {
+    fn from(tv: TimeVal) -> Self {
+        Self {
+            tv_sec: tv.tv_sec,
+            tv_nsec: tv.tv_usec * 1000,
+        }
+    }
+}
+
+
+impl TimeVal {
+    pub fn now() -> Self {
+        let mut tv = TimeVal::default();
+        get_time_of_day(&mut tv);
+        tv
+    }
 }
 
 pub fn get_time_ms() -> isize {

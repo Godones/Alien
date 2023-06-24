@@ -42,6 +42,7 @@ members = [
     "apps/mmmap",
     "apps/run_test",
     "apps/guitest",
+    "apps/slint",
 ]
 
 
