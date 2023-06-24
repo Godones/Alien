@@ -5,8 +5,8 @@ use core::ops::Range;
 use doubly_linked_list::*;
 use log::trace;
 
-use crate::error::{check, BuddyError};
 use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
+use crate::error::{BuddyError, check};
 
 pub struct Zone<const MAX_ORDER: usize> {
     /// The pages in this zone
@@ -49,7 +49,7 @@ impl<const MAX_ORDER: usize> Debug for Zone<MAX_ORDER> {
                         "  Order: {}, FreePages: {}\n",
                         order, free_area.free_pages
                     ))
-                    .unwrap();
+                        .unwrap();
                     list_head.iter().for_each(|l| {
                         f.write_fmt(format_args!("      {l:#x?}\n")).unwrap();
                     })
@@ -80,7 +80,7 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
             end_page
         );
         if buddy <= end_page {
-            let mut free_area = &mut self.free_areas[order];
+            let free_area = &mut self.free_areas[order];
             free_area.free_pages += 1;
             let addr = start_page << 12;
             let list_head = unsafe { &mut *(addr as *mut ListHead) };
