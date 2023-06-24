@@ -9,7 +9,6 @@ mod mpci;
 
 pub mod rtc;
 pub mod uart;
-pub mod uart1;
 pub mod gpu;
 
 pub trait DeviceBase: Sync + Send {

@@ -18,7 +18,6 @@ pub mod ipc;
 pub mod memory;
 mod panic;
 pub mod sbi;
-mod sync;
 pub mod syscall;
 pub mod system;
 pub mod task;
