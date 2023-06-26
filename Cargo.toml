@@ -13,6 +13,8 @@ members = [
     "modules/basemachine",
     "modules/pager",
     "modules/kernel-sync",
+    "modules/virtio-input-decoder",
+    "modules/input2event",
     "apps/cat",
     #    "apps/dbfs",
     "apps/init",

@@ -21,17 +21,19 @@ pub struct InputDriver {
 }
 
 struct InputDriverInner {
+    max_events: u32,
     driver: VirtIOInput<HalImpl, MmioTransport>,
     events: VecDeque<u64>,
     wait_queue: VecDeque<Arc<Process>>,
 }
 
 impl InputDriver {
-    pub fn new(driver: VirtIOInput<HalImpl, MmioTransport>) -> Self {
+    pub fn new(driver: VirtIOInput<HalImpl, MmioTransport>, max_events: u32) -> Self {
         let driver = InputDriver {
             inner: Mutex::new(InputDriverInner {
+                max_events,
                 driver,
-                events: VecDeque::new(),
+                events: VecDeque::with_capacity(max_events as usize),
                 wait_queue: VecDeque::new(),
             }),
         };
@@ -78,6 +80,10 @@ impl DeviceBase for InputDriver {
                 | (event.code as u64) << 32
                 | (event.value) as u64;
             warn!("event: {:x}", result);
+            if inner.events.len() >= inner.max_events as usize {
+                // remove the first event
+                inner.events.pop_front();
+            }
             inner.events.push_back(result);
             count += 1;
         }
@@ -92,18 +98,37 @@ impl DeviceBase for InputDriver {
 }
 
 #[syscall_func(2002)]
-pub fn sys_event_get() -> isize {
+pub fn sys_event_get(event_buf: *mut u64, len: usize) -> isize {
+    let process = current_process().unwrap();
+    let user_buffer = process.transfer_buffer(event_buf, len);
+    let mut count = 0;
+    for buf in user_buffer {
+        let mut index = 0;
+        let len = buf.len();
+        while index < len {
+            let event = read_event();
+            if event == 0 {
+                break;
+            }
+            buf[index] = event;
+            index += 1;
+            count += 1;
+        }
+    }
+    count
+}
+
+
+fn read_event() -> u64 {
     let (keyboard, mouse) = unsafe {
         let kb = INPUT_DEVICE.get().unwrap().get("keyboard").unwrap().clone();
         let mouse = INPUT_DEVICE.get().unwrap().get("mouse").unwrap().clone();
         (kb, mouse)
     };
-    //let input=INPUT_CONDVAR.clone();
-    //read_input_event() as isize
     if !keyboard.is_empty() {
-        keyboard.read_event() as isize
+        keyboard.read_event()
     } else if !mouse.is_empty() {
-        mouse.read_event() as isize
+        mouse.read_event()
     } else {
         0
     }

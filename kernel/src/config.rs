@@ -6,14 +6,9 @@ pub const FLAG: &str = r"
  /_/   \_\ |_| |_|  \___| |_| |_|
 ";
 pub const CLOCK_FREQ: usize = 12500000;
-pub const RISCV_UART_ADDR: usize = 0x10_000_000;
-pub const RISCV_UART_RANG: usize = 0x100;
-
 pub const FRAME_SIZE: usize = 0x1000;
 pub const FRAME_BITS: usize = 12;
-
 pub const STACK_SIZE: usize = 1024 * 64;
-//64KB
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
@@ -45,3 +40,5 @@ pub const MAX_PROCESS_NUM: usize = 1024;
 pub const MAX_THREAD_NUM: usize = 1024;
 pub const MAX_SUB_PROCESS_NUM: usize = 1024;
 pub const MAX_FD_NUM: usize = 1024;
+
+pub const MAX_INPUT_EVENT_NUM: usize = 1024;
