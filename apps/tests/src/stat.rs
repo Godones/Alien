@@ -1,11 +1,6 @@
-#![no_std]
-#![no_main]
+use Mstd::fs::{close, fstatat, fstatfs, open, OpenFlags, Stat, StatFlags, StatFs, statfs};
 
-use Mstd::fs::{close, fstatat, fstatfs, open, statfs, OpenFlags, Stat, StatFlags, StatFs};
-use Mstd::println;
-
-#[no_mangle]
-fn main() -> isize {
+pub fn stat_test() -> isize {
     let fd = open("/db/stattest\0", OpenFlags::O_CREAT | OpenFlags::O_WRONLY);
     if fd == -1 {
         println!("open error");

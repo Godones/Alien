@@ -1,11 +1,7 @@
-#![no_std]
-#![no_main]
-
-use Mstd::fs::{close, fstat, open, read, seek, write, OpenFlags, Stat};
+use Mstd::fs::{close, fstat, open, OpenFlags, read, seek, Stat, write};
 use Mstd::println;
 
-#[no_mangle]
-fn main() -> isize {
+pub fn seek_test() -> isize {
     let fd = open("/test.txt\0", OpenFlags::O_CREAT | OpenFlags::O_WRONLY);
     println!("fd = {}", fd);
     if fd != -1 {

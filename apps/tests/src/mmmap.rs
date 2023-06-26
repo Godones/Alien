@@ -1,12 +1,7 @@
-#![no_std]
-#![no_main]
-
 use Mstd::fs::{close, fstat, open, OpenFlags, Stat, write};
 use Mstd::ipc::{MapFlags, mmap, munmap, ProtFlags};
-use Mstd::println;
 
-#[no_mangle]
-pub fn main() {
+pub fn mmap_test() {
     println!("Test mmap and munmap");
     let str = "Hello, mmap successfully!";
     let fd = open("test_mmap.txt\0", OpenFlags::O_RDWR | OpenFlags::O_CREAT);
