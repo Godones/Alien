@@ -1,7 +1,6 @@
 #![no_main]
 #![no_std]
 
-#[macro_use]
 extern crate Mstd;
 extern crate alloc;
 
@@ -124,7 +123,7 @@ fn main() {
     }
 }
 
-
+#[allow(unused)]
 fn checkout_event() -> WindowEvent {
     WindowEvent::KeyPressed {
         text: Default::default(),
