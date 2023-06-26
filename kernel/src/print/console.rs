@@ -1,7 +1,9 @@
 use core::fmt::{Arguments, Result, Write};
 
 use preprint::Print;
-use spin::{Lazy, Mutex};
+use spin::Lazy;
+
+use kernel_sync::Mutex;
 
 use crate::driver::uart::{CharDevice, USER_UART};
 use crate::sbi::console_putchar;

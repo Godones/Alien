@@ -8,9 +8,10 @@ use lazy_static::lazy_static;
 use lru::LruCache;
 use rvfs::info::VfsError;
 use rvfs::superblock::Device;
-use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::MmioTransport;
+
+use kernel_sync::Mutex;
 
 use crate::config::FRAME_SIZE;
 use crate::driver::hal::HalImpl;

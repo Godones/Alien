@@ -10,9 +10,9 @@ use rvfs::dentry::DirEntry;
 use rvfs::file::File;
 use rvfs::info::ProcessFsInfo;
 use rvfs::mount::VfsMount;
-use spin::{Mutex, MutexGuard};
 
 use gmanager::MinimalManager;
+use kernel_sync::{Mutex, MutexGuard};
 
 use crate::config::{FRAME_BITS, MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::config::FRAME_SIZE;

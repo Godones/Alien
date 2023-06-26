@@ -9,6 +9,7 @@ pub fn register_all_syscall(){
 	(169, get_time_of_day),
 	(153, times),
 	(101, sys_nanosleep),
+	(2002, sys_event_get),
 	(2000, sys_framebuffer),
 	(2001, sys_framebuffer_flush),
 	(59, sys_pipe),
@@ -71,6 +72,7 @@ pub fn do_syscall(id:usize,args:&[usize])->isize{
 	    return res.unwrap();
 	}
 }
+use crate::driver::sys_event_get;
 use crate::fs::sys_chdir;
 use crate::fs::sys_close;
 use crate::fs::sys_fgetxattr;

@@ -7,8 +7,9 @@ use lazy_static::lazy_static;
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::{PagingIf, Sv39PageTable};
-use spin::RwLock;
 use xmas_elf::program;
+
+use kernel_sync::RwLock;
 
 use crate::config::{FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
