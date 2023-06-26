@@ -3,8 +3,8 @@ use core::ops::{Deref, DerefMut};
 use core::ptr::null_mut;
 
 use lazy_static::lazy_static;
-use spin::Mutex;
 
+use kernel_sync::Mutex;
 use pager::{PageAllocator, PageAllocatorExt, Zone};
 
 use crate::config::{FRAME_BITS, FRAME_MAX_ORDER, FRAME_SIZE};

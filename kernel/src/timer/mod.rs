@@ -1,13 +1,16 @@
-use crate::arch;
-use crate::config::CLOCK_FREQ;
-use crate::task::schedule::schedule;
-use crate::task::{current_process, Process, ProcessState, StatisticalData, PROCESS_MANAGER};
 use alloc::collections::BinaryHeap;
 use alloc::sync::Arc;
 use core::cmp::Ordering;
+
 use lazy_static::lazy_static;
-use spin::Mutex;
+
+use kernel_sync::Mutex;
 use syscall_table::syscall_func;
+
+use crate::arch;
+use crate::config::CLOCK_FREQ;
+use crate::task::{current_process, Process, PROCESS_MANAGER, ProcessState, StatisticalData};
+use crate::task::schedule::schedule;
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
