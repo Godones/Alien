@@ -1,11 +1,7 @@
-#![no_std]
-#![no_main]
-
-use Mstd::fs::{close, list, mkdir, mkdirat, open, read, renameat, seek, write, OpenFlags};
+use Mstd::fs::{close, list, mkdir, mkdirat, open, OpenFlags, read, renameat, seek, write};
 use Mstd::println;
 
-#[no_mangle]
-fn main() -> isize {
+pub fn dir_test() -> isize {
     fat32_test();
     dbfs_test();
     0

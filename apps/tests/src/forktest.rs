@@ -1,14 +1,8 @@
-#![no_std]
-#![no_main]
-
-#[macro_use]
-extern crate Mstd;
 use Mstd::process::{exit, fork, wait};
 
 const MAX_CHILD: usize = 40;
 
-#[no_mangle]
-pub fn main() -> i32 {
+pub fn fork_test() -> isize {
     for i in 0..MAX_CHILD {
         let pid = fork();
         if pid == 0 {

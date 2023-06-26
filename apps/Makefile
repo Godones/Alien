@@ -52,8 +52,7 @@ BUILD_CRATES := \
 	mkdir \
 	ls \
 	cat \
-	mmmap \
 	run_test \
-	forktest \
 	guitest \
-	slint
+	slint \
+	tests

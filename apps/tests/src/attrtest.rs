@@ -1,16 +1,9 @@
-#![no_std]
-#![no_main]
-
-extern crate alloc;
-
 use alloc::vec;
 use alloc::vec::Vec;
-use Mstd::fs::{close, fgetxattr, flistxattr, fsetxattr, open, OpenFlags};
-use Mstd::println;
 
-#[no_mangle]
-fn main() -> isize {
-    println!("In this test, we will test attr");
+use Mstd::fs::{close, fgetxattr, flistxattr, fsetxattr, fstat, ftruncate, open, OpenFlags, read, seek, Stat, write};
+
+pub fn attr_test1() -> isize {
     let fd = open("/db/attrtest\0", OpenFlags::O_RDWR | OpenFlags::O_CREAT);
     if fd == -1 {
         println!("open error");
@@ -72,6 +65,43 @@ fn main() -> isize {
                 println!("attr value:{}", core::str::from_utf8(&buf).unwrap());
             }
         });
+    close(fd as usize);
+    0
+}
+
+
+pub fn attr_test2() -> isize {
+    println!("We will test getdents and truncate....");
+    let fd = open("/db/attrtest\0", OpenFlags::O_RDWR | OpenFlags::O_CREAT);
+    assert_ne!(fd, -1);
+    let len = write(fd as usize, "hello world".as_bytes());
+    assert_ne!(len, -1);
+    println!("write {} bytes", len);
+    let mut stat = Stat::default();
+    fstat(fd as usize, &mut stat);
+    println!("size:{}", stat.st_size);
+    let r = ftruncate(fd as usize, 5);
+    assert_ne!(r, -1);
+    fstat(fd as usize, &mut stat);
+    println!("size:{}", stat.st_size);
+    let mut buf = [0u8; 20];
+    let r = read(fd as usize, &mut buf);
+    assert_eq!(r, 0);
+    let len = write(fd as usize, "hello world".as_bytes());
+    assert_ne!(len, -1);
+    println!("write {} bytes", len);
+    fstat(fd as usize, &mut stat);
+    println!("size:{}", stat.st_size);
+    seek(fd as usize, 0, 0);
+    let mut buf = [0u8; 30];
+    let r = read(fd as usize, &mut buf);
+    assert_ne!(r, -1);
+    println!("read {} bytes", r);
+    assert_eq!(r, 22);
+    println!(
+        "buf: {}",
+        core::str::from_utf8(&buf[0..r as usize]).unwrap()
+    );
     close(fd as usize);
     0
 }
