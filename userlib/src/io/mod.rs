@@ -6,7 +6,7 @@ use core2::io::{BufRead, Read, Write};
 use stdio::*;
 pub use stdio::{stdin, StdinLock, stdout, StdoutLock};
 
-use crate::syscall::{sys_framebuffer, sys_framebuffer_flush};
+use crate::syscall::{sys_event, sys_framebuffer, sys_framebuffer_flush};
 
 mod stdio;
 
@@ -149,4 +149,9 @@ pub fn frame_buffer() -> &'static mut [u8] {
 
 pub fn flush_frame_buffer() {
     sys_framebuffer_flush();
+}
+
+
+pub fn keyboard_or_mouse_event() -> u64 {
+    sys_event() as u64
 }

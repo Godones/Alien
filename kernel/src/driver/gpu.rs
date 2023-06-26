@@ -3,10 +3,12 @@ use alloc::vec::Vec;
 use core::any::Any;
 
 use embedded_graphics::pixelcolor::Rgb888;
-use spin::{Mutex, Once};
+use spin::Once;
 use tinybmp::Bmp;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::transport::mmio::MmioTransport;
+
+use kernel_sync::Mutex;
 
 use crate::driver::hal::HalImpl;
 

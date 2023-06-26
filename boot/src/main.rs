@@ -63,9 +63,6 @@ pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
     }
     if !STARTED.load(Ordering::Relaxed) {
         clear_bss();
-        unsafe {
-            println!("{:#x?}", STACK.as_ptr() as usize);
-        }
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
