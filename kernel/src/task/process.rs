@@ -313,6 +313,9 @@ impl Process {
     pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
         self.access_inner().transfer_raw_buffer(ptr, len)
     }
+    pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+        self.access_inner().transfer_buffer(ptr, len)
+    }
 }
 
 impl ProcessInner {
@@ -357,6 +360,30 @@ impl ProcessInner {
             };
             unsafe {
                 let buf = core::slice::from_raw_parts_mut(start_phy.as_usize() as *mut u8, len);
+                v.push(buf);
+            }
+            start = bound;
+        }
+        v
+    }
+
+
+    pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+        let address_space = &self.address_space;
+        let mut start = ptr as usize;
+        let end = start + len;
+        let mut v = Vec::new();
+        while start < end {
+            let (start_phy, _, _) = address_space.query(VirtAddr::from(start)).unwrap();
+            // start_phy向上取整到FRAME_SIZE
+            let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
+            let len = if bound > end {
+                end - start
+            } else {
+                bound - start
+            };
+            unsafe {
+                let buf = core::slice::from_raw_parts_mut(start_phy.as_usize() as *mut T, len);
                 v.push(buf);
             }
             start = bound;
@@ -552,7 +579,7 @@ impl ProcessInner {
         if !flags.contains(MappingFlags::V) {
             return self.invalid_page_solver(addr);
         }
-        assert!(flags.contains(MappingFlags::RSD));
+        assert!(flags.contains(MappingFlags::RSD), "flags:{:#x}", flags);
         // decrease the reference count
         let mut flags = flags | "W".into();
         flags -= MappingFlags::RSD;

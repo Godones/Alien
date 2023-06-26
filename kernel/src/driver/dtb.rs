@@ -19,7 +19,7 @@ use kernel_sync::Mutex;
 use plic::{Mode, PLIC};
 
 use crate::arch::hart_id;
-use crate::config::CPU_NUM;
+use crate::config::{CPU_NUM, MAX_INPUT_EVENT_NUM};
 use crate::driver::{pci_probe, QEMU_BLOCK_DEVICE, QemuBlockDevice};
 use crate::driver::DeviceBase;
 use crate::driver::gpu::{GPU_DEVICE, VirtIOGpuWrapper};
@@ -185,7 +185,7 @@ const VIRTIO6: usize = 0x10006000;
 fn virto_input(transport: MmioTransport, addr: usize, irq: usize) {
     let input = VirtIOInput::<HalImpl, MmioTransport>::new(transport)
         .expect("failed to create input driver");
-    let qemu_input_device = InputDriver::new(input);
+    let qemu_input_device = InputDriver::new(input, MAX_INPUT_EVENT_NUM as u32);
     let input_device = Arc::new(qemu_input_device);
     unsafe {
         if INPUT_DEVICE.get().is_none() {
