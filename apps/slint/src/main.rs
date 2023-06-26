@@ -5,18 +5,20 @@ extern crate Mstd;
 extern crate alloc;
 
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 
 use embedded_graphics::pixelcolor::raw::RawU16;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::Rectangle;
+use slint::LogicalPosition;
+use slint::platform::{PointerEventButton, WindowEvent};
 use slint::platform::software_renderer::Rgb565Pixel;
-use slint::platform::WindowEvent;
-use virtio_input_decoder::Decoder;
 
 use Mstd::io::{flush_frame_buffer, frame_buffer, keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 use Mstd::println;
-use Mstd::time::{sleep, TimeSpec, TimeVal};
+use Mstd::time::{TimeSpec, TimeVal};
+use virtio_input_decoder::{Decoder, DecodeType, Key, KeyType, Mouse};
 
 slint::include_modules!();
 
@@ -100,17 +102,18 @@ fn main() {
 
     let _ui = create_slint_app();
     window.set_size(slint::PhysicalSize::new(VIRTGPU_XRES as u32, VIRTGPU_YRES as u32));
-
     let mut line_buffer = [Rgb565Pixel(0); VIRTGPU_XRES];
-
     let mut display = Display::new(Size::new(1280, 800), Point::new(0, 0));
+    let mut x = 0;
+    let mut y = 0;
     loop {
         // Let Slint run the timer hooks and update animations.
         slint::platform::update_timers_and_animations();
         // window.dispatch_event()
-
-        println!("***********");
-        checkout_event();
+        let events = checkout_event(&mut x, &mut y);
+        events.iter().for_each(|event| {
+            window.dispatch_event(event.clone());
+        });
         window.draw_if_needed(|render| {
             let display_wrapper = DisplayWrapper {
                 display: &mut display,
@@ -118,29 +121,109 @@ fn main() {
             };
             render.render_by_line(display_wrapper);
         });
-        if !window.has_active_animations() {
-            if let Some(duration) = slint::platform::duration_until_next_timer_update() {
-                // ... schedule a timer interrupt in `duration` ...
-                let ms = duration.as_millis() as usize;
-                sleep(ms)
-            }
-        }
     }
 }
 
 #[allow(unused)]
-fn checkout_event() -> WindowEvent {
-    let event = keyboard_or_mouse_event();
+fn checkout_event(x: &mut i32, y: &mut i32) -> Vec<WindowEvent> {
+    let mut events = [0; 100];
+    let event_num = keyboard_or_mouse_event(&mut events);
     /// type:code:val
     /// 16:16:32
-    let dtype = (event >> 48) as usize;
-    let code = (event >> 32) & 0xffff;
-    let val = event & 0xffffffff;
-    let decoder = Decoder::decode(dtype, code as usize, val as usize);
-    println!("event: {:?}", decoder);
-    WindowEvent::KeyPressed {
-        text: Default::default(),
+    let mut res = Vec::new();
+    for i in 0..event_num as usize {
+        let event = events[i];
+        let dtype = (event >> 48) as usize;
+        let code = (event >> 32) & 0xffff;
+        let val = (event & 0xffffffff) as i32;
+        let decoder = Decoder::decode(dtype, code as usize, val as isize).unwrap();
+        println!("event: {:?}", decoder);
+        match decoder {
+            DecodeType::Key(key, key_type) => {
+                match key_type {
+                    KeyType::Press => {
+                        match key {
+                            Key::MouseLeft => {
+                                let event = WindowEvent::PointerPressed {
+                                    position: LogicalPosition::new(*x as f32, *y as f32),
+                                    button: PointerEventButton::Left,
+                                };
+                                res.push(event);
+                            }
+                            Key::MouseRight => {
+                                let event = WindowEvent::PointerPressed {
+                                    position: LogicalPosition::new(*x as f32, *y as f32),
+                                    button: PointerEventButton::Right,
+                                };
+                                res.push(event);
+                            }
+                            Key::MouseMid => {
+                                let event = WindowEvent::PointerPressed {
+                                    position: LogicalPosition::new(*x as f32, *y as f32),
+                                    button: PointerEventButton::Middle,
+                                };
+                                res.push(event);
+                            }
+                            _ => {}
+                        }
+                    }
+                    KeyType::Release => {
+                        match key {
+                            Key::MouseLeft => {
+                                let event = WindowEvent::PointerReleased {
+                                    position: LogicalPosition::new(*x as f32, *y as f32),
+                                    button: PointerEventButton::Left,
+                                };
+                                res.push(event);
+                            }
+                            Key::MouseRight => {
+                                let event = WindowEvent::PointerReleased {
+                                    position: LogicalPosition::new(*x as f32, *y as f32),
+                                    button: PointerEventButton::Right,
+                                };
+                                res.push(event);
+                            }
+                            Key::MouseMid => {
+                                let event = WindowEvent::PointerReleased {
+                                    position: LogicalPosition::new(*x as f32, *y as f32),
+                                    button: PointerEventButton::Middle,
+                                };
+                                res.push(event);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            DecodeType::Mouse(mouse) => {
+                match mouse {
+                    Mouse::X(rel_x) => {
+                        *x += rel_x as i32;
+                        if *x < 0 {
+                            *x = 0;
+                        }
+                        let event = WindowEvent::PointerMoved {
+                            position: LogicalPosition::new(*x as f32, *y as f32),
+                        };
+                        res.push(event);
+                    }
+                    Mouse::Y(rel_y) => {
+                        *y += rel_y as i32;
+                        if *y < 0 {
+                            *y = 0;
+                        }
+                        let event = WindowEvent::PointerMoved {
+                            position: LogicalPosition::new(*x as f32, *y as f32),
+                        };
+                    }
+                    Mouse::ScrollDown => {}
+                    Mouse::ScrollUp => {}
+                }
+            }
+        }
+        println!("{:?}", res.last());
     }
+    res
 }
 
 

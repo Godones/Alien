@@ -152,6 +152,6 @@ pub fn flush_frame_buffer() {
 }
 
 
-pub fn keyboard_or_mouse_event() -> u64 {
-    sys_event() as u64
+pub fn keyboard_or_mouse_event(buf: &mut [u64]) -> isize {
+    sys_event(buf.as_mut_ptr(), buf.len())
 }
