@@ -12,8 +12,10 @@ use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::Rectangle;
 use slint::platform::software_renderer::Rgb565Pixel;
 use slint::platform::WindowEvent;
+use virtio_input_decoder::Decoder;
 
-use Mstd::io::{flush_frame_buffer, frame_buffer, VIRTGPU_XRES, VIRTGPU_YRES};
+use Mstd::io::{flush_frame_buffer, frame_buffer, keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
+use Mstd::println;
 use Mstd::time::{sleep, TimeSpec, TimeVal};
 
 slint::include_modules!();
@@ -106,6 +108,9 @@ fn main() {
         // Let Slint run the timer hooks and update animations.
         slint::platform::update_timers_and_animations();
         // window.dispatch_event()
+
+        println!("***********");
+        checkout_event();
         window.draw_if_needed(|render| {
             let display_wrapper = DisplayWrapper {
                 display: &mut display,
@@ -125,6 +130,14 @@ fn main() {
 
 #[allow(unused)]
 fn checkout_event() -> WindowEvent {
+    let event = keyboard_or_mouse_event();
+    /// type:code:val
+    /// 16:16:32
+    let dtype = (event >> 48) as usize;
+    let code = (event >> 32) & 0xffff;
+    let val = event & 0xffffffff;
+    let decoder = Decoder::decode(dtype, code as usize, val as usize);
+    println!("event: {:?}", decoder);
     WindowEvent::KeyPressed {
         text: Default::default(),
     }
