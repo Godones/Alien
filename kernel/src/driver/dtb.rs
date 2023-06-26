@@ -6,13 +6,16 @@ use core::ptr::NonNull;
 use fdt::Fdt;
 use fdt::node::FdtNode;
 use fdt::standard_nodes::Compatible;
+use hashbrown::HashMap;
 use lazy_static::lazy_static;
-use spin::{Mutex, Once};
+use spin::Once;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::device::gpu::VirtIOGpu;
+use virtio_drivers::device::input::VirtIOInput;
 use virtio_drivers::transport::{DeviceType, Transport};
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
+use kernel_sync::Mutex;
 use plic::{Mode, PLIC};
 
 use crate::arch::hart_id;
@@ -21,6 +24,7 @@ use crate::driver::{pci_probe, QEMU_BLOCK_DEVICE, QemuBlockDevice};
 use crate::driver::DeviceBase;
 use crate::driver::gpu::{GPU_DEVICE, VirtIOGpuWrapper};
 use crate::driver::hal::HalImpl;
+use crate::driver::input::{INPUT_DEVICE, InputDriver};
 use crate::driver::rtc::init_rtc;
 use crate::driver::uart::init_uart;
 
@@ -53,7 +57,7 @@ fn init_plic(fdt: &Fdt) {
 fn walk_dt(fdt: &Fdt) {
     for node in fdt.all_nodes() {
         if node.name.starts_with("virtio_mmio") {
-            println!("probe virtio_mmio device");
+            // println!("probe virtio_mmio device");
             // init_device_to_plic(node);
             virtio_probe(node);
         } else if node.name.starts_with("pci") {
@@ -127,23 +131,32 @@ fn virtio_probe(node: FdtNode) {
         let header = NonNull::new(vaddr as *mut VirtIOHeader).unwrap();
         match unsafe { MmioTransport::new(header) } {
             Err(e) => warn!("Error creating VirtIO MMIO transport: {}", e),
-            Ok(transport) => {
+            Ok(mut transport) => {
                 info!(
-                    "Detected virtio MMIO device with vendor id {:#X}, device type {:?}, version {:?}",
+                    "Detected virtio MMIO device with vendor id {:#X}, device type {:?}, version {:?}, features:{:?}",
                     transport.vendor_id(),
                     transport.device_type(),
                     transport.version(),
+                    transport.read_device_features(),
                 );
-                virtio_device(transport);
+                let irq = match transport.device_type() {
+                    DeviceType::Input => {
+                        let irq = init_device_to_plic(node);
+                        irq
+                    }
+                    _ => { 0 }
+                };
+                virtio_device(transport, paddr, irq);
             }
         }
     }
 }
 
-fn virtio_device(transport: MmioTransport) {
+fn virtio_device(transport: MmioTransport, addr: usize, irq: usize) {
     match transport.device_type() {
         DeviceType::Block => virtio_blk(transport),
         DeviceType::GPU => virtio_gpu(transport),
+        DeviceType::Input => virto_input(transport, addr, irq),
         t => warn!("Unrecognized virtio device: {:?}", t),
     }
 }
@@ -155,7 +168,7 @@ fn virtio_blk(transport: MmioTransport) {
     println!("blk device size is {}MB", size * 512 / 1024 / 1024);
     let qemu_block_device = QemuBlockDevice::new(blk);
     QEMU_BLOCK_DEVICE.lock().push(Arc::new(qemu_block_device));
-    info!("virtio-blk init finished");
+    println!("virtio-blk init finished");
 }
 
 fn virtio_gpu(transport: MmioTransport) {
@@ -163,5 +176,30 @@ fn virtio_gpu(transport: MmioTransport) {
         .expect("failed to create gpu driver");
     let qemu_gpu_device = VirtIOGpuWrapper::new(gpu);
     GPU_DEVICE.call_once(|| Arc::new(qemu_gpu_device));
-    info!("virtio-gpu init finished");
+    println!("virtio-gpu init finished");
+}
+
+const VIRTIO5: usize = 0x10005000;
+const VIRTIO6: usize = 0x10006000;
+
+fn virto_input(transport: MmioTransport, addr: usize, irq: usize) {
+    let input = VirtIOInput::<HalImpl, MmioTransport>::new(transport)
+        .expect("failed to create input driver");
+    let qemu_input_device = InputDriver::new(input);
+    let input_device = Arc::new(qemu_input_device);
+    unsafe {
+        if INPUT_DEVICE.get().is_none() {
+            INPUT_DEVICE.call_once(|| HashMap::new());
+        }
+        if addr == VIRTIO5 {
+            let map = INPUT_DEVICE.get_mut().unwrap();
+            map.insert("keyboard", input_device.clone());
+        } else if addr == VIRTIO6 {
+            let map = INPUT_DEVICE.get_mut().unwrap();
+            map.insert("mouse", input_device.clone());
+        }
+    }
+    let mut table = DEVICE_TABLE.lock();
+    table.insert(irq, input_device);
+    println!("virtio-input init finished");
 }
