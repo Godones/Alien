@@ -138,7 +138,7 @@ pub fn dec_ref(&mut self, id: usize) -> Option<usize> {
 
 
 
-## 2023.6.34
+## 2023.6.24
 
 1. 添加内核同步原语`Mutex`， 来自https://gitee.com/chyyuu/kernel-sync?_from=gitee_search
 
@@ -151,3 +151,8 @@ pub fn dec_ref(&mut self, id: usize) -> Option<usize> {
 
 
 
+## 2023.6.25/26
+
+1. 添加键盘/鼠标外设的支持
+2. 添加睡眠锁，当进程获取锁时如果锁已经被其他进程获取，则当前进程被加入到等待队列中，当锁被释放，会唤醒队列中等待的进程。
+3. 将rust编写的测试程序集中到一个单独的`tests`crate中，通过制定测试的名称运行相应的测试。
