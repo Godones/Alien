@@ -53,6 +53,6 @@ BUILD_CRATES := \
 	ls \
 	cat \
 	run_test \
-	guitest \
 	slint \
-	tests
+	memory-game
+#	tests

@@ -33,6 +33,7 @@ members = [
     "apps/guitest",
     "apps/slint",
     "apps/tests",
+    "apps/memory-game",
 ]
 
 

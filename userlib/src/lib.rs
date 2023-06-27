@@ -27,6 +27,9 @@ mod syscall;
 pub mod thread;
 pub mod time;
 
+#[cfg(feature = "gui")]
+pub mod gui;
+
 #[no_mangle]
 fn _start(argc: usize, argv: usize) -> ! {
     let argv = parse_args(argc, argv);
