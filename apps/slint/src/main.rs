@@ -7,18 +7,17 @@ extern crate alloc;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 
-use embedded_graphics::pixelcolor::raw::RawU16;
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::Rectangle;
-use slint::LogicalPosition;
-use slint::platform::{PointerEventButton, WindowEvent};
 use slint::platform::software_renderer::Rgb565Pixel;
+use slint::platform::WindowEvent;
 
-use Mstd::io::{flush_frame_buffer, frame_buffer, keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
-use Mstd::println;
+use input2event::input2event;
+use Mstd::gui::Display;
+use Mstd::gui::embedded_graphics::pixelcolor::raw::RawU16;
+use Mstd::gui::embedded_graphics::pixelcolor::Rgb565;
+use Mstd::gui::embedded_graphics::prelude::*;
+use Mstd::gui::embedded_graphics::primitives::Rectangle;
+use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 use Mstd::time::{TimeSpec, TimeVal};
-use virtio_input_decoder::{Decoder, DecodeType, Key, KeyType, Mouse};
 
 slint::include_modules!();
 
@@ -124,150 +123,15 @@ fn main() {
     }
 }
 
-#[allow(unused)]
+
 fn checkout_event(x: &mut i32, y: &mut i32) -> Vec<WindowEvent> {
     let mut events = [0; 100];
     let event_num = keyboard_or_mouse_event(&mut events);
-    /// type:code:val
-    /// 16:16:32
     let mut res = Vec::new();
     for i in 0..event_num as usize {
         let event = events[i];
-        let dtype = (event >> 48) as usize;
-        let code = (event >> 32) & 0xffff;
-        let val = (event & 0xffffffff) as i32;
-        let decoder = Decoder::decode(dtype, code as usize, val as isize).unwrap();
-        println!("event: {:?}", decoder);
-        match decoder {
-            DecodeType::Key(key, key_type) => {
-                match key_type {
-                    KeyType::Press => {
-                        match key {
-                            Key::MouseLeft => {
-                                let event = WindowEvent::PointerPressed {
-                                    position: LogicalPosition::new(*x as f32, *y as f32),
-                                    button: PointerEventButton::Left,
-                                };
-                                res.push(event);
-                            }
-                            Key::MouseRight => {
-                                let event = WindowEvent::PointerPressed {
-                                    position: LogicalPosition::new(*x as f32, *y as f32),
-                                    button: PointerEventButton::Right,
-                                };
-                                res.push(event);
-                            }
-                            Key::MouseMid => {
-                                let event = WindowEvent::PointerPressed {
-                                    position: LogicalPosition::new(*x as f32, *y as f32),
-                                    button: PointerEventButton::Middle,
-                                };
-                                res.push(event);
-                            }
-                            _ => {}
-                        }
-                    }
-                    KeyType::Release => {
-                        match key {
-                            Key::MouseLeft => {
-                                let event = WindowEvent::PointerReleased {
-                                    position: LogicalPosition::new(*x as f32, *y as f32),
-                                    button: PointerEventButton::Left,
-                                };
-                                res.push(event);
-                            }
-                            Key::MouseRight => {
-                                let event = WindowEvent::PointerReleased {
-                                    position: LogicalPosition::new(*x as f32, *y as f32),
-                                    button: PointerEventButton::Right,
-                                };
-                                res.push(event);
-                            }
-                            Key::MouseMid => {
-                                let event = WindowEvent::PointerReleased {
-                                    position: LogicalPosition::new(*x as f32, *y as f32),
-                                    button: PointerEventButton::Middle,
-                                };
-                                res.push(event);
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            DecodeType::Mouse(mouse) => {
-                match mouse {
-                    Mouse::X(rel_x) => {
-                        *x += rel_x as i32;
-                        if *x < 0 {
-                            *x = 0;
-                        }
-                        let event = WindowEvent::PointerMoved {
-                            position: LogicalPosition::new(*x as f32, *y as f32),
-                        };
-                        res.push(event);
-                    }
-                    Mouse::Y(rel_y) => {
-                        *y += rel_y as i32;
-                        if *y < 0 {
-                            *y = 0;
-                        }
-                        let event = WindowEvent::PointerMoved {
-                            position: LogicalPosition::new(*x as f32, *y as f32),
-                        };
-                    }
-                    Mouse::ScrollDown => {}
-                    Mouse::ScrollUp => {}
-                }
-            }
-        }
-        println!("{:?}", res.last());
+        let window_event = input2event(event, x, y).unwrap();
+        res.push(window_event);
     }
     res
-}
-
-
-pub struct Display {
-    pub size: Size,
-    pub point: Point,
-    //pub fb: Arc<&'static mut [u8]>,
-    pub fb: &'static mut [u8],
-}
-
-impl Display {
-    pub fn new(size: Size, point: Point) -> Self {
-        let fb = frame_buffer();
-        Self { size, point, fb }
-    }
-}
-
-impl OriginDimensions for Display {
-    fn size(&self) -> Size {
-        self.size
-    }
-}
-
-impl DrawTarget for Display {
-    type Color = Rgb565;
-
-    type Error = core::convert::Infallible;
-
-    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
-        where
-            I: IntoIterator<Item=embedded_graphics::Pixel<Self::Color>>,
-    {
-        pixels.into_iter().for_each(|px| {
-            let idx = ((self.point.y + px.0.y) * VIRTGPU_XRES as i32 + self.point.x + px.0.x)
-                as usize
-                * 4;
-            if idx + 2 >= self.fb.len() {
-                return;
-            }
-            self.fb[idx] = px.1.b();
-            self.fb[idx + 1] = px.1.g();
-            self.fb[idx + 2] = px.1.r();
-        });
-        flush_frame_buffer();
-        Ok(())
-    }
 }
