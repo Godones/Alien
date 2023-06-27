@@ -1,5 +1,5 @@
 [package]
-name = "slint"
+name = "memory-game"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,6 +9,7 @@ edition = "2021"
 Mstd = { path = "../../userlib", features = ["gui"] }
 slint = { version = "1.0.0", default-features = false, features = ["compat-1-0", "unsafe-single-threaded", "libm"] }
 input2event = { path = "../../modules/input2event" }
-
+libm = "0.2.6"
+rand = { version = "0.8.4", default-features = false, features = ["small_rng"] }
 [build-dependencies]
 slint-build = "1.0.0"
