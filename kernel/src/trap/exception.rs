@@ -15,6 +15,24 @@ pub fn syscall_exception_handler() {
     cx.update_sepc();
     // get system call return value
     let parameters = cx.parameters();
+    let syscall_name = syscall_define::syscall_name(parameters[0]);
+
+    let pid = current_process().unwrap().get_pid();
+    if pid != 1 && pid != 0 {
+        // ignore shell and init
+        warn!(
+        "[pid: {}] syscall: {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
+       pid,
+        syscall_name,
+        parameters[1],
+        parameters[2],
+        parameters[3],
+        parameters[4],
+        parameters[5],
+        parameters[6]
+        );
+    }
+
     let result = syscall::do_syscall(parameters[0], &parameters[1..]);
     // cx is changed during sys_exec, so we have to call it again
     cx = current_trap_frame();

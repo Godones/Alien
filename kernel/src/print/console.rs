@@ -1,4 +1,5 @@
 use core::fmt::{Arguments, Result, Write};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use preprint::Print;
 use spin::Lazy;
@@ -44,12 +45,21 @@ struct Stdout;
 
 static STDOUT: Lazy<Mutex<Stdout>> = Lazy::new(|| Mutex::new(Stdout));
 
+
+pub static UART_FLAG: AtomicBool = AtomicBool::new(false);
+
 /// 对`Stdout`实现输出的Trait
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
-        s.as_bytes().iter().for_each(|x| {
-            console_putchar(*x);
-        });
+        if UART_FLAG.load(Ordering::Relaxed) {
+            let uart = USER_UART.get().unwrap();
+            uart.put_bytes(s.as_bytes());
+        } else {
+            s.as_bytes().iter().for_each(|x| {
+                console_putchar(*x);
+            });
+        }
+
         Ok(())
     }
 }
