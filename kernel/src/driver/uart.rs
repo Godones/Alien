@@ -1,5 +1,6 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use core::sync::atomic::Ordering;
 
 use lazy_static::lazy_static;
 use spin::Once;
@@ -7,6 +8,7 @@ use spin::Once;
 use kernel_sync::Mutex;
 
 use crate::driver::DeviceBase;
+use crate::print::console::UART_FLAG;
 use crate::task::{current_process, Process, PROCESS_MANAGER, ProcessState};
 use crate::task::schedule::schedule;
 
@@ -25,6 +27,7 @@ pub fn init_uart(base: usize) -> Arc<dyn DeviceBase> {
     let uart = Uart::new(base);
     let uart = Arc::new(uart);
     USER_UART.call_once(|| uart.clone());
+    UART_FLAG.store(true, Ordering::Relaxed);
     uart
 }
 

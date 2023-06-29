@@ -92,7 +92,7 @@ syscall!(sys_yield, SYSCALL_YIELD);
 syscall!(sys_getpid, SYSCALL_GETPID);
 syscall!(sys_get_time, SYSCALL_GET_TIME, *mut u8);
 syscall!(sys_fork, SYSCALL_FORK);
-syscall!(sys_execve, SYSCALL_EXEC, *const u8, *const usize);
+syscall!(sys_execve, SYSCALL_EXEC, *const u8, *const usize,*const usize);
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
 syscall!(sys_shutdown, SYSCALL_SHUTDOWN);
 syscall!(sys_list, SYSCALL_LIST, *const u8);

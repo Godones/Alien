@@ -42,7 +42,7 @@ plic = { path = "../modules/plic" }
 pager = { path = "../modules/pager" }
 gmanager = { path = "../modules/gmanager" }
 kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
-
+syscall_define = { path = "../modules/syscall", package = "syscall" }
 
 [build-dependencies]
 #syscall-table = {path = "../modules/syscall-table",features = ["std"]}
