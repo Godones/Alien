@@ -1,3 +1,4 @@
+use alloc::format;
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
@@ -575,7 +576,8 @@ impl ProcessInner {
     pub fn do_store_page_fault(&mut self, addr: usize) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
         trace!("do store page fault:{:#x}",addr);
         let addr = align_down_4k(addr);
-        let (phy, flags, page_size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+        let (phy, flags, page_size) = self.address_space.query(VirtAddr::from(addr))
+            .expect(format!("addr:{:#x}", addr).as_str());
         if !flags.contains(MappingFlags::V) {
             return self.invalid_page_solver(addr);
         }
@@ -651,10 +653,23 @@ impl Process {
                 mmap: MMapInfo::new(),
             }),
         };
+        let mut top = elf_info.stack_top;
+        let data = [0usize, 0, 0];
+        data.iter().enumerate().for_each(|(i, data)| {
+            let addr = top - 8 * (i + 1);
+            let phy = process.transfer_raw_ptr(addr as *mut usize);
+            unsafe {
+                *phy = *data;
+            }
+        });
+        top -= 8 * data.len();
+        top -= top % 16;
+
+        error!("kernel sp:{:#x}", process.kernel_stack.top());
         let trap_frame = process.trap_frame();
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
-            elf_info.stack_top - 16,
+            top,
             kernel_satp(),
             process.kernel_stack.top(),
             user_trap_vector as usize,
@@ -712,7 +727,7 @@ impl Process {
         Some(process)
     }
 
-    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) -> Result<(), isize> {
+    pub fn exec(&self, elf_data: &[u8], args: Vec<String>, env: Vec<String>) -> Result<(), isize> {
         let elf_info = build_elf_address_space(elf_data);
         if elf_info.is_err() {
             return Err(-1);
@@ -731,20 +746,80 @@ impl Process {
 
         // push the args to the top of stack of the process
         // we have push '\0' into the arg string,so we don't need to push it again
-        let base = elf_info.stack_top - args.len() * core::mem::size_of::<usize>();
-        let mut str_base = base;
-        args.iter().enumerate().for_each(|(i, arg)| unsafe {
-            let arg_addr = base + i * core::mem::size_of::<usize>();
-            let arg_addr = inner.transfer_raw_ptr(arg_addr as *mut usize);
-            str_base = str_base - arg.as_bytes().len();
-            *arg_addr = str_base;
-            let arg_str_addr = inner.transfer_raw(str_base);
-            core::slice::from_raw_parts_mut(arg_str_addr as *mut u8, arg.as_bytes().len())
-                .copy_from_slice(arg.as_bytes());
-        });
-        // align the user_sp to 8byte
-        let user_sp = (str_base - 8) & !0x7;
+        // let base = elf_info.stack_top - args.len() * core::mem::size_of::<usize>();
+        // let mut str_base = base;
+        // args.iter().enumerate().for_each(|(i, arg)| unsafe {
+        //     let arg_addr = base + i * core::mem::size_of::<usize>();
+        //     let arg_addr = inner.transfer_raw_ptr(arg_addr as *mut usize);
+        //     str_base = str_base - arg.as_bytes().len();
+        //     *arg_addr = str_base;
+        //     let arg_str_addr = inner.transfer_raw(str_base);
+        //     core::slice::from_raw_parts_mut(arg_str_addr as *mut u8, arg.as_bytes().len())
+        //         .copy_from_slice(arg.as_bytes());
+        // });
+        let mut top = elf_info.stack_top;
+        // push env to the top of stack of the process
+        // we have push '\0' into the env string,so we don't need to push it again
+        let mut envv = env.iter().enumerate().map(|(i, env)| {
+            let mut addr = top - env.as_bytes().len();
+            addr -= addr % 16;// riscv sp must be 16-byte aligned
+            let phy_addr = inner.transfer_raw(addr);
+            unsafe {
+                core::slice::from_raw_parts_mut(phy_addr as *mut u8, env.as_bytes().len())
+                    .copy_from_slice(env.as_bytes());
+            }
+            top = addr;
+            addr
+        }).collect::<Vec<usize>>();
+        envv.push(0);// push the last '\0'
 
+        // push the args to the top of stack of the process
+        // we have push '\0' into the arg string,so we don't need to push it again
+        let mut argcv = args.iter().enumerate().map(|(i, arg)| {
+            let mut addr = top - arg.as_bytes().len();
+            addr -= addr % 16;// riscv sp must be 16-byte aligned
+            let phy_addr = inner.transfer_raw(addr);
+            unsafe {
+                core::slice::from_raw_parts_mut(phy_addr as *mut u8, arg.as_bytes().len())
+                    .copy_from_slice(arg.as_bytes());
+            }
+            top = addr;
+            addr
+        }).collect::<Vec<usize>>();
+        argcv.push(0);// push the last '\0'
+
+        // psuh the env addr to the top of stack of the process
+        let mut envv_addr = top - envv.len() * core::mem::size_of::<usize>();
+        envv_addr -= envv_addr % 16;// riscv sp must be 16-byte aligned
+        envv.iter().enumerate().for_each(|(i, env)| unsafe {
+            let env_addr = envv_addr + i * core::mem::size_of::<usize>();
+            let env_addr = inner.transfer_raw_ptr(env_addr as *mut usize);
+            *env_addr = *env;
+        });
+        top = envv_addr;
+
+        // push the args addr to the top of stack of the process
+        let mut argcv_addr = top - argcv.len() * core::mem::size_of::<usize>();
+        argcv_addr -= argcv_addr % 16;// riscv sp must be 16-byte aligned
+        argcv.iter().enumerate().for_each(|(i, arg)| unsafe {
+            let arg_addr = argcv_addr + i * core::mem::size_of::<usize>();
+            let arg_addr = inner.transfer_raw_ptr(arg_addr as *mut usize);
+            *arg_addr = *arg;
+        });
+        top = argcv_addr;
+
+        // push the argc to the top of stack of the process
+        let mut argc = args.len();
+        let mut argc_addr = top - core::mem::size_of::<usize>();
+        argc_addr -= argc_addr % 16;// riscv sp must be 16-byte aligned
+        top = argc_addr;
+        let argc_addr = inner.transfer_raw_ptr(argc_addr as *mut usize);
+        unsafe {
+            *argc_addr = argc;
+        }
+
+        let user_sp = top;
+        error!("args:{:?}, env:{:?} user_sp: {:#x}",args,env, user_sp);
         let trap_frame = TrapFrame::from_raw_ptr(trap_frame);
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
@@ -754,7 +829,7 @@ impl Process {
             user_trap_vector as usize,
         );
         trap_frame.regs()[10] = args.len() as usize;
-        trap_frame.regs()[11] = base;
+        trap_frame.regs()[11] = user_sp;
         Ok(())
     }
 }

@@ -222,18 +222,24 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             if ph_flags.is_execute() {
                 permission |= MappingFlags::X;
             }
-            trace!(
-                "load segment: {:#x} - {:#x}, permission: {:?}",
+
+            let vaddr = VirtAddr::from(start_addr).align_down_4k();
+            let end_vaddr = VirtAddr::from(end_addr).align_up_4k();
+            let len = end_vaddr.as_usize() - vaddr.as_usize();
+            warn!(
+                "load segment: {:#x} - {:#x} -> {:#x}-{:#x}, permission: {:?}",
                 start_addr,
                 end_addr,
+                vaddr.as_usize(),
+                end_vaddr.as_usize(),
                 permission
             );
             let mut data =
                 &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
             let map_info = address_space
                 .map_region_no_target(
-                    VirtAddr::from(start_addr).align_down_4k(),
-                    align_up_4k(end_addr - start_addr),
+                    vaddr,
+                    len,
                     permission,
                     true,
                     false,
@@ -257,6 +263,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
     // 留出一个用户栈的位置+隔离页
     let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE; // 8k +4k
 
+    warn!("user stack: {:#x} - {:#x}", top - USER_STACK_SIZE, top);
     // map user stack
     address_space
         .map_region_no_target(
@@ -289,6 +296,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         )
         .unwrap();
 
+    warn!("entry: {:#x}", elf.header.pt2.entry_point());
     Ok(ELFInfo {
         address_space,
         entry: elf.header.pt2.entry_point() as usize,

@@ -171,6 +171,9 @@ impl TrapHandler for Trap {
 /// 用户态陷入处理
 #[no_mangle]
 pub fn user_trap_vector() {
+    unsafe {
+        (0x10000000 as *mut u8).write_volatile(b'A');
+    }
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::Supervisor {

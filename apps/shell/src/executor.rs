@@ -4,10 +4,10 @@ use alloc::vec::Vec;
 
 use spin::Mutex;
 
+use Mstd::{println, shutdown};
 use Mstd::fs::{chdir, get_cwd};
 use Mstd::process::{exec, exit, fork, waitpid};
 use Mstd::thread::m_yield;
-use Mstd::{println, shutdown};
 
 #[derive(Debug)]
 pub struct Parameter {
@@ -83,7 +83,7 @@ impl Executor {
                 let pid = fork();
                 if pid == 0 {
                     self.parameter.args.insert(0, cmd.clone());
-                    exec(cmd.as_str(), self.parameter.get_args_raw().as_slice());
+                    exec(cmd.as_str(), self.parameter.get_args_raw().as_slice(), &[0 as *const u8]);
                     exit(0);
                 } else {
                     m_yield();
