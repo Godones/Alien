@@ -187,7 +187,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 }
 
 #[syscall_func(221)]
-pub fn do_exec(path: *const u8, args_ptr: *const usize, _env: *const usize) -> isize {
+pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> isize {
     let process = current_process().unwrap();
     let str = process.transfer_str(path);
     let mut data = Vec::new();
@@ -210,11 +210,35 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, _env: *const usize) -> i
             arg
         })
         .collect::<Vec<String>>();
+
+
+    // get the env and push them into the new process stack
+    let mut envs = Vec::new();
+    let mut start = env as *mut usize;
+    loop {
+        let env = process.transfer_raw_ptr(start);
+        if *env == 0 {
+            break;
+        }
+        envs.push(*env);
+        start = unsafe { start.add(1) };
+    }
+    let envs = envs
+        .into_iter()
+        .map(|env| {
+            let mut env = process.transfer_str(env as *const u8);
+            env.push('\0');
+            env
+        })
+        .collect::<Vec<String>>();
+
+
     if vfs::read_all(&str, &mut data) {
         let argc = args.len();
-        let res = process.exec(data.as_slice(), args);
+        let res = process.exec(data.as_slice(), args, envs);
+        warn!("exec res: {:?}", res);
         if res.is_err() {
-            return res.err().unwrap() as isize;
+            return res.err().unwrap();
         }
         return argc as isize;
     } else {
