@@ -1,4 +1,6 @@
-use Mstd::fs::{close, fstat, linkat, LinkFlags, open, OpenFlags, readlinkat, Stat, symlinkat, unlinkat};
+use Mstd::fs::{
+    close, fstat, linkat, open, readlinkat, symlinkat, unlinkat, LinkFlags, OpenFlags, Stat,
+};
 
 pub fn link_test() -> isize {
     let fd = open("/db/linktest\0", OpenFlags::O_CREAT | OpenFlags::O_WRONLY);

@@ -14,18 +14,18 @@ pub mod config;
 pub mod driver;
 mod error;
 pub mod fs;
+mod gui;
 pub mod ipc;
 pub mod memory;
 mod panic;
 pub mod sbi;
+mod sync;
 pub mod syscall;
 pub mod system;
 pub mod task;
 pub mod timer;
 mod trace;
 pub mod trap;
-mod gui;
-mod sync;
 
 pub fn thread_local_init() {
     // 允许内核读写用户态内存

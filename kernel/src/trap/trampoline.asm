@@ -33,6 +33,8 @@ user_v:
     ld t0, 33*8(sp)
     # load trap_handler into t1
     ld t1, 35*8(sp)
+    # load tp
+    ld tp,36*8(sp)
     # move to kernel_sp
     ld sp, 34*8(sp)
 
