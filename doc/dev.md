@@ -165,3 +165,13 @@ pub fn dec_ref(&mut self, id: usize) -> Option<usize> {
 1. 添加一个`memory-game` ，使用`slint`
 2. 修复`page-table`中`unmap` 的错误
 
+## 2023.6.29
+
+1. 编译libc/busybox相关测例
+2. 尝试运行测试，爆出许多错误
+
+## 2023.6.30
+
+1. 修复musl-libc中初始化失败的bug
+
+原来内核中对`execv`参数的处理比较简单，没有按照libc的要求进行放置，导致进入到用户态总是发生`loadpage`异常，在按照libc的初始化过程重新放置参数和环境变量后，没有发生异常，但是程序会卡死。使用gdb单步调试后，发现其在获取hartid时发生了错误，在内核中，我们将hartid放置在tp寄存器中，但是用户态程序使用了这个寄存器，在之前的实现中，进程陷入内核时，我们不没有恢复tp的值，导致tp的值是用户态设置的值，而在异常处理和panic程序中，都会获取hartid，因此直接导致了内核处于panic的死循环中。
