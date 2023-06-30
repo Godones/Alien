@@ -64,13 +64,9 @@ pub fn register_all_syscall(){
 	);
 	SYSCALL_TABLE.call_once(||table);
 }
-pub fn do_syscall(id:usize,args:&[usize])->isize{
+pub fn do_syscall(id:usize,args:&[usize])->Option<isize>{
 	let res = SYSCALL_TABLE.get().unwrap().do_call(id,&args);
-	if res.is_none(){
-		    return -1;
-	}else {
-	    return res.unwrap();
-	}
+	res
 }
 use crate::driver::sys_event_get;
 use crate::fs::sys_chdir;

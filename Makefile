@@ -83,6 +83,8 @@ test:install compile $(img) SecondFile testelf
 testelf:
 	@sudo mkdir /fat/ostest
 	@sudo cp test/* /fat/ostest -r
+	@sudo mkdir /fat/final
+	@sudo cp sdcard/* /fat/final -r
 	@sync
 
 dtb:
@@ -100,7 +102,7 @@ ZeroFile:
 
 fat32:
 	#创建fat32文件系统
-	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=64
+	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=128
 	@sudo chmod 777 $(IMG)
 	@sudo mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
@@ -118,7 +120,7 @@ img-hex:
 	@cat test.hex
 
 
-gdb: compile $(img) user  testelf
+gdb:
 	@qemu-system-riscv64 \
             -M virt $(1)\
             -bios $(BOOTLOADER) \
@@ -137,6 +139,8 @@ debug: compile $(img) user
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
 
+ddd:
+	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
 asm:
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/boot > kernel.asm

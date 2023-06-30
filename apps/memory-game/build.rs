@@ -3,5 +3,6 @@ fn main() {
         "ui/memory.slint",
         slint_build::CompilerConfiguration::new()
             .embed_resources(slint_build::EmbedResourcesKind::EmbedForSoftwareRenderer),
-    ).unwrap();
+    )
+    .unwrap();
 }

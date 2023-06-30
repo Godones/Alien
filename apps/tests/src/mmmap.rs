@@ -1,5 +1,5 @@
-use Mstd::fs::{close, fstat, open, OpenFlags, Stat, write};
-use Mstd::ipc::{MapFlags, mmap, munmap, ProtFlags};
+use Mstd::fs::{close, fstat, open, write, OpenFlags, Stat};
+use Mstd::ipc::{mmap, munmap, MapFlags, ProtFlags};
 
 pub fn mmap_test() {
     println!("Test mmap and munmap");
@@ -24,9 +24,9 @@ pub fn mmap_test() {
 
     close(fd as usize);
 
-
     // after close ,we still can access the mmap
-    let mmap = unsafe { core::slice::from_raw_parts_mut(start as *mut u8, stat.st_size as usize + 10) };
+    let mmap =
+        unsafe { core::slice::from_raw_parts_mut(start as *mut u8, stat.st_size as usize + 10) };
 
     mmap[str.len()] = b'!';
 
