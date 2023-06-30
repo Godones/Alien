@@ -69,7 +69,7 @@
     - [ ] `embedded-graphics `较为底层，需要在此基础上构建
     - [ ] `slint` 较为成熟，并且可以在裸机器上运行，可以配合`embedded-graphics`使用
         - [x] 简易显示程序
-        - [ ] 键盘、鼠标事件
+        - [x] 键盘、鼠标事件(需要更好的支持)
         - [ ] shell
 - [ ] Network
     - [ ] smoltcp

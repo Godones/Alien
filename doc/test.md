@@ -31,15 +31,6 @@
 - [x] munmap
 - [x] clone
 
-
-
-## 待修复
-
-- [ ] 修复`rvfs`中挂载的逻辑错误
-- [ ] 修复内核中 `mount` 函数实现
-
-
-
 ## 工具配置
 
 [Rust cross compilation](https://danielmangum.com/posts/risc-v-bytes-rust-cross-compilation/)
