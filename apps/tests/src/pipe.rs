@@ -41,7 +41,6 @@ pub fn pipe_test1() -> isize {
     }
 }
 
-
 const LENGTH: usize = 3000;
 
 pub fn pipe_test2() -> isize {

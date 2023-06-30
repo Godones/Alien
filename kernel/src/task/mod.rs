@@ -24,7 +24,7 @@ lazy_static! {
     pub static ref INIT_PROCESS: Arc<Process> = {
         let mut data = Vec::new();
         vfs::read_all("/init", &mut data);
-        let process = Process::from_elf(data.as_slice()).unwrap();
+        let process = Process::from_elf("/init", data.as_slice()).unwrap();
         Arc::new(process)
     };
 }

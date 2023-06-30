@@ -57,7 +57,7 @@ impl Executor {
         }
     }
 
-    pub fn run(mut self) {
+    pub fn run(self) {
         if self.cmd.is_empty() {
             return;
         }
@@ -82,8 +82,12 @@ impl Executor {
                 cmd.push('\0');
                 let pid = fork();
                 if pid == 0 {
-                    self.parameter.args.insert(0, cmd.clone());
-                    exec(cmd.as_str(), self.parameter.get_args_raw().as_slice());
+                    // self.parameter.args.insert(0, cmd.clone());
+                    exec(
+                        cmd.as_str(),
+                        self.parameter.get_args_raw().as_slice(),
+                        &[0 as *const u8],
+                    );
                     exit(0);
                 } else {
                     m_yield();

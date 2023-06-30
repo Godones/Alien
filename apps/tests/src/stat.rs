@@ -1,4 +1,4 @@
-use Mstd::fs::{close, fstatat, fstatfs, open, OpenFlags, Stat, StatFlags, StatFs, statfs};
+use Mstd::fs::{close, fstatat, fstatfs, open, statfs, OpenFlags, Stat, StatFlags, StatFs};
 
 pub fn stat_test() -> isize {
     let fd = open("/db/stattest\0", OpenFlags::O_CREAT | OpenFlags::O_WRONLY);

@@ -12,17 +12,21 @@ impl Decoder {
     /// decode the input event into type enum
     pub fn decode(etype: usize, code: usize, value: isize) -> Result<DecodeType, ()> {
         match etype {
-            3 | 2 => Ok(DecodeType::Mouse(MouseDecoder::decode(code, value).unwrap())),
+            3 | 2 => Ok(DecodeType::Mouse(
+                MouseDecoder::decode(code, value).unwrap(),
+            )),
             1 => {
                 if code >= 0x150 {
                     // Ok(DecodeType::Mouse(MouseDecoder::decode(code, value).unwrap()))
                     Err(())
                 } else {
-                    Ok(DecodeType::Key(KeyDecoder::decode(code).unwrap(),
-                                       KeyDecoder::key_type(value as usize).unwrap()))
+                    Ok(DecodeType::Key(
+                        KeyDecoder::decode(code).unwrap(),
+                        KeyDecoder::key_type(value as usize).unwrap(),
+                    ))
                 }
             }
-            _ => Err(())
+            _ => Err(()),
         }
     }
 

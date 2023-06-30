@@ -1,5 +1,6 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use core::sync::atomic::Ordering;
 
 use lazy_static::lazy_static;
 use spin::Once;
@@ -7,15 +8,15 @@ use spin::Once;
 use kernel_sync::Mutex;
 
 use crate::driver::DeviceBase;
-use crate::task::{current_process, Process, PROCESS_MANAGER, ProcessState};
+use crate::print::console::UART_FLAG;
 use crate::task::schedule::schedule;
+use crate::task::{current_process, Process, ProcessState, PROCESS_MANAGER};
 
 pub trait CharDevice {
     fn put(&self, c: u8);
     fn get(&self) -> Option<u8>;
     fn put_bytes(&self, bytes: &[u8]);
 }
-
 
 lazy_static! {
     pub static ref USER_UART: Once<Arc<Uart>> = Once::new();
@@ -25,9 +26,9 @@ pub fn init_uart(base: usize) -> Arc<dyn DeviceBase> {
     let uart = Uart::new(base);
     let uart = Arc::new(uart);
     USER_UART.call_once(|| uart.clone());
+    UART_FLAG.store(true, Ordering::Relaxed);
     uart
 }
-
 
 pub struct Uart {
     inner: Mutex<(UartRaw, UartInner)>,
@@ -37,7 +38,6 @@ struct UartInner {
     rx_buf: VecDeque<u8>,
     wait_queue: VecDeque<Arc<Process>>,
 }
-
 
 struct UartRaw(usize);
 
@@ -84,7 +84,6 @@ impl UartRaw {
     }
 }
 
-
 impl Uart {
     pub fn new(base: usize) -> Self {
         let uart_raw = UartRaw(base);
@@ -98,7 +97,6 @@ impl Uart {
         }
     }
 }
-
 
 impl CharDevice for Uart {
     fn put(&self, c: u8) {

@@ -3,7 +3,6 @@ use std::path::Path;
 
 fn main() {}
 
-
 pub fn rewrite_config() {
     let cpus = option_env!("SMP").unwrap_or("4");
     let cpus = cpus.parse::<usize>().unwrap();
