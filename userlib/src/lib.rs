@@ -3,12 +3,13 @@
 #![feature(linkage)]
 #![allow(unused)]
 #![allow(non_snake_case)]
-
+#![feature(naked_functions)]
 extern crate alloc;
 
 use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use core::arch::asm;
 
 use crate::process::exit;
 use crate::syscall::sys_shutdown;
@@ -31,8 +32,23 @@ pub mod time;
 pub mod gui;
 
 #[no_mangle]
-fn _start(argc: usize, argv: usize) -> ! {
-    let argv = parse_args(argc, argv);
+#[naked]
+extern "C" fn _start() -> ! {
+    unsafe {
+        asm!(
+            "mv a0,sp
+        call _start_rust
+        ",
+            options(noreturn)
+        )
+    }
+}
+
+#[no_mangle]
+fn _start_rust(argc_ptr: usize) {
+    let argc = unsafe { (argc_ptr as *const usize).read_volatile() };
+    let argv = argc_ptr + core::mem::size_of::<usize>();
+    let argv = parse_args(argc, argv); //todo!(env)
     exit(unsafe { main(argc, argv) });
 }
 

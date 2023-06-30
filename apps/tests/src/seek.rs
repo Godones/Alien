@@ -1,4 +1,4 @@
-use Mstd::fs::{close, fstat, open, OpenFlags, read, seek, Stat, write};
+use Mstd::fs::{close, fstat, open, read, seek, write, OpenFlags, Stat};
 use Mstd::println;
 
 pub fn seek_test() -> isize {

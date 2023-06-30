@@ -56,7 +56,6 @@ pub enum Errno {
 
 pub type SyscallResult = Result<usize, Errno>;
 
-
 const SYSCALL_GETCWD: usize = 17;
 const SYSCALL_DUP: usize = 23;
 const SYSCALL_DUP3: usize = 24;
