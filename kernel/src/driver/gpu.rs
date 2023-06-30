@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::any::Any;
 
-use embedded_graphics::pixelcolor::Rgb888;
+use embedded_graphics_core::pixelcolor::Rgb888;
 use spin::Once;
 use tinybmp::Bmp;
 use virtio_drivers::device::gpu::VirtIOGpu;

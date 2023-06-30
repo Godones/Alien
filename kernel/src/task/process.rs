@@ -1,4 +1,5 @@
-use alloc::string::String;
+use alloc::format;
+use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 
@@ -13,20 +14,24 @@ use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
 use kernel_sync::{Mutex, MutexGuard};
+use syscall_define::aux::{
+    AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
+    AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
+};
 
-use crate::config::{FRAME_BITS, MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE};
 use crate::config::FRAME_SIZE;
+use crate::config::{FRAME_BITS, MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
 use crate::memory::{
-    build_clone_address_space, build_elf_address_space, FRAME_REF_MANAGER, kernel_satp, MapFlags,
-    MMapInfo, MMapRegion, PageAllocator, ProtFlags,
+    build_clone_address_space, build_elf_address_space, kernel_satp, MMapInfo, MMapRegion,
+    MapFlags, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
 };
 use crate::task::context::Context;
 use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, TrapFrame, user_trap_vector};
+use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -57,6 +62,7 @@ unsafe impl Sync for Process {}
 
 #[derive(Debug)]
 pub struct ProcessInner {
+    pub name: String,
     pub address_space: Sv39PageTable<PageAllocator>,
     pub state: ProcessState,
     pub parent: Option<Weak<Process>>,
@@ -208,6 +214,10 @@ impl Process {
         self.pid.0 as isize
     }
 
+    pub fn get_name(&self) -> String {
+        let inner = self.inner.lock();
+        inner.name.clone()
+    }
     pub fn access_inner(&self) -> MutexGuard<ProcessInner> {
         self.inner.lock()
     }
@@ -367,7 +377,6 @@ impl ProcessInner {
         v
     }
 
-
     pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
         let address_space = &self.address_space;
         let mut start = ptr as usize;
@@ -446,7 +455,8 @@ impl ProcessInner {
                 addition,
                 "RWUAD".into(), // no V flag
                 true,
-                true)
+                true,
+            )
             .unwrap();
         let new_end = end + addition;
         self.heap.end = new_end;
@@ -541,7 +551,10 @@ impl ProcessInner {
         Ok((file.clone(), buf, read_offset as u64))
     }
 
-    fn invalid_page_solver(&mut self, addr: usize) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
+    fn invalid_page_solver(
+        &mut self,
+        addr: usize,
+    ) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
         let is_mmap = self.mmap.get_region(addr);
         let is_heap = self.heap.contains(addr);
         if is_mmap.is_none() && !is_heap {
@@ -572,10 +585,16 @@ impl ProcessInner {
         Ok(None)
     }
 
-    pub fn do_store_page_fault(&mut self, addr: usize) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
-        trace!("do store page fault:{:#x}",addr);
+    pub fn do_store_page_fault(
+        &mut self,
+        addr: usize,
+    ) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
+        trace!("do store page fault:{:#x}", addr);
         let addr = align_down_4k(addr);
-        let (phy, flags, page_size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+        let (phy, flags, page_size) = self
+            .address_space
+            .query(VirtAddr::from(addr))
+            .expect(format!("addr:{:#x}", addr).as_str());
         if !flags.contains(MappingFlags::V) {
             return self.invalid_page_solver(addr);
         }
@@ -612,7 +631,7 @@ impl Process {
         // recycle page
     }
     /// only call once
-    pub fn from_elf(elf: &[u8]) -> Option<Process> {
+    pub fn from_elf(name: &str, elf: &[u8]) -> Option<Process> {
         let pid = PID_MANAGER.lock().insert(0).unwrap();
         // 创建进程地址空间
         let elf_info = build_elf_address_space(elf);
@@ -631,6 +650,7 @@ impl Process {
             kernel_stack: k_stack,
             pid: PidHandle(pid),
             inner: Mutex::new(ProcessInner {
+                name: name.to_string(),
                 address_space,
                 state: ProcessState::Ready,
                 parent: None,
@@ -651,10 +671,16 @@ impl Process {
                 mmap: MMapInfo::new(),
             }),
         };
+        error!("kernel sp:{:#x}", process.kernel_stack.top());
+        let phy_button = process.transfer_raw(elf_info.stack_top - USER_STACK_SIZE);
+        let mut user_stack = UserStack::new(phy_button + USER_STACK_SIZE, elf_info.stack_top);
+        user_stack.push(0).unwrap();
+        let argc_ptr = user_stack.push(0).unwrap();
+
         let trap_frame = process.trap_frame();
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
-            elf_info.stack_top - 16,
+            argc_ptr,
             kernel_satp(),
             process.kernel_stack.top(),
             user_trap_vector as usize,
@@ -685,6 +711,7 @@ impl Process {
             kernel_stack: k_stack,
             pid: PidHandle(pid),
             inner: Mutex::new(ProcessInner {
+                name: inner.name.clone(),
                 address_space,
                 state: ProcessState::Ready,
                 parent: Some(Arc::downgrade(self)),
@@ -712,7 +739,14 @@ impl Process {
         Some(process)
     }
 
-    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) -> Result<(), isize> {
+    #[no_mangle]
+    pub fn exec(
+        &self,
+        name: &str,
+        elf_data: &[u8],
+        args: Vec<String>,
+        env: Vec<String>,
+    ) -> Result<(), isize> {
         let elf_info = build_elf_address_space(elf_data);
         if elf_info.is_err() {
             return Err(-1);
@@ -728,23 +762,85 @@ impl Process {
         inner.trap_frame = trap_frame;
         inner.heap = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);
         inner.mmap = MMapInfo::new();
+        inner.name = name.to_string();
 
+        let phy_button = inner.transfer_raw(elf_info.stack_top - USER_STACK_SIZE);
+        let mut user_stack = UserStack::new(phy_button + USER_STACK_SIZE, elf_info.stack_top);
+
+        // push env to the top of stack of the process
+        // we have push '\0' into the env string,so we don't need to push it again
+        let envv = env
+            .iter()
+            .map(|env| user_stack.push_str(env).unwrap())
+            .collect::<Vec<usize>>();
         // push the args to the top of stack of the process
         // we have push '\0' into the arg string,so we don't need to push it again
-        let base = elf_info.stack_top - args.len() * core::mem::size_of::<usize>();
-        let mut str_base = base;
-        args.iter().enumerate().for_each(|(i, arg)| unsafe {
-            let arg_addr = base + i * core::mem::size_of::<usize>();
-            let arg_addr = inner.transfer_raw_ptr(arg_addr as *mut usize);
-            str_base = str_base - arg.as_bytes().len();
-            *arg_addr = str_base;
-            let arg_str_addr = inner.transfer_raw(str_base);
-            core::slice::from_raw_parts_mut(arg_str_addr as *mut u8, arg.as_bytes().len())
-                .copy_from_slice(arg.as_bytes());
-        });
-        // align the user_sp to 8byte
-        let user_sp = (str_base - 8) & !0x7;
+        let argcv = args
+            .iter()
+            .map(|arg| user_stack.push_str(arg).unwrap())
+            .collect::<Vec<usize>>();
+        // push padding to the top of stack of the process
 
+        user_stack.align_to(8).unwrap();
+        let random_ptr = user_stack.push_bytes(&[0u8; 16]).unwrap();
+
+        // padding
+        user_stack.push_bytes(&[0u8; 8]).unwrap();
+
+        // push aux
+        let platform = user_stack.push_str("riscv").unwrap();
+        let ex_path = user_stack.push_str(args[0].as_str()).unwrap();
+        user_stack.push(0).unwrap();
+        user_stack.push(platform).unwrap();
+        user_stack.push(AT_PLATFORM).unwrap();
+        user_stack.push(ex_path).unwrap();
+        user_stack.push(AT_EXECFN).unwrap();
+        user_stack.push(elf_info.ph_num).unwrap();
+        user_stack.push(AT_PHNUM).unwrap();
+        user_stack.push(FRAME_SIZE).unwrap();
+        user_stack.push(AT_PAGESZ).unwrap();
+        user_stack.push(elf_info.entry).unwrap();
+        user_stack.push(AT_ENTRY).unwrap();
+        user_stack.push(elf_info.ph_entry_size).unwrap();
+        user_stack.push(AT_PHENT).unwrap();
+        user_stack.push(elf_info.ph_drift).unwrap();
+        user_stack.push(AT_PHDR).unwrap();
+        user_stack.push(0).unwrap();
+        user_stack.push(AT_GID).unwrap();
+        user_stack.push(0).unwrap();
+        user_stack.push(AT_EGID).unwrap();
+        user_stack.push(0).unwrap();
+        user_stack.push(AT_UID).unwrap();
+        user_stack.push(0).unwrap();
+        user_stack.push(AT_EUID).unwrap();
+        user_stack.push(0).unwrap();
+        user_stack.push(AT_SECURE).unwrap();
+        user_stack.push(random_ptr).unwrap();
+        user_stack.push(AT_RANDOM).unwrap();
+
+        user_stack.push(0).unwrap();
+        // psuh the env addr to the top of stack of the process
+        envv.iter().for_each(|env| {
+            user_stack.push(*env).unwrap();
+        });
+        user_stack.push(0).unwrap();
+        // push the args addr to the top of stack of the process
+
+        argcv.iter().skip(1).enumerate().for_each(|(_i, arg)| {
+            user_stack.push(*arg).unwrap();
+        });
+        let record_first_arg = user_stack.push(argcv[0]).unwrap();
+
+        // push the argc to the top of stack of the process
+        let argc = args.len();
+        let argc_ptr = user_stack.push(argc).unwrap();
+        let user_sp = argc_ptr;
+        // user_sp -= user_sp % 16;
+
+        error!(
+            "args:{:?}, env:{:?} argv: {:#x} user_sp: {:#x}",
+            args, env, record_first_arg, user_sp
+        );
         let trap_frame = TrapFrame::from_raw_ptr(trap_frame);
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
@@ -753,8 +849,10 @@ impl Process {
             self.kernel_stack.top(),
             user_trap_vector as usize,
         );
-        trap_frame.regs()[10] = args.len() as usize;
-        trap_frame.regs()[11] = base;
+
+        trap_frame.regs()[10] = args.len();
+        trap_frame.regs()[11] = record_first_arg;
+        // println!("{:#x?}", trap_frame.regs());
         Ok(())
     }
 }

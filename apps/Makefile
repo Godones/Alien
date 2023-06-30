@@ -52,7 +52,7 @@ BUILD_CRATES := \
 	mkdir \
 	ls \
 	cat \
-	run_test \
-	slint \
-	memory-game
+	run_test
+#	slint \
+#	memory-game
 #	tests

@@ -1,4 +1,3 @@
-use std::{format, fs};
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -8,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::string::{String, ToString};
 use std::vec::Vec;
+use std::{format, fs};
 
 // use syscall_table::scan::scan_and_generate;
 
@@ -79,13 +79,9 @@ pub fn scan_and_generate(path: String) {
         \t);\n\
         \tSYSCALL_TABLE.call_once(||table);\n\
     }\n\
-    pub fn do_syscall(id:usize,args:&[usize])->isize{\n\
+    pub fn do_syscall(id:usize,args:&[usize])->Option<isize>{\n\
         \tlet res = SYSCALL_TABLE.get().unwrap().do_call(id,&args);\n\
-        \tif res.is_none(){\n\
-        \t\t    return -1;\n\
-        \t}else {\n\
-        \t    return res.unwrap();\n\
-        \t}\n\
+        \tres\n\
     }\n\
     ";
     context.extend_from_slice(end);
@@ -142,7 +138,8 @@ fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                             component.len() - 1
                         };
                         for i in 0..correct {
-                            if component[i] == "src" {} else {
+                            if component[i] == "src" {
+                            } else {
                                 mod_name.push_str("::");
                                 if component[i].ends_with(".rs") {
                                     mod_name.push_str(component[i].strip_suffix(".rs").unwrap());

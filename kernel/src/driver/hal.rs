@@ -1,6 +1,6 @@
 use core::ptr::NonNull;
 
-use virtio_drivers::{BufferDirection, Hal, PAGE_SIZE, PhysAddr};
+use virtio_drivers::{BufferDirection, Hal, PhysAddr, PAGE_SIZE};
 
 use pci::PortOps;
 

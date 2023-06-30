@@ -5,11 +5,11 @@
 extern crate Mstd;
 extern crate alloc;
 
-use embedded_graphics::{draw_target::DrawTarget, prelude::OriginDimensions};
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{Drawable, Point, RgbColor, Size};
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::primitives::Primitive;
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
+use embedded_graphics::{draw_target::DrawTarget, prelude::OriginDimensions};
 
 use Mstd::io::{flush_frame_buffer, frame_buffer, get_char, VIRTGPU_LEN, VIRTGPU_XRES};
 
@@ -29,7 +29,8 @@ impl Display {
         let fb = frame_buffer();
         println!(
             "Hello world from user mode program! 0x{:X} , len {}",
-            fb.as_ptr() as usize, VIRTGPU_LEN
+            fb.as_ptr() as usize,
+            VIRTGPU_LEN
         );
         Self { size, point, fb }
     }
@@ -47,8 +48,8 @@ impl DrawTarget for Display {
     type Error = core::convert::Infallible;
 
     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
-        where
-            I: IntoIterator<Item=embedded_graphics::Pixel<Self::Color>>,
+    where
+        I: IntoIterator<Item = embedded_graphics::Pixel<Self::Color>>,
     {
         pixels.into_iter().for_each(|px| {
             let idx = ((self.point.y + px.0.y) * VIRTGPU_XRES as i32 + self.point.x + px.0.x)

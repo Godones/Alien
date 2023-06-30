@@ -17,9 +17,9 @@ use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::task::context::Context;
-use crate::task::INIT_PROCESS;
 use crate::task::process::{Process, ProcessState};
 use crate::task::schedule::schedule;
+use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
 
 #[derive(Debug, Clone)]
@@ -187,7 +187,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 }
 
 #[syscall_func(221)]
-pub fn do_exec(path: *const u8, args_ptr: *const usize, _env: *const usize) -> isize {
+pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> isize {
     let process = current_process().unwrap();
     let str = process.transfer_str(path);
     let mut data = Vec::new();
@@ -202,7 +202,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, _env: *const usize) -> i
         args.push(*arg);
         start = unsafe { start.add(1) };
     }
-    let args = args
+    let mut args = args
         .into_iter()
         .map(|arg| {
             let mut arg = process.transfer_str(arg as *const u8);
@@ -210,13 +210,35 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, _env: *const usize) -> i
             arg
         })
         .collect::<Vec<String>>();
-    if vfs::read_all(&str, &mut data) {
-        let argc = args.len();
-        let res = process.exec(data.as_slice(), args);
-        if res.is_err() {
-            return res.err().unwrap() as isize;
+    let mut elf_name = str.clone();
+    elf_name.push('\0');
+    args.insert(0, elf_name);
+    // get the env and push them into the new process stack
+    let mut envs = Vec::new();
+    let mut start = env as *mut usize;
+    loop {
+        let env = process.transfer_raw_ptr(start);
+        if *env == 0 {
+            break;
         }
-        return argc as isize;
+        envs.push(*env);
+        start = unsafe { start.add(1) };
+    }
+    let envs = envs
+        .into_iter()
+        .map(|env| {
+            let mut env = process.transfer_str(env as *const u8);
+            env.push('\0');
+            env
+        })
+        .collect::<Vec<String>>();
+
+    if vfs::read_all(&str, &mut data) {
+        let res = process.exec(&str, data.as_slice(), args, envs);
+        if res.is_err() {
+            return res.err().unwrap();
+        }
+        return 0;
     } else {
         -1
     }

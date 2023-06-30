@@ -11,13 +11,13 @@ use alloc::vec::Vec;
 
 mod alloctest;
 mod attrtest;
+mod dirtest;
 mod forktest;
 mod linktest;
 mod mmmap;
 mod pipe;
-mod stat;
 mod seek;
-mod dirtest;
+mod stat;
 mod timetest;
 
 #[no_mangle]

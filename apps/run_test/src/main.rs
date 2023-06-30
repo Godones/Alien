@@ -53,7 +53,7 @@ fn main() -> isize {
         let app = "/ostest/".to_string() + app.as_str();
         let pid = fork();
         if pid == 0 {
-            exec(app.as_str(), &[0 as *const u8]);
+            exec(app.as_str(), &[0 as *const u8], &[0 as *const u8]);
             exit(0);
         } else {
             m_yield();

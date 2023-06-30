@@ -8,12 +8,13 @@ use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::{PagingIf, Sv39PageTable};
 use xmas_elf::program;
+use xmas_elf::program::Type;
 
 use kernel_sync::RwLock;
 
 use crate::config::{FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
+use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 
 lazy_static! {
     pub static ref KERNEL_SPACE: Arc<RwLock<Sv39PageTable<PageAllocator>>> = Arc::new(RwLock::new(
@@ -123,6 +124,79 @@ pub struct ELFInfo {
     pub entry: usize,
     pub stack_top: usize,
     pub heap_bottom: usize,
+    pub ph_num: usize,
+    pub ph_entry_size: usize,
+    pub ph_drift: usize,
+}
+
+#[derive(Debug)]
+pub struct UserStack {
+    pub virt_stack_top: usize,
+    pub stack_top: usize,
+    pub stack_bottom: usize,
+}
+
+impl UserStack {
+    pub fn new(phy_stack_top: usize, virt_stack_top: usize) -> Self {
+        Self {
+            virt_stack_top,
+            stack_top: phy_stack_top,
+            stack_bottom: phy_stack_top - USER_STACK_SIZE,
+        }
+    }
+
+    pub fn get_stack_top(&self) -> usize {
+        self.stack_top
+    }
+
+    pub fn push(&mut self, data: usize) -> Result<usize, &'static str> {
+        if self.stack_top - 8 < self.stack_bottom {
+            return Err("Stack Overflow");
+        }
+        unsafe {
+            self.stack_top -= 8;
+            *(self.stack_top as *mut usize) = data;
+        }
+        trace!(
+            "stack top: {:#x}, data:{:#x?}",
+            self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)),
+            data
+        );
+        Ok(self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)))
+    }
+
+    pub fn push_str(&mut self, data: &str) -> Result<usize, &'static str> {
+        self.push_bytes(data.as_bytes())
+    }
+
+    pub fn push_bytes(&mut self, data: &[u8]) -> Result<usize, &'static str> {
+        let len = data.len();
+        // align 8
+        let start = self.stack_top - len;
+        let start = start & !7;
+        if start < self.stack_bottom {
+            return Err("Stack Overflow");
+        }
+        unsafe {
+            self.stack_top = start;
+            let ptr = self.stack_top as *mut u8;
+            ptr.copy_from_nonoverlapping(data.as_ptr(), len);
+        }
+        trace!(
+            "stack top: {:#x}",
+            self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom))
+        );
+        Ok(self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)))
+    }
+
+    pub fn align_to(&mut self, align: usize) -> Result<usize, &'static str> {
+        let start = self.stack_top & !(align - 1);
+        if start < self.stack_bottom {
+            return Err("Stack Overflow");
+        }
+        self.stack_top = start;
+        Ok(self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)))
+    }
 }
 
 impl Debug for ELFInfo {
@@ -177,7 +251,7 @@ pub fn build_clone_address_space(
             if flag.contains(MappingFlags::W) {
                 flags -= MappingFlags::W;
                 flags |= MappingFlags::RSD; // we use the RSD flag to indicate that this page is a cow page
-                // update parent's flag and clear dirty
+                                            // update parent's flag and clear dirty
                 p_table.modify_pte_flags(v_addr, flag, false).unwrap();
             }
             address_space.map(v_addr, phy, page_size, flags).unwrap();
@@ -222,22 +296,22 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             if ph_flags.is_execute() {
                 permission |= MappingFlags::X;
             }
-            trace!(
-                "load segment: {:#x} - {:#x}, permission: {:?}",
+
+            let vaddr = VirtAddr::from(start_addr).align_down_4k();
+            let end_vaddr = VirtAddr::from(end_addr).align_up_4k();
+            let len = end_vaddr.as_usize() - vaddr.as_usize();
+            warn!(
+                "load segment: {:#x} - {:#x} -> {:#x}-{:#x}, permission: {:?}",
                 start_addr,
                 end_addr,
+                vaddr.as_usize(),
+                end_vaddr.as_usize(),
                 permission
             );
             let mut data =
                 &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
             let map_info = address_space
-                .map_region_no_target(
-                    VirtAddr::from(start_addr).align_down_4k(),
-                    align_up_4k(end_addr - start_addr),
-                    permission,
-                    true,
-                    false,
-                )
+                .map_region_no_target(vaddr, len, permission, true, false)
                 .unwrap();
             // copy data
             map_info
@@ -257,6 +331,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
     // 留出一个用户栈的位置+隔离页
     let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE; // 8k +4k
 
+    warn!("user stack: {:#x} - {:#x}", top - USER_STACK_SIZE, top);
     // map user stack
     address_space
         .map_region_no_target(
@@ -289,11 +364,37 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         )
         .unwrap();
 
+    let res = if let Some(phdr) = elf
+        .program_iter()
+        .find(|ph| ph.get_type() == Ok(Type::Phdr))
+    {
+        // if phdr exists in program header, use it
+        Ok(phdr.virtual_addr())
+    } else if let Some(elf_addr) = elf
+        .program_iter()
+        .find(|ph| ph.get_type() == Ok(Type::Load) && ph.offset() == 0)
+    {
+        // otherwise, check if elf is loaded from the beginning, then phdr can be inferred.
+        Ok(elf_addr.virtual_addr() + elf.header.pt2.ph_offset())
+    } else {
+        warn!("elf: no phdr found, tls might not work");
+        Err(ELFError::NoEntrySegment)
+        // Ok(0)
+    }
+    .unwrap_or(0);
+    warn!(
+        "entry: {:#x}, phdr:{:#x}",
+        elf.header.pt2.entry_point(),
+        res
+    );
     Ok(ELFInfo {
         address_space,
         entry: elf.header.pt2.entry_point() as usize,
         stack_top: top,
         heap_bottom,
+        ph_num: elf.header.pt2.ph_count() as usize,
+        ph_entry_size: elf.header.pt2.ph_entry_size() as usize,
+        ph_drift: res as usize,
     })
 }
 
