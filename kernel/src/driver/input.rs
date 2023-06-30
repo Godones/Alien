@@ -9,10 +9,10 @@ use virtio_drivers::transport::mmio::MmioTransport;
 use kernel_sync::Mutex;
 use syscall_table::syscall_func;
 
-use crate::driver::DeviceBase;
 use crate::driver::hal::HalImpl;
-use crate::task::{current_process, Process, ProcessState};
+use crate::driver::DeviceBase;
 use crate::task::schedule::schedule;
+use crate::task::{current_process, Process, ProcessState};
 
 pub static mut INPUT_DEVICE: Once<HashMap<&str, Arc<InputDriver>>> = Once::new();
 
@@ -59,7 +59,6 @@ impl InputDriver {
         inner.events.pop_front()
     }
 
-
     pub fn is_empty(&self) -> bool {
         let inner = self.inner.lock();
         inner.events.is_empty()
@@ -76,9 +75,8 @@ impl DeviceBase for InputDriver {
         inner.driver.ack_interrupt();
         let mut count = 0;
         while let Some(event) = inner.driver.pop_pending_event() {
-            let result = (event.event_type as u64) << 48
-                | (event.code as u64) << 32
-                | (event.value) as u64;
+            let result =
+                (event.event_type as u64) << 48 | (event.code as u64) << 32 | (event.value) as u64;
             warn!("event: {:x}", result);
             if inner.events.len() >= inner.max_events as usize {
                 // remove the first event
@@ -117,7 +115,6 @@ pub fn sys_event_get(event_buf: *mut u64, len: usize) -> isize {
     }
     count
 }
-
 
 fn read_event() -> u64 {
     let (keyboard, mouse) = unsafe {

@@ -11,22 +11,21 @@ use core::time::Duration;
 
 use rand::prelude::{SliceRandom, SmallRng};
 use rand::SeedableRng;
-use slint::{Model, VecModel};
 use slint::platform::software_renderer::Rgb565Pixel;
 use slint::platform::WindowEvent;
+use slint::{Model, VecModel};
 
 use input2event::input2event;
-use Mstd::gui::Display;
 use Mstd::gui::embedded_graphics::pixelcolor::raw::RawU16;
 use Mstd::gui::embedded_graphics::pixelcolor::Rgb565;
 use Mstd::gui::embedded_graphics::prelude::*;
 use Mstd::gui::embedded_graphics::primitives::Rectangle;
+use Mstd::gui::Display;
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 use Mstd::println;
 use Mstd::time::{get_time_ms, TimeSpec, TimeVal};
 
 slint::include_modules!();
-
 
 #[no_mangle]
 fn fmod(x: f64, y: f64) -> f64 {
@@ -48,7 +47,9 @@ struct MyPlatform {
 }
 
 impl slint::platform::Platform for MyPlatform {
-    fn create_window_adapter(&self) -> Result<Rc<dyn slint::platform::WindowAdapter>, slint::PlatformError> {
+    fn create_window_adapter(
+        &self,
+    ) -> Result<Rc<dyn slint::platform::WindowAdapter>, slint::PlatformError> {
         Ok(self.window.clone())
     }
     fn duration_since_start(&self) -> core::time::Duration {
@@ -70,8 +71,10 @@ fn create_slint_app() -> MainWindow {
     main_window.set_memory_tiles(tiles_model.clone().into());
     let main_window_weak = main_window.as_weak();
     main_window.on_check_if_pair_solved(move || {
-        let mut flipped_tiles =
-            tiles_model.iter().enumerate().filter(|(_, tile)| tile.image_visible && !tile.solved);
+        let mut flipped_tiles = tiles_model
+            .iter()
+            .enumerate()
+            .filter(|(_, tile)| tile.image_visible && !tile.solved);
 
         if let (Some((t1_idx, mut t1)), Some((t2_idx, mut t2))) =
             (flipped_tiles.next(), flipped_tiles.next())
@@ -106,10 +109,14 @@ fn main() {
     slint::platform::set_platform(alloc::boxed::Box::new(MyPlatform {
         window: window.clone(),
         timer,
-    })).unwrap();
+    }))
+    .unwrap();
 
     let _ui = create_slint_app();
-    window.set_size(slint::PhysicalSize::new(VIRTGPU_XRES as u32, VIRTGPU_YRES as u32));
+    window.set_size(slint::PhysicalSize::new(
+        VIRTGPU_XRES as u32,
+        VIRTGPU_YRES as u32,
+    ));
     let mut line_buffer = [Rgb565Pixel(0); VIRTGPU_XRES];
     let mut display = Display::new(Size::new(1280, 800), Point::new(0, 0));
     let mut x = 0;
@@ -154,14 +161,13 @@ fn checkout_event(x: &mut i32, y: &mut i32) -> Option<WindowEvent> {
     }
 }
 
-
 struct DisplayWrapper<'a, T> {
     display: &'a mut T,
     line_buffer: &'a mut [Rgb565Pixel],
 }
 
-impl<T: DrawTarget<Color=Rgb565>>
-slint::platform::software_renderer::LineBufferProvider for DisplayWrapper<'_, T>
+impl<T: DrawTarget<Color = Rgb565>> slint::platform::software_renderer::LineBufferProvider
+    for DisplayWrapper<'_, T>
 {
     type TargetPixel = Rgb565Pixel;
     fn process_line(
@@ -174,12 +180,18 @@ slint::platform::software_renderer::LineBufferProvider for DisplayWrapper<'_, T>
         render_fn(&mut self.line_buffer[range.clone()]);
 
         // Send the line to the screen using DrawTarget::fill_contiguous
-        self.display.fill_contiguous(
-            &Rectangle::new(Point::new(range.start as _, line as _), Size::new(range.len() as _, 1)),
-            self.line_buffer[range.clone()].iter().map(|p| {
-                let raw = RawU16::new(p.0);
-                raw.into()
-            }),
-        ).map_err(drop).unwrap();
+        self.display
+            .fill_contiguous(
+                &Rectangle::new(
+                    Point::new(range.start as _, line as _),
+                    Size::new(range.len() as _, 1),
+                ),
+                self.line_buffer[range.clone()].iter().map(|p| {
+                    let raw = RawU16::new(p.0);
+                    raw.into()
+                }),
+            )
+            .map_err(drop)
+            .unwrap();
     }
 }

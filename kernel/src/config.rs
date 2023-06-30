@@ -12,7 +12,7 @@ pub const STACK_SIZE: usize = 1024 * 64;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 4;
+pub const CPU_NUM: usize = 1;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine

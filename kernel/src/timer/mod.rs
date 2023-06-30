@@ -9,8 +9,8 @@ use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
-use crate::task::{current_process, Process, PROCESS_MANAGER, ProcessState, StatisticalData};
 use crate::task::schedule::schedule;
+use crate::task::{current_process, Process, ProcessState, StatisticalData, PROCESS_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;

@@ -45,7 +45,6 @@ struct Stdout;
 
 static STDOUT: Lazy<Mutex<Stdout>> = Lazy::new(|| Mutex::new(Stdout));
 
-
 pub static UART_FLAG: AtomicBool = AtomicBool::new(false);
 
 /// 对`Stdout`实现输出的Trait
