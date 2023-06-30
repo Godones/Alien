@@ -5,7 +5,7 @@ use crate::arch::interrupt_enable;
 use crate::error::{AlienError, AlienResult};
 use crate::fs::vfs::VfsProvider;
 use crate::syscall;
-use crate::task::{current_process, current_trap_frame};
+use crate::task::{current_process, current_trap_frame, do_exit};
 
 pub fn syscall_exception_handler() {
     // enable interrupt
@@ -15,10 +15,32 @@ pub fn syscall_exception_handler() {
     cx.update_sepc();
     // get system call return value
     let parameters = cx.parameters();
+    let syscall_name = syscall_define::syscall_name(parameters[0]);
+
+    let p_name = current_process().unwrap().get_name();
+    if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
+        // ignore shell and init
+        warn!(
+            "[p_name: {}] syscall: {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
+            p_name,
+            syscall_name,
+            parameters[1],
+            parameters[2],
+            parameters[3],
+            parameters[4],
+            parameters[5],
+            parameters[6]
+        );
+    }
+
     let result = syscall::do_syscall(parameters[0], &parameters[1..]);
+    if result.is_none() {
+        error!("The syscall {} is not implemented!", syscall_name);
+        do_exit(-1);
+    }
     // cx is changed during sys_exec, so we have to call it again
     cx = current_trap_frame();
-    cx.update_res(result as usize);
+    cx.update_res(result.unwrap() as usize);
 }
 
 /// the solution for page fault

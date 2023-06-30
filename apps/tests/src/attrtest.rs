@@ -1,7 +1,10 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use Mstd::fs::{close, fgetxattr, flistxattr, fsetxattr, fstat, ftruncate, open, OpenFlags, read, seek, Stat, write};
+use Mstd::fs::{
+    close, fgetxattr, flistxattr, fsetxattr, fstat, ftruncate, open, read, seek, write, OpenFlags,
+    Stat,
+};
 
 pub fn attr_test1() -> isize {
     let fd = open("/db/attrtest\0", OpenFlags::O_RDWR | OpenFlags::O_CREAT);
@@ -68,7 +71,6 @@ pub fn attr_test1() -> isize {
     close(fd as usize);
     0
 }
-
 
 pub fn attr_test2() -> isize {
     println!("We will test getdents and truncate....");

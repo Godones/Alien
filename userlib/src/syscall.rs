@@ -65,9 +65,9 @@ syscall_id!(SYSCALL_CREATE_GLOBAL_BUCKET, 1001);
 syscall_id!(SYSCALL_EXECUTE_USER_FUNC, 1002);
 syscall_id!(SYSCALL_SHOW_DBFS, 1003);
 syscall_id!(SYSCALL_EXECUTE_OPERATE, 1004);
-syscall_id!(SYSCALL_FRAME_BUFFER,2000);
-syscall_id!(SYSCALL_FRAME_FLUSH,2001);
-syscall_id!(SYSCALL_EVENT,2002);
+syscall_id!(SYSCALL_FRAME_BUFFER, 2000);
+syscall_id!(SYSCALL_FRAME_FLUSH, 2001);
+syscall_id!(SYSCALL_EVENT, 2002);
 fn syscall(id: usize, args: [usize; 6]) -> isize {
     let mut ret: isize;
     unsafe {
@@ -92,7 +92,13 @@ syscall!(sys_yield, SYSCALL_YIELD);
 syscall!(sys_getpid, SYSCALL_GETPID);
 syscall!(sys_get_time, SYSCALL_GET_TIME, *mut u8);
 syscall!(sys_fork, SYSCALL_FORK);
-syscall!(sys_execve, SYSCALL_EXEC, *const u8, *const usize);
+syscall!(
+    sys_execve,
+    SYSCALL_EXEC,
+    *const u8,
+    *const usize,
+    *const usize
+);
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
 syscall!(sys_shutdown, SYSCALL_SHUTDOWN);
 syscall!(sys_list, SYSCALL_LIST, *const u8);
@@ -263,8 +269,7 @@ syscall!(
 );
 syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);
 
-
 // gui
-syscall!(sys_framebuffer, SYSCALL_FRAME_BUFFER );
-syscall!(sys_framebuffer_flush,SYSCALL_FRAME_FLUSH);
-syscall!(sys_event,SYSCALL_EVENT,*mut u64,usize);
+syscall!(sys_framebuffer, SYSCALL_FRAME_BUFFER);
+syscall!(sys_framebuffer_flush, SYSCALL_FRAME_FLUSH);
+syscall!(sys_event, SYSCALL_EVENT, *mut u64, usize);

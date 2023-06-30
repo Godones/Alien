@@ -1,10 +1,9 @@
 #![cfg_attr(not(test), no_std)]
 
-
-use slint::LogicalPosition;
 use slint::platform::{PointerEventButton, WindowEvent};
+use slint::LogicalPosition;
 
-use virtio_input_decoder::{Decoder, DecodeType, Key, KeyType, Mouse};
+use virtio_input_decoder::{DecodeType, Decoder, Key, KeyType, Mouse};
 
 pub fn u64_to_decoder(event: u64) -> Result<DecodeType, ()> {
     let dtype = (event >> 48) as usize;
@@ -13,7 +12,6 @@ pub fn u64_to_decoder(event: u64) -> Result<DecodeType, ()> {
     let decoder = Decoder::decode(dtype, code as usize, val as isize);
     decoder
 }
-
 
 /// virtio_input_event -> WindowEvent
 ///
@@ -63,83 +61,77 @@ pub fn input2event(event: u64, x: &mut i32, y: &mut i32) -> Result<WindowEvent, 
                         }
                     }
                 }
-                KeyType::Release => {
-                    match key {
-                        Key::MouseLeft => {
-                            let event = WindowEvent::PointerReleased {
-                                position: LogicalPosition::new(*x as f32, *y as f32),
-                                button: PointerEventButton::Left,
-                            };
-                            Ok(event)
-                        }
-                        Key::MouseRight => {
-                            let event = WindowEvent::PointerReleased {
-                                position: LogicalPosition::new(*x as f32, *y as f32),
-                                button: PointerEventButton::Right,
-                            };
-                            Ok(event)
-                        }
-                        Key::MouseMid => {
-                            let event = WindowEvent::PointerReleased {
-                                position: LogicalPosition::new(*x as f32, *y as f32),
-                                button: PointerEventButton::Middle,
-                            };
-                            Ok(event)
-                        }
-                        Key::MouseScrollDown | Key::MouseScrollUp => {
-                            let event = WindowEvent::PointerReleased {
-                                position: LogicalPosition::new(*x as f32, *y as f32),
-                                button: PointerEventButton::Other,
-                            };
-                            Ok(event)
-                        }
-                        _ => {
-                            Err(())
-                        }
+                KeyType::Release => match key {
+                    Key::MouseLeft => {
+                        let event = WindowEvent::PointerReleased {
+                            position: LogicalPosition::new(*x as f32, *y as f32),
+                            button: PointerEventButton::Left,
+                        };
+                        Ok(event)
                     }
-                }
+                    Key::MouseRight => {
+                        let event = WindowEvent::PointerReleased {
+                            position: LogicalPosition::new(*x as f32, *y as f32),
+                            button: PointerEventButton::Right,
+                        };
+                        Ok(event)
+                    }
+                    Key::MouseMid => {
+                        let event = WindowEvent::PointerReleased {
+                            position: LogicalPosition::new(*x as f32, *y as f32),
+                            button: PointerEventButton::Middle,
+                        };
+                        Ok(event)
+                    }
+                    Key::MouseScrollDown | Key::MouseScrollUp => {
+                        let event = WindowEvent::PointerReleased {
+                            position: LogicalPosition::new(*x as f32, *y as f32),
+                            button: PointerEventButton::Other,
+                        };
+                        Ok(event)
+                    }
+                    _ => Err(()),
+                },
             }
         }
-        DecodeType::Mouse(mouse) => {
-            match mouse {
-                Mouse::X(rel_x) => {
-                    *x += rel_x as i32;
-                    if *x < 0 {
-                        *x = 0;
-                    }
-                    let event = WindowEvent::PointerMoved {
-                        position: LogicalPosition::new(*x as f32, *y as f32),
-                    };
-                    Ok(event)
+        DecodeType::Mouse(mouse) => match mouse {
+            Mouse::X(rel_x) => {
+                *x += rel_x as i32;
+                if *x < 0 {
+                    *x = 0;
                 }
-                Mouse::Y(rel_y) => {
-                    *y += rel_y as i32;
-                    if *y < 0 {
-                        *y = 0;
-                    }
-                    let event = WindowEvent::PointerMoved {
-                        position: LogicalPosition::new(*x as f32, *y as f32),
-                    };
-                    Ok(event)
-                }
-                Mouse::ScrollDown => {
-                    let event = WindowEvent::PointerScrolled {
-                        position: LogicalPosition::new(*x as f32, *y as f32),
-                        delta_x: 1.0,
-                        delta_y: 1.0,
-                    };
-                    Ok(event)
-                }
-                Mouse::ScrollUp => {
-                    let event = WindowEvent::PointerScrolled {
-                        position: LogicalPosition::new(*x as f32, *y as f32),
-                        delta_x: -1.0,
-                        delta_y: -1.0,
-                    };
-                    Ok(event)
-                }
+                let event = WindowEvent::PointerMoved {
+                    position: LogicalPosition::new(*x as f32, *y as f32),
+                };
+                Ok(event)
             }
-        }
+            Mouse::Y(rel_y) => {
+                *y += rel_y as i32;
+                if *y < 0 {
+                    *y = 0;
+                }
+                let event = WindowEvent::PointerMoved {
+                    position: LogicalPosition::new(*x as f32, *y as f32),
+                };
+                Ok(event)
+            }
+            Mouse::ScrollDown => {
+                let event = WindowEvent::PointerScrolled {
+                    position: LogicalPosition::new(*x as f32, *y as f32),
+                    delta_x: 1.0,
+                    delta_y: 1.0,
+                };
+                Ok(event)
+            }
+            Mouse::ScrollUp => {
+                let event = WindowEvent::PointerScrolled {
+                    position: LogicalPosition::new(*x as f32, *y as f32),
+                    delta_x: -1.0,
+                    delta_y: -1.0,
+                };
+                Ok(event)
+            }
+        },
     };
     event
 }
