@@ -15,19 +15,17 @@
 //! let mouse = Decoder::decode(2, 8, 1).unwrap();
 //! assert_eq!(mouse, DecodeType::Mouse(Mouse::ScrollUp));
 //! ```
-//! 
+//!
 //! 2021年4月15日 zg
 
 #![no_std]
 
+mod decoder;
 mod key;
 mod mouse;
-mod decoder;
 use key::KeyDecoder;
 use mouse::MouseDecoder;
 
-pub use decoder::{Decoder, DecodeType};
+pub use decoder::{DecodeType, Decoder};
 pub use key::{Key, KeyType};
 pub use mouse::Mouse;
-
-

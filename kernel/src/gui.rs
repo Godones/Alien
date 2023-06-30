@@ -17,13 +17,10 @@ pub fn sys_framebuffer() -> isize {
     let virt_addr = VirtAddr::from(FB_VADDR);
     let current_process = current_process().unwrap();
     let mut inner = current_process.access_inner();
-    inner.address_space.map_region(
-        virt_addr,
-        phy_addr,
-        align_up_4k(len),
-        "RWUVAD".into(),
-        true,
-    ).unwrap();
+    inner
+        .address_space
+        .map_region(virt_addr, phy_addr, align_up_4k(len), "RWUVAD".into(), true)
+        .unwrap();
     FB_VADDR as isize
 }
 

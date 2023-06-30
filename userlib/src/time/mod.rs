@@ -49,7 +49,6 @@ impl From<TimeVal> for TimeSpec {
     }
 }
 
-
 impl TimeVal {
     pub fn now() -> Self {
         let mut tv = TimeVal::default();

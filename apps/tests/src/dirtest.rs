@@ -1,4 +1,4 @@
-use Mstd::fs::{close, list, mkdir, mkdirat, open, OpenFlags, read, renameat, seek, write};
+use Mstd::fs::{close, list, mkdir, mkdirat, open, read, renameat, seek, write, OpenFlags};
 use Mstd::println;
 
 pub fn dir_test() -> isize {
