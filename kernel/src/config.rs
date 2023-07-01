@@ -12,7 +12,7 @@ pub const STACK_SIZE: usize = 1024 * 64;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 4;
+pub const CPU_NUM: usize = 1;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
@@ -37,7 +37,7 @@ pub const USER_STACK_SIZE: usize = 0x4000;
 
 // 进程数量/线程数量/描述符表大小限制
 pub const MAX_PROCESS_NUM: usize = 1024;
-pub const MAX_THREAD_NUM: usize = 1024;
+pub const MAX_THREAD_NUM: usize = 65536;
 pub const MAX_SUB_PROCESS_NUM: usize = 1024;
 pub const MAX_FD_NUM: usize = 1024;
 

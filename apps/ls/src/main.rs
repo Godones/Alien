@@ -7,12 +7,12 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use Mstd::fs::{getdents, open, Dirent64, DirentType, OpenFlags};
+use Mstd::fs::{Dirent64, DirentType, getdents, open, OpenFlags};
 use Mstd::println;
 
 #[no_mangle]
 fn main(_: usize, argv: Vec<String>) -> isize {
-    if argv.len() == 0 {
+    if argv.len() == 1 {
         parse_args("./\0")
     } else {
         let mut path = argv[1].clone();
