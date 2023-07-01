@@ -9,8 +9,8 @@ use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
+use crate::task::{current_process, PROCESS_MANAGER, ProcessState, StatisticalData, Task};
 use crate::task::schedule::schedule;
-use crate::task::{current_process, Process, ProcessState, StatisticalData, PROCESS_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
@@ -130,11 +130,11 @@ pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
 #[derive(Debug)]
 pub struct Timer {
     end_time: usize,
-    process: Arc<Process>,
+    process: Arc<Task>,
 }
 
 impl Timer {
-    pub fn new(end_time: usize, process: Arc<Process>) -> Self {
+    pub fn new(end_time: usize, process: Arc<Task>) -> Self {
         Self { end_time, process }
     }
 }
@@ -165,7 +165,7 @@ lazy_static! {
     pub static ref TIMER_QUEUE: Mutex<BinaryHeap<Timer>> = Mutex::new(BinaryHeap::new());
 }
 
-pub fn push_to_timer_queue(process: Arc<Process>, end_time: usize) {
+pub fn push_to_timer_queue(process: Arc<Task>, end_time: usize) {
     TIMER_QUEUE.lock().push(Timer::new(end_time, process));
 }
 

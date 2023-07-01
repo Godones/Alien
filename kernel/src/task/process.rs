@@ -63,7 +63,7 @@ impl Drop for TidHandle {
 }
 
 #[derive(Debug)]
-pub struct Process {
+pub struct Task {
     pub tid: TidHandle,
     pub pid: usize,
     /// 当退出时是否向父进程发送信号 SIGCHLD。
@@ -71,16 +71,16 @@ pub struct Process {
     /// 否则发送信号
     pub send_sigchld_when_exit: bool,
     pub kernel_stack: Stack,
-    inner: Mutex<ProcessInner>,
+    inner: Mutex<TaskInner>,
 }
 
 #[derive(Debug)]
-pub struct ProcessInner {
+pub struct TaskInner {
     pub name: String,
     pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
     pub state: ProcessState,
-    pub parent: Option<Weak<Process>>,
-    pub children: Vec<Arc<Process>>,
+    pub parent: Option<Weak<Task>>,
+    pub children: Vec<Arc<Task>>,
     pub fd_table: FdManager,
     pub context: Context,
     pub fs_info: FsContext,
@@ -204,7 +204,7 @@ pub enum ProcessState {
     Waiting,
 }
 
-impl Process {
+impl Task {
     pub fn get_pid(&self) -> isize {
         self.pid as isize
     }
@@ -213,7 +213,7 @@ impl Process {
         let inner = self.inner.lock();
         inner.name.clone()
     }
-    pub fn access_inner(&self) -> MutexGuard<ProcessInner> {
+    pub fn access_inner(&self) -> MutexGuard<TaskInner> {
         self.inner.lock()
     }
     pub fn token(&self) -> usize {
@@ -255,22 +255,22 @@ impl Process {
         &mut inner.context as *mut Context
     }
 
-    pub fn children(&self) -> Vec<Arc<Process>> {
+    pub fn children(&self) -> Vec<Arc<Task>> {
         let inner = self.inner.lock();
         inner.children.clone()
     }
-    pub fn remove_child(&self, index: usize) -> Arc<Process> {
+    pub fn remove_child(&self, index: usize) -> Arc<Task> {
         let mut inner = self.inner.lock();
         assert!(index < inner.children.len());
         inner.children.remove(index)
     }
 
-    pub fn update_parent(&self, parent: Arc<Process>) {
+    pub fn update_parent(&self, parent: Arc<Task>) {
         let mut inner = self.inner.lock();
         inner.parent = Some(Arc::downgrade(&parent));
     }
 
-    pub fn insert_child(&self, child: Arc<Process>) {
+    pub fn insert_child(&self, child: Arc<Task>) {
         let mut inner = self.inner.lock();
         inner.children.push(child);
     }
@@ -327,7 +327,7 @@ impl Process {
     }
 }
 
-impl ProcessInner {
+impl TaskInner {
     pub fn cwd(&self) -> FsContext {
         self.fs_info.clone()
     }
@@ -633,7 +633,7 @@ impl ProcessInner {
     }
 }
 
-impl Process {
+impl Task {
     pub fn recycle(&self) {
         let mut inner = self.inner.lock();
         // delete child process
@@ -641,7 +641,7 @@ impl Process {
         // recycle page
     }
     /// only call once
-    pub fn from_elf(name: &str, elf: &[u8]) -> Option<Process> {
+    pub fn from_elf(name: &str, elf: &[u8]) -> Option<Task> {
         let tid = TidHandle::new()?;
         let pid = tid.0;
         // 创建进程地址空间
@@ -653,11 +653,11 @@ impl Process {
         let address_space = elf_info.address_space;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
-        let process = Process {
+        let process = Task {
             tid,
             kernel_stack: k_stack,
             pid,
-            inner: Mutex::new(ProcessInner {
+            inner: Mutex::new(TaskInner {
                 name: name.to_string(),
                 address_space: Arc::new(Mutex::new(address_space)),
                 state: ProcessState::Ready,
@@ -709,7 +709,7 @@ impl Process {
         _ptid: usize,
         _tls: usize,
         _ctid: usize,
-    ) -> Option<Arc<Process>> {
+    ) -> Option<Arc<Task>> {
         assert_eq!(flag, CloneFlags::empty());
         let tid = TidHandle::new()?;
         let mut inner = self.inner.lock();
@@ -721,11 +721,11 @@ impl Process {
         } else {
             tid.0
         };
-        let process = Process {
+        let process = Task {
             tid,
             kernel_stack: k_stack,
             pid,
-            inner: Mutex::new(ProcessInner {
+            inner: Mutex::new(TaskInner {
                 name: inner.name.clone(),
                 address_space: Arc::new(Mutex::new(address_space)),
                 state: ProcessState::Ready,

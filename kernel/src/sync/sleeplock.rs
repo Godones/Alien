@@ -4,8 +4,8 @@ use core::cell::UnsafeCell;
 
 use kernel_sync::Mutex;
 
+use crate::task::{current_process, PROCESS_MANAGER, ProcessState, Task};
 use crate::task::schedule::schedule;
-use crate::task::{current_process, Process, ProcessState, PROCESS_MANAGER};
 
 pub struct SleepLock<T> {
     data: UnsafeCell<T>,
@@ -14,7 +14,7 @@ pub struct SleepLock<T> {
 
 struct SleepLockInner {
     locked: bool,
-    queue: VecDeque<Arc<Process>>,
+    queue: VecDeque<Arc<Task>>,
 }
 
 pub struct SleepLockGuard<'a, T> {
