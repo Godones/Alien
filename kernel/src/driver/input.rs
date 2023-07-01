@@ -9,10 +9,10 @@ use virtio_drivers::transport::mmio::MmioTransport;
 use kernel_sync::Mutex;
 use syscall_table::syscall_func;
 
-use crate::driver::hal::HalImpl;
 use crate::driver::DeviceBase;
+use crate::driver::hal::HalImpl;
+use crate::task::{current_process, ProcessState, Task};
 use crate::task::schedule::schedule;
-use crate::task::{current_process, Process, ProcessState};
 
 pub static mut INPUT_DEVICE: Once<HashMap<&str, Arc<InputDriver>>> = Once::new();
 
@@ -24,7 +24,7 @@ struct InputDriverInner {
     max_events: u32,
     driver: VirtIOInput<HalImpl, MmioTransport>,
     events: VecDeque<u64>,
-    wait_queue: VecDeque<Arc<Process>>,
+    wait_queue: VecDeque<Arc<Task>>,
 }
 
 impl InputDriver {

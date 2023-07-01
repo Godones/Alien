@@ -17,14 +17,14 @@ use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::task::context::Context;
-use crate::task::process::{Process, ProcessState};
-use crate::task::schedule::schedule;
 use crate::task::INIT_PROCESS;
+use crate::task::process::{ProcessState, Task};
+use crate::task::schedule::schedule;
 use crate::trap::TrapFrame;
 
 #[derive(Debug, Clone)]
 pub struct CPU {
-    pub process: Option<Arc<Process>>,
+    pub process: Option<Arc<Task>>,
     pub context: Context,
 }
 
@@ -61,7 +61,7 @@ impl CPU {
             context: Context::empty(),
         }
     }
-    pub fn take_process(&mut self) -> Option<Arc<Process>> {
+    pub fn take_process(&mut self) -> Option<Arc<Task>> {
         self.process.take()
     }
     pub fn get_context_raw_ptr(&self) -> *const Context {
@@ -76,7 +76,7 @@ impl CPU {
 static mut CPU_MANAGER: Once<CpuManager<CPU_NUM>> = Once::new();
 
 /// the global process pool
-type ProcessPool = VecDeque<Arc<Process>>;
+type ProcessPool = VecDeque<Arc<Task>>;
 lazy_static! {
     pub static ref PROCESS_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
 }
@@ -99,7 +99,7 @@ pub fn current_cpu() -> &'static mut CPU {
 }
 
 /// get the current_process
-pub fn current_process() -> Option<&'static Arc<Process>> {
+pub fn current_process() -> Option<&'static Arc<Task>> {
     let cpu = current_cpu();
     cpu.process.as_ref()
 }
