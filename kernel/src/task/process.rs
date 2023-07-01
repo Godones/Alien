@@ -18,56 +18,69 @@ use syscall_define::aux::{
     AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
 };
+use syscall_define::signal::{SignalHandlers, SignalReceivers};
 
-use crate::config::FRAME_SIZE;
-use crate::config::{FRAME_BITS, MAX_FD_NUM, MAX_PROCESS_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::config::{FRAME_SIZE, MAX_THREAD_NUM};
+use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
 use crate::memory::{
-    build_clone_address_space, build_elf_address_space, kernel_satp, MMapInfo, MMapRegion,
-    MapFlags, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
+    build_clone_address_space, build_elf_address_space, FRAME_REF_MANAGER, kernel_satp, MapFlags,
+    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack,
 };
 use crate::task::context::Context;
 use crate::task::cpu::{CloneFlags, SignalFlags};
+use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::trap::{trap_return, TrapFrame, user_trap_vector};
 
 type FdManager = MinimalManager<Arc<File>>;
 
 lazy_static! {
     /// 这里把MinimalManager复用为pid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
     /// 但pid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
-    pub static ref PID_MANAGER:Mutex<MinimalManager<u8>> = Mutex::new(MinimalManager::new(MAX_PROCESS_NUM));
+    pub static ref TID_MANAGER:Mutex<MinimalManager<u8>> = Mutex::new(MinimalManager::new(MAX_THREAD_NUM));
 }
 #[derive(Debug)]
-pub struct PidHandle(usize);
+pub struct TidHandle(usize);
 
-impl Drop for PidHandle {
+impl TidHandle {
+    pub fn new() -> Option<Self> {
+        let tid = TID_MANAGER.lock().insert(0);
+        if tid.is_err() {
+            return None;
+        }
+        Some(Self(tid.unwrap()))
+    }
+}
+
+
+impl Drop for TidHandle {
     fn drop(&mut self) {
-        PID_MANAGER.lock().remove(self.0).unwrap();
+        TID_MANAGER.lock().remove(self.0).unwrap();
     }
 }
 
 #[derive(Debug)]
 pub struct Process {
-    pid: PidHandle,
-    kernel_stack: Stack,
+    pub tid: TidHandle,
+    pub pid: usize,
+    /// 当退出时是否向父进程发送信号 SIGCHLD。
+    /// 如果创建时带 CLONE_THREAD 选项，则不发送信号，除非它是线程组(即拥有相同pid的所有线程)中最后一个退出的线程；
+    /// 否则发送信号
+    pub send_sigchld_when_exit: bool,
+    pub kernel_stack: Stack,
     inner: Mutex<ProcessInner>,
 }
-
-unsafe impl Send for Process {}
-
-unsafe impl Sync for Process {}
 
 #[derive(Debug)]
 pub struct ProcessInner {
     pub name: String,
-    pub address_space: Sv39PageTable<PageAllocator>,
+    pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
     pub state: ProcessState,
     pub parent: Option<Weak<Process>>,
     pub children: Vec<Arc<Process>>,
-    pub trap_frame: *mut TrapFrame,
     pub fd_table: FdManager,
     pub context: Context,
     pub fs_info: FsContext,
@@ -75,52 +88,25 @@ pub struct ProcessInner {
     pub exit_code: i32,
     pub heap: HeapInfo,
     pub mmap: MMapInfo,
+    /// 信号量对应的一组处理函数。
+    /// 因为发送信号是通过 pid/tid 查找的，因此放在 inner 中一起调用时更容易导致死锁
+    pub signal_handlers: Arc<Mutex<SignalHandlers>>,
+    /// 接收信号的结构。每个线程中一定是独特的，而上面的 handler 可能是共享的
+    pub signal_receivers: Arc<Mutex<SignalReceivers>>,
+    /// 子线程初始化时，存放 tid 的地址。当且仅当创建时包含 CLONE_CHILD_SETTID 才非0
+    pub set_child_tid: usize,
+    /// 子线程初始化时，将这个地址清空；子线程退出时，触发这里的 futex。
+    /// 在创建时包含 CLONE_CHILD_SETTID 时才非0，但可以被 sys_set_tid_address 修改
+    pub clear_child_tid: usize,
+    /// 处理信号时，保存的之前的用户线程的上下文信息
+    trap_cx_before_signal: Option<TrapFrame>,
+    /// 保存信息时，处理函数是否设置了 SIGINFO 选项
+    /// 如果设置了，说明信号触发前的上下文信息通过 ucontext 传递给了用户，
+    /// 此时用户可能修改其中的 pc 信息(如musl-libc 的 pthread_cancel 函数)。
+    /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
+    signal_set_siginfo: bool,
 }
 
-#[derive(Debug, Clone)]
-pub struct HeapInfo {
-    pub current: usize,
-    pub start: usize,
-    pub end: usize,
-}
-
-impl HeapInfo {
-    pub fn new(start: usize, end: usize) -> Self {
-        HeapInfo {
-            current: start,
-            start,
-            end,
-        }
-    }
-
-    #[allow(unused)]
-    pub fn size(&self) -> usize {
-        self.end - self.start
-    }
-
-    #[allow(unused)]
-    pub fn contains(&self, addr: usize) -> bool {
-        addr >= self.start && addr < self.end
-    }
-
-    pub fn increase(&mut self, size: usize) {
-        self.end += size;
-    }
-
-    #[allow(unused)]
-    pub fn set_start(&mut self, start: usize) {
-        self.start = start;
-    }
-
-    pub fn set_end(&mut self, end: usize) {
-        self.end = end;
-    }
-
-    #[allow(unused)]
-    pub fn is_empty(&self) -> bool {
-        self.start == self.end
-    }
-}
 
 /// statistics of a process
 #[derive(Debug, Clone)]
@@ -149,6 +135,15 @@ impl StatisticalData {
             tms_cutime: 0,
             tms_cstime: 0,
         }
+    }
+    pub fn clear(&mut self) {
+        let now = read_timer();
+        self.tms_utime = 0;
+        self.tms_stime = 0;
+        self.last_utime = now;
+        self.last_stime = now;
+        self.tms_cutime = 0;
+        self.tms_cstime = 0;
     }
 }
 
@@ -211,7 +206,7 @@ pub enum ProcessState {
 
 impl Process {
     pub fn get_pid(&self) -> isize {
-        self.pid.0 as isize
+        self.pid as isize
     }
 
     pub fn get_name(&self) -> String {
@@ -223,13 +218,17 @@ impl Process {
     }
     pub fn token(&self) -> usize {
         let inner = self.inner.lock();
-        let paddr = inner.address_space.root_paddr();
+        let paddr = inner.address_space.lock().root_paddr();
         (8usize << 60) | (paddr.as_usize() >> 12)
     }
 
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
         let inner = self.inner.lock();
-        TrapFrame::from_raw_ptr(inner.trap_frame)
+        let (physical, _, _) = inner.address_space
+            .lock()
+            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
+            .unwrap();
+        TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
     }
 
     pub fn update_state(&self, state: ProcessState) {
@@ -333,14 +332,14 @@ impl ProcessInner {
         self.fs_info.clone()
     }
     pub fn transfer_raw(&self, ptr: usize) -> usize {
-        let (phy, ..) = self.address_space.query(VirtAddr::from(ptr)).unwrap();
+        let (phy, ..) = self.address_space.lock().query(VirtAddr::from(ptr)).unwrap();
         phy.as_usize()
     }
     pub fn transfer_str(&self, ptr: *const u8) -> String {
         let mut res = String::new();
         let mut start = ptr as usize;
         loop {
-            let physical = self.address_space.query(VirtAddr::from(start));
+            let physical = self.address_space.lock().query(VirtAddr::from(start));
             if physical.is_err() {
                 break;
             }
@@ -355,7 +354,7 @@ impl ProcessInner {
         res
     }
     pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
-        let address_space = &self.address_space;
+        let address_space = &self.address_space.lock();
         let mut start = ptr as usize;
         let end = start + len;
         let mut v = Vec::new();
@@ -378,7 +377,7 @@ impl ProcessInner {
     }
 
     pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
-        let address_space = &self.address_space;
+        let address_space = &self.address_space.lock();
         let mut start = ptr as usize;
         let end = start + len;
         let mut v = Vec::new();
@@ -403,6 +402,7 @@ impl ProcessInner {
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
         let (physical, _, _) = self
             .address_space
+            .lock()
             .query(VirtAddr::from(ptr as usize))
             .unwrap();
         unsafe { &mut *(physical.as_usize() as *mut T) }
@@ -450,6 +450,7 @@ impl ProcessInner {
         // align addition to PAGE_SIZE
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
         self.address_space
+            .lock()
             .map_region_no_target(
                 VirtAddr::from(end),
                 addition,
@@ -493,6 +494,7 @@ impl ProcessInner {
         let mut map_flags = prot.into(); // no V  flag
         map_flags |= "AD".into();
         self.address_space
+            .lock()
             .map_region_no_target(
                 VirtAddr::from(start),
                 v_range.end - start,
@@ -516,6 +518,7 @@ impl ProcessInner {
             return Err(-1);
         }
         self.address_space
+            .lock()
             .unmap_region(VirtAddr::from(start), region.map_len)
             .unwrap();
         self.mmap.remove_region(start);
@@ -537,12 +540,15 @@ impl ProcessInner {
         // update page table
         let mut map_flags = region.prot.into();
         map_flags |= "V".into();
-        let (_, flags, _) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+
+        let mut address_space = self.address_space.lock();
+
+        let (_, flags, _) = address_space.query(VirtAddr::from(addr)).unwrap();
         assert!(!flags.contains(MappingFlags::V));
-        self.address_space
+        address_space
             .validate(VirtAddr::from(addr), map_flags)
             .unwrap();
-        let (phy, _, size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+        let (phy, _, size) = address_space.query(VirtAddr::from(addr)).unwrap();
         let buf =
             unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
         let file = &region.fd;
@@ -564,6 +570,7 @@ impl ProcessInner {
             trace!("invalid page fault in heap");
             let map_flags = "RWUVAD".into();
             self.address_space
+                .lock()
                 .validate(VirtAddr::from(addr), map_flags)
                 .unwrap();
         } else {
@@ -573,9 +580,10 @@ impl ProcessInner {
             let mut map_flags = region.prot.into();
             map_flags |= "V".into();
             self.address_space
+                .lock()
                 .validate(VirtAddr::from(addr), map_flags)
                 .unwrap();
-            let (phy, _, size) = self.address_space.query(VirtAddr::from(addr)).unwrap();
+            let (phy, _, size) = self.address_space.lock().query(VirtAddr::from(addr)).unwrap();
             let buf =
                 unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
             let file = &region.fd;
@@ -593,6 +601,7 @@ impl ProcessInner {
         let addr = align_down_4k(addr);
         let (phy, flags, page_size) = self
             .address_space
+            .lock()
             .query(VirtAddr::from(addr))
             .expect(format!("addr:{:#x}", addr).as_str());
         if !flags.contains(MappingFlags::V) {
@@ -604,6 +613,7 @@ impl ProcessInner {
         flags -= MappingFlags::RSD;
         let new_phy = self
             .address_space
+            .lock()
             .modify_pte_flags(VirtAddr::from(addr), flags, true)
             .unwrap();
         assert!(new_phy.is_some());
@@ -632,7 +642,8 @@ impl Process {
     }
     /// only call once
     pub fn from_elf(name: &str, elf: &[u8]) -> Option<Process> {
-        let pid = PID_MANAGER.lock().insert(0).unwrap();
+        let tid = TidHandle::new()?;
+        let pid = tid.0;
         // 创建进程地址空间
         let elf_info = build_elf_address_space(elf);
         if elf_info.is_err() {
@@ -640,22 +651,18 @@ impl Process {
         }
         let elf_info = elf_info.unwrap();
         let address_space = elf_info.address_space;
-        let (physical, _, _) = address_space
-            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
-            .unwrap();
-        let trap_frame = physical.as_usize() as *mut TrapFrame;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
         let process = Process {
+            tid,
             kernel_stack: k_stack,
-            pid: PidHandle(pid),
+            pid,
             inner: Mutex::new(ProcessInner {
                 name: name.to_string(),
-                address_space,
+                address_space: Arc::new(Mutex::new(address_space)),
                 state: ProcessState::Ready,
                 parent: None,
                 children: Vec::new(),
-                trap_frame,
                 fd_table: {
                     let mut fd_table = FdManager::new(MAX_FD_NUM);
                     fd_table.insert(STDIN.clone()).unwrap();
@@ -669,9 +676,15 @@ impl Process {
                 exit_code: 0,
                 heap: HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom),
                 mmap: MMapInfo::new(),
+                signal_handlers: Arc::new(Mutex::new(SignalHandlers::new())),
+                signal_receivers: Arc::new(Mutex::new(SignalReceivers::new())),
+                set_child_tid: 0,
+                clear_child_tid: 0,
+                trap_cx_before_signal: None,
+                signal_set_siginfo: false,
             }),
+            send_sigchld_when_exit: false,
         };
-        error!("kernel sp:{:#x}", process.kernel_stack.top());
         let phy_button = process.transfer_raw(elf_info.stack_top - USER_STACK_SIZE);
         let mut user_stack = UserStack::new(phy_button + USER_STACK_SIZE, elf_info.stack_top);
         user_stack.push(0).unwrap();
@@ -698,25 +711,26 @@ impl Process {
         _ctid: usize,
     ) -> Option<Arc<Process>> {
         assert_eq!(flag, CloneFlags::empty());
-        let pid = PID_MANAGER.lock().insert(0).unwrap();
+        let tid = TidHandle::new()?;
         let mut inner = self.inner.lock();
-        let address_space = build_clone_address_space(&mut inner.address_space);
-        let (physical, _, _) = address_space
-            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
-            .unwrap();
-        let trap_frame = physical.as_usize() as *mut TrapFrame;
+        let address_space = build_clone_address_space(&mut inner.address_space.lock());
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
+        let pid = if flag.contains(CloneFlags::CLONE_THREAD) {
+            self.pid
+        } else {
+            tid.0
+        };
         let process = Process {
+            tid,
             kernel_stack: k_stack,
-            pid: PidHandle(pid),
+            pid,
             inner: Mutex::new(ProcessInner {
                 name: inner.name.clone(),
-                address_space,
+                address_space: Arc::new(Mutex::new(address_space)),
                 state: ProcessState::Ready,
                 parent: Some(Arc::downgrade(self)),
                 children: Vec::new(),
-                trap_frame,
                 fd_table: inner.fd_table.clone(),
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: inner.fs_info.clone(),
@@ -724,7 +738,14 @@ impl Process {
                 exit_code: 0,
                 heap: inner.heap.clone(),
                 mmap: inner.mmap.clone(),
+                signal_handlers: inner.signal_handlers.clone(),
+                signal_receivers: inner.signal_receivers.clone(),
+                set_child_tid: 0,
+                clear_child_tid: 0,
+                trap_cx_before_signal: None,
+                signal_set_siginfo: false,
             }),
+            send_sigchld_when_exit: false,
         };
         let process = Arc::new(process);
         inner.children.push(process.clone());
@@ -754,15 +775,22 @@ impl Process {
         let elf_info = elf_info.unwrap();
         let mut inner = self.inner.lock();
         let address_space = elf_info.address_space;
-        let (physical, _, _) = address_space
-            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
-            .unwrap();
-        let trap_frame = physical.as_usize() as *mut TrapFrame;
-        inner.address_space = address_space;
-        inner.trap_frame = trap_frame;
+        // reset the address space
+        inner.address_space = Arc::new(Mutex::new(address_space));
+        // reset the heap
         inner.heap = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);
+        // reset the mmap
         inner.mmap = MMapInfo::new();
+        // set the name of the process
         inner.name = name.to_string();
+        // reset time record
+        inner.statistical_data.clear();
+        // close file which contains FD_CLOEXEC flag
+        // now we delete all fd
+        // inner.fd_table = ;
+        // reset signal handler
+        inner.signal_handlers.lock().clear();
+        inner.signal_receivers.lock().clear();
 
         let phy_button = inner.transfer_raw(elf_info.stack_top - USER_STACK_SIZE);
         let mut user_stack = UserStack::new(phy_button + USER_STACK_SIZE, elf_info.stack_top);
@@ -780,13 +808,10 @@ impl Process {
             .map(|arg| user_stack.push_str(arg).unwrap())
             .collect::<Vec<usize>>();
         // push padding to the top of stack of the process
-
         user_stack.align_to(8).unwrap();
         let random_ptr = user_stack.push_bytes(&[0u8; 16]).unwrap();
-
         // padding
         user_stack.push_bytes(&[0u8; 8]).unwrap();
-
         // push aux
         let platform = user_stack.push_str("riscv").unwrap();
         let ex_path = user_stack.push_str(args[0].as_str()).unwrap();
@@ -825,23 +850,23 @@ impl Process {
         });
         user_stack.push(0).unwrap();
         // push the args addr to the top of stack of the process
-
         argcv.iter().skip(1).enumerate().for_each(|(_i, arg)| {
             user_stack.push(*arg).unwrap();
         });
         let record_first_arg = user_stack.push(argcv[0]).unwrap();
-
         // push the argc to the top of stack of the process
         let argc = args.len();
         let argc_ptr = user_stack.push(argc).unwrap();
         let user_sp = argc_ptr;
-        // user_sp -= user_sp % 16;
-
         error!(
             "args:{:?}, env:{:?} argv: {:#x} user_sp: {:#x}",
             args, env, record_first_arg, user_sp
         );
-        let trap_frame = TrapFrame::from_raw_ptr(trap_frame);
+        let (physical, _, _) = inner.address_space
+            .lock()
+            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
+            .unwrap();
+        let trap_frame = TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame);
         *trap_frame = TrapFrame::from_app_info(
             elf_info.entry,
             user_sp,
@@ -849,10 +874,6 @@ impl Process {
             self.kernel_stack.top(),
             user_trap_vector as usize,
         );
-
-        trap_frame.regs()[10] = args.len();
-        trap_frame.regs()[11] = record_first_arg;
-        // println!("{:#x?}", trap_frame.regs());
         Ok(())
     }
 }
