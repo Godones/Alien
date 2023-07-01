@@ -20,7 +20,7 @@ pub fn syscall_exception_handler() {
     let p_name = current_process().unwrap().get_name();
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         // ignore shell and init
-        warn!(
+        trace!(
             "[p_name: {}] syscall: {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
             p_name,
             syscall_name,

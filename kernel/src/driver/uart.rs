@@ -9,8 +9,8 @@ use kernel_sync::Mutex;
 
 use crate::driver::DeviceBase;
 use crate::print::console::UART_FLAG;
+use crate::task::{current_process, PROCESS_MANAGER, ProcessState, Task};
 use crate::task::schedule::schedule;
-use crate::task::{current_process, Process, ProcessState, PROCESS_MANAGER};
 
 pub trait CharDevice {
     fn put(&self, c: u8);
@@ -36,7 +36,7 @@ pub struct Uart {
 
 struct UartInner {
     rx_buf: VecDeque<u8>,
-    wait_queue: VecDeque<Arc<Process>>,
+    wait_queue: VecDeque<Arc<Task>>,
 }
 
 struct UartRaw(usize);

@@ -7,7 +7,7 @@ pub use cpu::{
     clone, current_cpu, current_process, current_trap_frame, current_user_token, do_brk, do_exec,
     do_exit, do_suspend, get_pid, get_ppid, init_per_cpu, PROCESS_MANAGER, wait_pid,
 };
-pub use process::{Process, ProcessState, StatisticalData};
+pub use process::{ProcessState, StatisticalData, Task};
 
 use crate::fs::vfs;
 use crate::fs::vfs::{TMP_DIR, TMP_MNT};
@@ -21,10 +21,10 @@ mod stack;
 mod heap;
 
 lazy_static! {
-    pub static ref INIT_PROCESS: Arc<Process> = {
+    pub static ref INIT_PROCESS: Arc<Task> = {
         let mut data = Vec::new();
         vfs::read_all("/init", &mut data);
-        let process = Process::from_elf("/init", data.as_slice()).unwrap();
+        let process = Task::from_elf("/init", data.as_slice()).unwrap();
         Arc::new(process)
     };
 }
