@@ -6,17 +6,14 @@ use riscv::register::sstatus::SPP;
 
 pub use context::TrapFrame;
 
-use crate::arch::{
-    external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable,
-    timer_interrupt_enable,
-};
+use crate::arch::{external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable, timer_interrupt_enable};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
 use crate::arch::riscv::sstatus;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::memory::KERNEL_SPACE;
-use crate::task::{current_process, current_user_token, do_exit};
+use crate::task::{current_task, current_user_token, do_exit};
 use crate::timer::{check_timer_queue, set_next_trigger};
 
 mod context;
@@ -178,7 +175,9 @@ pub fn user_trap_vector() {
     }
     // update process statistics
     {
-        let process = current_process().unwrap();
+        let process = current_task().unwrap_or_else(|| {
+            panic!("can't find task in hart {}, but it's in user mode", hart_id() as usize)
+        });
         process.access_inner().update_user_mode_time();
     }
     set_kernel_trap_entry();
@@ -187,7 +186,7 @@ pub fn user_trap_vector() {
     cause.do_user_handle();
     if cause != Trap::Interrupt(Interrupt::SupervisorTimer) {
         // update process statistics
-        let process = current_process().unwrap();
+        let process = current_task().unwrap();
         process.access_inner().update_kernel_mode_time();
     }
     trap_return();

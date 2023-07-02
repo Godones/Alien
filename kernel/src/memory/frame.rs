@@ -1,6 +1,5 @@
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
-use core::ptr::null_mut;
 
 use lazy_static::lazy_static;
 
@@ -144,11 +143,7 @@ pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
 }
 
 pub fn frame_alloc_contiguous(count: usize) -> *mut u8 {
-    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count);
-    if frame.is_err() {
-        return null_mut();
-    }
-    let frame = frame.unwrap();
+    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count).unwrap();
     for i in 0..count {
         let refs = FRAME_REF_MANAGER.lock().add_ref(frame + i);
         assert_eq!(refs, 1)

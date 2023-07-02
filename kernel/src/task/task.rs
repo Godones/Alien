@@ -20,7 +20,7 @@ use syscall_define::aux::{
 };
 use syscall_define::signal::{SignalHandlers, SignalReceivers};
 
-use crate::config::{FRAME_SIZE, MAX_THREAD_NUM};
+use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
@@ -78,7 +78,7 @@ pub struct Task {
 pub struct TaskInner {
     pub name: String,
     pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
-    pub state: ProcessState,
+    pub state: TaskState,
     pub parent: Option<Weak<Task>>,
     pub children: Vec<Arc<Task>>,
     pub fd_table: FdManager,
@@ -196,12 +196,17 @@ impl Into<ProcessFsInfo> for FsContext {
 }
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
-pub enum ProcessState {
+pub enum TaskState {
     Ready,
     Running,
+    // waiting for some time
     Sleeping,
-    Zombie,
+    // waiting some event
     Waiting,
+    // waiting for parent to reap
+    Zombie,
+    // terminated
+    Terminated,
 }
 
 impl Task {
@@ -231,12 +236,12 @@ impl Task {
         TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
     }
 
-    pub fn update_state(&self, state: ProcessState) {
+    pub fn update_state(&self, state: TaskState) {
         let mut inner = self.inner.lock();
         inner.state = state;
     }
 
-    pub fn state(&self) -> ProcessState {
+    pub fn state(&self) -> TaskState {
         let inner = self.inner.lock();
         inner.state
     }
@@ -660,7 +665,7 @@ impl Task {
             inner: Mutex::new(TaskInner {
                 name: name.to_string(),
                 address_space: Arc::new(Mutex::new(address_space)),
-                state: ProcessState::Ready,
+                state: TaskState::Ready,
                 parent: None,
                 children: Vec::new(),
                 fd_table: {
@@ -715,7 +720,7 @@ impl Task {
         let tid = TidHandle::new()?;
         let mut inner = self.inner.lock();
         let address_space = build_clone_address_space(&mut inner.address_space.lock());
-        let k_stack = Stack::new(1)?;
+        let k_stack = Stack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE)?;
         let k_stack_top = k_stack.top();
         let pid = if flag.contains(CloneFlags::CLONE_THREAD) {
             self.pid
@@ -729,7 +734,7 @@ impl Task {
             inner: Mutex::new(TaskInner {
                 name: inner.name.clone(),
                 address_space: Arc::new(Mutex::new(address_space)),
-                state: ProcessState::Ready,
+                state: TaskState::Ready,
                 parent: Some(Arc::downgrade(self)),
                 children: Vec::new(),
                 fd_table: inner.fd_table.clone(),
@@ -793,9 +798,9 @@ impl Task {
         inner.signal_handlers.lock().clear();
         inner.signal_receivers.lock().clear();
 
-        let phy_button = inner.transfer_raw(elf_info.stack_top - USER_STACK_SIZE);
-        let mut user_stack = UserStack::new(phy_button + USER_STACK_SIZE, elf_info.stack_top);
-
+        // we need make sure the args and env size is less than 4KB
+        let phy_button = inner.transfer_raw(elf_info.stack_top - FRAME_SIZE);
+        let mut user_stack = UserStack::new(phy_button + FRAME_SIZE, elf_info.stack_top);
         // push env to the top of stack of the process
         // we have push '\0' into the env string,so we don't need to push it again
         let envv = env
@@ -859,7 +864,7 @@ impl Task {
         let argc = args.len();
         let argc_ptr = user_stack.push(argc).unwrap();
         let user_sp = argc_ptr;
-        error!(
+        warn!(
             "args:{:?}, env:{:?} argv: {:#x} user_sp: {:#x}",
             args, env, record_first_arg, user_sp
         );
