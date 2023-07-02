@@ -11,7 +11,7 @@ use syscall_table::syscall_func;
 
 use crate::driver::DeviceBase;
 use crate::driver::hal::HalImpl;
-use crate::task::{current_process, ProcessState, Task};
+use crate::task::{current_task, Task, TaskState};
 use crate::task::schedule::schedule;
 
 pub static mut INPUT_DEVICE: Once<HashMap<&str, Arc<InputDriver>>> = Once::new();
@@ -46,8 +46,8 @@ impl InputDriver {
             if let Some(event) = inner.events.pop_front() {
                 return event;
             }
-            let process = current_process().unwrap();
-            process.update_state(ProcessState::Waiting);
+            let process = current_task().unwrap();
+            process.update_state(TaskState::Waiting);
             inner.wait_queue.push_back(process.clone());
             drop(inner);
             schedule();
@@ -87,7 +87,7 @@ impl DeviceBase for InputDriver {
         }
         while !inner.wait_queue.is_empty() && count > 0 {
             let process = inner.wait_queue.pop_front().unwrap();
-            process.update_state(ProcessState::Ready);
+            process.update_state(TaskState::Ready);
             let mut guard = crate::task::PROCESS_MANAGER.lock();
             guard.push_back(process);
             count -= 1;
@@ -97,7 +97,7 @@ impl DeviceBase for InputDriver {
 
 #[syscall_func(2002)]
 pub fn sys_event_get(event_buf: *mut u64, len: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let user_buffer = process.transfer_buffer(event_buf, len);
     let mut count = 0;
     for buf in user_buffer {

@@ -3,7 +3,7 @@ use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use syscall_table::syscall_func;
 
 use crate::driver::gpu::GPU_DEVICE;
-use crate::task::current_process;
+use crate::task::current_task;
 
 const FB_VADDR: usize = 0x1000_0000;
 
@@ -15,7 +15,7 @@ pub fn sys_framebuffer() -> isize {
     let phy_addr = PhysAddr::from(fb.as_ptr() as usize);
     assert!(phy_addr.is_aligned_4k());
     let virt_addr = VirtAddr::from(FB_VADDR);
-    let current_process = current_process().unwrap();
+    let current_process = current_task().unwrap();
     let inner = current_process.access_inner();
     inner
         .address_space

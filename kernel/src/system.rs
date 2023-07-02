@@ -1,5 +1,6 @@
-use crate::task::current_process;
 use syscall_table::syscall_func;
+
+use crate::task::current_task;
 
 #[repr(C)]
 pub struct Utsname {
@@ -37,7 +38,7 @@ fn system_info() -> Utsname {
 
 #[syscall_func(160)]
 pub fn sys_uname(utsname: *const u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let utsname = process.transfer_raw_ptr(utsname as *mut Utsname);
     *utsname = system_info();
     0

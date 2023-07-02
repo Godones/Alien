@@ -2,19 +2,19 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
+use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
 use rvfs::file::{
-    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
-    vfs_write_file, FileMode, OpenFlags, SeekFrom,
+    FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir,
+    vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file,
 };
 use rvfs::inode::InodeMode;
-use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
+use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
 use rvfs::mount::MountFlags;
-use rvfs::path::{vfs_lookup_path, ParsePathType};
+use rvfs::path::{ParsePathType, vfs_lookup_path};
 use rvfs::stat::{
-    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
-    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
-    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
+    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
+    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
+    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
 };
 use rvfs::superblock::StatFs;
 
@@ -22,7 +22,7 @@ pub use stdio::*;
 use syscall_table::syscall_func;
 
 use crate::fs::vfs::VfsProvider;
-use crate::task::current_process;
+use crate::task::current_task;
 
 mod stdio;
 
@@ -38,7 +38,7 @@ pub fn sys_mount(
     flags: usize,
     data: *const u8,
 ) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let special = process.transfer_str(special);
     let dir = process.transfer_str(dir);
     let fs_type = process.transfer_str(fs_type);
@@ -73,7 +73,7 @@ pub fn sys_mount(
 
 #[syscall_func(39)]
 pub fn sys_umount(dir: *const u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let dir = process.transfer_str(dir);
     let dir = user_path_at(AT_FDCWD, &dir, LookUpFlags::empty()).map_err(|_| -1);
     if dir.is_err() {
@@ -91,7 +91,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize 
     // we don't support mode yet
     let file_mode = FileMode::from_bits_truncate(mode as u32);
     let flag = OpenFlags::from_bits(flag as u32).unwrap();
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path as *const u8);
     let path = user_path_at(dirfd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
@@ -116,7 +116,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize 
 
 #[syscall_func(57)]
 pub fn sys_close(fd: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.remove_file(fd);
     if file.is_err() {
         return -1;
@@ -128,7 +128,7 @@ pub fn sys_close(fd: usize) -> isize {
 
 #[syscall_func(61)]
 pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
@@ -153,7 +153,7 @@ pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
 /// Reference: https://man7.org/linux/man-pages/man2/truncate64.2.html
 #[syscall_func(45)]
 pub fn sys_truncate(path: usize, len: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path as *const u8);
     let res = vfs_truncate::<VfsProvider>(&path, len);
     if res.is_err() {
@@ -164,7 +164,7 @@ pub fn sys_truncate(path: usize, len: usize) -> isize {
 
 #[syscall_func(46)]
 pub fn sys_ftruncate(fd: usize, len: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
@@ -179,7 +179,7 @@ pub fn sys_ftruncate(fd: usize, len: usize) -> isize {
 
 #[syscall_func(63)]
 pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
@@ -199,7 +199,7 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
 #[syscall_func(64)]
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     // warn!("sys_write is not implemented yet");
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
@@ -220,7 +220,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 #[syscall_func(17)]
 pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     assert!(!buf.is_null());
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let cwd = process.access_inner().cwd();
 
     let path = vfs_lookup_path(
@@ -229,7 +229,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-    .unwrap();
+        .unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
@@ -248,7 +248,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
 
 #[syscall_func(49)]
 pub fn sys_chdir(path: *const u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let file = vfs_open_file::<VfsProvider>(
         path.as_str(),
@@ -271,7 +271,7 @@ pub fn sys_chdir(path: *const u8) -> isize {
 #[syscall_func(83)]
 pub fn sys_mkdir(path: *const u8) -> isize {
     info!("sys_mkdir");
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let file = vfs_mkdir::<VfsProvider>(&path, FileMode::FMODE_WRITE);
     if file.is_err() {
@@ -282,7 +282,7 @@ pub fn sys_mkdir(path: *const u8) -> isize {
 
 #[syscall_func(62)]
 pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
@@ -299,7 +299,7 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
 #[syscall_func(80)]
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     assert!(!stat.is_null());
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
@@ -350,7 +350,7 @@ pub fn sys_linkat(
     if flag.contains(LinkFlags::AT_EMPTY_PATH) {
         lookup_flag |= LookUpFlags::EMPTY;
     }
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let old_name = process.transfer_str(old_name);
     let old_path = user_path_at(old_fd, &old_name, lookup_flag).map_err(|_| -1);
     if old_path.is_err() {
@@ -374,7 +374,7 @@ pub fn sys_linkat(
 #[syscall_func(35)]
 pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
     assert_eq!(flag, 0);
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let path = user_path_at(fd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
@@ -391,7 +391,7 @@ pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
 
 #[syscall_func(36)]
 pub fn sys_symlinkat(old_name: *const u8, new_fd: isize, new_name: *const u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let old_name = process.transfer_str(old_name);
     let new_name = process.transfer_str(new_name);
     let new_path = user_path_at(new_fd, &new_name, LookUpFlags::empty()).map_err(|_| -1);
@@ -408,7 +408,7 @@ pub fn sys_symlinkat(old_name: *const u8, new_fd: isize, new_name: *const u8) ->
 
 #[syscall_func(78)]
 pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let path = user_path_at(fd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
@@ -429,7 +429,7 @@ pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> 
 /// Reference: https://man7.org/linux/man-pages/man2/newfstatat.2.html
 #[syscall_func(79)]
 pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let path = user_path_at(dir_fd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
@@ -455,7 +455,7 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
 /// Reference: https://man7.org/linux/man-pages/man2/fstatfs64.2.html
 #[syscall_func(44)]
 pub fn sys_fstatfs(fd: isize, buf: *mut u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let buf = buf as *mut StatFs;
     let buf = process.transfer_raw_ptr(buf);
     let file = process.get_file(fd as usize);
@@ -474,7 +474,7 @@ pub fn sys_fstatfs(fd: isize, buf: *mut u8) -> isize {
 
 #[syscall_func(43)]
 pub fn sys_statfs(path: *const u8, statfs: *const u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let buf = statfs as *mut StatFs;
     let buf = process.transfer_raw_ptr(buf);
     let path = process.transfer_str(path);
@@ -498,7 +498,7 @@ pub fn sys_renameat(
     new_dirfd: isize,
     new_path: *const u8,
 ) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let old_path = process.transfer_str(old_path);
     let new_path = process.transfer_str(new_path);
     let old_path = user_path_at(old_dirfd, &old_path, LookUpFlags::empty()).map_err(|_| -1);
@@ -521,7 +521,7 @@ pub fn sys_renameat(
 /// Reference: https://man7.org/linux/man-pages/man2/mkdirat.2.html
 #[syscall_func(34)]
 pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let path = user_path_at(dirfd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
@@ -552,7 +552,7 @@ pub fn sys_setxattr(
 ) -> isize {
     // we ignore flag
     assert_eq!(flag, 0);
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let name = process.transfer_str(name);
     let value = process.transfer_raw_buffer(value, size);
@@ -585,7 +585,7 @@ pub fn sys_fsetxattr(
 ) -> isize {
     // we ignore flag
     assert_eq!(flag, 0);
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let name = process.transfer_str(name);
     let value = process.transfer_raw_buffer(value, size);
     let file = process.get_file(fd);
@@ -603,7 +603,7 @@ pub fn sys_fsetxattr(
 /// Reference: https://man7.org/linux/man-pages/man2/getxattr.2.html
 #[syscall_func(8)]
 pub fn sys_getxattr(path: *const u8, name: *const u8, value: *const u8, size: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let name = process.transfer_str(name);
     let mut value = process.transfer_raw_buffer(value, size);
@@ -626,7 +626,7 @@ pub fn sys_lgetxattr(path: *const u8, name: *const u8, value: *const u8, size: u
 
 #[syscall_func(10)]
 pub fn sys_fgetxattr(fd: usize, name: *const u8, value: *const u8, size: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let name = process.transfer_str(name);
     let mut value = process.transfer_raw_buffer(value, size);
     // assert_eq!(value.len(),1);
@@ -649,7 +649,7 @@ pub fn sys_fgetxattr(fd: usize, name: *const u8, value: *const u8, size: usize) 
 /// Reference: https://man7.org/linux/man-pages/man2/listxattr.2.html
 #[syscall_func(11)]
 pub fn sys_listxattr(path: *const u8, list: *const u8, size: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let mut list = process.transfer_raw_buffer(list, size);
     if list.is_empty() {
@@ -670,7 +670,7 @@ pub fn sys_llistxattr(path: *const u8, list: *const u8, size: usize) -> isize {
 
 #[syscall_func(13)]
 pub fn sys_flistxattr(fd: usize, list: *const u8, size: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let mut list = process.transfer_raw_buffer(list, size);
     if list.is_empty() {
         list.push(&mut [0u8; 0])
@@ -691,7 +691,7 @@ pub fn sys_flistxattr(fd: usize, list: *const u8, size: usize) -> isize {
 /// Reference: https://man7.org/linux/man-pages/man2/removexattr.2.html
 #[syscall_func(14)]
 pub fn sys_removexattr(path: *const u8, name: *const u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let name = process.transfer_str(name);
     let res = vfs_removexattr::<VfsProvider>(path.as_str(), name.as_str());
@@ -708,7 +708,7 @@ pub fn sys_lremovexattr(path: *const u8, name: *const u8) -> isize {
 
 #[syscall_func(16)]
 pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let name = process.transfer_str(name);
     let file = process.get_file(fd);
     if file.is_none() {
@@ -723,7 +723,7 @@ pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {
 }
 
 fn user_path_at(fd: isize, path: &str, flag: LookUpFlags) -> Result<String, ()> {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let path = ParsePathType::from(path);
     let res = if path.is_relative() {
         if fd == AT_FDCWD {

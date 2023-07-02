@@ -9,7 +9,7 @@ use rvfs::file::File;
 use syscall_table::syscall_func;
 
 use crate::config::{FRAME_SIZE, PROCESS_HEAP_MAX};
-use crate::task::current_process;
+use crate::task::current_task;
 
 bitflags! {
     pub struct ProtFlags: u32 {
@@ -137,7 +137,7 @@ impl MMapRegion {
 
 #[syscall_func(215)]
 pub fn do_munmap(start: usize, len: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let res = process.access_inner().unmap(start, len);
     if res.is_err() {
         return -1;
@@ -148,7 +148,7 @@ pub fn do_munmap(start: usize, len: usize) -> isize {
 /// #Reference: https://man7.org/linux/man-pages/man2/mmap.2.html
 #[syscall_func(222)]
 pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
     let flags = MapFlags::from_bits_truncate(flags);

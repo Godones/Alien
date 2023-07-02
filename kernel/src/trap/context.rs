@@ -1,5 +1,4 @@
-use crate::arch::hart_id;
-use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
+use crate::arch::riscv::sstatus::{self, SPP, Sstatus};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -57,7 +56,7 @@ impl TrapFrame {
             k_satp,
             k_sp,
             trap_handler,
-            hart_id: hart_id(),
+            hart_id: 0,
             sstatus,
         };
         res.x[2] = sp;

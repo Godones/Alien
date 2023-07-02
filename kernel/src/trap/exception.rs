@@ -5,7 +5,7 @@ use crate::arch::interrupt_enable;
 use crate::error::{AlienError, AlienResult};
 use crate::fs::vfs::VfsProvider;
 use crate::syscall;
-use crate::task::{current_process, current_trap_frame, do_exit};
+use crate::task::{current_task, current_trap_frame, do_exit};
 
 pub fn syscall_exception_handler() {
     // enable interrupt
@@ -17,7 +17,7 @@ pub fn syscall_exception_handler() {
     let parameters = cx.parameters();
     let syscall_name = syscall_define::syscall_name(parameters[0]);
 
-    let p_name = current_process().unwrap().get_name();
+    let p_name = current_task().unwrap().get_name();
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         // ignore shell and init
         trace!(
@@ -47,7 +47,7 @@ pub fn syscall_exception_handler() {
 pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     trace!(
         "[pid: {}] page fault addr:{:#x} trap:{:?}",
-        current_process().unwrap().get_pid(),
+        current_task().unwrap().get_pid(),
         addr,
         trap
     );
@@ -63,7 +63,7 @@ pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
 
 pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let info = {
-        let process = current_process().unwrap();
+        let process = current_task().unwrap();
         process.access_inner().do_load_page_fault(addr)
     };
     if info.is_err() {
@@ -75,7 +75,7 @@ pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
 }
 
 pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     trace!(
         "[pid: {}] do store page fault addr:{:#x}",
         process.get_pid(),

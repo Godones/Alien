@@ -10,13 +10,13 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use riscv::register::sstatus::{set_spp, SPP};
 
 use basemachine::machine_info_from_dtb;
+use kernel::{config, driver, println, syscall, task, thread_local_init, timer, trap};
 use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
-use kernel::{config, driver, println, syscall, task, thread_local_init, timer, trap};
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
@@ -89,8 +89,6 @@ pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
         thread_local_init();
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
-        timer::set_next_trigger();
-        loop {}
     }
     timer::set_next_trigger();
     task::schedule::first_into_user();
