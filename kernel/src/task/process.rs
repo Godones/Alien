@@ -711,6 +711,7 @@ impl Task {
         _ctid: usize,
     ) -> Option<Arc<Task>> {
         assert_eq!(flag, CloneFlags::empty());
+        assert_eq!(stack, 0);
         let tid = TidHandle::new()?;
         let mut inner = self.inner.lock();
         let address_space = build_clone_address_space(&mut inner.address_space.lock());
