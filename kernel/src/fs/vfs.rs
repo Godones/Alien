@@ -7,17 +7,17 @@ use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
-use rvfs::file::{vfs_mkdir, vfs_open_file, vfs_read_file, FileMode, OpenFlags};
+use rvfs::file::{FileMode, OpenFlags, vfs_mkdir, vfs_open_file, vfs_read_file};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
-use rvfs::superblock::{register_filesystem, DataOps, Device};
+use rvfs::superblock::{DataOps, Device, register_filesystem};
 
 use kernel_sync::Mutex;
 
-use crate::driver::rtc::get_rtc_time;
 use crate::driver::QEMU_BLOCK_DEVICE;
-use crate::task::current_process;
+use crate::driver::rtc::get_rtc_time;
+use crate::task::current_task;
 
 // only call once before the first process is created
 lazy_static! {
@@ -92,7 +92,7 @@ pub struct VfsProvider;
 
 impl ProcessFs for VfsProvider {
     fn get_fs_info() -> ProcessFsInfo {
-        if let Some(process) = current_process() {
+        if let Some(process) = current_task() {
             let inner = process.access_inner();
             inner.fs_info.clone().into()
         } else {

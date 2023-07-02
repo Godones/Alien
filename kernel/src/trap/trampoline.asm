@@ -60,6 +60,9 @@ user_r:
     # restore sstatus/sepc
     ld t1, 32*8(sp)
     ld t0, 37*8(sp)
+    # save cpu_id
+    sd tp, 36*8(sp)
+
     csrw sepc, t1
     csrw sstatus, t0
     # restore general purpose registers except x0/sp
