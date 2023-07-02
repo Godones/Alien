@@ -9,7 +9,7 @@ use kernel_sync::Mutex;
 
 use crate::driver::DeviceBase;
 use crate::print::console::UART_FLAG;
-use crate::task::{current_process, PROCESS_MANAGER, ProcessState, Task};
+use crate::task::{current_task, PROCESS_MANAGER, Task, TaskState};
 use crate::task::schedule::schedule;
 
 pub trait CharDevice {
@@ -107,8 +107,8 @@ impl CharDevice for Uart {
         loop {
             let mut inner = self.inner.lock();
             if inner.1.rx_buf.is_empty() {
-                let current_process = current_process().unwrap();
-                current_process.update_state(ProcessState::Waiting);
+                let current_process = current_task().unwrap();
+                current_process.update_state(TaskState::Waiting);
                 inner.1.wait_queue.push_back(current_process.clone());
                 drop(inner);
                 schedule();
@@ -133,7 +133,7 @@ impl DeviceBase for Uart {
                 inner.1.rx_buf.push_back(c);
                 if !inner.1.wait_queue.is_empty() {
                     let process = inner.1.wait_queue.pop_front().unwrap();
-                    process.update_state(ProcessState::Ready);
+                    process.update_state(TaskState::Ready);
                     let mut guard = PROCESS_MANAGER.lock();
                     guard.push_back(process);
                 }

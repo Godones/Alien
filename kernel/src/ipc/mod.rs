@@ -1,12 +1,12 @@
 //! Pipe
 
-mod pipe;
-
-use crate::task::current_process;
+pub use pipe::RingBuffer;
 use syscall_table::syscall_func;
 
 use crate::fs::sys_close;
-pub use pipe::RingBuffer;
+use crate::task::current_task;
+
+mod pipe;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -19,7 +19,7 @@ pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
     if pipe.is_null() {
         return -1;
     }
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let fd_pair = process.transfer_raw_ptr(pipe as *mut FdPair);
     let (read, write) = pipe::Pipe::new();
     let read_fd = process.add_file(read);
@@ -38,7 +38,7 @@ pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(23)]
 pub fn sys_dup(old_fd: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(old_fd);
     if file.is_none() {
         return -1;
@@ -53,7 +53,7 @@ pub fn sys_dup(old_fd: usize) -> isize {
 
 #[syscall_func(24)]
 pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let file = process.get_file(old_fd);
     if file.is_none() {
         return -1;

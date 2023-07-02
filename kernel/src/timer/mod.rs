@@ -9,7 +9,7 @@ use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
-use crate::task::{current_process, PROCESS_MANAGER, ProcessState, StatisticalData, Task};
+use crate::task::{current_task, PROCESS_MANAGER, StatisticalData, Task, TaskState};
 use crate::task::schedule::schedule;
 
 const TICKS_PER_SEC: usize = 100;
@@ -95,7 +95,7 @@ pub fn get_time_ms() -> isize {
 #[syscall_func(169)]
 pub fn get_time_of_day(tv: *mut u8) -> isize {
     let time = TimeVal::now();
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let tv = process.transfer_raw_ptr(tv as *mut TimeVal);
     *tv = time;
     0
@@ -104,7 +104,7 @@ pub fn get_time_of_day(tv: *mut u8) -> isize {
 /// Reference: https://man7.org/linux/man-pages/man2/times.2.html
 #[syscall_func(153)]
 pub fn times(tms: *mut u8) -> isize {
-    let process = current_process().unwrap().access_inner();
+    let process = current_task().unwrap().access_inner();
     let statistic_data = process.statistical_data();
     let time = Times::from_process_data(statistic_data);
     let tms = process.transfer_raw_ptr(tms as *mut Times);
@@ -115,12 +115,12 @@ pub fn times(tms: *mut u8) -> isize {
 
 #[syscall_func(101)]
 pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
-    let process = current_process().unwrap();
+    let process = current_task().unwrap();
     let req = process.transfer_raw_ptr(req as *mut TimeSpec);
     let end_time = read_timer() + req.tv_sec * CLOCK_FREQ + req.tv_nsec * CLOCK_FREQ / 1000000000;
     if read_timer() < end_time {
-        let process = current_process().unwrap();
-        process.update_state(ProcessState::Sleeping);
+        let process = current_task().unwrap();
+        process.update_state(TaskState::Sleeping);
         push_to_timer_queue(process.clone(), end_time);
         schedule();
     }

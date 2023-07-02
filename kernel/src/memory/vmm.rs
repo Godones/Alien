@@ -141,7 +141,7 @@ impl UserStack {
         Self {
             virt_stack_top,
             stack_top: phy_stack_top,
-            stack_bottom: phy_stack_top - USER_STACK_SIZE,
+            stack_bottom: phy_stack_top - FRAME_SIZE,
         }
     }
 
@@ -159,10 +159,10 @@ impl UserStack {
         }
         trace!(
             "stack top: {:#x}, data:{:#x?}",
-            self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)),
+            self.virt_stack_top - (FRAME_SIZE - (self.stack_top - self.stack_bottom)),
             data
         );
-        Ok(self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)))
+        Ok(self.virt_stack_top - (FRAME_SIZE - (self.stack_top - self.stack_bottom)))
     }
 
     pub fn push_str(&mut self, data: &str) -> Result<usize, &'static str> {
@@ -184,9 +184,9 @@ impl UserStack {
         }
         trace!(
             "stack top: {:#x}",
-            self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom))
+            self.virt_stack_top - (FRAME_SIZE - (self.stack_top - self.stack_bottom))
         );
-        Ok(self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)))
+        Ok(self.virt_stack_top - (FRAME_SIZE - (self.stack_top - self.stack_bottom)))
     }
 
     pub fn align_to(&mut self, align: usize) -> Result<usize, &'static str> {
@@ -195,7 +195,7 @@ impl UserStack {
             return Err("Stack Overflow");
         }
         self.stack_top = start;
-        Ok(self.virt_stack_top - (USER_STACK_SIZE - (self.stack_top - self.stack_bottom)))
+        Ok(self.virt_stack_top - (FRAME_SIZE - (self.stack_top - self.stack_bottom)))
     }
 }
 
@@ -243,9 +243,12 @@ pub fn build_clone_address_space(
             // cow
             // checkout whether pte flags has `W` flag
             let mut flags = flag.clone();
-            if !flags.contains(MappingFlags::V) {
+            if !flag.contains(MappingFlags::V) {
                 // if flags is not valid, we just map it
                 address_space.map(v_addr, phy, page_size, flags).unwrap();
+                if target {
+                    address_space.get_record_mut().insert(v_addr, true);
+                }
                 continue;
             }
             if flag.contains(MappingFlags::W) {
@@ -262,6 +265,7 @@ pub fn build_clone_address_space(
                     FRAME_REF_MANAGER.lock().get_ref(page_number);
                     FRAME_REF_MANAGER.lock().add_ref(page_number);
                 }
+                address_space.get_record_mut().insert(v_addr, true);
             }
         }
     }
@@ -344,7 +348,9 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         .unwrap();
 
     // todo!(heap)
-    let heap_bottom = top; // align to 4k
+    let heap_bottom = top;
+    // align to 4k
+    warn!("trap context: {:#x} - {:#x}", TRAP_CONTEXT_BASE, TRAMPOLINE);
     address_space
         .map_region_no_target(
             VirtAddr::from(TRAP_CONTEXT_BASE),
@@ -354,6 +360,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             false,
         )
         .unwrap();
+    warn!("TRAMPOLINE: {:#x} - {:#x}", TRAMPOLINE, TRAMPOLINE + FRAME_SIZE);
     address_space
         .map_region(
             VirtAddr::from(TRAMPOLINE),
