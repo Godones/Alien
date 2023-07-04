@@ -9,6 +9,7 @@ pub fn register_all_syscall(){
 	(169, get_time_of_day),
 	(153, times),
 	(101, sys_nanosleep),
+	(113, clock_get_time),
 	(2002, sys_event_get),
 	(2000, sys_framebuffer),
 	(2001, sys_framebuffer_flush),
@@ -16,6 +17,7 @@ pub fn register_all_syscall(){
 	(23, sys_dup),
 	(24, sys_dup2),
 	(93, do_exit),
+	(94, exit_group),
 	(124, do_suspend),
 	(172, get_pid),
 	(173, get_ppid),
@@ -58,6 +60,8 @@ pub fn register_all_syscall(){
 	(13, sys_flistxattr),
 	(14, sys_removexattr),
 	(15, sys_lremovexattr),
+	(29, sys_ioctl),
+	(66, sys_writev),
 	(16, sys_fremovexattr),
 	(215, do_munmap),
 	(222, do_mmap),
@@ -83,6 +87,7 @@ use crate::fs::sys_ftruncate;
 use crate::fs::sys_getcwd;
 use crate::fs::sys_getdents;
 use crate::fs::sys_getxattr;
+use crate::fs::sys_ioctl;
 use crate::fs::sys_lgetxattr;
 use crate::fs::sys_linkat;
 use crate::fs::sys_listxattr;
@@ -105,6 +110,7 @@ use crate::fs::sys_truncate;
 use crate::fs::sys_umount;
 use crate::fs::sys_unlinkat;
 use crate::fs::sys_write;
+use crate::fs::sys_writev;
 use crate::gui::sys_framebuffer;
 use crate::gui::sys_framebuffer_flush;
 use crate::ipc::sys_dup;
@@ -119,10 +125,12 @@ use crate::task::do_brk;
 use crate::task::do_exec;
 use crate::task::do_exit;
 use crate::task::do_suspend;
+use crate::task::exit_group;
 use crate::task::get_pid;
 use crate::task::get_ppid;
 use crate::task::set_tid_address;
 use crate::task::wait_pid;
+use crate::timer::clock_get_time;
 use crate::timer::get_time_of_day;
 use crate::timer::sys_nanosleep;
 use crate::timer::times;

@@ -2,8 +2,8 @@ use plic::Mode;
 
 use crate::arch::hart_id;
 use crate::driver::{DEVICE_TABLE, PLIC};
-use crate::task::{current_task, TaskState};
 use crate::task::schedule::schedule;
+use crate::task::{current_task, TaskState};
 use crate::timer::{check_timer_queue, set_next_trigger};
 
 /// 时钟中断处理函数
