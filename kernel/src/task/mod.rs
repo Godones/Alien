@@ -5,7 +5,8 @@ use lazy_static::lazy_static;
 
 pub use cpu::{
     clone, current_cpu, current_task, current_trap_frame, current_user_token, do_brk, do_exec,
-    do_exit, do_suspend, get_pid, get_ppid, init_per_cpu, PROCESS_MANAGER, wait_pid,
+    do_exit, do_suspend, get_pid, get_ppid, init_per_cpu, PROCESS_MANAGER, set_tid_address,
+    wait_pid,
 };
 pub use task::{StatisticalData, Task, TaskState};
 

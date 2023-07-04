@@ -300,6 +300,16 @@ pub fn do_brk(addr: usize) -> isize {
     res.unwrap() as isize
 }
 
+#[syscall_func(96)]
+pub fn set_tid_address(tidptr: *mut i32) -> isize {
+    let task = current_task().unwrap();
+    task.set_tid_address(tidptr as usize);
+    task.get_tid()
+}
+
+
+
+
 bitflags! {
     pub struct WaitOptions:u32 {
         const WNOHANG = 1;
