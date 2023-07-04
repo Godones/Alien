@@ -23,6 +23,7 @@ pub fn register_all_syscall(){
 	(221, do_exec),
 	(260, wait_pid),
 	(214, do_brk),
+	(96, set_tid_address),
 	(40, sys_mount),
 	(39, sys_umount),
 	(56, sys_openat),
@@ -120,6 +121,7 @@ use crate::task::do_exit;
 use crate::task::do_suspend;
 use crate::task::get_pid;
 use crate::task::get_ppid;
+use crate::task::set_tid_address;
 use crate::task::wait_pid;
 use crate::timer::get_time_of_day;
 use crate::timer::sys_nanosleep;
