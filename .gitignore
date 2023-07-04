@@ -28,4 +28,4 @@ nohup.out
 *.img
 
 oscomp-debian
-sdcard
+#sdcard

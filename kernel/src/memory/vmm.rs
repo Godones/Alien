@@ -318,16 +318,19 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
                 .map_region_no_target(vaddr, len, permission, true, false)
                 .unwrap();
             // copy data
+            let mut page_offset = start_addr & (FRAME_SIZE - 1);
             map_info
                 .into_iter()
                 .for_each(|(vir, phy, page_size)| unsafe {
                     trace!("{:#x} {:#x} {:#x?}", vir, phy, page_size);
                     let size: usize = page_size.into();
-                    let min = min(size, data.len());
-                    let dst = phy.as_usize() as *mut u8;
+                    // let min = min(size, data.len());
+                    let min = min(size - page_offset, data.len());
+                    let dst = (phy.as_usize() + page_offset) as *mut u8;
                     core::ptr::copy(data.as_ptr(), dst, min);
                     data = &data[min..];
-                })
+                    page_offset = (page_offset + min) & (FRAME_SIZE - 1);
+                });
         }
     }
     // 地址向上取整对齐4
@@ -371,6 +374,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         )
         .unwrap();
 
+    // TODO! dyn link
     let res = if let Some(phdr) = elf
         .program_iter()
         .find(|ph| ph.get_type() == Ok(Type::Phdr))
@@ -382,7 +386,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         .find(|ph| ph.get_type() == Ok(Type::Load) && ph.offset() == 0)
     {
         // otherwise, check if elf is loaded from the beginning, then phdr can be inferred.
-        Ok(elf_addr.virtual_addr() + elf.header.pt2.ph_offset())
+        Ok(elf_addr.virtual_addr())
     } else {
         warn!("elf: no phdr found, tls might not work");
         Err(ELFError::NoEntrySegment)
