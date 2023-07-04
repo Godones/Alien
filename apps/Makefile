@@ -55,5 +55,4 @@ BUILD_CRATES := \
 	run_test \
 	tests
 #	slint \
-#	memory-game
-#	tests
+#	memory-game\

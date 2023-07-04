@@ -5,16 +5,12 @@ pub fn register_all_syscall(){
 	let mut table = Table::new();
 	register_syscall!(table,
 	(160, sys_uname),
-	(210, shutdown),
+	(215, do_munmap),
+	(222, do_mmap),
 	(169, get_time_of_day),
 	(153, times),
 	(101, sys_nanosleep),
 	(2002, sys_event_get),
-	(2000, sys_framebuffer),
-	(2001, sys_framebuffer_flush),
-	(59, sys_pipe),
-	(23, sys_dup),
-	(24, sys_dup2),
 	(93, do_exit),
 	(124, do_suspend),
 	(172, get_pid),
@@ -59,8 +55,12 @@ pub fn register_all_syscall(){
 	(14, sys_removexattr),
 	(15, sys_lremovexattr),
 	(16, sys_fremovexattr),
-	(215, do_munmap),
-	(222, do_mmap),
+	(59, sys_pipe),
+	(23, sys_dup),
+	(24, sys_dup2),
+	(210, shutdown),
+	(2000, sys_framebuffer),
+	(2001, sys_framebuffer_flush),
 
 	);
 	SYSCALL_TABLE.call_once(||table);
