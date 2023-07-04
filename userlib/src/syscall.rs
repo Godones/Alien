@@ -36,10 +36,12 @@ syscall_id!(SYSCALL_WRITE, 64);
 syscall_id!(SYSCALL_FSTAT, 80);
 syscall_id!(SYSCALL_FSTATAT, 79);
 syscall_id!(SYSCALL_EXIT, 93);
+syscall_id!(SYSCALL_WAITID, 95);
 syscall_id!(SYSCALL_YIELD, 124);
 syscall_id!(SYSCALL_GET_TIME, 169);
 syscall_id!(SYSCALL_GETPID, 172);
-syscall_id!(SYSCALL_FORK, 220);
+syscall_id!(SYSCALL_GETTID, 178);
+syscall_id!(SYSCALL_CLONE, 220);
 syscall_id!(SYSCALL_EXEC, 221);
 syscall_id!(SYSCALL_WAITPID, 260);
 syscall_id!(SYSCALL_SHUTDOWN, 210);
@@ -90,8 +92,19 @@ syscall!(sys_write, SYSCALL_WRITE, usize, *const u8, usize);
 syscall!(sys_exit, SYSCALL_EXIT, i32);
 syscall!(sys_yield, SYSCALL_YIELD);
 syscall!(sys_getpid, SYSCALL_GETPID);
+syscall!(sys_gettid, SYSCALL_GETTID);
 syscall!(sys_get_time, SYSCALL_GET_TIME, *mut u8);
-syscall!(sys_fork, SYSCALL_FORK);
+syscall!(
+    sys_clone, 
+    SYSCALL_CLONE, 
+    *const usize,   // fn
+    *const usize,   // child stack
+    u32,            // flags
+    *const usize    // args
+    // *const usize,   // ptid
+    // *const usize,   // tls
+    // *const usize    // ctid
+    );
 syscall!(
     sys_execve,
     SYSCALL_EXEC,

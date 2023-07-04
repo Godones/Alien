@@ -14,6 +14,7 @@ mod attrtest;
 mod dirtest;
 mod forktest;
 mod linktest;
+mod thread_create;
 mod mmmap;
 mod pipe;
 mod seek;
@@ -37,6 +38,7 @@ fn main(_argc: usize, argv: Vec<String>) -> isize {
                 println!("stat_test");
                 println!("dir_test");
                 println!("time_test");
+                println!("thread_test1");
             }
             "time_test" => {
                 timetest::time_test();
@@ -73,6 +75,9 @@ fn main(_argc: usize, argv: Vec<String>) -> isize {
             }
             "stat_test" => {
                 stat::stat_test();
+            }
+            "thread_test1" => {
+                thread_create::thread_test1();
             }
             _ => {
                 println!("test {} not found", test_name);
