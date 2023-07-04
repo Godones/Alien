@@ -9,10 +9,10 @@ use virtio_drivers::transport::mmio::MmioTransport;
 use kernel_sync::Mutex;
 use syscall_table::syscall_func;
 
-use crate::driver::DeviceBase;
 use crate::driver::hal::HalImpl;
-use crate::task::{current_task, Task, TaskState};
+use crate::driver::DeviceBase;
 use crate::task::schedule::schedule;
+use crate::task::{current_task, Task, TaskState};
 
 pub static mut INPUT_DEVICE: Once<HashMap<&str, Arc<InputDriver>>> = Once::new();
 

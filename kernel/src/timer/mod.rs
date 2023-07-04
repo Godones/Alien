@@ -5,12 +5,13 @@ use core::cmp::Ordering;
 use lazy_static::lazy_static;
 
 use kernel_sync::Mutex;
+use syscall_define::time::ClockId;
 use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
-use crate::task::{current_task, PROCESS_MANAGER, StatisticalData, Task, TaskState};
 use crate::task::schedule::schedule;
+use crate::task::{current_task, StatisticalData, Task, TaskState, PROCESS_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
@@ -74,6 +75,22 @@ pub struct TimeSpec {
     pub tv_nsec: usize, //0~999999999
 }
 
+impl TimeSpec {
+    pub fn new() -> Self {
+        Self {
+            tv_sec: 0,
+            tv_nsec: 0,
+        }
+    }
+    pub fn now() -> Self {
+        let time = read_timer();
+        Self {
+            tv_sec: time / CLOCK_FREQ,
+            tv_nsec: (time % CLOCK_FREQ) * 1000000000 / CLOCK_FREQ,
+        }
+    }
+}
+
 /// 获取当前计时器的值
 #[inline]
 pub fn read_timer() -> usize {
@@ -104,10 +121,10 @@ pub fn get_time_of_day(tv: *mut u8) -> isize {
 /// Reference: https://man7.org/linux/man-pages/man2/times.2.html
 #[syscall_func(153)]
 pub fn times(tms: *mut u8) -> isize {
-    let process = current_task().unwrap().access_inner();
-    let statistic_data = process.statistical_data();
+    let task = current_task().unwrap().access_inner();
+    let statistic_data = task.statistical_data();
     let time = Times::from_process_data(statistic_data);
-    let tms = process.transfer_raw_ptr(tms as *mut Times);
+    let tms = task.transfer_raw_ptr(tms as *mut Times);
     // copy_to_user_buf(tv,&time);
     *tms = time;
     0
@@ -115,14 +132,31 @@ pub fn times(tms: *mut u8) -> isize {
 
 #[syscall_func(101)]
 pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
-    let process = current_task().unwrap();
-    let req = process.transfer_raw_ptr(req as *mut TimeSpec);
+    let task = current_task().unwrap();
+    let req = task.transfer_raw_ptr(req as *mut TimeSpec);
     let end_time = read_timer() + req.tv_sec * CLOCK_FREQ + req.tv_nsec * CLOCK_FREQ / 1000000000;
     if read_timer() < end_time {
         let process = current_task().unwrap();
         process.update_state(TaskState::Sleeping);
         push_to_timer_queue(process.clone(), end_time);
         schedule();
+    }
+    0
+}
+
+#[syscall_func(113)]
+pub fn clock_get_time(clock_id: usize, tp: *mut u8) -> isize {
+    let id = ClockId::from_raw(clock_id).unwrap();
+    let task = current_task().unwrap();
+    let tp = task.transfer_raw_ptr(tp as *mut TimeSpec);
+    match id {
+        ClockId::Realtime => {
+            let time = TimeSpec::now();
+            *tp = time;
+        }
+        _ => {
+            panic!("clock_get_time: clock_id {:?} not supported", id);
+        }
     }
     0
 }

@@ -21,8 +21,9 @@ pub fn syscall_exception_handler() {
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         // ignore shell and init
         warn!(
-            "[p_name: {}] syscall: {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
+            "[p_name: {}] syscall: [{}] {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
             p_name,
+            parameters[0],
             syscall_name,
             parameters[1],
             parameters[2],

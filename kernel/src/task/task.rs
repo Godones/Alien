@@ -20,20 +20,20 @@ use syscall_define::aux::{
 };
 use syscall_define::signal::{SignalHandlers, SignalReceivers};
 
-use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
 use crate::memory::{
-    build_clone_address_space, build_elf_address_space, FRAME_REF_MANAGER, kernel_satp, MapFlags,
-    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack,
+    build_clone_address_space, build_elf_address_space, kernel_satp, MMapInfo, MMapRegion,
+    MapFlags, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
 };
 use crate::task::context::Context;
 use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, TrapFrame, user_trap_vector};
+use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<File>>;
 
@@ -54,7 +54,6 @@ impl TidHandle {
         Some(Self(tid.unwrap()))
     }
 }
-
 
 impl Drop for TidHandle {
     fn drop(&mut self) {
@@ -106,7 +105,6 @@ pub struct TaskInner {
     /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
     signal_set_siginfo: bool,
 }
-
 
 /// statistics of a process
 #[derive(Debug, Clone)]
@@ -238,7 +236,8 @@ impl Task {
 
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
         let inner = self.inner.lock();
-        let (physical, _, _) = inner.address_space
+        let (physical, _, _) = inner
+            .address_space
             .lock()
             .query(VirtAddr::from(TRAP_CONTEXT_BASE))
             .unwrap();
@@ -346,7 +345,11 @@ impl TaskInner {
         self.fs_info.clone()
     }
     pub fn transfer_raw(&self, ptr: usize) -> usize {
-        let (phy, ..) = self.address_space.lock().query(VirtAddr::from(ptr)).unwrap();
+        let (phy, ..) = self
+            .address_space
+            .lock()
+            .query(VirtAddr::from(ptr))
+            .unwrap();
         phy.as_usize()
     }
     pub fn transfer_str(&self, ptr: *const u8) -> String {
@@ -597,7 +600,11 @@ impl TaskInner {
                 .lock()
                 .validate(VirtAddr::from(addr), map_flags)
                 .unwrap();
-            let (phy, _, size) = self.address_space.lock().query(VirtAddr::from(addr)).unwrap();
+            let (phy, _, size) = self
+                .address_space
+                .lock()
+                .query(VirtAddr::from(addr))
+                .unwrap();
             let buf =
                 unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
             let file = &region.fd;
@@ -877,7 +884,8 @@ impl Task {
             "args:{:?}, env:{:?} argv: {:#x} user_sp: {:#x}",
             args, env, record_first_arg, user_sp
         );
-        let (physical, _, _) = inner.address_space
+        let (physical, _, _) = inner
+            .address_space
             .lock()
             .query(VirtAddr::from(TRAP_CONTEXT_BASE))
             .unwrap();

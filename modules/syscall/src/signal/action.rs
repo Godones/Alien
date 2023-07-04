@@ -10,7 +10,6 @@ use super::number::SignalNo;
 #[cfg(feature = "riscv")]
 const SIGNAL_RETURN_TRAP: usize = 0x0000000000000000;
 
-
 /// SigAction::handler 的特殊取值，表示默认处理函数
 pub const SIG_DFL: usize = 0;
 /// SigAction::handler 的特殊取值，表示忽略这个信号
@@ -75,7 +74,7 @@ bitflags! {
 pub enum SigActionDefault {
     Terminate,
     // 结束进程。其实更标准的实现应该细分为 terminate / terminate(core dump) / stop
-    Ignore,    // 忽略信号
+    Ignore, // 忽略信号
 }
 
 impl SigActionDefault {

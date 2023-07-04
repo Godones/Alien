@@ -3,11 +3,7 @@ use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
 
-pub use cpu::{
-    clone, current_cpu, current_task, current_trap_frame, current_user_token, do_brk, do_exec,
-    do_exit, do_suspend, get_pid, get_ppid, init_per_cpu, PROCESS_MANAGER, set_tid_address,
-    wait_pid,
-};
+pub use cpu::*;
 pub use task::{StatisticalData, Task, TaskState};
 
 use crate::fs::vfs;
@@ -16,10 +12,10 @@ use crate::task::task::FsContext;
 
 mod context;
 mod cpu;
-mod task;
+mod heap;
 pub mod schedule;
 mod stack;
-mod heap;
+mod task;
 
 lazy_static! {
     pub static ref INIT_PROCESS: Arc<Task> = {

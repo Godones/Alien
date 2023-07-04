@@ -2,23 +2,25 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
+use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
 use rvfs::file::{
-    FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir,
-    vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file,
+    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
+    vfs_write_file, FileMode, OpenFlags, SeekFrom,
 };
 use rvfs::inode::InodeMode;
-use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
+use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
 use rvfs::mount::MountFlags;
-use rvfs::path::{ParsePathType, vfs_lookup_path};
+use rvfs::path::{vfs_lookup_path, ParsePathType};
 use rvfs::stat::{
-    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
-    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
-    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
+    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
+    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
+    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
 };
 use rvfs::superblock::StatFs;
 
 pub use stdio::*;
+use syscall_define::io::IoVec;
+use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::vfs::VfsProvider;
@@ -229,7 +231,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-        .unwrap();
+    .unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
@@ -704,6 +706,54 @@ pub fn sys_removexattr(path: *const u8, name: *const u8) -> isize {
 #[syscall_func(15)]
 pub fn sys_lremovexattr(path: *const u8, name: *const u8) -> isize {
     sys_removexattr(path, name)
+}
+
+// TODO! ioctl
+#[syscall_func(29)]
+pub fn sys_ioctl(fd: usize, _cmd: usize, _arg: usize) -> isize {
+    let process = current_task().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return LinuxErrno::EBADF as isize;
+    }
+    let _file = file.unwrap();
+    // let res = vfs_ioctl(file, cmd, arg);
+    // if res.is_err() {
+    //     return -1;
+    // }
+    // res.unwrap() as isize
+    0
+}
+
+#[syscall_func(66)]
+pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
+    let process = current_task().unwrap();
+    let file = process.get_file(fd);
+    if file.is_none() {
+        return LinuxErrno::EBADF as isize;
+    }
+    let file = file.unwrap();
+    let mut count = 0;
+    for i in 0..iovcnt {
+        let ptr = unsafe { (iovec as *mut IoVec).add(i) };
+        let iov = process.transfer_raw_ptr(ptr);
+        let base = iov.base;
+        if base as usize == 0 {
+            // busybox 可能会给stdout两个io_vec，第二个是空地址
+            continue;
+        }
+        let len = iov.len;
+        let buf = process.transfer_raw_buffer(base, len);
+
+        let mut offset = file.access_inner().f_pos;
+        buf.iter().for_each(|b| {
+            // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
+            let r = vfs_write_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
+            count += r;
+            offset += r;
+        });
+    }
+    count as isize
 }
 
 #[syscall_func(16)]
