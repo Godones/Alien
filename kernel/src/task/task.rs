@@ -210,10 +210,19 @@ pub enum TaskState {
 }
 
 impl Task {
+    #[inline]
     pub fn get_pid(&self) -> isize {
         self.pid as isize
     }
+    #[inline]
+    pub fn get_tid(&self) -> isize {
+        self.tid.0 as isize
+    }
 
+    pub fn set_tid_address(&self, tidptr: usize) {
+        let mut inner = self.inner.lock();
+        inner.clear_child_tid = tidptr;
+    }
     pub fn get_name(&self) -> String {
         let inner = self.inner.lock();
         inner.name.clone()

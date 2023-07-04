@@ -12,6 +12,7 @@ BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
+IMG := tools/fs1.img
 SMP ?= 4
 GUI ?=n
 IMG1 := tools/fs1.img
