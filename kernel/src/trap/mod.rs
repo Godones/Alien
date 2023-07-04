@@ -1,16 +1,19 @@
 use core::arch::{asm, global_asm};
 
 use page_table::addr::VirtAddr;
-use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
+use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 
-use crate::arch::{external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable, timer_interrupt_enable};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
 use crate::arch::riscv::sstatus;
+use crate::arch::{
+    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
+    timer_interrupt_enable,
+};
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_task, current_user_token, do_exit};
@@ -176,7 +179,10 @@ pub fn user_trap_vector() {
     // update process statistics
     {
         let process = current_task().unwrap_or_else(|| {
-            panic!("can't find task in hart {}, but it's in user mode", hart_id() as usize)
+            panic!(
+                "can't find task in hart {}, but it's in user mode",
+                hart_id() as usize
+            )
         });
         process.access_inner().update_user_mode_time();
     }

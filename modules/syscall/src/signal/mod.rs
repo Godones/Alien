@@ -3,26 +3,23 @@
 //! 且如果单纯作为线程的一部分，容易因为信号发送的任意性导致死锁，因此单独列出来。
 //!
 //! 目前的模型中，不采用 ipi 实时发送信号，而是由被目标线程在 trap 时处理。因此需要开启**时钟中断**来保证信号能实际送到
-pub use action::{SIG_DFL, SIG_IGN, SigAction, SigActionDefault, SigActionFlags};
+pub use action::{SigAction, SigActionDefault, SigActionFlags, SIG_DFL, SIG_IGN};
 pub use number::SignalNo;
 pub use siginfo::SigInfo;
 pub use ucontext::SignalUserContext;
 
+mod action;
 mod number;
 mod siginfo;
 mod ucontext;
-mod action;
-
 
 /// signal 中用到的 bitset 长度。
 pub const SIGSET_SIZE_IN_BYTE: usize = 8;
 /// 所有可能的信号数。有多少可能的信号，内核就要为其保存多少个 SigAction
 pub const SIGSET_SIZE_IN_BIT: usize = SIGSET_SIZE_IN_BYTE * 8; // =64
 
-
 /// 处理信号的结构，每个线程有一个，根据 clone 的参数有可能是共享的
-#[derive(Clone, Copy)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SignalHandlers {
     /// 所有的处理函数
     actions: [Option<SigAction>; SIGSET_SIZE_IN_BIT],
@@ -74,8 +71,7 @@ impl SignalHandlers {
 }
 
 /// 接受信号的结构，每个线程都独有，不会共享
-#[derive(Clone, Copy)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SignalReceivers {
     /// 掩码，表示哪些信号是当前线程不处理的。（目前放在进程中，实现了线程之后每个线程应该各自有一个）
     pub mask: SimpleBitSet,
@@ -114,10 +110,8 @@ impl SignalReceivers {
     }
 }
 
-
 #[derive(Debug, Default, Copy, Clone)]
 pub struct SimpleBitSet(usize);
-
 
 impl SimpleBitSet {
     /// 寻找不在mask中的最小的 1 的位置，如果有，返回其位置，如没有则返回 None。
@@ -133,7 +127,6 @@ impl SimpleBitSet {
     pub fn remove_bit(&mut self, pos: usize) {
         self.0 &= !(1 << pos);
     }
-
 
     pub fn add_bit(&mut self, pos: usize) {
         self.0 |= 1 << pos;

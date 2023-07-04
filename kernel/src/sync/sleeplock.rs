@@ -4,8 +4,8 @@ use core::cell::UnsafeCell;
 
 use kernel_sync::Mutex;
 
-use crate::task::{current_task, PROCESS_MANAGER, Task, TaskState};
 use crate::task::schedule::schedule;
+use crate::task::{current_task, Task, TaskState, PROCESS_MANAGER};
 
 pub struct SleepLock<T> {
     data: UnsafeCell<T>,

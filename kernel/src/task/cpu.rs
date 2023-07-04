@@ -17,9 +17,9 @@ use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::task::context::Context;
-use crate::task::INIT_PROCESS;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
+use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
 
 #[derive(Debug, Clone)]
@@ -136,6 +136,11 @@ pub fn do_exit(exit_code: i32) -> isize {
     c_process.recycle();
     schedule();
     0
+}
+
+#[syscall_func(94)]
+pub fn exit_group(exit_code: i32) -> isize {
+    do_exit(exit_code)
 }
 
 #[syscall_func(124)]
@@ -306,9 +311,6 @@ pub fn set_tid_address(tidptr: *mut i32) -> isize {
     task.set_tid_address(tidptr as usize);
     task.get_tid()
 }
-
-
-
 
 bitflags! {
     pub struct WaitOptions:u32 {

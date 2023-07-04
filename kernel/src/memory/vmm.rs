@@ -13,8 +13,8 @@ use xmas_elf::program::Type;
 use kernel_sync::RwLock;
 
 use crate::config::{FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
+use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 
 lazy_static! {
     pub static ref KERNEL_SPACE: Arc<RwLock<Sv39PageTable<PageAllocator>>> = Arc::new(RwLock::new(
@@ -254,7 +254,7 @@ pub fn build_clone_address_space(
             if flag.contains(MappingFlags::W) {
                 flags -= MappingFlags::W;
                 flags |= MappingFlags::RSD; // we use the RSD flag to indicate that this page is a cow page
-                // update parent's flag and clear dirty
+                                            // update parent's flag and clear dirty
                 p_table.modify_pte_flags(v_addr, flags, false).unwrap();
             }
             address_space.map(v_addr, phy, page_size, flags).unwrap();
@@ -363,7 +363,11 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
             false,
         )
         .unwrap();
-    warn!("TRAMPOLINE: {:#x} - {:#x}", TRAMPOLINE, TRAMPOLINE + FRAME_SIZE);
+    warn!(
+        "TRAMPOLINE: {:#x} - {:#x}",
+        TRAMPOLINE,
+        TRAMPOLINE + FRAME_SIZE
+    );
     address_space
         .map_region(
             VirtAddr::from(TRAMPOLINE),
@@ -392,7 +396,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         Err(ELFError::NoEntrySegment)
         // Ok(0)
     }
-        .unwrap_or(0);
+    .unwrap_or(0);
     warn!(
         "entry: {:#x}, phdr:{:#x}",
         elf.header.pt2.entry_point(),
