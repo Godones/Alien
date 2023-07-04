@@ -19,3 +19,7 @@
 ### 系统调用(one week)
 
 - [ ] more syscall support
+
+`ioctl`: https://zhuanlan.zhihu.com/p/478259733
+
+`writev`: https://man7.org/linux/man-pages/man2/writev.2.html 

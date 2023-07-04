@@ -4,7 +4,7 @@ use core::fmt;
 use core2::io::{BufRead, Read, Write};
 
 use stdio::*;
-pub use stdio::{stdin, StdinLock, stdout, StdoutLock};
+pub use stdio::{stdin, stdout, StdinLock, StdoutLock};
 
 use crate::syscall::{sys_event, sys_framebuffer, sys_framebuffer_flush};
 
@@ -19,8 +19,8 @@ pub const VIRTGPU_LEN: usize = VIRTGPU_XRES * VIRTGPU_YRES * 4;
 pub trait BufferReadExt {
     fn read_line(&mut self, buf: &mut String) -> Result<usize>;
     fn lines(self) -> Lines<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         Lines { buf: self }
     }
@@ -73,8 +73,8 @@ macro_rules! println {
 }
 
 fn print_to<T>(args: fmt::Arguments<'_>, global_s: fn() -> T, label: &str)
-    where
-        T: Write,
+where
+    T: Write,
 {
     if let Err(e) = global_s().write_fmt(args) {
         panic!("failed printing to {label}: {e}");
