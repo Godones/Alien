@@ -18,10 +18,12 @@ pub fn syscall_exception_handler() {
     let syscall_name = syscall_define::syscall_name(parameters[0]);
 
     let p_name = current_task().unwrap().get_name();
+    let pid = current_task().unwrap().get_pid();
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         // ignore shell and init
         warn!(
-            "[p_name: {}] syscall: [{}] {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
+            "[pid: {}][p_name: {}] syscall: [{}] {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
+            pid,
             p_name,
             parameters[0],
             syscall_name,
@@ -35,6 +37,11 @@ pub fn syscall_exception_handler() {
     }
 
     let result = syscall::do_syscall(parameters[0], &parameters[1..]);
+    if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
+        warn!("syscall result: {:?}", result);
+    }
+
+
     if result.is_none() {
         error!("The syscall {} is not implemented!", syscall_name);
         do_exit(-1);
@@ -71,7 +78,10 @@ pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
         return Err(AlienError::Other);
     }
     let (file, buf, offset) = info.unwrap();
-    let _r = vfs_read_file::<VfsProvider>(file, buf, offset);
+    if file.is_some() {
+        let _r = vfs_read_file::<VfsProvider>(file.unwrap().get_file(), buf, offset);
+    }
+
     Ok(())
 }
 
@@ -85,7 +95,9 @@ pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let res = process.access_inner().do_store_page_fault(addr)?;
     if res.is_some() {
         let (file, buf, offset) = res.unwrap();
-        let _r = vfs_read_file::<VfsProvider>(file, buf, offset);
+        if file.is_some() {
+            let _r = vfs_read_file::<VfsProvider>(file.unwrap().get_file(), buf, offset);
+        }
     }
     Ok(())
 }

@@ -21,6 +21,29 @@ impl<T: Clone> MinimalManager<T> {
             max,
         }
     }
+    pub fn set_max(&mut self, val: usize) -> bool {
+        if val > self.max {
+            self.max = val;
+            return true;
+        }
+        // check [val:max] has data
+        for i in val..self.max {
+            let data = self.data.get(i);
+            if data.is_some() && data.unwrap().is_some() {
+                return false;
+            }
+        }
+        self.max = val;
+        true
+    }
+
+    pub fn max(&self) -> usize {
+        self.max
+    }
+
+    pub fn data(&self) -> &Vec<Option<T>> {
+        &self.data
+    }
     pub fn insert(&mut self, val: T) -> Result<usize, ManagerError> {
         if self.usable == self.max {
             return Err(ManagerError::NoSpace);
@@ -94,6 +117,7 @@ impl<T: Clone> MinimalManager<T> {
     }
 }
 
+
 #[derive(Debug)]
 pub enum ManagerError {
     NoSpace,
@@ -103,8 +127,9 @@ pub enum ManagerError {
 
 #[cfg(test)]
 mod tests {
-    use crate::MinimalManager;
     use std::println;
+
+    use crate::MinimalManager;
 
     #[test]
     pub fn test_gmanager() {

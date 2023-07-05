@@ -4,8 +4,8 @@ use core::cell::UnsafeCell;
 
 use kernel_sync::Mutex;
 
+use crate::task::{current_task, Task, TASK_MANAGER, TaskState};
 use crate::task::schedule::schedule;
-use crate::task::{current_task, Task, TaskState, PROCESS_MANAGER};
 
 pub struct SleepLock<T> {
     data: UnsafeCell<T>,
@@ -57,7 +57,7 @@ impl<T> Drop for SleepLockGuard<'_, T> {
         inner.locked = false;
         if let Some(process) = inner.queue.pop_front() {
             process.update_state(TaskState::Ready);
-            let mut guard = PROCESS_MANAGER.lock();
+            let mut guard = TASK_MANAGER.lock();
             guard.push_back(process);
         }
     }

@@ -7,7 +7,7 @@ numeric_enum_macro::numeric_enum! {
     ///
     /// 从 32 开始的部分为 SIGRT，其中 RT 表示 real time。
     /// 但目前实现时没有通过 ipi 等手段即时处理，而是像其他信号一样等到 trap 再处理
-    pub enum SignalNo {
+    pub enum SignalNumber {
         ERR = 0,
         SIGHUP = 1,
         SIGINT = 2,
@@ -75,7 +75,7 @@ numeric_enum_macro::numeric_enum! {
     }
 }
 
-impl From<usize> for SignalNo {
+impl From<usize> for SignalNumber {
     fn from(num: usize) -> Self {
         Self::try_from(num as u8).unwrap_or(Self::ERR)
     }

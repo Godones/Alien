@@ -1,5 +1,7 @@
 # 测试
 
+## simple
+
 - [x] wait
 - [x] waitpid
 - [x] write
@@ -30,6 +32,130 @@
 - [x] getdents
 - [x] munmap
 - [x] clone
+
+## libctest-static
+
+- [x] argv
+- [x] basename
+- [x] clocale_mbfuncs
+- [x] clock_gettime
+- [x] crypt
+- [x] daemon_failure
+- [x] dirname
+- [x] dn_expand_empty
+- [x] dn_expand_ptr_0
+- [x] env
+- [ ] epoll
+- [x] fdopen
+- [x] fflush_exit
+- [x] fgets_eof
+- [x] fgetwc_buffering
+- [x] fnmatch
+- [x] fpclassify_invalid_ld80
+- [x] fscanf
+- [x] ftello_unflushed_append
+- [x] fwscanf
+- [ ] getpwnam_r_crash    [socket+connect]
+- [ ] getpwnam_r_errno    [socket+connect]
+- [x] iconv_open
+- [x] iconv_roundtrips
+- [x] inet_ntop_v4mapped
+- [x] inet_pton
+- [x] inet_pton_empty_last_field
+- [x] iswspace_null
+- [x] lrand48_signextend
+- [x] lseek_large
+- [x] malloc_0
+- [x] mbc
+- [x] mbsrtowcs_overflow
+- [x] memmem_oob
+- [x] memmem_oob_read
+- [x] memstream
+- [x] mkdtemp_failure
+- [x] mkstemp_failure
+- [x] pleval
+- [x] printf_1e9_oob
+- [x] printf_fmt_g_round
+- [x] printf_fmt_g_zeros
+- [x] printf_fmt_n
+- [ ] pthread_cancel
+- [ ] pthread_cancel_points
+- [ ] pthread_cancel_sem_wait
+- [ ] pthread_cond
+- [ ] pthread_condattr_setclock
+- [ ] pthread_cond_smasher
+- [ ] pthread_exit_cancel
+- [ ] pthread_once_deadlock
+- [ ] pthread_robust_detach
+- [ ] pthread_rwlock_ebusy
+- [ ] pthread_tsd
+- [x] putenv_doublefree
+- [x] qsort
+- [x] random
+- [x] regex_backref_0
+- [x] regex_bracket_icase
+- [x] regexec_nosub
+- [x] regex_ere_backref
+- [x] regex_escaped_high_byte
+- [x] regex_negated_range
+- [x] rewind_clear_error
+- [x] rlimit_open_files
+- [x] scanf_bytes_consumed
+- [x] scanf_match_literal_eof
+- [x] scanf_nullbyte_char
+- [x] search_hsearch
+- [x] search_insque
+- [x] search_lsearch
+- [x] search_tsearch
+- [x] setjmp
+- [x] setvbuf_unget
+- [x] sigprocmask_internal
+- [x] snprintf
+- [ ] socket
+- [x] sscanf
+- [x] sscanf_eof
+- [x] sscanf_long
+- [x] stat
+- [x] statvfs
+- [x] strftime
+- [x] string
+- [x] string_memcpy
+- [x] string_memmem
+- [x] string_memset
+- [x] string_strchr
+- [x] string_strcspn
+- [x] string_strstr
+- [x] strptime
+- [x] strtod
+- [x] strtod_simple
+- [x] strtof
+- [x] strtol
+- [x] strtold
+- [x] strverscmp
+- [x] swprintf
+- [x] syscall_sign_extend
+- [x] tgmath
+- [x] time
+- [x] udiv
+- [x] ungetc
+- [x] uselocale_0
+- [x] utime
+- [x] wcsncpy_read_overflow
+- [x] wcsstr
+- [x] wcsstr_false_negative
+- [x] wcstol
+
+
+
+
+
+
+
+## libctest-dyn
+
+
+
+
 
 ## 工具配置
 
