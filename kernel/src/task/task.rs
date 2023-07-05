@@ -14,28 +14,31 @@ use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
 use kernel_sync::{Mutex, MutexGuard};
+use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 use syscall_define::aux::{
     AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
 };
-use syscall_define::signal::{SignalHandlers, SignalReceivers};
+use syscall_define::io::MapFlags;
+use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers};
+use syscall_define::task::CloneFlags;
 
 use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
+use crate::fs::file::KFile;
 use crate::memory::{
-    build_clone_address_space, build_elf_address_space, kernel_satp, MMapInfo, MMapRegion,
-    MapFlags, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
+    build_clone_address_space, build_elf_address_space, FRAME_REF_MANAGER, kernel_satp,
+    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack,
 };
 use crate::task::context::Context;
-use crate::task::cpu::{CloneFlags, SignalFlags};
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::trap::{trap_return, TrapFrame, user_trap_vector};
 
-type FdManager = MinimalManager<Arc<File>>;
+type FdManager = MinimalManager<Arc<KFile>>;
 
 lazy_static! {
     /// 这里把MinimalManager复用为pid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
@@ -293,20 +296,36 @@ impl Task {
         inner.exit_code
     }
 
-    pub fn get_file(&self, fd: usize) -> Option<Arc<File>> {
+    pub fn file_existed(&self, file: Arc<File>) -> Option<Arc<KFile>> {
+        let inner = self.inner.lock();
+        let fds = inner.fd_table.data();
+        fds.iter().find_map(|f| {
+            if f.is_some() {
+                let f = f.as_ref().unwrap();
+                if Arc::ptr_eq(&f.get_file(), &file) {
+                    Some(f.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    }
+    pub fn get_file(&self, fd: usize) -> Option<Arc<KFile>> {
         let inner = self.inner.lock();
         let file = inner.fd_table.get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
-    pub fn add_file(&self, file: Arc<File>) -> Result<usize, ()> {
+    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, ()> {
         self.access_inner().fd_table.insert(file).map_err(|_| {})
     }
-    pub fn add_file_with_fd(&self, file: Arc<File>, fd: usize) -> Result<(), ()> {
+    pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
         let mut inner = self.access_inner();
         inner.fd_table.insert_with_index(fd, file).map_err(|_| {})
     }
 
-    pub fn remove_file(&self, fd: usize) -> Result<Arc<File>, ()> {
+    pub fn remove_file(&self, fd: usize) -> Result<Arc<KFile>, ()> {
         let mut inner = self.inner.lock();
         let file = inner.fd_table.get(fd);
         if file.is_err() {
@@ -326,7 +345,7 @@ impl Task {
     }
     // TODO 处理跨页问题
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
-        self.access_inner().transfer_raw_ptr(ptr)
+        self.access_inner().transfer_raw_ptr_mut(ptr)
     }
     // TODO:处理效率低的问题
     pub fn transfer_str(&self, ptr: *const u8) -> String {
@@ -344,6 +363,33 @@ impl TaskInner {
     pub fn cwd(&self) -> FsContext {
         self.fs_info.clone()
     }
+
+    pub fn get_prlimit(&self, resource: PrLimitRes) -> PrLimit {
+        match resource {
+            PrLimitRes::RlimitStack => {
+                PrLimit::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64)
+            }
+            PrLimitRes::RlimitNofile => {
+                let max_fd = self.fd_table.max();
+                PrLimit::new(max_fd as u64, max_fd as u64)
+            }
+            PrLimitRes::RlimitAs => {
+                PrLimit::new(u64::MAX, u64::MAX)
+            }
+        }
+    }
+
+    pub fn set_prlimit(&mut self, resource: PrLimitRes, value: PrLimit) {
+        match resource {
+            PrLimitRes::RlimitStack => {}
+            PrLimitRes::RlimitNofile => {
+                let new_max_fd = value.rlim_cur;
+                self.fd_table.set_max(new_max_fd as usize);
+            }
+            PrLimitRes::RlimitAs => {}
+        }
+    }
+
     pub fn transfer_raw(&self, ptr: usize) -> usize {
         let (phy, ..) = self
             .address_space
@@ -416,13 +462,22 @@ impl TaskInner {
         v
     }
 
-    pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
+    pub fn transfer_raw_ptr_mut<T>(&self, ptr: *mut T) -> &'static mut T {
         let (physical, _, _) = self
             .address_space
             .lock()
             .query(VirtAddr::from(ptr as usize))
             .unwrap();
         unsafe { &mut *(physical.as_usize() as *mut T) }
+    }
+
+    pub fn transfer_raw_ptr<T>(&self, ptr: *const T) -> &'static T {
+        let (physical, _, _) = self
+            .address_space
+            .lock()
+            .query(VirtAddr::from(ptr as usize))
+            .unwrap();
+        unsafe { &*(physical.as_usize() as *const T) }
     }
 
     /// When process return to user mode, we need to update the user mode time
@@ -484,17 +539,27 @@ impl TaskInner {
     /// the len will be aligned to 4k
     pub fn add_mmap(
         &mut self,
-        _start: usize,
+        start: usize,
         len: usize,
         prot: ProtFlags,
         flags: MapFlags,
         fd: usize,
         offset: usize,
     ) -> Result<usize, isize> {
-        let file = self.fd_table.get(fd).map_err(|_| -1isize)?;
-        if file.is_none() {
-            return Err(-1);
+        // start == 0 表明需要OS为其找一段内存，而 MAP_FIXED 表明必须 mmap 在固定位置。两者是冲突的
+        if start == 0 && flags.contains(MapFlags::MAP_FIXED) {
+            return Err(LinuxErrno::EINVAL as isize);
         }
+        // not map to file
+        let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
+            None
+        } else {
+            let file = self.fd_table.get(fd).map_err(|_| -1isize)?;
+            if file.is_none() {
+                return Err(-1);
+            }
+            file
+        };
         let v_range = self.mmap.alloc(len);
         let region = MMapRegion::new(
             v_range.start,
@@ -502,7 +567,7 @@ impl TaskInner {
             v_range.end - v_range.start,
             prot,
             flags,
-            file.unwrap(),
+            fd,
             offset,
         );
         // warn!("add mmap region:{:#x?}",region);
@@ -516,10 +581,12 @@ impl TaskInner {
                 VirtAddr::from(start),
                 v_range.end - start,
                 map_flags,
-                true,
+                false,
                 true,
             )
             .unwrap();
+        // todo! huge page
+        trace!("add mmap region: {:#x}-{:#x}, flag:{:?}", start, v_range.end,map_flags);
         Ok(start)
     }
 
@@ -545,7 +612,7 @@ impl TaskInner {
     pub fn do_load_page_fault(
         &mut self,
         addr: usize,
-    ) -> Result<(Arc<File>, &'static mut [u8], u64), isize> {
+    ) -> Result<(Option<Arc<KFile>>, &'static mut [u8], u64), isize> {
         // check whether the addr is in mmap
         let x = self.mmap.get_region(addr);
         if x.is_none() {
@@ -577,10 +644,12 @@ impl TaskInner {
     fn invalid_page_solver(
         &mut self,
         addr: usize,
-    ) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
+    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
+        trace!("invalid page fault at {:#x}", addr);
         let is_mmap = self.mmap.get_region(addr);
         let is_heap = self.heap.contains(addr);
         if is_mmap.is_none() && !is_heap {
+            error!("invalid page fault at {:#x}", addr);
             return Err(AlienError::Other);
         }
         if is_heap {
@@ -595,7 +664,7 @@ impl TaskInner {
             assert_eq!(addr % FRAME_SIZE, 0);
             // update page table
             let mut map_flags = region.prot.into();
-            map_flags |= "V".into();
+            map_flags |= "VAD".into();
             self.address_space
                 .lock()
                 .validate(VirtAddr::from(addr), map_flags)
@@ -617,7 +686,7 @@ impl TaskInner {
     pub fn do_store_page_fault(
         &mut self,
         addr: usize,
-    ) -> AlienResult<Option<(Arc<File>, &'static mut [u8], u64)>> {
+    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
         trace!("do store page fault:{:#x}", addr);
         let addr = align_down_4k(addr);
         let (phy, flags, page_size) = self
@@ -628,7 +697,7 @@ impl TaskInner {
         if !flags.contains(MappingFlags::V) {
             return self.invalid_page_solver(addr);
         }
-        assert!(flags.contains(MappingFlags::RSD), "flags:{:#x}", flags);
+        assert!(flags.contains(MappingFlags::RSD), "flags:{:?}", flags);
         // decrease the reference count
         let mut flags = flags | "W".into();
         flags -= MappingFlags::RSD;
@@ -686,9 +755,9 @@ impl Task {
                 children: Vec::new(),
                 fd_table: {
                     let mut fd_table = FdManager::new(MAX_FD_NUM);
-                    fd_table.insert(STDIN.clone()).unwrap();
-                    fd_table.insert(STDOUT.clone()).unwrap();
-                    fd_table.insert(STDOUT.clone()).unwrap();
+                    fd_table.insert(KFile::new(STDIN.clone())).unwrap();
+                    fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
+                    fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
                     fd_table
                 },
                 context: Context::new(trap_return as usize, k_stack_top),
@@ -726,7 +795,7 @@ impl Task {
         self: &Arc<Self>,
         flag: CloneFlags,
         stack: usize,
-        _sig: SignalFlags,
+        _sig: SignalNumber,
         _ptid: usize,
         _tls: usize,
         _ctid: usize,

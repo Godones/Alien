@@ -9,8 +9,8 @@ use kernel_sync::Mutex;
 
 use crate::driver::DeviceBase;
 use crate::print::console::UART_FLAG;
+use crate::task::{current_task, Task, TASK_MANAGER, TaskState};
 use crate::task::schedule::schedule;
-use crate::task::{current_task, Task, TaskState, PROCESS_MANAGER};
 
 pub trait CharDevice {
     fn put(&self, c: u8);
@@ -134,7 +134,7 @@ impl DeviceBase for Uart {
                 if !inner.1.wait_queue.is_empty() {
                     let process = inner.1.wait_queue.pop_front().unwrap();
                     process.update_state(TaskState::Ready);
-                    let mut guard = PROCESS_MANAGER.lock();
+                    let mut guard = TASK_MANAGER.lock();
                     guard.push_back(process);
                 }
             } else {

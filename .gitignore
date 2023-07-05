@@ -29,3 +29,5 @@ nohup.out
 
 oscomp-debian
 #sdcard
+tools/siglibc
+tools/testsuits-for-oskernel

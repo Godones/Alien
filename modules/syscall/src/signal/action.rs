@@ -5,7 +5,7 @@ use bitflags::*;
 
 use crate::signal::SimpleBitSet;
 
-use super::number::SignalNo;
+use super::number::SignalNumber;
 
 #[cfg(feature = "riscv")]
 const SIGNAL_RETURN_TRAP: usize = 0x0000000000000000;
@@ -79,9 +79,9 @@ pub enum SigActionDefault {
 
 impl SigActionDefault {
     /// 获取默认行为
-    pub fn of_signal(signal: SignalNo) -> Self {
+    pub fn of_signal(signal: SignalNumber) -> Self {
         match signal {
-            SignalNo::SIGCHLD | SignalNo::SIGURG => Self::Ignore,
+            SignalNumber::SIGCHLD | SignalNumber::SIGURG => Self::Ignore,
             _ => Self::Terminate,
         }
     }

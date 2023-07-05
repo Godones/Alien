@@ -1,58 +1,58 @@
 use numeric_enum_macro::numeric_enum;
 
 numeric_enum!(
-    #[repr(usize)]
+    #[repr(isize)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum LinuxErrno {
-        EPERM = 1,
-        ENOENT = 2,
-        ESRCH = 3,
-        EINTR = 4,
-        EIO = 5,
-        ENXIO = 6,
-        E2BIG = 7,
-        ENOEXEC = 8,
-        EBADF = 9,
-        ECHILD = 10,
-        EAGAIN = 11,
-        ENOMEM = 12,
-        EACCES = 13,
-        EFAULT = 14,
-        ENOTBLK = 15,
-        EBUSY = 16,
-        EEXIST = 17,
-        EXDEV = 18,
-        ENODEV = 19,
-        ENOTDIR = 20,
-        EISDIR = 21,
-        EINVAL = 22,
-        ENFILE = 23,
-        EMFILE = 24,
-        ENOTTY = 25,
-        ETXTBSY = 26,
-        EFBIG = 27,
-        ENOSPC = 28,
-        ESPIPE = 29,
-        EROFS = 30,
-        EMLINK = 31,
-        EPIPE = 32,
-        EDOM = 33,
-        ERANGE = 34,
-        ENOSYS = 38,
-        ELOOP = 40,
-        EADDRINUSE = 98,
-        EADDRNOTAVAIL = 99,
-        ENETDOWN = 100,
-        ENETUNREACH = 101,
-        ENETRESET = 102,
-        ECONNABORTED = 103,
-        ECONNRESET = 104,
-        ENOBUFS = 105,
-        EISCONN = 106,
-        ENOTCONN = 107,
+        EPERM = -1,
+        ENOENT = -2,
+        ESRCH = -3,
+        EINTR = -4,
+        EIO = -5,
+        ENXIO = -6,
+        E2BIG = -7,
+        ENOEXEC = -8,
+        EBADF = -9,
+        ECHILD = -10,
+        EAGAIN = -11,
+        ENOMEM = -12,
+        EACCES = -13,
+        EFAULT = -14,
+        ENOTBLK = -15,
+        EBUSY = -16,
+        EEXIST = -17,
+        EXDEV = -18,
+        ENODEV = -19,
+        ENOTDIR = -20,
+        EISDIR = -21,
+        EINVAL = -22,
+        ENFILE = -23,
+        EMFILE = -24,
+        ENOTTY = -25,
+        ETXTBSY = -26,
+        EFBIG = -27,
+        ENOSPC = -28,
+        ESPIPE = -29,
+        EROFS = -30,
+        EMLINK = -31,
+        EPIPE = -32,
+        EDOM = -33,
+        ERANGE = -34,
+        ENOSYS = -38,
+        ELOOP = -40,
+        EADDRINUSE = -98,
+        EADDRNOTAVAIL = -99,
+        ENETDOWN = -100,
+        ENETUNREACH = -101,
+        ENETRESET = -102,
+        ECONNABORTED = -103,
+        ECONNRESET = -104,
+        ENOBUFS = -105,
+        EISCONN = -106,
+        ENOTCONN = -107,
 
         /// Temporary errno to use until I get everything POSIX-compatible.
-        ETMP = 255,
+        ETMP = -255,
     }
 );
 
@@ -254,5 +254,41 @@ pub fn syscall_name(id: usize) -> &'static str {
         SYSCALL_SHUTDOWN => "shutdown",
         SYSCALL_CLEAR => "clear",
         _ => "unknown",
+    }
+}
+
+
+#[derive(Debug, Copy, Clone)]
+pub struct PrLimit {
+    /// 软上限
+    pub rlim_cur: u64,
+    /// 硬上限
+    pub rlim_max: u64,
+}
+
+
+impl PrLimit {
+    pub fn new(cur: u64, max: u64) -> Self {
+        Self {
+            rlim_cur: cur,
+            rlim_max: max,
+        }
+    }
+}
+
+
+/// 用户栈大小
+// pub const RLIMIT_STACK: i32 = 3;
+// 可以打开的 fd 数
+// pub const RLIMIT_NOFILE: i32 = 7;
+// 用户地址空间的最大大小
+// pub const RLIMIT_AS: i32 = 9;
+numeric_enum_macro::numeric_enum! {
+    #[repr(usize)]
+    #[derive(Eq, PartialEq, Debug, Copy, Clone)]
+    pub enum PrLimitRes{
+        RlimitStack = 3,
+        RlimitNofile = 7,
+        RlimitAs = 9
     }
 }

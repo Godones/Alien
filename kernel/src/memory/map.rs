@@ -4,11 +4,12 @@ use core::ops::Range;
 
 use bitflags::bitflags;
 use page_table::pte::MappingFlags;
-use rvfs::file::File;
 
+use syscall_define::io::MapFlags;
 use syscall_table::syscall_func;
 
 use crate::config::{FRAME_SIZE, PROCESS_HEAP_MAX};
+use crate::fs::file::KFile;
 use crate::task::current_task;
 
 bitflags! {
@@ -37,15 +38,6 @@ impl Into<MappingFlags> for ProtFlags {
     }
 }
 
-bitflags! {
-    pub struct MapFlags: u32 {
-        const MAP_SHARED = 0x01;
-        const MAP_PRIVATE = 0x02;
-        const MAP_FIXED = 0x10;
-        const MAP_ANONYMOUS = 0x20;
-    }
-}
-
 #[derive(Debug, Clone)]
 /// The Process should manage the mmap info
 pub struct MMapInfo {
@@ -67,7 +59,7 @@ pub struct MMapRegion {
     /// The flags of the mapping
     pub flags: MapFlags,
     /// The file descriptor to map
-    pub fd: Arc<File>,
+    pub fd: Option<Arc<KFile>>,
     /// The offset in the file to start from
     pub offset: usize,
 }
@@ -120,7 +112,7 @@ impl MMapRegion {
         map_len: usize,
         prot: ProtFlags,
         flags: MapFlags,
-        fd: Arc<File>,
+        fd: Option<Arc<KFile>>,
         offset: usize,
     ) -> Self {
         Self {
@@ -152,7 +144,10 @@ pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offse
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
     let flags = MapFlags::from_bits_truncate(flags);
-
+    warn!(
+        "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
+        start, len, prot, flags, fd, offset
+    );
     let res = process_inner.add_mmap(start, len, prot, flags, fd, offset);
     if res.is_err() {
         return -1;

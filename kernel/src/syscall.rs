@@ -16,16 +16,24 @@ pub fn register_all_syscall(){
 	(59, sys_pipe),
 	(23, sys_dup),
 	(24, sys_dup2),
+	(98, sys_futex),
+	(135, sys_sigprocmask),
 	(93, do_exit),
 	(94, exit_group),
 	(124, do_suspend),
 	(172, get_pid),
 	(173, get_ppid),
+	(174, getuid),
+	(175, geteuid),
+	(176, getgid),
+	(177, getegid),
+	(178, get_tid),
 	(220, clone),
 	(221, do_exec),
 	(260, wait_pid),
 	(214, do_brk),
 	(96, set_tid_address),
+	(261, prlimit64),
 	(40, sys_mount),
 	(39, sys_umount),
 	(56, sys_openat),
@@ -60,9 +68,14 @@ pub fn register_all_syscall(){
 	(13, sys_flistxattr),
 	(14, sys_removexattr),
 	(15, sys_lremovexattr),
-	(29, sys_ioctl),
 	(66, sys_writev),
+	(65, sys_readv),
+	(67, sys_pread),
+	(68, sys_pwrite),
 	(16, sys_fremovexattr),
+	(25, sys_fcntl),
+	(29, sys_ioctl),
+	(88, sys_utimensat),
 	(215, do_munmap),
 	(222, do_mmap),
 
@@ -76,6 +89,7 @@ pub fn do_syscall(id:usize,args:&[usize])->Option<isize>{
 use crate::driver::sys_event_get;
 use crate::fs::sys_chdir;
 use crate::fs::sys_close;
+use crate::fs::sys_fcntl;
 use crate::fs::sys_fgetxattr;
 use crate::fs::sys_flistxattr;
 use crate::fs::sys_fremovexattr;
@@ -99,8 +113,11 @@ use crate::fs::sys_mkdir;
 use crate::fs::sys_mkdirat;
 use crate::fs::sys_mount;
 use crate::fs::sys_openat;
+use crate::fs::sys_pread;
+use crate::fs::sys_pwrite;
 use crate::fs::sys_read;
 use crate::fs::sys_readlinkat;
+use crate::fs::sys_readv;
 use crate::fs::sys_removexattr;
 use crate::fs::sys_renameat;
 use crate::fs::sys_setxattr;
@@ -109,13 +126,16 @@ use crate::fs::sys_symlinkat;
 use crate::fs::sys_truncate;
 use crate::fs::sys_umount;
 use crate::fs::sys_unlinkat;
+use crate::fs::sys_utimensat;
 use crate::fs::sys_write;
 use crate::fs::sys_writev;
 use crate::gui::sys_framebuffer;
 use crate::gui::sys_framebuffer_flush;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
+use crate::ipc::sys_futex;
 use crate::ipc::sys_pipe;
+use crate::ipc::sys_sigprocmask;
 use crate::memory::do_mmap;
 use crate::memory::do_munmap;
 use crate::sbi::shutdown;
@@ -128,6 +148,12 @@ use crate::task::do_suspend;
 use crate::task::exit_group;
 use crate::task::get_pid;
 use crate::task::get_ppid;
+use crate::task::get_tid;
+use crate::task::getegid;
+use crate::task::geteuid;
+use crate::task::getgid;
+use crate::task::getuid;
+use crate::task::prlimit64;
 use crate::task::set_tid_address;
 use crate::task::wait_pid;
 use crate::timer::clock_get_time;

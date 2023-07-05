@@ -9,10 +9,10 @@ use virtio_drivers::transport::mmio::MmioTransport;
 use kernel_sync::Mutex;
 use syscall_table::syscall_func;
 
-use crate::driver::hal::HalImpl;
 use crate::driver::DeviceBase;
-use crate::task::schedule::schedule;
+use crate::driver::hal::HalImpl;
 use crate::task::{current_task, Task, TaskState};
+use crate::task::schedule::schedule;
 
 pub static mut INPUT_DEVICE: Once<HashMap<&str, Arc<InputDriver>>> = Once::new();
 
@@ -88,7 +88,7 @@ impl DeviceBase for InputDriver {
         while !inner.wait_queue.is_empty() && count > 0 {
             let process = inner.wait_queue.pop_front().unwrap();
             process.update_state(TaskState::Ready);
-            let mut guard = crate::task::PROCESS_MANAGER.lock();
+            let mut guard = crate::task::TASK_MANAGER.lock();
             guard.push_back(process);
             count -= 1;
         }
