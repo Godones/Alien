@@ -2,35 +2,54 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
-use rvfs::file::{
-    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
-    vfs_write_file, FileMode, OpenFlags, SeekFrom,
-};
+use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
+use rvfs::file::{FileMode, FileMode2, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file};
 use rvfs::inode::InodeMode;
-use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
+use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
 use rvfs::mount::MountFlags;
-use rvfs::path::{vfs_lookup_path, ParsePathType};
+use rvfs::path::{ParsePathType, vfs_lookup_path};
 use rvfs::stat::{
-    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
-    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
-    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
+    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
+    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
+    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
 };
 use rvfs::superblock::StatFs;
 
+pub use control::*;
 pub use stdio::*;
-use syscall_define::io::IoVec;
-use syscall_define::LinuxErrno;
+use syscall_define::io::{FsStat, IoVec};
 use syscall_table::syscall_func;
 
+use crate::fs::file::KFile;
 use crate::fs::vfs::VfsProvider;
 use crate::task::current_task;
 
 mod stdio;
 
 pub mod vfs;
+pub mod file;
+mod control;
 
-const AT_FDCWD: isize = -100isize;
+pub const AT_FDCWD: isize = -100isize;
+
+
+fn vfs_statfs2fsstat(vfs_res: StatFs) -> syscall_define::io::FsStat {
+    FsStat {
+        f_type: vfs_res.fs_type as i64,
+        f_bsize: vfs_res.block_size as i64,
+        f_blocks: vfs_res.total_blocks as u64,
+        f_bfree: vfs_res.free_blocks as u64,
+        f_bavail: 0,
+        f_files: vfs_res.total_inodes as u64,
+        f_ffree: 0,
+        f_fsid: [0, 1],
+        f_namelen: vfs_res.name_len as isize,
+        f_frsize: 0,
+        f_flags: 0,
+        f_spare: [0; 4],
+    }
+}
+
 
 #[syscall_func(40)]
 pub fn sys_mount(
@@ -89,9 +108,10 @@ pub fn sys_umount(dir: *const u8) -> isize {
 
 /// Reference: https://man7.org/linux/man-pages/man2/openat.2.html
 #[syscall_func(56)]
-pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize {
+pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize {
     // we don't support mode yet
-    let file_mode = FileMode::from_bits_truncate(mode as u32);
+    let file_mode = FileMode2::default();
+    let file_mode = FileMode::from(file_mode);
     let flag = OpenFlags::from_bits(flag as u32).unwrap();
     let process = current_task().unwrap();
     let path = process.transfer_str(path as *const u8);
@@ -108,7 +128,8 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize 
     if file.is_err() {
         return -1;
     }
-    let fd = process.add_file(file.unwrap());
+    let fd = process.add_file(KFile::new(file.unwrap()));
+    warn!("openat fd: {:?}",fd);
     if fd.is_err() {
         -1
     } else {
@@ -124,7 +145,14 @@ pub fn sys_close(fd: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let _ = vfs_close_file::<VfsProvider>(file);
+    let _ = vfs_close_file::<VfsProvider>(file.get_file());
+    if file.is_unlink() {
+        let path = file.unlink_path().unwrap();
+        let res = vfs_unlink::<VfsProvider>(&path);
+        if res.is_err() {
+            return -1;
+        }
+    }
     0
 }
 
@@ -138,7 +166,7 @@ pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
     let file = file.unwrap();
     let user_bufs = process.transfer_raw_buffer(buf, len);
     let mut buf = vec![0u8; len];
-    let res = vfs_readdir(file, buf.as_mut_slice());
+    let res = vfs_readdir(file.get_file(), buf.as_mut_slice());
     if res.is_err() {
         return -1;
     }
@@ -172,7 +200,7 @@ pub fn sys_ftruncate(fd: usize, len: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let res = vfs_truncate_by_file(file, len);
+    let res = vfs_truncate_by_file(file.get_file(), len);
     if res.is_err() {
         return -1;
     }
@@ -189,9 +217,9 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let file = file.unwrap();
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
-    let mut offset = file.access_inner().f_pos;
+    let mut offset = file.get_file().access_inner().f_pos;
     buf.iter_mut().for_each(|b| {
-        let r = vfs_read_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
+        let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
         count += r;
         offset += r;
     });
@@ -209,10 +237,10 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let file = file.unwrap();
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
-    let mut offset = file.access_inner().f_pos;
+    let mut offset = file.get_file().access_inner().f_pos;
     buf.iter_mut().for_each(|b| {
         // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
-        let r = vfs_write_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
+        let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
         count += r;
         offset += r;
     });
@@ -231,7 +259,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-    .unwrap();
+        .unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
@@ -291,11 +319,12 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
     }
     let file = file.unwrap();
     let seek = SeekFrom::from((whence, offset as usize));
-    let res = vfs_llseek(file, seek);
+    let res = vfs_llseek(file.get_file(), seek);
+    warn!("sys_lseek: {:?}, res: {:?}", seek, res);
     if res.is_err() {
         return -1;
     }
-    0
+    res.unwrap() as isize
 }
 
 #[syscall_func(80)]
@@ -309,11 +338,15 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     let file = file.unwrap();
     let stat = stat as *mut KStat;
     let stat = process.transfer_raw_ptr(stat);
-    let attr = vfs_getattr_by_file(file);
+    let attr = vfs_getattr_by_file(file.get_file());
     if attr.is_err() {
         return -1;
     }
-    let attr = attr.unwrap();
+    let mut attr = attr.unwrap();
+    attr.st_atime_sec = file.access_inner().atime.tv_sec as u64;
+    attr.st_atime_nsec = file.access_inner().atime.tv_nsec as u64;
+    attr.st_mtime_sec = file.access_inner().mtime.tv_sec as u64;
+    attr.st_mtime_nsec = file.access_inner().mtime.tv_nsec as u64;
     *stat = attr;
     0
 }
@@ -376,17 +409,29 @@ pub fn sys_linkat(
 #[syscall_func(35)]
 pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
     assert_eq!(flag, 0);
-    let process = current_task().unwrap();
-    let path = process.transfer_str(path);
+    let task = current_task().unwrap();
+    let path = task.transfer_str(path);
     let path = user_path_at(fd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
         return -1;
     }
     // TODO we need make sure the file of the path is not being used
     let path = path.unwrap();
-    let res = vfs_unlink::<VfsProvider>(path.as_str());
-    if res.is_err() {
+    // find the file, checkout whether it is being used
+    let file = vfs_open_file::<VfsProvider>(&path, OpenFlags::empty(), FileMode::empty());
+    if file.is_err() {
         return -1;
+    }
+    let is_used = task.file_existed(file.unwrap());
+    warn!("sys_unlinkat: is_used: {}", is_used.is_some());
+    if is_used.is_some() {
+        let file = is_used.unwrap();
+        file.set_unlink(path);
+    } else {
+        let res = vfs_unlink::<VfsProvider>(path.as_str());
+        if res.is_err() {
+            return -1;
+        }
     }
     0
 }
@@ -446,6 +491,7 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
     }
     let flag = flag.unwrap();
     let res = vfs_getattr::<VfsProvider>(path.as_str(), flag);
+    warn!("sys_fstateat: res: {:?}", res);
     if res.is_err() {
         return -1;
     }
@@ -458,37 +504,35 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
 #[syscall_func(44)]
 pub fn sys_fstatfs(fd: isize, buf: *mut u8) -> isize {
     let process = current_task().unwrap();
-    let buf = buf as *mut StatFs;
+    let buf = buf as *mut FsStat;
     let buf = process.transfer_raw_ptr(buf);
     let file = process.get_file(fd as usize);
     if file.is_none() {
         return -1;
     }
     let file = file.unwrap();
-    let res = vfs_statfs_by_file(file);
+    let res = vfs_statfs_by_file(file.get_file());
     if res.is_err() {
         return -1;
     }
     let res = res.unwrap();
-    *buf = res;
+    *buf = vfs_statfs2fsstat(res);
     0
 }
 
 #[syscall_func(43)]
 pub fn sys_statfs(path: *const u8, statfs: *const u8) -> isize {
     let process = current_task().unwrap();
-    let buf = statfs as *mut StatFs;
+    let buf = statfs as *mut FsStat;
     let buf = process.transfer_raw_ptr(buf);
     let path = process.transfer_str(path);
-
-    warn!("statfs path: {}", path);
-
     let res = vfs_statfs::<VfsProvider>(path.as_str());
+    trace!("sys_statfs: res: {:#x?}", res);
     if res.is_err() {
         return -1;
     }
     let res = res.unwrap();
-    *buf = res;
+    *buf = vfs_statfs2fsstat(res);
     0
 }
 
@@ -595,7 +639,7 @@ pub fn sys_fsetxattr(
         return -1;
     }
     let file = file.unwrap();
-    let res = vfs_setxattr_by_file(file, name.as_str(), value[0]);
+    let res = vfs_setxattr_by_file(file.get_file(), name.as_str(), value[0]);
     if res.is_err() {
         return -1;
     }
@@ -640,7 +684,7 @@ pub fn sys_fgetxattr(fd: usize, name: *const u8, value: *const u8, size: usize) 
         return -1;
     }
     let file = file.unwrap();
-    let res = vfs_getxattr_by_file(file, name.as_str(), value[0]);
+    let res = vfs_getxattr_by_file(file.get_file(), name.as_str(), value[0]);
     if res.is_err() {
         return -1;
     }
@@ -682,7 +726,7 @@ pub fn sys_flistxattr(fd: usize, list: *const u8, size: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let res = vfs_listxattr_by_file(file, list[0]);
+    let res = vfs_listxattr_by_file(file.get_file(), list[0]);
     if res.is_err() {
         return -1;
     }
@@ -708,29 +752,13 @@ pub fn sys_lremovexattr(path: *const u8, name: *const u8) -> isize {
     sys_removexattr(path, name)
 }
 
-// TODO! ioctl
-#[syscall_func(29)]
-pub fn sys_ioctl(fd: usize, _cmd: usize, _arg: usize) -> isize {
-    let process = current_task().unwrap();
-    let file = process.get_file(fd);
-    if file.is_none() {
-        return LinuxErrno::EBADF as isize;
-    }
-    let _file = file.unwrap();
-    // let res = vfs_ioctl(file, cmd, arg);
-    // if res.is_err() {
-    //     return -1;
-    // }
-    // res.unwrap() as isize
-    0
-}
 
 #[syscall_func(66)]
 pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
-        return LinuxErrno::EBADF as isize;
+        return -1;
     }
     let file = file.unwrap();
     let mut count = 0;
@@ -745,16 +773,85 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
         let len = iov.len;
         let buf = process.transfer_raw_buffer(base, len);
 
-        let mut offset = file.access_inner().f_pos;
+        let mut offset = file.get_file().access_inner().f_pos;
         buf.iter().for_each(|b| {
             // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
-            let r = vfs_write_file::<VfsProvider>(file.clone(), b, offset as u64).unwrap();
+            let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
             count += r;
             offset += r;
         });
     }
     count as isize
 }
+
+#[syscall_func(65)]
+pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
+    let task = current_task().unwrap();
+    let file = task.get_file(fd);
+    if file.is_none() {
+        return -1;
+    }
+    let file = file.unwrap();
+    let mut count = 0;
+    for i in 0..iovcnt {
+        let ptr = unsafe { (iovec as *mut IoVec).add(i) };
+        let iov = task.transfer_raw_ptr(ptr);
+        let base = iov.base;
+        if base as usize == 0 || iov.len == 0 {
+            continue;
+        }
+        let len = iov.len;
+        let mut buf = task.transfer_raw_buffer(base, len);
+
+        let mut offset = file.get_file().access_inner().f_pos;
+        buf.iter_mut().for_each(|b| {
+            warn!("read file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
+            let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+            count += r;
+            offset += r;
+        });
+    }
+    count as isize
+}
+
+#[syscall_func(67)]
+pub fn sys_pread(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
+    let task = current_task().unwrap();
+    let file = task.get_file(fd);
+    if file.is_none() {
+        return -1;
+    }
+    let file = file.unwrap();
+    let mut buf = task.transfer_raw_buffer(buf as *mut u8, count);
+    let mut offset = offset;
+    let mut count = 0;
+    buf.iter_mut().for_each(|b| {
+        let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+        count += r;
+        offset += r;
+    });
+    count as isize
+}
+
+#[syscall_func(68)]
+pub fn sys_pwrite(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
+    let task = current_task().unwrap();
+    let file = task.get_file(fd);
+    if file.is_none() {
+        return -1;
+    }
+    let file = file.unwrap();
+    let buf = task.transfer_raw_buffer(buf as *mut u8, count);
+    let mut offset = offset;
+    let mut count = 0;
+    buf.iter().for_each(|b| {
+        let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+        count += r;
+        offset += r;
+    });
+    count as isize
+}
+
 
 #[syscall_func(16)]
 pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {
@@ -765,7 +862,7 @@ pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let res = vfs_removexattr_by_file(file, name.as_str());
+    let res = vfs_removexattr_by_file(file.get_file(), name.as_str());
     if res.is_err() {
         return -1;
     }

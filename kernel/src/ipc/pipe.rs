@@ -1,22 +1,28 @@
-use crate::task::do_suspend;
 use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use core::intrinsics::forget;
+
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileMode, FileOps, OpenFlags};
 use rvfs::inode::SpecialData;
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 
+use crate::fs::file::KFile;
+use crate::task::do_suspend;
+
 const PIPE_BUF: usize = 512;
+
 pub struct Pipe;
 
 pub struct RingBuffer {
     pub buf: [u8; PIPE_BUF],
     pub head: usize,
     pub tail: usize,
-    pub read_wait: Option<Weak<File>>, // record whether there is a process waiting for reading
-    pub write_wait: Option<Weak<File>>, // record whether there is a process waiting for writing
+    pub read_wait: Option<Weak<KFile>>,
+    // record whether there is a process waiting for reading
+    pub write_wait: Option<Weak<KFile>>,
+    // record whether there is a process waiting for writing
     pub ref_count: usize,
 }
 
@@ -85,7 +91,7 @@ impl RingBuffer {
 }
 
 impl Pipe {
-    pub fn new() -> (Arc<File>, Arc<File>) {
+    pub fn new() -> (Arc<KFile>, Arc<KFile>) {
         let mut buf = Box::new(RingBuffer::new());
         let mut tx_file = File::new(
             Arc::new(DirEntry::empty()),
@@ -114,6 +120,7 @@ impl Pipe {
             ops
         };
         let (rx_file, tx_file) = (Arc::new(rx_file), Arc::new(tx_file));
+        let (rx_file, tx_file) = (KFile::new(rx_file), KFile::new(tx_file));
         buf.read_wait = Some(Arc::downgrade(&rx_file));
         buf.write_wait = Some(Arc::downgrade(&tx_file));
         let ptr = Box::into_raw(buf) as *const u8;
@@ -160,10 +167,8 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             // let min = core::cmp::min(available, user_buf.len());
             let min = core::cmp::min(available, user_buf.len() - count);
             count += buf.write(&user_buf[count..count + min]);
-            if count == user_buf.len() {
-                forget(buf);
-                break;
-            }
+            forget(buf);
+            break;
         }
         forget(buf); // we can't drop the buf here, because the inode still holds the pointer
     }
@@ -198,10 +203,8 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
         } else {
             let min = core::cmp::min(available, user_buf.len() - count);
             count += buf.read(&mut user_buf[count..count + min]);
-            if count == user_buf.len() {
-                forget(buf);
-                break;
-            }
+            forget(buf);
+            break;
         }
         forget(buf); // we can't drop the buf here, because the inode still holds the pointer
     }

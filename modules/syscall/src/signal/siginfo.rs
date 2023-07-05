@@ -21,3 +21,23 @@ impl Default for SigInfo {
         }
     }
 }
+
+
+pub enum SigProcMaskHow {
+    SigBlock = 0,
+    SigUnblock = 1,
+    SigSetMask = 2,
+    Unknown,
+}
+
+
+impl From<usize> for SigProcMaskHow {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => SigProcMaskHow::SigBlock,
+            1 => SigProcMaskHow::SigUnblock,
+            2 => SigProcMaskHow::SigSetMask,
+            _ => SigProcMaskHow::Unknown,
+        }
+    }
+}

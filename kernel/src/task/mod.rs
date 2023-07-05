@@ -28,7 +28,7 @@ lazy_static! {
 
 /// put init process into process pool
 pub fn init_process() {
-    let mut task_pool = PROCESS_MANAGER.lock();
+    let mut task_pool = TASK_MANAGER.lock();
     let task = INIT_PROCESS.clone();
     let dir = TMP_DIR.lock().clone();
     let mnt = TMP_MNT.lock().clone();
