@@ -3,9 +3,11 @@
 //! 且如果单纯作为线程的一部分，容易因为信号发送的任意性导致死锁，因此单独列出来。
 //!
 //! 目前的模型中，不采用 ipi 实时发送信号，而是由被目标线程在 trap 时处理。因此需要开启**时钟中断**来保证信号能实际送到
-pub use action::{SigAction, SigActionDefault, SigActionFlags, SIG_DFL, SIG_IGN};
-pub use number::SignalNo;
-pub use siginfo::SigInfo;
+use alloc::collections::btree_set::Union;
+
+pub use action::{SIG_DFL, SIG_IGN, SigAction, SigActionDefault, SigActionFlags};
+pub use number::SignalNumber;
+pub use siginfo::{SigInfo, SigProcMaskHow};
 pub use ucontext::SignalUserContext;
 
 mod action;
@@ -124,11 +126,50 @@ impl SimpleBitSet {
         }
     }
 
+    pub fn bits(&self) -> usize {
+        self.0
+    }
+
     pub fn remove_bit(&mut self, pos: usize) {
         self.0 &= !(1 << pos);
     }
 
     pub fn add_bit(&mut self, pos: usize) {
         self.0 |= 1 << pos;
+    }
+}
+
+
+impl From<usize> for SimpleBitSet {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl core::ops::Sub for SimpleBitSet {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 & !rhs.0)
+    }
+}
+
+impl core::ops::SubAssign for SimpleBitSet {
+    fn sub_assign(&mut self, rhs: Self) {
+        self.0 &= !rhs.0;
+    }
+}
+
+impl core::ops::Add for SimpleBitSet {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::AddAssign for SimpleBitSet {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
     }
 }

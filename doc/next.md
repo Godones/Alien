@@ -13,7 +13,6 @@
 ### 动态链接(3days)
 
 - [ ] elf文件的处理
-  - 
 - [ ] 软链接处理 ---> use dbfs
 
 ### 系统调用(one week)
@@ -23,3 +22,9 @@
 `ioctl`: https://zhuanlan.zhihu.com/p/478259733
 
 `writev`: https://man7.org/linux/man-pages/man2/writev.2.html 
+
+`piep`：https://blog.csdn.net/oguro/article/details/53841949
+
+`fcntl`：https://man7.org/linux/man-pages/man2/fcntl64.2.html
+
+`futex`:https://man7.org/linux/man-pages/man2/futex.2.html   http://linuxperf.com/?p=23

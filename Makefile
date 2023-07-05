@@ -12,10 +12,10 @@ BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
-IMG := tools/fs1.img
+#IMG := tools/fs1.img
 SMP ?= 4
 GUI ?=n
-IMG1 := tools/fs1.img
+#IMG1 := tools/fs1.img
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
 
@@ -85,7 +85,13 @@ testelf:
 	@sudo mkdir /fat/ostest
 	@sudo cp test/* /fat/ostest -r
 	@sudo mkdir /fat/final
-	@sudo cp sdcard/* /fat/final -r
+	@sudo mkdir /fat/libc
+	if [ -d "sdcard" ]; then \
+		sudo cp sdcard/* /fat/final -r; \
+	fi
+	if [ -d "tools/siglibc" ]; then \
+		sudo cp tools/siglibc/build/* /fat/libc -r; \
+	fi
 	@sync
 
 dtb:

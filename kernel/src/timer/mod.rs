@@ -10,8 +10,8 @@ use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
+use crate::task::{current_task, StatisticalData, Task, TASK_MANAGER, TaskState};
 use crate::task::schedule::schedule;
-use crate::task::{current_task, StatisticalData, Task, TaskState, PROCESS_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
@@ -76,10 +76,10 @@ pub struct TimeSpec {
 }
 
 impl TimeSpec {
-    pub fn new() -> Self {
+    pub fn new(sec: usize, ns: usize) -> Self {
         Self {
-            tv_sec: 0,
-            tv_nsec: 0,
+            tv_sec: sec,
+            tv_nsec: ns,
         }
     }
     pub fn now() -> Self {
@@ -88,6 +88,10 @@ impl TimeSpec {
             tv_sec: time / CLOCK_FREQ,
             tv_nsec: (time % CLOCK_FREQ) * 1000000000 / CLOCK_FREQ,
         }
+    }
+
+    pub fn to_clock(&self) -> usize {
+        self.tv_sec * CLOCK_FREQ + self.tv_nsec * CLOCK_FREQ / 1000000000
     }
 }
 
@@ -124,7 +128,7 @@ pub fn times(tms: *mut u8) -> isize {
     let task = current_task().unwrap().access_inner();
     let statistic_data = task.statistical_data();
     let time = Times::from_process_data(statistic_data);
-    let tms = task.transfer_raw_ptr(tms as *mut Times);
+    let tms = task.transfer_raw_ptr_mut(tms as *mut Times);
     // copy_to_user_buf(tv,&time);
     *tms = time;
     0
@@ -209,7 +213,7 @@ pub fn check_timer_queue() {
     while let Some(timer) = queue.peek() {
         if timer.end_time <= now {
             let timer = queue.pop().unwrap();
-            PROCESS_MANAGER.lock().push_front(timer.process);
+            TASK_MANAGER.lock().push_front(timer.process);
         } else {
             break;
         }
