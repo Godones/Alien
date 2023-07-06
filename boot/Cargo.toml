@@ -14,5 +14,10 @@ basemachine = { path = "../modules/basemachine" }
 
 
 [features]
-default = []
-test = []
+default = ["qemu"]
+vf2 = []
+qemu = []
+
+
+[build-dependencies]
+cfg-if = "1.0.0"

@@ -18,8 +18,8 @@ GUI ?=n
 #IMG1 := tools/fs1.img
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
-
-
+VF2 ?=n
+FEATURES :=
 QEMU_ARGS :=
 
 
@@ -30,6 +30,16 @@ QEMU_ARGS += -device virtio-gpu-device \
 else
 QEMU_ARGS += -nographic
 endif
+
+
+ifeq ($(VF2),y)
+FEATURES += vf2
+else
+FEATURES += qemu
+endif
+
+
+
 
 define boot_qemu
 	qemu-system-riscv64 \
@@ -51,10 +61,10 @@ install:
 all:run
 
 compile:
-	cargo build --release -p boot --target riscv64gc-unknown-none-elf
+	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 	@#call trace_info
-	@cargo build --release -p boot --target riscv64gc-unknown-none-elf
+	@cargo build --release -p boot --target riscv64gc-unknown-none-elf   --features $(FEATURES)
 	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
 
@@ -78,6 +88,16 @@ run:install compile $(img) user testelf
 fake_run:
 	@$(call boot_qemu)
 
+
+
+vf2:install compile
+	@rust-objcopy --strip-all $(OUTPUT)/boot -O binary $(OUTPUT)/testos.bin
+	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
+	@cp $(OUTPUT)/testos.bin ./alien.bin
+	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
+	@rm ./alien.bin
+	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
+
 test:install compile $(img) SecondFile testelf
 	$(call boot_qemu)
 
@@ -98,6 +118,10 @@ dtb:
 	$(call boot_qemu, -machine dumpdtb=riscv.dtb)
 	@dtc -I dtb -O dts -o riscv.dts riscv.dtb
 	@rm riscv.dtb
+
+jh7110:
+	@dtc -I dtb -o dts -o jh7110.dts ./tools/jh7110-visionfive-v2.dtb
+
 
 SecondFile:
 	#创建64MB大小空白文件
