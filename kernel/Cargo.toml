@@ -21,7 +21,7 @@ tinybmp = "0.4.0"
 rtc = { git = "https://github.com/os-module/rtc.git" }
 lru = "0.10.0"
 core2 = { version = "0.4.0", default-features = false, features = ["alloc"] }
-
+cfg-if = "1.0.0"
 ### for memory manage
 #page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
 page-table = { path = "../../os-module/page-table" }
