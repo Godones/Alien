@@ -5,7 +5,11 @@ pub const FLAG: &str = r"
   / ___ \  | | | | |  __/ | | | |
  /_/   \_\ |_| |_|  \___| |_| |_|
 ";
+#[cfg(not(feature = "vf2"))]
 pub const CLOCK_FREQ: usize = 12500000;
+#[cfg(feature = "vf2")]
+pub const CLOCK_FREQ: usize = 4000000;
+
 pub const FRAME_SIZE: usize = 0x1000;
 pub const FRAME_BITS: usize = 12;
 pub const STACK_SIZE: usize = 1024 * 64;

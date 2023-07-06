@@ -804,7 +804,14 @@ impl Task {
         assert_eq!(stack, 0);
         let tid = TidHandle::new()?;
         let mut inner = self.inner.lock();
-        let address_space = build_clone_address_space(&mut inner.address_space.lock());
+        let address_space = if flag.contains(CloneFlags::CLONE_VM) {
+            // to create thread
+            inner.address_space.clone()
+        } else {
+            // to create process
+            let address_space = build_clone_address_space(&mut inner.address_space.lock());
+            Arc::new(Mutex::new(address_space))
+        };
         let k_stack = Stack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE)?;
         let k_stack_top = k_stack.top();
         let pid = if flag.contains(CloneFlags::CLONE_THREAD) {
@@ -818,7 +825,7 @@ impl Task {
             pid,
             inner: Mutex::new(TaskInner {
                 name: inner.name.clone(),
-                address_space: Arc::new(Mutex::new(address_space)),
+                address_space,
                 state: TaskState::Ready,
                 parent: Some(Arc::downgrade(self)),
                 children: Vec::new(),
