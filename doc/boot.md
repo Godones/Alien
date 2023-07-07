@@ -69,7 +69,9 @@ sudo apt-get install uboot-mkimage
 
 
 
+## cv1811h启动os
 
+制作镜像的流程与上面的一致。
 
 ## 参考资料
 
@@ -78,3 +80,5 @@ sudo apt-get install uboot-mkimage
 [[迅为RK3568开发板在u-boot中通过网络启动](https://www.cnblogs.com/liyue3/p/16291533.html)] (https://www.cnblogs.com/liyue3/p/16291533.html)
 
 https://github.com/orgs/rcore-os/discussions/24  
+
+https://www.cnblogs.com/elect-fans/archive/2012/05/03/2481001.html 解决开发板连接后无法输入的问题

@@ -42,3 +42,9 @@ syscall_define = { path = "../modules/syscall", package = "syscall" }
 
 [build-dependencies]
 #syscall-table = {path = "../modules/syscall-table",features = ["std"]}
+
+
+[features]
+default = []
+vf2 = []
+cv1811h = []
