@@ -10,13 +10,16 @@ pub const CLOCK_FREQ: usize = 12500000;
 #[cfg(feature = "vf2")]
 pub const CLOCK_FREQ: usize = 4000000;
 
+#[cfg(feature = "cv1811h")]
+pub const CLOCK_FREQ: usize = 0x17d7840;
+
 pub const FRAME_SIZE: usize = 0x1000;
 pub const FRAME_BITS: usize = 12;
 pub const STACK_SIZE: usize = 1024 * 64;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 1;
+pub const CPU_NUM: usize = 4;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine

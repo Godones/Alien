@@ -16,8 +16,8 @@ basemachine = { path = "../modules/basemachine" }
 [features]
 default = ["qemu"]
 vf2 = []
+cv1811h = []
 qemu = []
 
 
 [build-dependencies]
-cfg-if = "1.0.0"

@@ -90,13 +90,23 @@ fake_run:
 
 
 
-vf2:install compile
+board:install compile
 	@rust-objcopy --strip-all $(OUTPUT)/boot -O binary $(OUTPUT)/testos.bin
 	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
 	@cp $(OUTPUT)/testos.bin ./alien.bin
+
+vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
 	@rm ./alien.bin
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
+
+
+cv1811h:board
+	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
+	@rm ./alien.bin
+	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
+
+
 
 test:install compile $(img) SecondFile testelf
 	$(call boot_qemu)

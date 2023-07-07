@@ -17,7 +17,7 @@ use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
-
+use kernel::trap::set_kernel_trap_entry;
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
@@ -60,11 +60,12 @@ extern "C" fn _start() {
 /// rust_main is the entry of the kernel
 #[no_mangle]
 pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
+    clear_bss();
+    set_kernel_trap_entry();
     unsafe {
         set_spp(SPP::Supervisor);
     }
     if !STARTED.load(Ordering::Relaxed) {
-        clear_bss();
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);

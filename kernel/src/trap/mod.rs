@@ -62,7 +62,7 @@ fn set_user_trap_entry() {
 }
 
 #[inline]
-fn set_kernel_trap_entry() {
+pub fn set_kernel_trap_entry() {
     unsafe {
         sscratch::write(kernel_trap_vector as usize);
         stvec::write(kernel_v as usize, TrapMode::Direct);
