@@ -52,6 +52,11 @@ impl SigAction {
             SIGNAL_RETURN_TRAP
         }
     }
+
+    /// 是否忽略
+    pub fn is_ignore(&self) -> bool {
+        self.handler == SIG_IGN
+    }
 }
 
 bitflags! {

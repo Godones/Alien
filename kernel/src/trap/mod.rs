@@ -5,6 +5,7 @@ use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
 
 pub use context::TrapFrame;
+use syscall_define::signal::SignalNumber;
 
 use crate::arch::{
     external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
@@ -15,8 +16,9 @@ use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
 use crate::arch::riscv::sstatus;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
+use crate::ipc::{send_signal, signal_handler};
 use crate::memory::KERNEL_SPACE;
-use crate::task::{current_task, current_user_token, do_exit};
+use crate::task::{current_task, current_user_token};
 use crate::timer::{check_timer_queue, set_next_trigger};
 
 mod context;
@@ -92,10 +94,17 @@ impl TrapHandler for Trap {
                 exception::syscall_exception_handler();
             }
             Trap::Exception(Exception::StoreFault)
-            | Trap::Exception(Exception::StorePageFault)
-            | Trap::Exception(Exception::InstructionFault)
-            | Trap::Exception(Exception::InstructionPageFault)
             | Trap::Exception(Exception::LoadFault)
+            | Trap::Exception(Exception::InstructionFault)
+            | Trap::Exception(Exception::IllegalInstruction) => {
+                error!(
+                    "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                    self, stval, sepc
+                );
+                let task = current_task().unwrap();
+                send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
+            }
+            Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
                 let res = exception::page_exception_handler(self.clone(), stval);
                 if res.is_err() {
@@ -103,21 +112,21 @@ impl TrapHandler for Trap {
                         "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
                         self, stval, sepc
                     );
-                    do_exit(-1);
+                    let task = current_task().unwrap();
+                    send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
                 }
+            }
+            Trap::Exception(Exception::InstructionPageFault) => {
+                // todo!("instruction page fault");
+                error!(
+                    "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                    self, stval, sepc
+                );
+                let task = current_task().unwrap();
+                send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 interrupt::timer_interrupt_handler();
-            }
-            Trap::Exception(Exception::IllegalInstruction) => {
-                let res = exception::illegal_instruction_exception_handler();
-                if res.is_err() {
-                    error!(
-                        "[kernel] IllegalInstruction {:#x?} in application, kernel killed it.",
-                        stval
-                    );
-                    do_exit(-3);
-                }
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
                 interrupt::external_interrupt_handler();
@@ -196,6 +205,8 @@ pub fn user_trap_vector() {
         let process = current_task().unwrap();
         process.access_inner().update_kernel_mode_time();
     }
+
+    signal_handler();
     trap_return();
 }
 
