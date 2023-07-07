@@ -1,5 +1,8 @@
 use core::arch::asm;
 
+use syscall_define::signal::SignalNumber;
+
+use crate::ipc::{global_logoff_signals, send_signal};
 use crate::task::context::switch;
 use crate::task::cpu::{current_cpu, TASK_MANAGER};
 use crate::task::task::TaskState;
@@ -18,6 +21,13 @@ pub fn first_into_user() -> ! {
                     }
                     TaskState::Zombie => {
                         task.update_state(TaskState::Terminated);
+                        // 退出时向父进程发送信号，其中选项可被 sys_clone 控制
+                        if task.send_sigchld_when_exit || task.pid == task.tid.0 {
+                            let parent = task.access_inner().parent.clone().unwrap().upgrade().unwrap();
+                            send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
+                        }
+                        // 通知全局表将 signals 删除
+                        global_logoff_signals(task.tid.0);
                     }
                     _ => {
                         task_manager.push_back(task);
