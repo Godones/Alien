@@ -18,6 +18,7 @@ pub fn register_all_syscall(){
 	(24, sys_dup2),
 	(98, sys_futex),
 	(135, sys_sigprocmask),
+	(999, signal_return),
 	(93, do_exit),
 	(94, exit_group),
 	(124, do_suspend),
@@ -131,6 +132,7 @@ use crate::fs::sys_write;
 use crate::fs::sys_writev;
 use crate::gui::sys_framebuffer;
 use crate::gui::sys_framebuffer_flush;
+use crate::ipc::signal_return;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
 use crate::ipc::sys_futex;

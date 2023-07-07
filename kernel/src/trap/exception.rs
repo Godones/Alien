@@ -101,8 +101,3 @@ pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     }
     Ok(())
 }
-
-/// the solution for illegal instruction
-pub fn illegal_instruction_exception_handler() -> AlienResult<()> {
-    Err(AlienError::Other)
-}
