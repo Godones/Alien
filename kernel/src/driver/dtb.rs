@@ -67,11 +67,12 @@ fn walk_dt(fdt: &Fdt) {
             rtc_probe(node);
         }
 
-        #[cfg(not(feature = "vf2"))]
+        #[cfg(not(any(feature = "Vf2", feature = "cv1811h")))]
         if node.name.starts_with("uart") {
             println!("probe uart device");
             uart_probe(node)
         }
+
 
         #[cfg(feature = "Vf2")]
         if node.name.starts_with("uart") {

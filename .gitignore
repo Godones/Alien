@@ -31,5 +31,4 @@ oscomp-debian
 #sdcard
 tools/siglibc
 tools/testsuits-for-oskernel
-jh7110.dts
 alien*
