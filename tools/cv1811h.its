@@ -1,27 +1,27 @@
 /*
- * U-Boot uImage source file for "Alien-vf2"
+ * U-Boot uImage source file for "Alien-cv1811h"
  */
 
 /dts-v1/;
 
 / {
-    description = "U-Boot uImage source file for Alien vf2";
+    description = "U-Boot uImage source file for Alien cv1811h";
     #address-cells = <1>;
 
     images {
         kernel {
-            description = "Linux kernel for Alien-vf2";
+            description = "Linux kernel for Alien-cv1811h";
             data = /incbin/("../alien.bin");
             type = "kernel";
             arch = "riscv";
             os = "linux";
             compression = "none";
-            load = <0x40200000>;
-            entry = <0x40200000>;
+            load = <0x80200000>;
+            entry = <0x80200000>;
         };
         fdt {
-            description = "Flattened Device Tree blob for Alien-vf2";
-            data = /incbin/("./jh7110-visionfive-v2.dtb");
+            description = "Flattened Device Tree blob for Alien-cv1811h";
+            data = /incbin/("./cv1811h.dtb");
             type = "flat_dt";
             arch = "riscv";
             compression = "none";
