@@ -120,22 +120,29 @@ pub fn current_trap_frame() -> &'static mut TrapFrame {
 
 #[syscall_func(93)]
 pub fn do_exit(exit_code: i32) -> isize {
-    let c_process = current_task().unwrap();
+    let task = current_task().unwrap();
     let exit_code = (exit_code & 0xff) << 8;
-    if c_process.get_pid() == 0 {
+    if task.get_pid() == 0 {
         println!("init process exit with code {}", exit_code);
         shutdown();
     }
     {
         let init = INIT_PROCESS.clone();
-        c_process.children().iter().for_each(|child| {
+        task.children().iter().for_each(|child| {
             child.update_parent(init.clone());
             init.insert_child(child.clone());
         });
     }
-    c_process.update_state(TaskState::Zombie);
-    c_process.update_exit_code(exit_code);
-    c_process.recycle();
+    task.update_state(TaskState::Zombie);
+    task.update_exit_code(exit_code);
+    // clear_child_tid 的值不为 0，则将这个用户地址处的值写为0
+    let addr = task.access_inner().clear_child_tid;
+    if addr != 0 {
+        // 确认这个地址在用户地址空间中。如果没有也不需要报错，因为线程马上就退出了
+        let addr = task.transfer_raw_ptr(addr as *mut i32);
+        *addr = 0;
+    }
+    task.recycle();
     schedule();
     0
 }

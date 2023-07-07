@@ -20,7 +20,7 @@ use syscall_define::aux::{
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
 };
 use syscall_define::io::MapFlags;
-use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers};
+use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
 use syscall_define::task::CloneFlags;
 
 use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
@@ -28,10 +28,8 @@ use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::{STDIN, STDOUT};
 use crate::fs::file::KFile;
-use crate::memory::{
-    build_clone_address_space, build_elf_address_space, FRAME_REF_MANAGER, kernel_satp,
-    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack,
-};
+use crate::ipc::global_register_signals;
+use crate::memory::{build_cow_address_space, build_elf_address_space, build_thread_address_space, FRAME_REF_MANAGER, kernel_satp, MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack};
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
@@ -46,7 +44,7 @@ lazy_static! {
     pub static ref TID_MANAGER:Mutex<MinimalManager<u8>> = Mutex::new(MinimalManager::new(MAX_THREAD_NUM));
 }
 #[derive(Debug)]
-pub struct TidHandle(usize);
+pub struct TidHandle(pub usize);
 
 impl TidHandle {
     pub fn new() -> Option<Self> {
@@ -79,11 +77,12 @@ pub struct Task {
 #[derive(Debug)]
 pub struct TaskInner {
     pub name: String,
+    pub threads: MinimalManager<()>,
     pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
     pub state: TaskState,
     pub parent: Option<Weak<Task>>,
     pub children: Vec<Arc<Task>>,
-    pub fd_table: FdManager,
+    pub fd_table: Arc<Mutex<FdManager>>,
     pub context: Context,
     pub fs_info: FsContext,
     pub statistical_data: StatisticalData,
@@ -106,7 +105,7 @@ pub struct TaskInner {
     /// 如果设置了，说明信号触发前的上下文信息通过 ucontext 传递给了用户，
     /// 此时用户可能修改其中的 pc 信息(如musl-libc 的 pthread_cancel 函数)。
     /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
-    signal_set_siginfo: bool,
+    pub signal_set_siginfo: bool,
 }
 
 /// statistics of a process
@@ -238,13 +237,7 @@ impl Task {
     }
 
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
-        let inner = self.inner.lock();
-        let (physical, _, _) = inner
-            .address_space
-            .lock()
-            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
-            .unwrap();
-        TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
+        self.inner.lock().trap_frame()
     }
 
     pub fn update_state(&self, state: TaskState) {
@@ -298,7 +291,8 @@ impl Task {
 
     pub fn file_existed(&self, file: Arc<File>) -> Option<Arc<KFile>> {
         let inner = self.inner.lock();
-        let fds = inner.fd_table.data();
+        let fd_table = inner.fd_table.lock();
+        let fds = fd_table.data();
         fds.iter().find_map(|f| {
             if f.is_some() {
                 let f = f.as_ref().unwrap();
@@ -314,20 +308,21 @@ impl Task {
     }
     pub fn get_file(&self, fd: usize) -> Option<Arc<KFile>> {
         let inner = self.inner.lock();
-        let file = inner.fd_table.get(fd);
+        let file = inner.fd_table.lock().get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
     pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, ()> {
-        self.access_inner().fd_table.insert(file).map_err(|_| {})
+        self.access_inner().fd_table.lock().insert(file).map_err(|_| {})
     }
     pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
-        let mut inner = self.access_inner();
-        inner.fd_table.insert_with_index(fd, file).map_err(|_| {})
+        let inner = self.access_inner();
+        let mut fd_table = inner.fd_table.lock();
+        fd_table.insert_with_index(fd, file).map_err(|_| {})
     }
 
     pub fn remove_file(&self, fd: usize) -> Result<Arc<KFile>, ()> {
-        let mut inner = self.inner.lock();
-        let file = inner.fd_table.get(fd);
+        let inner = self.inner.lock();
+        let file = inner.fd_table.lock().get(fd);
         if file.is_err() {
             return Err(());
         }
@@ -336,7 +331,7 @@ impl Task {
             return Err(());
         }
         let file = file.unwrap();
-        inner.fd_table.remove(fd).map_err(|_| {})?;
+        inner.fd_table.lock().remove(fd).map_err(|_| {})?;
         Ok(file)
     }
 
@@ -370,7 +365,7 @@ impl TaskInner {
                 PrLimit::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64)
             }
             PrLimitRes::RlimitNofile => {
-                let max_fd = self.fd_table.max();
+                let max_fd = self.fd_table.lock().max();
                 PrLimit::new(max_fd as u64, max_fd as u64)
             }
             PrLimitRes::RlimitAs => {
@@ -384,12 +379,45 @@ impl TaskInner {
             PrLimitRes::RlimitStack => {}
             PrLimitRes::RlimitNofile => {
                 let new_max_fd = value.rlim_cur;
-                self.fd_table.set_max(new_max_fd as usize);
+                self.fd_table.lock().set_max(new_max_fd as usize);
             }
             PrLimitRes::RlimitAs => {}
         }
     }
 
+    pub fn trap_frame(&self) -> &'static mut TrapFrame {
+        let (physical, _, _) = self
+            .address_space
+            .lock()
+            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
+            .unwrap();
+        TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
+    }
+
+    pub fn save_trap_frame(&mut self) {
+        let trap_frame = self.trap_frame();
+        self.trap_cx_before_signal = Some(*trap_frame);
+    }
+
+    pub fn load_trap_frame(&mut self) -> isize {
+        if let Some(old_trap_frame) = self.trap_cx_before_signal {
+            let trap_frame = self.trap_frame();
+            // 这里假定是 sigreturn 触发的，即用户的信号处理函数 return 了(cancel_handler)
+            // 也就是说信号触发时的 sp 就是现在的 sp
+            let sp = trap_frame.regs()[2];
+            // 获取可能被修改的 pc
+            let pc = unsafe { (*(sp as *const SignalUserContext)).get_pc() };
+            *trap_frame = old_trap_frame;
+            if self.signal_set_siginfo {
+                // 更新用户修改的 pc
+                (*trap_frame).set_sepc(pc);
+                info!("sig return sp = {:x} pc = {:x}", sp, pc);
+            }
+            trap_frame.regs()[10] as isize // old arg0
+        } else {
+            -1
+        }
+    }
     pub fn transfer_raw(&self, ptr: usize) -> usize {
         let (phy, ..) = self
             .address_space
@@ -554,7 +582,7 @@ impl TaskInner {
         let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
             None
         } else {
-            let file = self.fd_table.get(fd).map_err(|_| -1isize)?;
+            let file = self.fd_table.lock().get(fd).map_err(|_| -1isize)?;
             if file.is_none() {
                 return Err(-1);
             }
@@ -749,6 +777,7 @@ impl Task {
             pid,
             inner: Mutex::new(TaskInner {
                 name: name.to_string(),
+                threads: MinimalManager::new(MAX_THREAD_NUM),
                 address_space: Arc::new(Mutex::new(address_space)),
                 state: TaskState::Ready,
                 parent: None,
@@ -758,7 +787,7 @@ impl Task {
                     fd_table.insert(KFile::new(STDIN.clone())).unwrap();
                     fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
                     fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
-                    fd_table
+                    Arc::new(Mutex::new(fd_table))
                 },
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: FsContext::empty(),
@@ -795,13 +824,14 @@ impl Task {
         self: &Arc<Self>,
         flag: CloneFlags,
         stack: usize,
-        _sig: SignalNumber,
-        _ptid: usize,
-        _tls: usize,
-        _ctid: usize,
+        sig: SignalNumber,
+        ptid: usize,
+        tls: usize,
+        ctid: usize,
     ) -> Option<Arc<Task>> {
         assert_eq!(flag, CloneFlags::empty());
         assert_eq!(stack, 0);
+        warn!("clone: flag:{:?}, sig:{:?}, stack:{}, ptid:{}, tls:{}, ctid:{}", flag,sig,stack, ptid, tls, ctid);
         let tid = TidHandle::new()?;
         let mut inner = self.inner.lock();
         let address_space = if flag.contains(CloneFlags::CLONE_VM) {
@@ -809,9 +839,28 @@ impl Task {
             inner.address_space.clone()
         } else {
             // to create process
-            let address_space = build_clone_address_space(&mut inner.address_space.lock());
+            let address_space = build_cow_address_space(&mut inner.address_space.lock());
             Arc::new(Mutex::new(address_space))
         };
+
+        let fd_table = if flag.contains(CloneFlags::CLONE_FILES) {
+            inner.fd_table.clone()
+        } else {
+            Arc::new(Mutex::new(inner.fd_table.lock().clone()))
+        };
+
+        let signal_handlers = if flag.contains(CloneFlags::CLONE_SIGHAND) {
+            inner.signal_handlers.clone()
+        } else {
+            Arc::new(Mutex::new(inner.signal_handlers.lock().clone()))
+        };
+
+        let parent = if flag.contains(CloneFlags::CLONE_PARENT) {
+            inner.parent.clone()
+        } else {
+            Some(Arc::downgrade(self))
+        };
+
         let k_stack = Stack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE)?;
         let k_stack_top = k_stack.top();
         let pid = if flag.contains(CloneFlags::CLONE_THREAD) {
@@ -819,43 +868,104 @@ impl Task {
         } else {
             tid.0
         };
-        let process = Task {
+
+        let signal_receivers = Arc::new(Mutex::new(SignalReceivers::new()));
+
+        // 注册线程-信号对应关系
+        global_register_signals(tid.0, signal_receivers.clone());
+
+        // map the thread trap_context if clone_vm
+        let trap_context = if flag.contains(CloneFlags::CLONE_VM) {
+            let thread_num = inner.threads.insert(()).unwrap() + 1;
+            // calculate the address for thread context
+            build_thread_address_space(&mut address_space.lock(), thread_num)
+        } else {
+            let (physical, _, _) =
+                address_space
+                    .lock()
+                    .query(VirtAddr::from(TRAP_CONTEXT_BASE))
+                    .unwrap();
+            let trap_frame = TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame);
+            trap_frame
+        };
+        // 设置内核栈地址
+        trap_context.update_kernel_sp(k_stack_top);
+
+
+        // 检查是否需要设置 tls
+        if flag.contains(CloneFlags::CLONE_SETTLS) {
+            trap_context.update_tp(tls);
+        }
+        // 检查是否在父任务地址中写入 tid
+        if flag.contains(CloneFlags::CLONE_PARENT_SETTID) {
+            // 有可能这个地址是 lazy alloc 的，需要先检查
+            let res = inner.address_space.lock()
+                .query(VirtAddr::from(ptid));
+            if res.is_ok() {
+                let (physical, _, _) = res.unwrap();
+                unsafe {
+                    *(physical.as_usize() as *mut i32) = tid.0 as i32;
+                }
+            } else {
+                panic!("clone: ptid is not mapped")
+            }
+        }
+
+        let ctid_value = if flag.contains(CloneFlags::CLONE_CHILD_SETTID) {
+            tid.0
+        } else {
+            0
+        };
+
+        if flag.contains(CloneFlags::CLONE_CHILD_SETTID) || flag.contains(CloneFlags::CLONE_CHILD_CLEARTID) {
+            // TODO!(may be not map when cow fork)
+            let (phy, ..) = address_space
+                .lock()
+                .query(VirtAddr::from(ctid))
+                .unwrap();
+            unsafe {
+                *(phy.as_usize() as *mut i32) = ctid_value as i32;
+            }
+        }
+        if stack != 0 {
+            assert!(flag.contains(CloneFlags::CLONE_VM));
+            // set the sp of the new process
+            trap_context.regs()[2] = stack;
+        }
+
+        warn!("create task pid:{}, tid:{}",pid,tid.0);
+        let task = Task {
             tid,
             kernel_stack: k_stack,
             pid,
             inner: Mutex::new(TaskInner {
                 name: inner.name.clone(),
+                threads: MinimalManager::new(MAX_THREAD_NUM),
                 address_space,
                 state: TaskState::Ready,
-                parent: Some(Arc::downgrade(self)),
+                parent,
                 children: Vec::new(),
-                fd_table: inner.fd_table.clone(),
+                fd_table,
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: inner.fs_info.clone(),
                 statistical_data: StatisticalData::new(),
                 exit_code: 0,
                 heap: inner.heap.clone(),
                 mmap: inner.mmap.clone(),
-                signal_handlers: inner.signal_handlers.clone(),
-                signal_receivers: inner.signal_receivers.clone(),
-                set_child_tid: 0,
-                clear_child_tid: 0,
+                signal_handlers,
+                signal_receivers,
+                set_child_tid: if flag.contains(CloneFlags::CLONE_CHILD_SETTID) { ctid } else { 0 },
+                clear_child_tid: if flag.contains(CloneFlags::CLONE_CHILD_CLEARTID) { ctid } else { 0 },
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
             }),
-            send_sigchld_when_exit: false,
+            send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
-        let process = Arc::new(process);
-        inner.children.push(process.clone());
-        let trap_frame = process.trap_frame();
-        trap_frame.update_kernel_sp(k_stack_top);
-
-        if stack != 0 {
-            // set the sp of the new process
-            trap_frame.regs()[2] = stack;
+        let task = Arc::new(task);
+        if !flag.contains(CloneFlags::CLONE_PARENT) {
+            inner.children.push(task.clone());
         }
-
-        Some(process)
+        Some(task)
     }
 
     #[no_mangle]

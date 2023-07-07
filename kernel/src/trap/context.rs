@@ -1,7 +1,7 @@
-use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
+use crate::arch::riscv::sstatus::{self, SPP, Sstatus};
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct TrapFrame {
     x: [usize; 32],
     /// sepc 记录陷入地址
@@ -41,6 +41,13 @@ impl TrapFrame {
         self.k_sp = val;
     }
 
+    pub fn sepc(&self) -> usize {
+        self.sepc
+    }
+
+    pub fn set_sepc(&mut self, val: usize) {
+        self.sepc = val;
+    }
     pub fn from_app_info(
         entry: usize,
         sp: usize,
@@ -64,6 +71,10 @@ impl TrapFrame {
     }
     pub fn update_res(&mut self, val: usize) {
         self.x[10] = val;
+    }
+
+    pub fn update_tp(&mut self, val: usize) {
+        self.x[4] = val;
     }
     pub fn parameters(&self) -> [usize; 7] {
         [
