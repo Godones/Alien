@@ -6,8 +6,6 @@ pub struct IoVec {
     pub len: usize,
 }
 
-
-
 numeric_enum_macro::numeric_enum! {
     #[repr(usize)]
     #[allow(non_camel_case_types)]
@@ -29,8 +27,6 @@ numeric_enum_macro::numeric_enum! {
         Unknown = 0xffff,
     }
 }
-
-
 
 bitflags! {
     pub struct MapFlags: u32 {

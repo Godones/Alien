@@ -18,12 +18,14 @@ pub fn syscall_exception_handler() {
     let syscall_name = syscall_define::syscall_name(parameters[0]);
 
     let p_name = current_task().unwrap().get_name();
+    let tid = current_task().unwrap().get_tid();
     let pid = current_task().unwrap().get_pid();
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         // ignore shell and init
         warn!(
-            "[pid: {}][p_name: {}] syscall: [{}] {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
+            "[pid:{}, tid: {}][p_name: {}] syscall: [{}] {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
             pid,
+            tid,
             p_name,
             parameters[0],
             syscall_name,
@@ -40,7 +42,6 @@ pub fn syscall_exception_handler() {
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         warn!("syscall result: {:?}", result);
     }
-
 
     if result.is_none() {
         error!("The syscall {} is not implemented!", syscall_name);

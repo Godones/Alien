@@ -117,7 +117,6 @@ impl<T: Clone> MinimalManager<T> {
     }
 }
 
-
 #[derive(Debug)]
 pub enum ManagerError {
     NoSpace,

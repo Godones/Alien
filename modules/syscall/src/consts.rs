@@ -257,7 +257,6 @@ pub fn syscall_name(id: usize) -> &'static str {
     }
 }
 
-
 #[derive(Debug, Copy, Clone)]
 pub struct PrLimit {
     /// 软上限
@@ -265,7 +264,6 @@ pub struct PrLimit {
     /// 硬上限
     pub rlim_max: u64,
 }
-
 
 impl PrLimit {
     pub fn new(cur: u64, max: u64) -> Self {
@@ -275,7 +273,6 @@ impl PrLimit {
         }
     }
 }
-
 
 /// 用户栈大小
 // pub const RLIMIT_STACK: i32 = 3;

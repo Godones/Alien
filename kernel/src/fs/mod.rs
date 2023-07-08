@@ -2,16 +2,19 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
-use rvfs::file::{FileMode, FileMode2, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file};
+use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
+use rvfs::file::{
+    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
+    vfs_write_file, FileMode, FileMode2, OpenFlags, SeekFrom,
+};
 use rvfs::inode::InodeMode;
-use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
+use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
 use rvfs::mount::MountFlags;
-use rvfs::path::{ParsePathType, vfs_lookup_path};
+use rvfs::path::{vfs_lookup_path, ParsePathType};
 use rvfs::stat::{
-    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
-    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
-    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
+    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
+    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
+    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
 };
 use rvfs::superblock::StatFs;
 
@@ -26,12 +29,11 @@ use crate::task::current_task;
 
 mod stdio;
 
-pub mod vfs;
-pub mod file;
 mod control;
+pub mod file;
+pub mod vfs;
 
 pub const AT_FDCWD: isize = -100isize;
-
 
 fn vfs_statfs2fsstat(vfs_res: StatFs) -> syscall_define::io::FsStat {
     FsStat {
@@ -49,7 +51,6 @@ fn vfs_statfs2fsstat(vfs_res: StatFs) -> syscall_define::io::FsStat {
         f_spare: [0; 4],
     }
 }
-
 
 #[syscall_func(40)]
 pub fn sys_mount(
@@ -129,7 +130,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
         return -1;
     }
     let fd = process.add_file(KFile::new(file.unwrap()));
-    warn!("openat fd: {:?}",fd);
+    warn!("openat fd: {:?}", fd);
     if fd.is_err() {
         -1
     } else {
@@ -259,7 +260,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-        .unwrap();
+    .unwrap();
 
     let mut buf = process.transfer_raw_buffer(buf, len);
     let mut count = 0;
@@ -752,7 +753,6 @@ pub fn sys_lremovexattr(path: *const u8, name: *const u8) -> isize {
     sys_removexattr(path, name)
 }
 
-
 #[syscall_func(66)]
 pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     let process = current_task().unwrap();
@@ -805,7 +805,12 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
 
         let mut offset = file.get_file().access_inner().f_pos;
         buf.iter_mut().for_each(|b| {
-            warn!("read file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
+            warn!(
+                "read file: {:?}, offset:{:?}, len:{:?}",
+                fd,
+                offset,
+                b.len()
+            );
             let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
             count += r;
             offset += r;
@@ -851,7 +856,6 @@ pub fn sys_pwrite(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
     });
     count as isize
 }
-
 
 #[syscall_func(16)]
 pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {

@@ -35,15 +35,13 @@ impl KFile {
         let flags = file.access_inner().flags;
         Arc::new(Self {
             file,
-            inner: Mutex::new(
-                KFileInner {
-                    flags,
-                    state: FileState::Valid,
-                    atime: TimeSpec::now(),
-                    mtime: TimeSpec::now(),
-                    ctime: TimeSpec::now(),
-                }
-            ),
+            inner: Mutex::new(KFileInner {
+                flags,
+                state: FileState::Valid,
+                atime: TimeSpec::now(),
+                mtime: TimeSpec::now(),
+                ctime: TimeSpec::now(),
+            }),
         })
     }
     pub fn access_inner(&self) -> MutexGuard<KFileInner> {
@@ -73,7 +71,6 @@ impl KFile {
         }
     }
 }
-
 
 impl Debug for KFile {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
