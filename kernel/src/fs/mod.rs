@@ -3,7 +3,7 @@ use alloc::vec;
 use core::cmp::min;
 
 use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_truncate, vfs_truncate_by_file};
-use rvfs::file::{
+use rvfs::file::{ 
     FileMode, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek, vfs_mkdir,
     vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file,
 };
@@ -24,9 +24,48 @@ use syscall_table::syscall_func;
 use crate::fs::vfs::VfsProvider;
 use crate::task::current_task;
 
+use rvfs::file::File;
+use alloc::sync::Arc;
+use crate::net::socket::Socket;
+
 mod stdio;
 
 pub mod vfs;
+
+/// file + socket
+#[derive(Debug)]
+pub enum FileLike {
+    NormalFile(Arc<File>),
+    Socket(Arc<Socket>),
+}
+
+pub enum FileType {
+    NormalFile,
+    Socket,
+}
+
+impl FileLike {
+    pub fn get_type(&self) -> FileType {
+        match self {
+            FileLike::NormalFile(_) => FileType::NormalFile,
+            FileLike::Socket(_) => FileType::Socket,
+        }
+    }
+
+    pub fn get_nf(&self) -> Option<Arc<File>> {
+        match self {
+            FileLike::NormalFile(nf) => Some(nf.clone()),
+            FileLike::Socket(_) => panic!("get a socket file"),
+        }
+    }
+
+    pub fn get_socket(&self) -> Option<Arc<Socket>> {
+        match self {
+            FileLike::NormalFile(_) => panic!("get a normal file when want a socket"),
+            FileLike::Socket(s) => Some(s.clone()),
+        }
+    }
+}
 
 const AT_FDCWD: isize = -100isize;
 
@@ -106,7 +145,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, mode: usize) -> isize 
     if file.is_err() {
         return -1;
     }
-    let fd = process.add_file(file.unwrap());
+    let fd = process.add_file(Arc::new(FileLike::NormalFile(file.unwrap())));
     if fd.is_err() {
         -1
     } else {
