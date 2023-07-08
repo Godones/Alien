@@ -7,6 +7,8 @@ use crate::fs::sys_close;
 use crate::task::current_task;
 
 mod pipe;
+use alloc::sync::Arc;
+use crate::fs::FileLike;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -22,11 +24,11 @@ pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
     let process = current_task().unwrap();
     let fd_pair = process.transfer_raw_ptr(pipe as *mut FdPair);
     let (read, write) = pipe::Pipe::new();
-    let read_fd = process.add_file(read);
+    let read_fd = process.add_file(Arc::new(FileLike::NormalFile(read)));
     if read_fd.is_err() {
         return -1;
     }
-    let write_fd = process.add_file(write);
+    let write_fd = process.add_file(Arc::new(FileLike::NormalFile(write)));
     if write_fd.is_err() {
         return -1;
     }
@@ -44,7 +46,7 @@ pub fn sys_dup(old_fd: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let new_fd = process.add_file(file.clone());
+    let new_fd = process.add_file(Arc::new(FileLike::NormalFile(file.clone())));
     if new_fd.is_err() {
         return -1;
     }
