@@ -23,7 +23,13 @@ pub fn first_into_user() -> ! {
                         task.update_state(TaskState::Terminated);
                         // 退出时向父进程发送信号，其中选项可被 sys_clone 控制
                         if task.send_sigchld_when_exit || task.pid == task.tid.0 {
-                            let parent = task.access_inner().parent.clone().unwrap().upgrade().unwrap();
+                            let parent = task
+                                .access_inner()
+                                .parent
+                                .clone()
+                                .unwrap()
+                                .upgrade()
+                                .unwrap();
                             send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
                         }
                         // 通知全局表将 signals 删除

@@ -1,20 +1,20 @@
 use core::arch::{asm, global_asm};
 
 use page_table::addr::VirtAddr;
-use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
+use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 use syscall_define::signal::SignalNumber;
 
-use crate::arch::{
-    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
-    timer_interrupt_enable,
-};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
 use crate::arch::riscv::sstatus;
+use crate::arch::{
+    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
+    timer_interrupt_enable,
+};
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
 use crate::ipc::{send_signal, signal_handler};
 use crate::memory::KERNEL_SPACE;
@@ -88,7 +88,7 @@ impl TrapHandler for Trap {
     fn do_user_handle(&self) {
         let stval = stval::read();
         let sepc = sepc::read();
-        trace!("trap :{:?}",self);
+        trace!("trap :{:?}", self);
         match self {
             Trap::Exception(Exception::UserEnvCall) => {
                 exception::syscall_exception_handler();

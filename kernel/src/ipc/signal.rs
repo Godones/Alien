@@ -1,13 +1,18 @@
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::mem::size_of;
 
 use kernel_sync::Mutex;
+use syscall_define::signal::{
+    SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
+    SignalReceivers, SignalUserContext, SimpleBitSet,
+};
 use syscall_define::LinuxErrno;
-use syscall_define::signal::{SigActionDefault, SigActionFlags, SigInfo, SignalNumber, SignalReceivers, SignalUserContext, SigProcMaskHow, SimpleBitSet};
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, do_exit};
+use crate::timer::{sys_nanosleep, TimeSpec};
 
 /// 从 tid 获取信号相关信息
 static TID2SIGNALS: Mutex<BTreeMap<usize, Arc<Mutex<SignalReceivers>>>> =
@@ -28,7 +33,6 @@ pub fn get_signals_from_tid(tid: usize) -> Option<Arc<Mutex<SignalReceivers>>> {
     TID2SIGNALS.lock().get(&tid).map(|s| s.clone())
 }
 
-
 /// 发送一个信号给进程 tid
 pub fn send_signal(tid: usize, signum: usize) {
     if let Some(signals) = get_signals_from_tid(tid) {
@@ -38,9 +42,80 @@ pub fn send_signal(tid: usize, signum: usize) {
     }
 }
 
+#[syscall_func(134)]
+pub fn sigaction(sig: usize, action: usize, old_action: usize) -> isize {
+    let action = action as *const SigAction;
+    let old_action = old_action as *mut SigAction;
+    // check whether sig is valid
+    let signum = SignalNumber::from(sig);
+    if signum == SignalNumber::SIGSTOP
+        || signum == SignalNumber::SIGKILL
+        || signum == SignalNumber::ERR
+    {
+        return LinuxErrno::EINVAL as isize;
+    }
+    let task = current_task().unwrap();
+    let task_inner = task.access_inner();
+    let mut signal_handler = task_inner.signal_handlers.lock();
+    if !old_action.is_null() {
+        let ptr = task_inner.transfer_raw(old_action as usize);
+        signal_handler.get_action(sig, ptr as *mut SigAction);
+    }
+    if !action.is_null() {
+        let action = task_inner.transfer_raw(action as usize);
+        signal_handler.set_action(sig, action as *const SigAction);
+    }
+    0
+}
+
+/// Reference: https://linux.die.net/man/2/sigtimedwait
+#[syscall_func(137)]
+pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
+    warn!(
+        "sigtimewait: set: {:x}, info: {:x}, time: {:x}",
+        set, info, time
+    );
+    loop {
+        let task = current_task().unwrap();
+        let task_inner = task.access_inner();
+        let mut signal_receivers = task_inner.signal_receivers.lock();
+        for i in 1..64 {
+            if set & (1 << i) != 0 {
+                if signal_receivers.check_signal(i) {
+                    if info != 0 {
+                        let info = task_inner.transfer_raw_ptr_mut(info as *mut SigInfo);
+                        info.si_signo = i as i32;
+                        info.si_code = 0;
+                    }
+                    return i as isize;
+                }
+            }
+        }
+        let time_spec = task_inner.transfer_raw_ptr(time as *const TimeSpec);
+        // wait time
+        if time_spec.tv_sec == 0 && time_spec.tv_nsec == 0 {
+            return -1;
+        }
+        drop(signal_receivers);
+        drop(task_inner);
+        sys_nanosleep(time as *mut u8, 0 as *mut u8);
+
+        // set the time to 0 to exit the loop
+        let task = current_task().unwrap();
+        let task_inner = task.access_inner();
+        let time_spec = task_inner.transfer_raw_ptr_mut(time as *mut TimeSpec);
+        time_spec.tv_sec = 0;
+        time_spec.tv_nsec = 0;
+    }
+}
 
 #[syscall_func(135)]
-pub fn sys_sigprocmask(how: usize, set: *const usize, oldset: *mut usize, _sig_set_size: usize) -> isize {
+pub fn sys_sigprocmask(
+    how: usize,
+    set: *const usize,
+    oldset: *mut usize,
+    _sig_set_size: usize,
+) -> isize {
     let task = current_task().unwrap();
     let task_inner = task.access_inner();
     let mut signal_receivers = task_inner.signal_receivers.lock();
@@ -66,10 +141,10 @@ pub fn sys_sigprocmask(how: usize, set: *const usize, oldset: *mut usize, _sig_s
             }
         }
     }
-    warn!("after sigprocmask: {:#b}", signal_receivers.mask.bits());
+    let mask: Vec<SignalNumber> = signal_receivers.mask.into();
+    warn!("after sigprocmask: {:?}", mask);
     0
 }
-
 
 #[syscall_func(999)]
 pub fn signal_return() -> isize {
@@ -78,7 +153,6 @@ pub fn signal_return() -> isize {
     let a0 = task_inner.load_trap_frame();
     a0
 }
-
 
 /// The signal handler
 pub fn signal_handler() {
