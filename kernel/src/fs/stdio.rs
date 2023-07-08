@@ -6,8 +6,11 @@ use rvfs::file::{File, FileMode, FileOps, OpenFlags};
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 
+// use super::FileLike;
+
 type Stdin = File;
 type Stdout = File;
+
 
 lazy_static! {
     pub static ref STDIN: Arc<Stdin> = {
