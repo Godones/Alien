@@ -3,30 +3,30 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::ptr::NonNull;
 
-use fdt::Fdt;
 use fdt::node::FdtNode;
 use fdt::standard_nodes::Compatible;
+use fdt::Fdt;
 use hashbrown::HashMap;
 use lazy_static::lazy_static;
 use spin::Once;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::device::input::VirtIOInput;
-use virtio_drivers::transport::{DeviceType, Transport};
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use virtio_drivers::transport::{DeviceType, Transport};
 
 use kernel_sync::Mutex;
 use plic::{Mode, PLIC};
 
 use crate::arch::hart_id;
 use crate::config::{CPU_NUM, MAX_INPUT_EVENT_NUM};
-use crate::driver::{pci_probe, QEMU_BLOCK_DEVICE, QemuBlockDevice};
-use crate::driver::DeviceBase;
-use crate::driver::gpu::{GPU_DEVICE, VirtIOGpuWrapper};
+use crate::driver::gpu::{VirtIOGpuWrapper, GPU_DEVICE};
 use crate::driver::hal::HalImpl;
-use crate::driver::input::{INPUT_DEVICE, InputDriver};
+use crate::driver::input::{InputDriver, INPUT_DEVICE};
 use crate::driver::rtc::init_rtc;
 use crate::driver::uart::init_uart;
+use crate::driver::DeviceBase;
+use crate::driver::{pci_probe, QemuBlockDevice, QEMU_BLOCK_DEVICE};
 
 pub static PLIC: Once<PLIC> = Once::new();
 
@@ -72,7 +72,6 @@ fn walk_dt(fdt: &Fdt) {
             println!("probe uart device");
             uart_probe(node)
         }
-
 
         #[cfg(feature = "Vf2")]
         if node.name.starts_with("uart") {

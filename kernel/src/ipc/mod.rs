@@ -8,16 +8,14 @@ use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::sys_close;
-use crate::ipc::futex::{FutexWaiter, FutexWaitManager};
-use crate::task::{current_task, TaskState};
+use crate::ipc::futex::{FutexWaitManager, FutexWaiter};
 use crate::task::schedule::schedule;
+use crate::task::{current_task, TaskState};
 use crate::timer::TimeSpec;
 
+pub mod futex;
 mod pipe;
 pub mod signal;
-pub mod futex;
-
-
 
 lazy_static! {
     pub static ref FUTEX_WAITER: Mutex<FutexWaitManager> = Mutex::new(FutexWaitManager::new());
@@ -85,13 +83,22 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
     new_fd as isize
 }
 
-
 #[syscall_func(98)]
-pub fn sys_futex(uaddr: usize, futex_op: u32, val: u32, val2: usize, uaddr2: usize, val3: u32) -> isize {
+pub fn sys_futex(
+    uaddr: usize,
+    futex_op: u32,
+    val: u32,
+    val2: usize,
+    uaddr2: usize,
+    val3: u32,
+) -> isize {
     let futex_op = FutexOp::try_from(futex_op).unwrap();
     let task = current_task().unwrap();
     let task_inner = task.access_inner();
-    warn!("futex: {:?} {:?} {:?} {:?} {:?} {:?}", uaddr, futex_op, val, val2, uaddr2, val3);
+    warn!(
+        "futex: {:?} {:?} {:?} {:?} {:?} {:?}",
+        uaddr, futex_op, val, val2, uaddr2, val3
+    );
     match futex_op {
         FutexOp::FutexWaitPrivate => {
             let uaddr_ref = task_inner.transfer_raw_ptr(uaddr as *const u32);

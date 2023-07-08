@@ -22,14 +22,12 @@ impl Default for SigInfo {
     }
 }
 
-
 pub enum SigProcMaskHow {
     SigBlock = 0,
     SigUnblock = 1,
     SigSetMask = 2,
     Unknown,
 }
-
 
 impl From<usize> for SigProcMaskHow {
     fn from(value: usize) -> Self {

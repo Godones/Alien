@@ -89,8 +89,6 @@ bitflags! {
     }
 }
 
-
-
 bitflags! {
     pub struct WaitOptions:u32 {
         const WNOHANG = 1;

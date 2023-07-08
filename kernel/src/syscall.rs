@@ -17,6 +17,8 @@ pub fn register_all_syscall(){
 	(23, sys_dup),
 	(24, sys_dup2),
 	(98, sys_futex),
+	(134, sigaction),
+	(137, sigtimewait),
 	(135, sys_sigprocmask),
 	(999, signal_return),
 	(93, do_exit),
@@ -79,6 +81,7 @@ pub fn register_all_syscall(){
 	(88, sys_utimensat),
 	(215, do_munmap),
 	(222, do_mmap),
+	(226, map_protect),
 
 	);
 	SYSCALL_TABLE.call_once(||table);
@@ -132,7 +135,9 @@ use crate::fs::sys_write;
 use crate::fs::sys_writev;
 use crate::gui::sys_framebuffer;
 use crate::gui::sys_framebuffer_flush;
+use crate::ipc::sigaction;
 use crate::ipc::signal_return;
+use crate::ipc::sigtimewait;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
 use crate::ipc::sys_futex;
@@ -140,6 +145,7 @@ use crate::ipc::sys_pipe;
 use crate::ipc::sys_sigprocmask;
 use crate::memory::do_mmap;
 use crate::memory::do_munmap;
+use crate::memory::map_protect;
 use crate::sbi::shutdown;
 use crate::system::sys_uname;
 use crate::task::clone;

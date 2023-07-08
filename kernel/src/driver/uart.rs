@@ -9,8 +9,8 @@ use kernel_sync::Mutex;
 
 use crate::driver::DeviceBase;
 use crate::print::console::UART_FLAG;
-use crate::task::{current_task, Task, TASK_MANAGER, TaskState};
 use crate::task::schedule::schedule;
+use crate::task::{current_task, Task, TaskState, TASK_MANAGER};
 
 pub trait CharDevice {
     fn put(&self, c: u8);

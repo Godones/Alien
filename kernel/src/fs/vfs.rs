@@ -7,17 +7,17 @@ use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
-use rvfs::file::{FileMode, OpenFlags, vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file};
+use rvfs::file::{vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, FileMode, OpenFlags};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::inode::InodeMode;
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
-use rvfs::superblock::{DataOps, Device, register_filesystem};
+use rvfs::superblock::{register_filesystem, DataOps, Device};
 
 use kernel_sync::Mutex;
 
-use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::driver::rtc::get_rtc_time;
+use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::task::current_task;
 
 // only call once before the first process is created
@@ -45,7 +45,13 @@ pub fn init_vfs() {
     register_filesystem(DEVFS_TYPE).unwrap();
     do_mount::<VfsProvider>("none", "/dev", "devfs", MountFlags::MNT_NO_DEV, None).unwrap();
     do_mount::<VfsProvider>("root", "/tmp", "rootfs", MountFlags::MNT_NO_DEV, None).unwrap();
-    vfs_mknod::<VfsProvider>("/dev/null", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, u32::MAX).unwrap();
+    vfs_mknod::<VfsProvider>(
+        "/dev/null",
+        InodeMode::S_CHARDEV,
+        FileMode::FMODE_RDWR,
+        u32::MAX,
+    )
+    .unwrap();
     vfs_mknod::<VfsProvider>("/dev/zero", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
     println!("vfs init done");
 }

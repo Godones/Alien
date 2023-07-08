@@ -9,9 +9,9 @@ use lazy_static::lazy_static;
 use spin::Once;
 
 use kernel_sync::Mutex;
-use syscall_define::{PrLimit, PrLimitRes};
 use syscall_define::signal::SignalNumber;
 use syscall_define::task::{CloneFlags, WaitOptions};
+use syscall_define::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
 use crate::arch;
@@ -19,9 +19,9 @@ use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::sbi::shutdown;
 use crate::task::context::Context;
-use crate::task::INIT_PROCESS;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
+use crate::task::INIT_PROCESS;
 use crate::trap::TrapFrame;
 
 #[derive(Debug, Clone)]
@@ -188,7 +188,6 @@ pub fn geteuid() -> isize {
     0
 }
 
-
 /// 获取用户组 id。在实现多用户权限前默认为最高权限
 #[syscall_func(176)]
 pub fn getgid() -> isize {
@@ -201,13 +200,11 @@ pub fn getegid() -> isize {
     0
 }
 
-
 #[syscall_func(178)]
 pub fn get_tid() -> isize {
     let process = current_task().unwrap();
     process.get_tid()
 }
-
 
 #[syscall_func(220)]
 pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) -> isize {
@@ -233,7 +230,15 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 #[syscall_func(221)]
 pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> isize {
     let process = current_task().unwrap();
-    let str = process.transfer_str(path);
+    let mut path_str = process.transfer_str(path);
+
+    // for test app
+    if !path_str.starts_with("/") && !path_str.starts_with("./") && !path_str.contains("ls") {
+        let mut path = String::from("/libc/");
+        path.push_str(&path_str);
+        path_str = path;
+    }
+    warn!("exec path: {}", path_str);
     let mut data = Vec::new();
     // get the args and push them into the new process stack
     let mut args = Vec::new();
@@ -254,7 +259,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
             arg
         })
         .collect::<Vec<String>>();
-    let mut elf_name = str.clone();
+    let mut elf_name = path_str.clone();
     elf_name.push('\0');
     args.insert(0, elf_name);
     // get the env and push them into the new process stack
@@ -277,8 +282,8 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
         })
         .collect::<Vec<String>>();
 
-    if vfs::read_all(&str, &mut data) {
-        let res = process.exec(&str, data.as_slice(), args, envs);
+    if vfs::read_all(&path_str, &mut data) {
+        let res = process.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
             return res.err().unwrap();
         }
@@ -350,7 +355,6 @@ pub fn set_tid_address(tidptr: *mut i32) -> isize {
     task.set_tid_address(tidptr as usize);
     task.get_tid()
 }
-
 
 #[syscall_func(261)]
 pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *mut u8) -> isize {

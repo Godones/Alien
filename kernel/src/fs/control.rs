@@ -1,5 +1,5 @@
 use rvfs::dentry::LookUpFlags;
-use rvfs::file::{OpenFlags, vfs_ioctl};
+use rvfs::file::{vfs_ioctl, OpenFlags};
 use rvfs::info::VfsTime;
 use rvfs::stat::vfs_set_time;
 
@@ -7,8 +7,8 @@ use syscall_define::io::Fcntl64Cmd;
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
-use crate::fs::{AT_FDCWD, user_path_at};
 use crate::fs::vfs::VfsProvider;
+use crate::fs::{user_path_at, AT_FDCWD};
 use crate::task::current_task;
 use crate::timer::TimeSpec;
 
@@ -21,7 +21,7 @@ pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
     }
     let file = file.unwrap();
     let cmd = Fcntl64Cmd::try_from(cmd);
-    warn!("fcntl:{:?} {:?} ",cmd,arg);
+    warn!("fcntl:{:?} {:?} ", cmd, arg);
     match cmd.unwrap() {
         Fcntl64Cmd::F_DUPFD => {
             let fd = task.add_file(file.clone()).unwrap();
@@ -35,14 +35,20 @@ pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
             return file.access_inner().flags.bits() as isize;
         }
         Fcntl64Cmd::F_SETFD => {
-            warn!("fcntl: F_SETFD :{:?}",OpenFlags::from_bits_truncate(arg as u32));
+            warn!(
+                "fcntl: F_SETFD :{:?}",
+                OpenFlags::from_bits_truncate(arg as u32)
+            );
             file.access_inner().flags = OpenFlags::from_bits_truncate(arg as u32);
         }
         Fcntl64Cmd::F_GETFL => {
             return file.get_file().access_inner().flags.bits() as isize;
         }
         Fcntl64Cmd::F_SETFL => {
-            warn!("fcntl: F_SETFL :{:?}",OpenFlags::from_bits_truncate(arg as u32));
+            warn!(
+                "fcntl: F_SETFL :{:?}",
+                OpenFlags::from_bits_truncate(arg as u32)
+            );
             file.get_file().access_inner().flags = OpenFlags::from_bits_truncate(arg as u32);
         }
         _ => {
@@ -51,7 +57,6 @@ pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
     }
     0
 }
-
 
 // TODO! ioctl
 #[syscall_func(29)]
@@ -69,7 +74,6 @@ pub fn sys_ioctl(fd: usize, cmd: usize, arg: usize) -> isize {
     res.unwrap() as isize
 }
 
-
 #[syscall_func(88)]
 pub fn sys_utimensat(fd: usize, path: *const u8, times: *const u8, _flags: usize) -> isize {
     if fd as isize != AT_FDCWD && (fd as isize) < 0 {
@@ -86,7 +90,10 @@ pub fn sys_utimensat(fd: usize, path: *const u8, times: *const u8, _flags: usize
         (*atime_ref, *mtime_ref)
     };
     drop(inner);
-    warn!("utimensat: {:?} {:?} {:?} {:?}", fd as isize, path, atime, mtime);
+    warn!(
+        "utimensat: {:?} {:?} {:?} {:?}",
+        fd as isize, path, atime, mtime
+    );
     if fd as isize > 0 {
         // find in fdmanager
         let file = task.get_file(fd);
