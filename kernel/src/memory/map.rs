@@ -93,6 +93,15 @@ impl MMapInfo {
         None
     }
 
+    pub fn get_region_mut(&mut self, addr: usize) -> Option<&mut MMapRegion> {
+        for region in self.regions.iter_mut() {
+            if region.start <= addr && addr < region.start + region.len {
+                return Some(region);
+            }
+        }
+        None
+    }
+
     pub fn remove_region(&mut self, addr: usize) {
         let mut index = 0;
         for region in self.regions.iter() {
@@ -153,4 +162,16 @@ pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offse
         return -1;
     }
     res.unwrap() as isize
+}
+
+#[syscall_func(226)]
+pub fn map_protect(start: usize, len: usize, prot: u32) -> isize {
+    let process = current_task().unwrap();
+    let mut process_inner = process.access_inner();
+    let prot = ProtFlags::from_bits_truncate(prot);
+    let res = process_inner.map_protect(start, len, prot);
+    if res.is_err() {
+        return -1;
+    }
+    0
 }

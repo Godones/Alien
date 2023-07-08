@@ -13,8 +13,8 @@ use xmas_elf::program::Type;
 use kernel_sync::RwLock;
 
 use crate::config::{FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
+use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::trap::TrapFrame;
 
 lazy_static! {
@@ -221,29 +221,34 @@ pub enum ELFError {
     NoEntrySegment,
 }
 
-
-pub fn build_thread_address_space(table: &mut Sv39PageTable<PageAllocator>, thread_num_within: usize) -> &'static mut TrapFrame {
+pub fn build_thread_address_space(
+    table: &mut Sv39PageTable<PageAllocator>,
+    thread_num_within: usize,
+) -> &'static mut TrapFrame {
     let address = TRAP_CONTEXT_BASE - FRAME_SIZE * thread_num_within;
-    let (dst, ..) = table.map_region_no_target(
-        VirtAddr::from(address),
-        FRAME_SIZE,
-        "RWVAD".into(),
-        true,
-        false,
-    ).unwrap().next().unwrap();
+    let (_virt_dst, phy_dst, _) = table
+        .map_region_no_target(
+            VirtAddr::from(address),
+            FRAME_SIZE,
+            "RWVAD".into(),
+            true,
+            false,
+        )
+        .unwrap()
+        .next()
+        .unwrap();
     // copy data
     // find the
     let (phy, _flag, page_size) = table.query(VirtAddr::from(TRAP_CONTEXT_BASE)).unwrap();
     assert_eq!(usize::from(page_size), FRAME_SIZE);
     // copy data
     let src_ptr = phy.as_usize() as *const u8;
-    let dst_ptr = dst.as_usize() as *mut u8;
+    let dst_ptr = phy_dst.as_usize() as *mut u8;
     unsafe {
         core::ptr::copy(src_ptr, dst_ptr, usize::from(page_size));
     }
     TrapFrame::from_raw_ptr(dst_ptr as *mut TrapFrame)
 }
-
 
 pub fn build_cow_address_space(
     p_table: &mut Sv39PageTable<PageAllocator>,
@@ -279,7 +284,7 @@ pub fn build_cow_address_space(
             if flag.contains(MappingFlags::W) {
                 flags -= MappingFlags::W;
                 flags |= MappingFlags::RSD; // we use the RSD flag to indicate that this page is a cow page
-                // update parent's flag and clear dirty
+                                            // update parent's flag and clear dirty
                 p_table.modify_pte_flags(v_addr, flags, false).unwrap();
             }
             address_space.map(v_addr, phy, page_size, flags).unwrap();
@@ -421,7 +426,7 @@ pub fn build_elf_address_space(elf: &[u8]) -> Result<ELFInfo, ELFError> {
         Err(ELFError::NoEntrySegment)
         // Ok(0)
     }
-        .unwrap_or(0);
+    .unwrap_or(0);
     warn!(
         "entry: {:#x}, phdr:{:#x}",
         elf.header.pt2.entry_point(),

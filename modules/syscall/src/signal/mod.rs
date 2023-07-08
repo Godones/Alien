@@ -4,8 +4,9 @@
 //!
 //! 目前的模型中，不采用 ipi 实时发送信号，而是由被目标线程在 trap 时处理。因此需要开启**时钟中断**来保证信号能实际送到
 use alloc::collections::btree_set::Union;
+use alloc::vec::Vec;
 
-pub use action::{SIG_DFL, SIG_IGN, SigAction, SigActionDefault, SigActionFlags};
+pub use action::{SigAction, SigActionDefault, SigActionFlags, SIG_DFL, SIG_IGN};
 pub use number::SignalNumber;
 pub use siginfo::{SigInfo, SigProcMaskHow};
 pub use ucontext::SignalUserContext;
@@ -102,6 +103,10 @@ impl SignalReceivers {
         })
     }
 
+    pub fn check_signal(&mut self, signum: usize) -> bool {
+        self.sig_received.check_bit(signum - 1)
+    }
+
     /// 尝试添加一个 bit 作为信号。发送的信号如果在 mask 中，则仍然会发送，只是可能不触发
     /// 因为 signum 的范围是 \[1,64\]，所以内部要 -1
     ///
@@ -137,8 +142,23 @@ impl SimpleBitSet {
     pub fn add_bit(&mut self, pos: usize) {
         self.0 |= 1 << pos;
     }
+
+    pub fn check_bit(&mut self, pos: usize) -> bool {
+        self.0 & (1 << pos) != 0
+    }
 }
 
+impl Into<Vec<SignalNumber>> for SimpleBitSet {
+    fn into(self) -> Vec<SignalNumber> {
+        let mut ans = Vec::new();
+        for i in 0..64 {
+            if self.0 & (1 << i) != 0 {
+                ans.push(SignalNumber::from(i + 1));
+            }
+        }
+        ans
+    }
+}
 
 impl From<usize> for SimpleBitSet {
     fn from(value: usize) -> Self {

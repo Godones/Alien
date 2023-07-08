@@ -31,7 +31,6 @@
 // #define FUTEX_CMP_REQUEUE_PI_PRIVATE	(FUTEX_CMP_REQUEUE_PI | \
 // FUTEX_PRIVATE_FLAG)
 
-
 use numeric_enum_macro::numeric_enum;
 
 numeric_enum! {

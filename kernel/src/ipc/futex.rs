@@ -62,5 +62,3 @@ impl FutexWaitManager {
         }
     }
 }
-
-

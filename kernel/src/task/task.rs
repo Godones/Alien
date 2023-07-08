@@ -14,7 +14,6 @@ use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
 use kernel_sync::{Mutex, MutexGuard};
-use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 use syscall_define::aux::{
     AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
@@ -22,19 +21,23 @@ use syscall_define::aux::{
 use syscall_define::io::MapFlags;
 use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
 use syscall_define::task::CloneFlags;
+use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 
 use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
-use crate::fs::{STDIN, STDOUT};
 use crate::fs::file::KFile;
+use crate::fs::{STDIN, STDOUT};
 use crate::ipc::global_register_signals;
-use crate::memory::{build_cow_address_space, build_elf_address_space, build_thread_address_space, FRAME_REF_MANAGER, kernel_satp, MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack};
+use crate::memory::{
+    build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
+    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
+};
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::read_timer;
-use crate::trap::{trap_return, TrapFrame, user_trap_vector};
+use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
@@ -312,7 +315,11 @@ impl Task {
         return if file.is_err() { None } else { file.unwrap() };
     }
     pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, ()> {
-        self.access_inner().fd_table.lock().insert(file).map_err(|_| {})
+        self.access_inner()
+            .fd_table
+            .lock()
+            .insert(file)
+            .map_err(|_| {})
     }
     pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
         let inner = self.access_inner();
@@ -361,16 +368,12 @@ impl TaskInner {
 
     pub fn get_prlimit(&self, resource: PrLimitRes) -> PrLimit {
         match resource {
-            PrLimitRes::RlimitStack => {
-                PrLimit::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64)
-            }
+            PrLimitRes::RlimitStack => PrLimit::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64),
             PrLimitRes::RlimitNofile => {
                 let max_fd = self.fd_table.lock().max();
                 PrLimit::new(max_fd as u64, max_fd as u64)
             }
-            PrLimitRes::RlimitAs => {
-                PrLimit::new(u64::MAX, u64::MAX)
-            }
+            PrLimitRes::RlimitAs => PrLimit::new(u64::MAX, u64::MAX),
         }
     }
 
@@ -614,7 +617,12 @@ impl TaskInner {
             )
             .unwrap();
         // todo! huge page
-        trace!("add mmap region: {:#x}-{:#x}, flag:{:?}", start, v_range.end,map_flags);
+        trace!(
+            "add mmap region: {:#x}-{:#x}, flag:{:?}",
+            start,
+            v_range.end,
+            map_flags
+        );
         Ok(start)
     }
 
@@ -634,6 +642,22 @@ impl TaskInner {
             .unmap_region(VirtAddr::from(start), region.map_len)
             .unwrap();
         self.mmap.remove_region(start);
+        Ok(())
+    }
+
+    pub fn map_protect(&mut self, start: usize, len: usize, prot: ProtFlags) -> Result<(), isize> {
+        // check whether the start is in mmap
+        let x = self.mmap.get_region_mut(start);
+        if x.is_none() {
+            return Err(-1);
+        }
+        // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
+        let region = x.unwrap();
+        if start + len > region.start + region.len {
+            error!("start+len > region.start + region.len");
+            return Err(-1);
+        }
+        region.prot = prot;
         Ok(())
     }
 
@@ -829,9 +853,10 @@ impl Task {
         tls: usize,
         ctid: usize,
     ) -> Option<Arc<Task>> {
-        assert_eq!(flag, CloneFlags::empty());
-        assert_eq!(stack, 0);
-        warn!("clone: flag:{:?}, sig:{:?}, stack:{}, ptid:{}, tls:{}, ctid:{}", flag,sig,stack, ptid, tls, ctid);
+        warn!(
+            "clone: flag:{:?}, sig:{:?}, stack:{}, ptid:{}, tls:{}, ctid:{}",
+            flag, sig, stack, ptid, tls, ctid
+        );
         let tid = TidHandle::new()?;
         let mut inner = self.inner.lock();
         let address_space = if flag.contains(CloneFlags::CLONE_VM) {
@@ -868,39 +893,35 @@ impl Task {
         } else {
             tid.0
         };
-
         let signal_receivers = Arc::new(Mutex::new(SignalReceivers::new()));
-
         // 注册线程-信号对应关系
         global_register_signals(tid.0, signal_receivers.clone());
-
         // map the thread trap_context if clone_vm
         let trap_context = if flag.contains(CloneFlags::CLONE_VM) {
             let thread_num = inner.threads.insert(()).unwrap() + 1;
+            warn!("thread_num: {}", thread_num);
             // calculate the address for thread context
             build_thread_address_space(&mut address_space.lock(), thread_num)
         } else {
-            let (physical, _, _) =
-                address_space
-                    .lock()
-                    .query(VirtAddr::from(TRAP_CONTEXT_BASE))
-                    .unwrap();
+            let (physical, _, _) = address_space
+                .lock()
+                .query(VirtAddr::from(TRAP_CONTEXT_BASE))
+                .unwrap();
             let trap_frame = TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame);
             trap_frame
         };
         // 设置内核栈地址
         trap_context.update_kernel_sp(k_stack_top);
 
-
         // 检查是否需要设置 tls
         if flag.contains(CloneFlags::CLONE_SETTLS) {
             trap_context.update_tp(tls);
         }
+
         // 检查是否在父任务地址中写入 tid
         if flag.contains(CloneFlags::CLONE_PARENT_SETTID) {
             // 有可能这个地址是 lazy alloc 的，需要先检查
-            let res = inner.address_space.lock()
-                .query(VirtAddr::from(ptid));
+            let res = inner.address_space.lock().query(VirtAddr::from(ptid));
             if res.is_ok() {
                 let (physical, _, _) = res.unwrap();
                 unsafe {
@@ -917,12 +938,11 @@ impl Task {
             0
         };
 
-        if flag.contains(CloneFlags::CLONE_CHILD_SETTID) || flag.contains(CloneFlags::CLONE_CHILD_CLEARTID) {
+        if flag.contains(CloneFlags::CLONE_CHILD_SETTID)
+            || flag.contains(CloneFlags::CLONE_CHILD_CLEARTID)
+        {
             // TODO!(may be not map when cow fork)
-            let (phy, ..) = address_space
-                .lock()
-                .query(VirtAddr::from(ctid))
-                .unwrap();
+            let (phy, ..) = address_space.lock().query(VirtAddr::from(ctid)).unwrap();
             unsafe {
                 *(phy.as_usize() as *mut i32) = ctid_value as i32;
             }
@@ -933,7 +953,7 @@ impl Task {
             trap_context.regs()[2] = stack;
         }
 
-        warn!("create task pid:{}, tid:{}",pid,tid.0);
+        warn!("create task pid:{}, tid:{}", pid, tid.0);
         let task = Task {
             tid,
             kernel_stack: k_stack,
@@ -954,8 +974,16 @@ impl Task {
                 mmap: inner.mmap.clone(),
                 signal_handlers,
                 signal_receivers,
-                set_child_tid: if flag.contains(CloneFlags::CLONE_CHILD_SETTID) { ctid } else { 0 },
-                clear_child_tid: if flag.contains(CloneFlags::CLONE_CHILD_CLEARTID) { ctid } else { 0 },
+                set_child_tid: if flag.contains(CloneFlags::CLONE_CHILD_SETTID) {
+                    ctid
+                } else {
+                    0
+                },
+                clear_child_tid: if flag.contains(CloneFlags::CLONE_CHILD_CLEARTID) {
+                    ctid
+                } else {
+                    0
+                },
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
             }),
@@ -1013,6 +1041,7 @@ impl Task {
         // we have push '\0' into the arg string,so we don't need to push it again
         let argcv = args
             .iter()
+            .rev()
             .map(|arg| user_stack.push_str(arg).unwrap())
             .collect::<Vec<usize>>();
         // push padding to the top of stack of the process
@@ -1058,18 +1087,14 @@ impl Task {
         });
         user_stack.push(0).unwrap();
         // push the args addr to the top of stack of the process
-        argcv.iter().skip(1).enumerate().for_each(|(_i, arg)| {
+        argcv.iter().enumerate().for_each(|(_i, arg)| {
             user_stack.push(*arg).unwrap();
         });
-        let record_first_arg = user_stack.push(argcv[0]).unwrap();
         // push the argc to the top of stack of the process
         let argc = args.len();
         let argc_ptr = user_stack.push(argc).unwrap();
         let user_sp = argc_ptr;
-        warn!(
-            "args:{:?}, env:{:?} argv: {:#x} user_sp: {:#x}",
-            args, env, record_first_arg, user_sp
-        );
+        warn!("args:{:?}, env:{:?} user_sp: {:#x}", args, env, user_sp);
         let (physical, _, _) = inner
             .address_space
             .lock()
