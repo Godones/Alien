@@ -64,3 +64,23 @@ numeric_enum! {
     FutexCmpRequeuePiPrivate = 128 | FutexOp::FutexCmpRequeuePi as u32,
 }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct RobustList {
+    pub head: usize,
+    pub len: usize,
+}
+
+impl RobustList {
+    // from strace
+    pub const HEAD_SIZE: usize = 24;
+}
+
+impl Default for RobustList {
+    fn default() -> Self {
+        Self {
+            head: 0,
+            len: Self::HEAD_SIZE,
+        }
+    }
+}

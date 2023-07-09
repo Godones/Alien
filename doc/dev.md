@@ -279,3 +279,37 @@ bug2：建立好页表后开启mmu卡死
 
 但由于前面我们只支持创建子进程，其会使用cow机制拷贝父进程的地址空间，并且可以分配子进程的`trap_contex` 页，
 
+
+
+## 2023.7.8
+
+1. 删除掉当`execv`无参数时额外增加的可执行程序名称的参数
+
+2. 在自己编写的os中程序运行与qemu镜像不一致，因此需要根据运行的错误进行调整
+
+3. 增加对`FutexRequeuePrivate` 的处理
+4. `sigtimewait`会使得任务睡眠，是否在必要的时候唤醒任务，因为子任务也许已经完成 ××××
+
+
+
+- [ ] 无法连续运行这些测试，任务退出后有必要删除掉无用的内容
+
+
+
+```
+./final/runtest.exe -w entry-static.exe pthread_cancel
+./final/runtest.exe -w entry-static.exe pthread_cancel_points
+./final/runtest.exe -w entry-static.exe pthread_cond
+./final/runtest.exe -w entry-static.exe pthread_tsd
+./final/runtest.exe -w entry-static.exe pthread_robust_detach
+./final/runtest.exe -w entry-static.exe pthread_cancel_sem_wait
+./final/runtest.exe -w entry-static.exe pthread_cond_smasher
+./final/runtest.exe -w entry-static.exe pthread_condattr_setclock
+./final/runtest.exe -w entry-static.exe pthread_exit_cancel
+./final/runtest.exe -w entry-static.exe pthread_once_deadlock
+./final/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+```
+
+
+
+![image-20230709214636946](assert/image-20230709214636946.png)
