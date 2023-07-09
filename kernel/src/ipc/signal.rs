@@ -11,8 +11,8 @@ use syscall_define::signal::{
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
-use crate::task::{current_task, do_exit};
-use crate::timer::{sys_nanosleep, TimeSpec};
+use crate::task::{current_task, do_exit, do_suspend};
+use crate::timer::{read_timer, TimeSpec};
 
 /// 从 tid 获取信号相关信息
 static TID2SIGNALS: Mutex<BTreeMap<usize, Arc<Mutex<SignalReceivers>>>> =
@@ -55,14 +55,23 @@ pub fn sigaction(sig: usize, action: usize, old_action: usize) -> isize {
         return LinuxErrno::EINVAL as isize;
     }
     let task = current_task().unwrap();
-    let task_inner = task.access_inner();
-    let mut signal_handler = task_inner.signal_handlers.lock();
+    let mut task_inner = task.access_inner();
+    let signal_handler = task_inner.signal_handlers.clone();
+    let mut signal_handler = signal_handler.lock();
     if !old_action.is_null() {
         let ptr = task_inner.transfer_raw(old_action as usize);
         signal_handler.get_action(sig, ptr as *mut SigAction);
     }
     if !action.is_null() {
         let action = task_inner.transfer_raw(action as usize);
+        unsafe {
+            warn!(
+                "sig {:?} action is {:?}",
+                signum,
+                &*(action as *const SigAction)
+            );
+        }
+
         signal_handler.set_action(sig, action as *const SigAction);
     }
     0
@@ -98,33 +107,35 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
         }
         drop(signal_receivers);
         drop(task_inner);
-        sys_nanosleep(time as *mut u8, 0 as *mut u8);
-
-        // set the time to 0 to exit the loop
-        let task = current_task().unwrap();
-        let task_inner = task.access_inner();
-        let time_spec = task_inner.transfer_raw_ptr_mut(time as *mut TimeSpec);
-        time_spec.tv_sec = 0;
-        time_spec.tv_nsec = 0;
+        warn!("sigtimewait: sleep for {:?}", time_spec);
+        let target_time = read_timer() + time_spec.to_clock();
+        let now = read_timer();
+        if now >= target_time {
+            break;
+        }
+        do_suspend();
+        //
+        // // set the time to 0 to exit the loop
+        // let task = current_task().unwrap();
+        // let task_inner = task.access_inner();
+        // let time_spec = task_inner.transfer_raw_ptr_mut(time as *mut TimeSpec);
+        // time_spec.tv_sec = 0;
+        // time_spec.tv_nsec = 0;
     }
+    -1
 }
 
 #[syscall_func(135)]
-pub fn sys_sigprocmask(
-    how: usize,
-    set: *const usize,
-    oldset: *mut usize,
-    _sig_set_size: usize,
-) -> isize {
+pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) -> isize {
     let task = current_task().unwrap();
     let task_inner = task.access_inner();
     let mut signal_receivers = task_inner.signal_receivers.lock();
-    if !oldset.is_null() {
-        let set_mut = task_inner.transfer_raw_ptr_mut(oldset);
+    if oldset != 0 {
+        let set_mut = task_inner.transfer_raw_ptr_mut(oldset as *mut usize);
         *set_mut = signal_receivers.mask.bits();
     }
-    if !set.is_null() {
-        let set = task_inner.transfer_raw_ptr(set);
+    if set != 0 {
+        let set = task_inner.transfer_raw_ptr(set as *const usize);
         let how = SigProcMaskHow::from(how);
         match how {
             SigProcMaskHow::SigBlock => {
@@ -146,7 +157,49 @@ pub fn sys_sigprocmask(
     0
 }
 
-#[syscall_func(999)]
+/// Reference:https://man7.org/linux/man-pages/man2/kill.2.html
+///
+/// 向 pid 指定的进程发送信号。
+/// 如果进程中有多个线程，则会发送给任意一个未阻塞的线程。
+///
+/// pid 有如下情况
+/// 1. pid > 0，则发送给指定进程
+/// 2. pid = 0，则发送给所有同组进程
+/// 3. pid = -1，则发送给除了初始进程(pid=1)外的所有当前进程有权限的进程
+/// 4. pid < -2，则发送给组内 pid 为参数相反数的进程
+///
+/// 目前 2/3/4 未实现。对于 1，仿照 zCore 的设置，认为**当前进程自己或其直接子进程** 是"有权限"或者"同组"的进程。
+#[syscall_func(129)]
+pub fn kill(pid: usize, sig: usize) -> isize {
+    warn!("kill pid {}, signal id {:?}", pid, SignalNumber::from(sig));
+    if pid > 0 && sig > 0 {
+        //println!("kill pid {}, signal id {}", pid, signal_id);
+        send_signal(pid, sig);
+        0
+    } else if pid == 0 {
+        LinuxErrno::ESRCH as isize
+    } else {
+        // 如果 signal_id == 0，则仅为了检查是否存在对应进程，此时应该返回参数错误。是的，用户库是会刻意触发这个错误的
+        LinuxErrno::EINVAL as isize
+    }
+}
+
+/// Reference:https://man7.org/linux/man-pages/man2/tkill.2.html
+///
+#[syscall_func(130)]
+pub fn tkill(tid: usize, sig: usize) -> isize {
+    warn!("tkill tid {}, signal id {:?}", tid, SignalNumber::from(sig));
+    if tid > 0 && sig > 0 {
+        //println!("kill pid {}, signal id {}", pid, signal_id);
+        send_signal(tid, sig);
+        0
+    } else {
+        // 如果 signal_id == 0，则仅为了检查是否存在对应进程，此时应该返回参数错误。是的，用户库是会刻意触发这个错误的
+        LinuxErrno::EINVAL as isize
+    }
+}
+
+#[syscall_func(139)]
 pub fn signal_return() -> isize {
     let task = current_task().unwrap();
     let mut task_inner = task.access_inner();
@@ -164,6 +217,7 @@ pub fn signal_handler() {
     let handler = handler.lock();
     if let Some(signum) = receiver.get_one_signal() {
         let sig = SignalNumber::from(signum);
+        error!("task {:?} receive signal {:?}", task.tid, sig);
         match sig {
             SignalNumber::SIGSEGV | SignalNumber::SIGBUS => {
                 // we need exit the process
@@ -176,8 +230,12 @@ pub fn signal_handler() {
                     if action.is_ignore() {
                         return;
                     }
+                    warn!("find handler for signal {:?}", sig);
+                    if !task_inner.save_trap_frame() {
+                        // we are in signal handler,don't nest
+                        return;
+                    }
                     // save the trap context
-                    task_inner.save_trap_frame();
                     let trap_contex = task_inner.trap_frame();
                     // modify trap context
                     // set ra to save user's stack
@@ -188,8 +246,16 @@ pub fn signal_handler() {
                     // a0 ==signum
                     trap_contex.regs()[10] = signum;
                     assert_eq!(trap_contex.regs()[10], signum);
-                    //
-                    let mut sp = trap_contex.regs()[2] - 0x100; // 128
+
+                    warn!(
+                        "task {:?} handle signal {:?} at {:#x}, old pc: {:#x}, old_sp: {:#x}",
+                        task.tid,
+                        sig,
+                        trap_contex.sepc(),
+                        old_pc,
+                        trap_contex.regs()[2]
+                    );
+                    let mut sp = trap_contex.regs()[2] - 0x200; // 128
                     if action.flags.contains(SigActionFlags::SA_SIGINFO) {
                         task_inner.signal_set_siginfo = true;
                         // 如果带 SIGINFO，则需要在用户栈上放额外的信息
@@ -198,13 +264,16 @@ pub fn signal_handler() {
                         let mut info = SigInfo::default();
                         info.si_signo = signum as i32;
                         unsafe {
-                            *(sp as *mut SigInfo) = info;
+                            let phy_sp = task_inner.transfer_raw(sp);
+                            *(phy_sp as *mut SigInfo) = info;
                         }
                         // a1 = &siginfo
                         trap_contex.regs()[11] = sp;
                         sp = (sp - size_of::<SignalUserContext>()) & !0xf;
+                        info!("add ucontext at {:x}", sp);
                         unsafe {
-                            *(sp as *mut SignalUserContext) =
+                            let phy_sp = task_inner.transfer_raw(sp);
+                            *(phy_sp as *mut SignalUserContext) =
                                 SignalUserContext::init(receiver.mask.bits() as u64, old_pc);
                         }
                         // a2 = &ucontext
@@ -212,6 +281,13 @@ pub fn signal_handler() {
                     }
                     // set sp
                     trap_contex.regs()[2] = sp;
+                    warn!(
+                        "task {:?} handle signal {:?}, pc:{:#x}, sp:{:#x}",
+                        task.tid,
+                        sig,
+                        trap_contex.sepc(),
+                        trap_contex.regs()[2]
+                    );
                 } else {
                     // find the default handler
                     // 否则，查找默认处理方式

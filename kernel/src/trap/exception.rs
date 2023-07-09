@@ -40,7 +40,10 @@ pub fn syscall_exception_handler() {
 
     let result = syscall::do_syscall(parameters[0], &parameters[1..]);
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
-        warn!("syscall result: {:?}", result);
+        warn!(
+            "[pid:{}, tid: {}] syscall: [{}] result: {:?}",
+            pid, tid, syscall_name, result
+        );
     }
 
     if result.is_none() {

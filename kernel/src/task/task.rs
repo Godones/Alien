@@ -19,6 +19,7 @@ use syscall_define::aux::{
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
 };
 use syscall_define::io::MapFlags;
+use syscall_define::ipc::RobustList;
 use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
 use syscall_define::task::CloneFlags;
 use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
@@ -81,6 +82,7 @@ pub struct Task {
 pub struct TaskInner {
     pub name: String,
     pub threads: MinimalManager<()>,
+    pub thread_number: usize,
     pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
     pub state: TaskState,
     pub parent: Option<Weak<Task>>,
@@ -109,6 +111,7 @@ pub struct TaskInner {
     /// 此时用户可能修改其中的 pc 信息(如musl-libc 的 pthread_cancel 函数)。
     /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
     pub signal_set_siginfo: bool,
+    pub robust: RobustList,
 }
 
 /// statistics of a process
@@ -241,6 +244,10 @@ impl Task {
 
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
         self.inner.lock().trap_frame()
+    }
+
+    pub fn trap_frame_ptr(&self) -> *mut TrapFrame {
+        self.inner.lock().trap_frame_ptr()
     }
 
     pub fn update_state(&self, state: TaskState) {
@@ -388,18 +395,39 @@ impl TaskInner {
         }
     }
 
+    pub fn trap_frame_ptr(&self) -> *mut TrapFrame {
+        let trap_context_base = if self.thread_number != 0 {
+            let base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
+            base
+        } else {
+            TRAP_CONTEXT_BASE
+        };
+        trap_context_base as *mut TrapFrame
+    }
+
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
+        let trap_context_base = if self.thread_number != 0 {
+            let base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
+            base
+        } else {
+            TRAP_CONTEXT_BASE
+        };
         let (physical, _, _) = self
             .address_space
             .lock()
-            .query(VirtAddr::from(TRAP_CONTEXT_BASE))
+            .query(VirtAddr::from(trap_context_base))
             .unwrap();
         TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
     }
 
-    pub fn save_trap_frame(&mut self) {
+    pub fn save_trap_frame(&mut self) -> bool {
         let trap_frame = self.trap_frame();
+        if self.trap_cx_before_signal.is_some() {
+            return false;
+        }
         self.trap_cx_before_signal = Some(*trap_frame);
+        self.signal_set_siginfo = false;
+        true
     }
 
     pub fn load_trap_frame(&mut self) -> isize {
@@ -409,24 +437,37 @@ impl TaskInner {
             // 也就是说信号触发时的 sp 就是现在的 sp
             let sp = trap_frame.regs()[2];
             // 获取可能被修改的 pc
-            let pc = unsafe { (*(sp as *const SignalUserContext)).get_pc() };
+            let phy_sp = self.transfer_raw(sp as usize);
+
+            let pc = unsafe { (*(phy_sp as *const SignalUserContext)).get_pc() };
             *trap_frame = old_trap_frame;
             if self.signal_set_siginfo {
                 // 更新用户修改的 pc
-                (*trap_frame).set_sepc(pc);
-                info!("sig return sp = {:x} pc = {:x}", sp, pc);
+                trap_frame.set_sepc(pc);
+                warn!("sig return sp = {:x} pc = {:x}", sp, pc);
             }
             trap_frame.regs()[10] as isize // old arg0
         } else {
             -1
         }
     }
-    pub fn transfer_raw(&self, ptr: usize) -> usize {
-        let (phy, ..) = self
+    pub fn transfer_raw(&mut self, ptr: usize) -> usize {
+        let (phy, flag, _) = self
             .address_space
             .lock()
             .query(VirtAddr::from(ptr))
             .unwrap();
+        if !flag.contains(MappingFlags::V) {
+            error!("invalid page {:?}", flag);
+            self.invalid_page_solver(ptr).unwrap();
+            let (phy, flag, _) = self
+                .address_space
+                .lock()
+                .query(VirtAddr::from(ptr))
+                .unwrap();
+            assert!(flag.contains(MappingFlags::V));
+            return phy.as_usize();
+        }
         phy.as_usize()
     }
     pub fn transfer_str(&self, ptr: *const u8) -> String {
@@ -437,7 +478,8 @@ impl TaskInner {
             if physical.is_err() {
                 break;
             }
-            let (physical, _, _) = physical.unwrap();
+            let (physical, flag, _) = physical.unwrap();
+            assert!(flag.contains(MappingFlags::V));
             let c = unsafe { &*(physical.as_usize() as *const u8) };
             if *c == 0 {
                 break;
@@ -453,7 +495,8 @@ impl TaskInner {
         let end = start + len;
         let mut v = Vec::new();
         while start < end {
-            let (start_phy, _, _) = address_space.query(VirtAddr::from(start)).unwrap();
+            let (start_phy, flag, _) = address_space.query(VirtAddr::from(start)).unwrap();
+            assert!(flag.contains(MappingFlags::V));
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
             let len = if bound > end {
@@ -476,7 +519,8 @@ impl TaskInner {
         let end = start + len;
         let mut v = Vec::new();
         while start < end {
-            let (start_phy, _, _) = address_space.query(VirtAddr::from(start)).unwrap();
+            let (start_phy, flag, _) = address_space.query(VirtAddr::from(start)).unwrap();
+            assert!(flag.contains(MappingFlags::V));
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
             let len = if bound > end {
@@ -494,20 +538,22 @@ impl TaskInner {
     }
 
     pub fn transfer_raw_ptr_mut<T>(&self, ptr: *mut T) -> &'static mut T {
-        let (physical, _, _) = self
+        let (physical, flag, _) = self
             .address_space
             .lock()
             .query(VirtAddr::from(ptr as usize))
             .unwrap();
+        assert!(flag.contains(MappingFlags::V));
         unsafe { &mut *(physical.as_usize() as *mut T) }
     }
 
     pub fn transfer_raw_ptr<T>(&self, ptr: *const T) -> &'static T {
-        let (physical, _, _) = self
+        let (physical, flag, _) = self
             .address_space
             .lock()
             .query(VirtAddr::from(ptr as usize))
             .unwrap();
+        assert!(flag.contains(MappingFlags::V));
         unsafe { &*(physical.as_usize() as *const T) }
     }
 
@@ -713,19 +759,20 @@ impl TaskInner {
                 .unwrap();
         } else {
             let region = is_mmap.unwrap();
-            assert_eq!(addr % FRAME_SIZE, 0);
+            // assert_eq!(addr % FRAME_SIZE, 0);
             // update page table
             let mut map_flags = region.prot.into();
             map_flags |= "VAD".into();
             self.address_space
                 .lock()
-                .validate(VirtAddr::from(addr), map_flags)
+                .validate(VirtAddr::from(addr).align_down_4k(), map_flags)
                 .unwrap();
-            let (phy, _, size) = self
+            let (phy, flag, size) = self
                 .address_space
                 .lock()
                 .query(VirtAddr::from(addr))
                 .unwrap();
+            assert!(flag.contains(MappingFlags::V));
             let buf =
                 unsafe { core::slice::from_raw_parts_mut(phy.as_usize() as *mut u8, size.into()) };
             let file = &region.fd;
@@ -802,6 +849,7 @@ impl Task {
             inner: Mutex::new(TaskInner {
                 name: name.to_string(),
                 threads: MinimalManager::new(MAX_THREAD_NUM),
+                thread_number: 0,
                 address_space: Arc::new(Mutex::new(address_space)),
                 state: TaskState::Ready,
                 parent: None,
@@ -825,6 +873,7 @@ impl Task {
                 clear_child_tid: 0,
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
+                robust: RobustList::default(),
             }),
             send_sigchld_when_exit: false,
         };
@@ -854,7 +903,7 @@ impl Task {
         ctid: usize,
     ) -> Option<Arc<Task>> {
         warn!(
-            "clone: flag:{:?}, sig:{:?}, stack:{}, ptid:{}, tls:{}, ctid:{}",
+            "clone: flag:{:?}, sig:{:?}, stack:{:#x}, ptid:{:#x}, tls:{:#x}, ctid:{:#x}",
             flag, sig, stack, ptid, tls, ctid
         );
         let tid = TidHandle::new()?;
@@ -897,18 +946,19 @@ impl Task {
         // 注册线程-信号对应关系
         global_register_signals(tid.0, signal_receivers.clone());
         // map the thread trap_context if clone_vm
-        let trap_context = if flag.contains(CloneFlags::CLONE_VM) {
+        let (trap_context, thread_num) = if flag.contains(CloneFlags::CLONE_VM) {
             let thread_num = inner.threads.insert(()).unwrap() + 1;
             warn!("thread_num: {}", thread_num);
             // calculate the address for thread context
-            build_thread_address_space(&mut address_space.lock(), thread_num)
+            let trap_context = build_thread_address_space(&mut address_space.lock(), thread_num);
+            (trap_context, thread_num)
         } else {
             let (physical, _, _) = address_space
                 .lock()
                 .query(VirtAddr::from(TRAP_CONTEXT_BASE))
                 .unwrap();
             let trap_frame = TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame);
-            trap_frame
+            (trap_frame, 0)
         };
         // 设置内核栈地址
         trap_context.update_kernel_sp(k_stack_top);
@@ -932,7 +982,9 @@ impl Task {
             }
         }
 
-        let ctid_value = if flag.contains(CloneFlags::CLONE_CHILD_SETTID) {
+        let ctid_value = if flag.contains(CloneFlags::CLONE_CHILD_SETTID)
+            || flag.contains(CloneFlags::CLONE_CHILD_CLEARTID)
+        {
             tid.0
         } else {
             0
@@ -951,6 +1003,7 @@ impl Task {
             assert!(flag.contains(CloneFlags::CLONE_VM));
             // set the sp of the new process
             trap_context.regs()[2] = stack;
+            assert_eq!(trap_context.regs()[2], stack);
         }
 
         warn!("create task pid:{}, tid:{}", pid, tid.0);
@@ -961,6 +1014,7 @@ impl Task {
             inner: Mutex::new(TaskInner {
                 name: inner.name.clone(),
                 threads: MinimalManager::new(MAX_THREAD_NUM),
+                thread_number: thread_num,
                 address_space,
                 state: TaskState::Ready,
                 parent,
@@ -986,6 +1040,7 @@ impl Task {
                 },
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
+                robust: RobustList::default(),
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
@@ -1010,6 +1065,7 @@ impl Task {
         }
         let elf_info = elf_info.unwrap();
         let mut inner = self.inner.lock();
+        assert_eq!(inner.thread_number, 0);
         let address_space = elf_info.address_space;
         // reset the address space
         inner.address_space = Arc::new(Mutex::new(address_space));
@@ -1051,7 +1107,8 @@ impl Task {
         user_stack.push_bytes(&[0u8; 8]).unwrap();
         // push aux
         let platform = user_stack.push_str("riscv").unwrap();
-        let ex_path = user_stack.push_str(args[0].as_str()).unwrap();
+
+        let ex_path = user_stack.push_str(name).unwrap();
         user_stack.push(0).unwrap();
         user_stack.push(platform).unwrap();
         user_stack.push(AT_PLATFORM).unwrap();
@@ -1094,7 +1151,7 @@ impl Task {
         let argc = args.len();
         let argc_ptr = user_stack.push(argc).unwrap();
         let user_sp = argc_ptr;
-        warn!("args:{:?}, env:{:?} user_sp: {:#x}", args, env, user_sp);
+        warn!("args:{:?}, env:{:?}, user_sp: {:#x}", args, env, user_sp);
         let (physical, _, _) = inner
             .address_space
             .lock()

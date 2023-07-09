@@ -12,6 +12,7 @@ use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::inode::InodeMode;
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
+use rvfs::ramfs::tmpfs::TMP_FS_TYPE;
 use rvfs::superblock::{register_filesystem, DataOps, Device};
 
 use kernel_sync::Mutex;
@@ -53,6 +54,11 @@ pub fn init_vfs() {
     )
     .unwrap();
     vfs_mknod::<VfsProvider>("/dev/zero", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
+
+    register_filesystem(TMP_FS_TYPE).unwrap();
+    vfs_mkdir::<VfsProvider>("/dev/shm", FileMode::FMODE_RDWR).unwrap();
+    do_mount::<VfsProvider>("none", "/dev/shm", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
+
     println!("vfs init done");
 }
 
