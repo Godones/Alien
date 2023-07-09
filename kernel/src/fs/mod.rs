@@ -27,6 +27,10 @@ use crate::fs::file::KFile;
 use crate::fs::vfs::VfsProvider;
 use crate::task::current_task;
 
+use rvfs::file::File;
+use alloc::sync::Arc;
+use crate::net::socket::Socket;
+
 mod stdio;
 
 mod control;
@@ -51,6 +55,42 @@ fn vfs_statfs2fsstat(vfs_res: StatFs) -> syscall_define::io::FsStat {
         f_spare: [0; 4],
     }
 }
+/// file + socket
+#[derive(Debug)]
+pub enum FileLike {
+    NormalFile(Arc<KFile>),
+    Socket(Arc<Socket>),
+}
+
+pub enum FileType {
+    NormalFile,
+    Socket,
+}
+
+impl FileLike {
+    pub fn get_type(&self) -> FileType {
+        match self {
+            FileLike::NormalFile(_) => FileType::NormalFile,
+            FileLike::Socket(_) => FileType::Socket,
+        }
+    }
+
+    pub fn get_nf(&self) -> Option<Arc<KFile>> {
+        match self {
+            FileLike::NormalFile(nf) => Some(nf.clone()),
+            FileLike::Socket(_) => panic!("get a socket file"),
+        }
+    }
+
+    pub fn get_socket(&self) -> Option<Arc<Socket>> {
+        match self {
+            FileLike::NormalFile(_) => panic!("get a normal file when want a socket"),
+            FileLike::Socket(s) => Some(s.clone()),
+        }
+    }
+}
+
+const AT_FDCWD: isize = -100isize;
 
 #[syscall_func(40)]
 pub fn sys_mount(
@@ -129,8 +169,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     if file.is_err() {
         return -1;
     }
-    let fd = process.add_file(KFile::new(file.unwrap()));
-    warn!("openat fd: {:?}", fd);
+    let fd = process.add_file(Arc::new(FileLike::NormalFile(KFile::new(file.unwrap()))));
     if fd.is_err() {
         -1
     } else {

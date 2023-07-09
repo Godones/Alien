@@ -36,10 +36,16 @@ use crate::memory::{
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
+use crate::net::socket::Socket;
 use crate::timer::read_timer;
 use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
-type FdManager = MinimalManager<Arc<KFile>>;
+
+use crate::fs::{FileLike, FileType};
+
+
+
+type FdManager = MinimalManager<Arc<FileLike>>;
 
 lazy_static! {
     /// 这里把MinimalManager复用为pid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
@@ -311,20 +317,42 @@ impl Task {
     }
     pub fn get_file(&self, fd: usize) -> Option<Arc<KFile>> {
         let inner = self.inner.lock();
-        let file = inner.fd_table.lock().get(fd);
-        return if file.is_err() { None } else { file.unwrap() };
+        let file = inner.fd_table.get(fd);
+        match file {
+            Ok(f) => {
+                    let f = f.unwrap(); 
+                    match f.get_type() {
+                    FileType::NormalFile => f.get_nf(),
+                    FileType::Socket => panic!("get a socket file"),
+                    _ => panic!("get a unknown file type"),
+                }
+            },
+            Err(_) => None
+        }
     }
-    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, ()> {
-        self.access_inner()
-            .fd_table
-            .lock()
-            .insert(file)
-            .map_err(|_| {})
+
+    pub fn get_socket(&self, fd: usize) -> Option<Arc<Socket>> {
+        let inner = self.inner.lock();
+        let file = inner.fd_table.get(fd);
+        match file {
+            Ok(f) => {
+                    let f = f.unwrap(); 
+                    match f.get_type() {
+                    FileType::NormalFile => panic!("get a normal file when want a socket"),
+                    FileType::Socket => f.get_socket(),
+                    _ => panic!("get a unknown file type"),
+                }
+            },
+            Err(_) => None
+        }
     }
-    pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
-        let inner = self.access_inner();
-        let mut fd_table = inner.fd_table.lock();
-        fd_table.insert_with_index(fd, file).map_err(|_| {})
+
+    pub fn add_file(&self, file: Arc<FileLike>) -> Result<usize, ()> {
+        self.access_inner().fd_table.insert(file).map_err(|_| {})
+    }
+    pub fn add_file_with_fd(&self, file: Arc<File>, fd: usize) -> Result<(), ()> {
+        let mut inner = self.access_inner();
+        inner.fd_table.insert_with_index(fd, Arc::new(FileLike::NormalFile(file))).map_err(|_| {})
     }
 
     pub fn remove_file(&self, fd: usize) -> Result<Arc<KFile>, ()> {
@@ -338,7 +366,13 @@ impl Task {
             return Err(());
         }
         let file = file.unwrap();
-        inner.fd_table.lock().remove(fd).map_err(|_| {})?;
+        let file = match file.get_type() {
+            FileType::NormalFile => file.get_nf(),
+            FileType::Socket => panic!("remove a socket file"),
+            _ => panic!("remove a unknown file type"),
+        };
+        let file = file.unwrap(); 
+        inner.fd_table.remove(fd).map_err(|_| {})?;
         Ok(file)
     }
 
@@ -808,10 +842,10 @@ impl Task {
                 children: Vec::new(),
                 fd_table: {
                     let mut fd_table = FdManager::new(MAX_FD_NUM);
-                    fd_table.insert(KFile::new(STDIN.clone())).unwrap();
-                    fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
-                    fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
-                    Arc::new(Mutex::new(fd_table))
+                    fd_table.insert(Arc::new(FileLike::NormalFile(KFile::new(STDIN.clone())))).unwrap();
+                    fd_table.insert(Arc::new(FileLike::NormalFile(KFile::new(STDOUT.clone())))).unwrap();
+                    fd_table.insert(Arc::new(FileLike::NormalFile(KFile::new(STDOUT.clone())))).unwrap();
+                    fd_table
                 },
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: FsContext::empty(),

@@ -16,6 +16,7 @@ pub mod driver;
 mod error;
 pub mod fs;
 mod gui;
+pub mod net;
 pub mod ipc;
 pub mod memory;
 mod panic;
