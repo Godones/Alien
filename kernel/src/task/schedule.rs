@@ -44,7 +44,9 @@ pub fn first_into_user() -> ! {
         let cpu = current_cpu();
         let mut task_manager = TASK_MANAGER.lock();
         if let Some(process) = task_manager.pop_front() {
-            // warn!("switch to process {}", process.get_pid());
+            if process.get_tid() >= 4 {
+                warn!("switch to task {}", process.get_tid());
+            }
             // update state to running
             process.update_state(TaskState::Running);
             // get the process context

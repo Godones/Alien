@@ -212,19 +212,19 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     // check whether flag include signal
     let sig = flag & 0xff;
     let sig = SignalNumber::from(sig);
-    let process = current_task().unwrap();
-    let new_process = process.t_clone(clone_flag, stack, sig, ptid, tls, ctid);
-    if new_process.is_none() {
+    let task = current_task().unwrap();
+    let new_task = task.t_clone(clone_flag, stack, sig, ptid, tls, ctid);
+    if new_task.is_none() {
         return -1;
     }
-    let new_process = new_process.unwrap();
+    let new_task = new_task.unwrap();
     // update return value
-    let trap_frame = new_process.trap_frame();
+    let trap_frame = new_task.trap_frame();
     trap_frame.update_res(0);
-    let pid = new_process.get_pid();
+    let tid = new_task.get_tid();
     let mut process_pool = TASK_MANAGER.lock();
-    process_pool.push_back(new_process);
-    pid
+    process_pool.push_back(new_task);
+    tid
 }
 
 #[syscall_func(221)]
@@ -234,7 +234,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
 
     // for test app
     if !path_str.starts_with("/") && !path_str.starts_with("./") && !path_str.contains("ls") {
-        let mut path = String::from("/libc/");
+        let mut path = String::from("/final/");
         path.push_str(&path_str);
         path_str = path;
     }
@@ -251,7 +251,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
         args.push(*arg);
         start = unsafe { start.add(1) };
     }
-    let mut args = args
+    let args = args
         .into_iter()
         .map(|arg| {
             let mut arg = process.transfer_str(arg as *const u8);
@@ -259,9 +259,9 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
             arg
         })
         .collect::<Vec<String>>();
-    let mut elf_name = path_str.clone();
-    elf_name.push('\0');
-    args.insert(0, elf_name);
+    // let mut elf_name = path_str.clone();
+    // elf_name.push('\0');
+    // args.insert(0, elf_name);
     // get the env and push them into the new process stack
     let mut envs = Vec::new();
     let mut start = env as *mut usize;
@@ -295,7 +295,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
 
 /// Please care about the exit code,it may be null
 #[syscall_func(260)]
-pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
+pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
     let process = current_task().unwrap().clone();
     loop {
         if process
@@ -319,7 +319,7 @@ pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u
                 let exit_code_ref = process.transfer_raw_ptr(exit_code);
                 *exit_code_ref = child.exit_code();
             }
-            return child.get_pid();
+            return child.get_tid();
         } else {
             let wait_options = WaitOptions::from_bits(options).unwrap();
             if wait_options.contains(WaitOptions::WNOHANG) {
