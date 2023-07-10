@@ -13,6 +13,7 @@ const PLIC: &str = "plic";
 const CLINT: &str = "clint";
 const RTC: &str = "rtc";
 
+#[derive(Clone)]
 pub struct MachineInfo {
     pub model: [u8; 32],
     pub smp: usize,
@@ -39,7 +40,7 @@ impl Debug for MachineInfo {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct RtcInfo {
     pub range: Range<usize>,
     pub irq: usize,

@@ -15,8 +15,8 @@ use crate::arch::{
     external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
     timer_interrupt_enable,
 };
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT_BASE};
-use crate::ipc::{send_signal, signal_handler};
+use crate::config::TRAMPOLINE;
+use crate::ipc::{send_signal, signal_handler, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_task, current_user_token};
 use crate::timer::{check_timer_queue, set_next_trigger};
@@ -39,9 +39,11 @@ extern "C" {
 /// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
+    signal_handler();
+
     interrupt_disable();
     set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT_BASE;
+    let trap_cx_ptr = current_task().unwrap().trap_frame_ptr();
     let user_satp = current_user_token();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
     unsafe {
@@ -146,6 +148,7 @@ impl TrapHandler for Trap {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 trace!("timer interrupt");
                 check_timer_queue();
+                solve_futex_wait();
                 set_next_trigger();
             }
             Trap::Exception(Exception::StorePageFault) => {
@@ -206,7 +209,6 @@ pub fn user_trap_vector() {
         process.access_inner().update_kernel_mode_time();
     }
 
-    signal_handler();
     trap_return();
 }
 
