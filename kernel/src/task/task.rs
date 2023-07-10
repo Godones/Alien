@@ -786,13 +786,18 @@ impl TaskInner {
         &mut self,
         addr: usize,
     ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
-        trace!("do store page fault:{:#x}", addr);
         let addr = align_down_4k(addr);
         let (phy, flags, page_size) = self
             .address_space
             .lock()
             .query(VirtAddr::from(addr))
             .expect(format!("addr:{:#x}", addr).as_str());
+        trace!(
+            "do store page fault:{:#x}, flags:{:?}, page_size:{:?}",
+            addr,
+            flags,
+            page_size
+        );
         if !flags.contains(MappingFlags::V) {
             return self.invalid_page_solver(addr);
         }
@@ -810,13 +815,12 @@ impl TaskInner {
         let src_ptr = phy.as_usize() as *const u8;
         let dst_ptr = new_phy.unwrap().as_usize() as *mut u8;
         unsafe {
-            core::ptr::copy_nonoverlapping(src_ptr, dst_ptr, usize::from(page_size));
+            core::ptr::copy(src_ptr, dst_ptr, usize::from(page_size));
         }
+        let mut frame_ref_manager = FRAME_REF_MANAGER.lock();
         for i in 0..usize::from(page_size) / FRAME_SIZE {
             let t_phy = phy + i * FRAME_SIZE;
-            FRAME_REF_MANAGER
-                .lock()
-                .dec_ref(t_phy.as_usize() >> FRAME_BITS);
+            frame_ref_manager.dec_ref(t_phy.as_usize() >> FRAME_BITS);
         }
         Ok(None)
     }
