@@ -216,6 +216,10 @@ pub enum TaskState {
 }
 
 impl Task {
+    pub fn terminate(self: Arc<Self>) {
+        self.access_inner().state = TaskState::Terminated;
+    }
+
     #[inline]
     pub fn get_pid(&self) -> isize {
         self.pid as isize
@@ -278,6 +282,13 @@ impl Task {
         let inner = self.inner.lock();
         inner.children.clone()
     }
+
+    pub fn take_children(&self) -> Vec<Arc<Task>> {
+        let children = self.children();
+        self.access_inner().children = Vec::new();
+        children
+    }
+
     pub fn remove_child(&self, index: usize) -> Arc<Task> {
         let mut inner = self.inner.lock();
         assert!(index < inner.children.len());
@@ -833,6 +844,12 @@ impl Task {
         inner.children.clear();
         // recycle page
     }
+
+    /// get the clear_child_tid
+    pub fn futex_wake(&self) -> usize {
+        self.access_inner().clear_child_tid
+    }
+
     /// only call once
     pub fn from_elf(name: &str, elf: &[u8]) -> Option<Task> {
         let tid = TidHandle::new()?;
