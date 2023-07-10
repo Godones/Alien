@@ -84,6 +84,10 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
         "sigtimewait: set: {:x}, info: {:x}, time: {:x}",
         set, info, time
     );
+
+    let mut flag = false;
+    let mut target_time = 0;
+
     loop {
         let task = current_task().unwrap();
         let task_inner = task.access_inner();
@@ -107,20 +111,17 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
         }
         drop(signal_receivers);
         drop(task_inner);
-        warn!("sigtimewait: sleep for {:?}", time_spec);
-        let target_time = read_timer() + time_spec.to_clock();
+        if !flag {
+            warn!("sigtimewait: sleep for {:?}", time_spec);
+            let t_time = read_timer() + time_spec.to_clock();
+            target_time = t_time;
+            flag = true;
+        }
         let now = read_timer();
         if now >= target_time {
             break;
         }
         do_suspend();
-        //
-        // // set the time to 0 to exit the loop
-        // let task = current_task().unwrap();
-        // let task_inner = task.access_inner();
-        // let time_spec = task_inner.transfer_raw_ptr_mut(time as *mut TimeSpec);
-        // time_spec.tv_sec = 0;
-        // time_spec.tv_nsec = 0;
     }
     -1
 }

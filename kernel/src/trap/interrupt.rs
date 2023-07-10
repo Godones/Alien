@@ -2,7 +2,7 @@ use plic::Mode;
 
 use crate::arch::hart_id;
 use crate::driver::{DEVICE_TABLE, PLIC};
-use crate::ipc::solve_the_futex_wait_time;
+use crate::ipc::solve_futex_wait;
 use crate::task::schedule::schedule;
 use crate::task::{current_task, TaskState};
 use crate::timer::{check_timer_queue, set_next_trigger};
@@ -10,7 +10,7 @@ use crate::timer::{check_timer_queue, set_next_trigger};
 /// 时钟中断处理函数
 pub fn timer_interrupt_handler() {
     check_timer_queue();
-    solve_the_futex_wait_time();
+    solve_futex_wait();
     set_next_trigger();
     let process = current_task().unwrap();
     process.update_state(TaskState::Ready);
