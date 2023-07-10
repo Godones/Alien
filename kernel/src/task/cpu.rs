@@ -9,6 +9,7 @@ use lazy_static::lazy_static;
 use spin::Once;
 
 use kernel_sync::Mutex;
+use syscall_define::ipc::FutexOp;
 use syscall_define::signal::SignalNumber;
 use syscall_define::task::{CloneFlags, WaitOptions};
 use syscall_define::{PrLimit, PrLimitRes};
@@ -17,6 +18,7 @@ use syscall_table::syscall_func;
 use crate::arch;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
+use crate::ipc::{futex, global_logoff_signals};
 use crate::sbi::shutdown;
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
@@ -128,13 +130,14 @@ pub fn do_exit(exit_code: i32) -> isize {
     }
     {
         let init = INIT_PROCESS.clone();
-        task.children().iter().for_each(|child| {
+        task.take_children().into_iter().for_each(|child| {
             child.update_parent(init.clone());
-            init.insert_child(child.clone());
+            init.insert_child(child);
         });
     }
     task.update_state(TaskState::Zombie);
     task.update_exit_code(exit_code);
+    global_logoff_signals(task.get_tid() as usize);
     // clear_child_tid 的值不为 0，则将这个用户地址处的值写为0
     let addr = task.access_inner().clear_child_tid;
     if addr != 0 {
@@ -143,6 +146,15 @@ pub fn do_exit(exit_code: i32) -> isize {
         *addr = 0;
     }
     task.recycle();
+    let clear_child_tid = task.futex_wake();
+    if clear_child_tid != 0 {
+        let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
+        *phy_addr = 0;
+        error!("exit wake futex on {:#x}", clear_child_tid);
+        futex(clear_child_tid, FutexOp::FutexWake as u32, 1, 0, 0, 0);
+    } else {
+        error!("exit clear_child_tid is 0");
+    }
     schedule();
     0
 }
@@ -212,19 +224,19 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     // check whether flag include signal
     let sig = flag & 0xff;
     let sig = SignalNumber::from(sig);
-    let process = current_task().unwrap();
-    let new_process = process.t_clone(clone_flag, stack, sig, ptid, tls, ctid);
-    if new_process.is_none() {
+    let task = current_task().unwrap();
+    let new_task = task.t_clone(clone_flag, stack, sig, ptid, tls, ctid);
+    if new_task.is_none() {
         return -1;
     }
-    let new_process = new_process.unwrap();
+    let new_task = new_task.unwrap();
     // update return value
-    let trap_frame = new_process.trap_frame();
+    let trap_frame = new_task.trap_frame();
     trap_frame.update_res(0);
-    let pid = new_process.get_pid();
+    let tid = new_task.get_tid();
     let mut process_pool = TASK_MANAGER.lock();
-    process_pool.push_back(new_process);
-    pid
+    process_pool.push_back(new_task);
+    tid
 }
 
 #[syscall_func(221)]
@@ -234,7 +246,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
 
     // for test app
     if !path_str.starts_with("/") && !path_str.starts_with("./") && !path_str.contains("ls") {
-        let mut path = String::from("/libc/");
+        let mut path = String::from("/final/");
         path.push_str(&path_str);
         path_str = path;
     }
@@ -251,7 +263,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
         args.push(*arg);
         start = unsafe { start.add(1) };
     }
-    let mut args = args
+    let args = args
         .into_iter()
         .map(|arg| {
             let mut arg = process.transfer_str(arg as *const u8);
@@ -259,9 +271,9 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
             arg
         })
         .collect::<Vec<String>>();
-    let mut elf_name = path_str.clone();
-    elf_name.push('\0');
-    args.insert(0, elf_name);
+    // let mut elf_name = path_str.clone();
+    // elf_name.push('\0');
+    // args.insert(0, elf_name);
     // get the env and push them into the new process stack
     let mut envs = Vec::new();
     let mut start = env as *mut usize;
@@ -295,7 +307,7 @@ pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> is
 
 /// Please care about the exit code,it may be null
 #[syscall_func(260)]
-pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
+pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
     let process = current_task().unwrap().clone();
     loop {
         if process
@@ -314,12 +326,20 @@ pub fn wait_pid(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u
         drop(children);
         if let Some(index) = res {
             let child = process.remove_child(index);
-            assert_eq!(Arc::strong_count(&child), 1);
+            assert_eq!(
+                Arc::strong_count(&child),
+                1,
+                "Father is [{}-{}], wait task is [{}-{}]",
+                process.get_pid(),
+                process.get_tid(),
+                child.get_pid(),
+                child.get_tid()
+            );
             if !exit_code.is_null() {
                 let exit_code_ref = process.transfer_raw_ptr(exit_code);
                 *exit_code_ref = child.exit_code();
             }
-            return child.get_pid();
+            return child.get_tid();
         } else {
             let wait_options = WaitOptions::from_bits(options).unwrap();
             if wait_options.contains(WaitOptions::WNOHANG) {
@@ -350,9 +370,9 @@ pub fn do_brk(addr: usize) -> isize {
 }
 
 #[syscall_func(96)]
-pub fn set_tid_address(tidptr: *mut i32) -> isize {
+pub fn set_tid_address(tidptr: usize) -> isize {
     let task = current_task().unwrap();
-    task.set_tid_address(tidptr as usize);
+    task.set_tid_address(tidptr);
     task.get_tid()
 }
 

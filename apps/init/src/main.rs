@@ -12,14 +12,14 @@ fn main() -> isize {
     } else {
         loop {
             let mut exit_code: i32 = 0;
-            let pid = wait(&mut exit_code);
-            if pid == -1 {
+            let tid = wait(&mut exit_code);
+            if tid == -1 {
                 m_yield();
                 continue;
             }
             println!(
-                "[Init] Released a process, pid={}, exit_code={}",
-                pid, exit_code,
+                "[Init] Released a task, tid={}, exit_code={}",
+                tid, exit_code,
             );
         }
     }
