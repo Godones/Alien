@@ -17,7 +17,9 @@ use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
 use kernel::trap::set_kernel_trap_entry;
-use kernel::{config, driver, println, syscall, task, thread_local_init, timer, trap};
+use kernel::{
+    config, driver, init_machine_info, println, syscall, task, thread_local_init, timer, trap,
+};
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
@@ -68,6 +70,7 @@ pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
+        init_machine_info(machine_info.clone());
         kernel_info(machine_info.memory.end);
         init_print();
         init_memory_system(machine_info.memory.end, true);

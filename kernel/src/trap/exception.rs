@@ -92,8 +92,8 @@ pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
 pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let process = current_task().unwrap();
     trace!(
-        "[pid: {}] do store page fault addr:{:#x}",
-        process.get_pid(),
+        "[tid: {}] do store page fault addr:{:#x}",
+        process.get_tid(),
         addr
     );
     let res = process.access_inner().do_store_page_fault(addr)?;

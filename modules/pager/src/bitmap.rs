@@ -11,6 +11,8 @@ pub struct Bitmap<const N: usize> {
     max: usize,
     /// The bitmap data
     data: [u8; N],
+    /// start page
+    start: usize,
 }
 
 impl<const N: usize> Debug for Bitmap<N> {
@@ -35,6 +37,7 @@ impl<const N: usize> Bitmap<N> {
             current: 0,
             max: 0,
             data: [0; N],
+            start: 0,
         }
     }
     #[inline]
@@ -114,16 +117,17 @@ impl<const N: usize> PageAllocator for Bitmap<N> {
         if self.max > N * 8 {
             return Err(BuddyError::OutOfMemory);
         }
+        self.start = start_page;
         Ok(())
     }
     fn alloc(&mut self, order: usize) -> BuddyResult<usize> {
         let need_pages = 1 << order;
         self.alloc_pages_inner(need_pages)?;
-        Ok(self.current - need_pages)
+        Ok(self.current - need_pages + self.start)
     }
     fn free(&mut self, page: usize, order: usize) -> BuddyResult<()> {
         let need_pages = 1 << order;
-        self.free_pages_inner(page, need_pages)?;
+        self.free_pages_inner(page - self.start, need_pages)?;
         Ok(())
     }
 }
@@ -131,10 +135,10 @@ impl<const N: usize> PageAllocator for Bitmap<N> {
 impl<const N: usize> PageAllocatorExt for Bitmap<N> {
     fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize> {
         self.alloc_pages_inner(pages)?;
-        Ok(self.current - pages)
+        Ok(self.current - pages + self.start)
     }
     fn free_pages(&mut self, page: usize, pages: usize) -> BuddyResult<()> {
-        self.free_pages_inner(page, pages)?;
+        self.free_pages_inner(page - self.start, pages)?;
         Ok(())
     }
 }
