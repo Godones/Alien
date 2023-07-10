@@ -28,19 +28,20 @@ impl FrameRefManager {
     pub fn dec_ref(&mut self, id: usize) -> Option<usize> {
         if let Some(count) = self.record.get_mut(&id) {
             *count -= 1;
+            let now_count = *count;
             if *count == 0 {
                 self.record.remove(&id);
                 let start_addr = id << FRAME_BITS;
                 unsafe {
                     core::ptr::write_bytes(start_addr as *mut u8, 0, FRAME_SIZE);
                 }
+                info!("free frame:{:#x}", id);
                 FRAME_ALLOCATOR.lock().free(id, 0).unwrap();
-                return Some(id);
             }
+            return Some(now_count);
         } else {
             panic!("dec {} ref error", id);
         }
-        None
     }
     pub fn get_ref(&self, id: usize) -> usize {
         if let Some(count) = self.record.get(&id) {

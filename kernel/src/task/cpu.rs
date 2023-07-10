@@ -17,6 +17,7 @@ use syscall_table::syscall_func;
 use crate::arch;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
+use crate::ipc::global_logoff_signals;
 use crate::sbi::shutdown;
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
@@ -135,6 +136,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     }
     task.update_state(TaskState::Zombie);
     task.update_exit_code(exit_code);
+    global_logoff_signals(task.get_tid() as usize);
     // clear_child_tid 的值不为 0，则将这个用户地址处的值写为0
     let addr = task.access_inner().clear_child_tid;
     if addr != 0 {

@@ -7,6 +7,10 @@ extern crate alloc;
 #[macro_use]
 extern crate log;
 
+use spin::Once;
+
+use basemachine::MachineInfo;
+
 #[macro_use]
 pub mod print;
 pub mod arch;
@@ -27,6 +31,12 @@ pub mod task;
 pub mod timer;
 mod trace;
 pub mod trap;
+
+pub static MACHINE_INFO: Once<MachineInfo> = Once::new();
+
+pub fn init_machine_info(machine_info: MachineInfo) {
+    MACHINE_INFO.call_once(|| machine_info);
+}
 
 pub fn thread_local_init() {
     // 允许内核读写用户态内存

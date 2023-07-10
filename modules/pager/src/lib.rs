@@ -1,6 +1,7 @@
 #![feature(generic_const_exprs)]
 #![cfg_attr(not(test), no_std)]
 #![allow(incomplete_features)]
+#![allow(unused)]
 //! Buddy memory allocator
 
 extern crate alloc;

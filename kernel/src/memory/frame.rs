@@ -4,15 +4,14 @@ use core::ops::{Deref, DerefMut};
 use lazy_static::lazy_static;
 
 use kernel_sync::Mutex;
-use pager::{PageAllocator, PageAllocatorExt, Zone};
+use pager::{Bitmap, PageAllocator, PageAllocatorExt};
 
-use crate::config::{FRAME_BITS, FRAME_MAX_ORDER, FRAME_SIZE};
+use crate::config::{FRAME_BITS, FRAME_SIZE};
 
 use super::manager::FrameRefManager;
 
 lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<Zone<FRAME_MAX_ORDER>> =
-        Mutex::new(Zone::<FRAME_MAX_ORDER>::new());
+    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<8192>> = Mutex::new(Bitmap::new());
 }
 
 lazy_static! {
@@ -99,8 +98,7 @@ pub fn alloc_frames(num: usize) -> *mut u8 {
     assert_eq!(num.count_ones(), 1);
     let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num);
     if start_page.is_err() {
-        error!("alloc frame failed");
-        return core::ptr::null_mut();
+        panic!("alloc frame failed");
     }
     let start_page = start_page.unwrap();
     let start_addr = start_page << FRAME_BITS;
