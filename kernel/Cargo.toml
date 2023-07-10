@@ -35,10 +35,11 @@ preprint = "0.1.0"
 rslab = "0.2.1"
 syscall-table = { path = "../modules/syscall-table" }
 plic = { path = "../modules/plic" }
-pager = { path = "../modules/pager" }
+pager = { path = "../modules/pager", default-features = false, features = ["bitmap"] }
 gmanager = { path = "../modules/gmanager" }
 kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
 syscall_define = { path = "../modules/syscall", package = "syscall" }
+basemachine = { path = "../modules/basemachine" }
 
 [build-dependencies]
 #syscall-table = {path = "../modules/syscall-table",features = ["std"]}

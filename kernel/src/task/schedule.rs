@@ -2,7 +2,7 @@ use core::arch::asm;
 
 use syscall_define::signal::SignalNumber;
 
-use crate::ipc::{global_logoff_signals, send_signal};
+use crate::ipc::send_signal;
 use crate::task::context::switch;
 use crate::task::cpu::{current_cpu, TASK_MANAGER};
 use crate::task::task::TaskState;
@@ -20,7 +20,6 @@ pub fn first_into_user() -> ! {
                         // drop(task);
                     }
                     TaskState::Zombie => {
-                        task.update_state(TaskState::Terminated);
                         // 退出时向父进程发送信号，其中选项可被 sys_clone 控制
                         if task.send_sigchld_when_exit || task.pid == task.tid.0 {
                             let parent = task
@@ -33,7 +32,7 @@ pub fn first_into_user() -> ! {
                             send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
                         }
                         // 通知全局表将 signals 删除
-                        global_logoff_signals(task.tid.0);
+                        task.terminate();
                     }
                     _ => {
                         task_manager.push_back(task);
@@ -44,7 +43,9 @@ pub fn first_into_user() -> ! {
         let cpu = current_cpu();
         let mut task_manager = TASK_MANAGER.lock();
         if let Some(process) = task_manager.pop_front() {
-            // warn!("switch to process {}", process.get_pid());
+            // if process.get_tid() >= 1 {
+            //     warn!("switch to task {}", process.get_tid());
+            // }
             // update state to running
             process.update_state(TaskState::Running);
             // get the process context

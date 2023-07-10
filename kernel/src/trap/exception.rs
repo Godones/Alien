@@ -40,7 +40,10 @@ pub fn syscall_exception_handler() {
 
     let result = syscall::do_syscall(parameters[0], &parameters[1..]);
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
-        warn!("syscall result: {:?}", result);
+        warn!(
+            "[pid:{}, tid: {}] syscall: [{}] result: {:?}",
+            pid, tid, syscall_name, result
+        );
     }
 
     if result.is_none() {
@@ -89,8 +92,8 @@ pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
 pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let process = current_task().unwrap();
     trace!(
-        "[pid: {}] do store page fault addr:{:#x}",
-        process.get_pid(),
+        "[tid: {}] do store page fault addr:{:#x}",
+        process.get_tid(),
         addr
     );
     let res = process.access_inner().do_store_page_fault(addr)?;
