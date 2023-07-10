@@ -1,94 +1,98 @@
 use spin::Once;
 use syscall_table::{register_syscall, Table};
 static SYSCALL_TABLE: Once<Table> = Once::new();
-pub fn register_all_syscall(){
-	let mut table = Table::new();
-	register_syscall!(table,
-	(160, sys_uname),
-	(210, shutdown),
-	(169, get_time_of_day),
-	(153, times),
-	(101, sys_nanosleep),
-	(113, clock_get_time),
-	(2002, sys_event_get),
-	(2000, sys_framebuffer),
-	(2001, sys_framebuffer_flush),
-	(59, sys_pipe),
-	(23, sys_dup),
-	(24, sys_dup2),
-	(98, sys_futex),
-	(134, sigaction),
-	(137, sigtimewait),
-	(135, sys_sigprocmask),
-	(999, signal_return),
-	(93, do_exit),
-	(94, exit_group),
-	(124, do_suspend),
-	(172, get_pid),
-	(173, get_ppid),
-	(174, getuid),
-	(175, geteuid),
-	(176, getgid),
-	(177, getegid),
-	(178, get_tid),
-	(220, clone),
-	(221, do_exec),
-	(260, wait_pid),
-	(214, do_brk),
-	(96, set_tid_address),
-	(261, prlimit64),
-	(40, sys_mount),
-	(39, sys_umount),
-	(56, sys_openat),
-	(57, sys_close),
-	(61, sys_getdents),
-	(45, sys_truncate),
-	(46, sys_ftruncate),
-	(63, sys_read),
-	(64, sys_write),
-	(17, sys_getcwd),
-	(49, sys_chdir),
-	(83, sys_mkdir),
-	(62, sys_lseek),
-	(80, sys_fstat),
-	(37, sys_linkat),
-	(35, sys_unlinkat),
-	(36, sys_symlinkat),
-	(78, sys_readlinkat),
-	(79, sys_fstateat),
-	(44, sys_fstatfs),
-	(43, sys_statfs),
-	(38, sys_renameat),
-	(34, sys_mkdirat),
-	(5, sys_setxattr),
-	(6, sys_lsetxattr),
-	(7, sys_fsetxattr),
-	(8, sys_getxattr),
-	(9, sys_lgetxattr),
-	(10, sys_fgetxattr),
-	(11, sys_listxattr),
-	(12, sys_llistxattr),
-	(13, sys_flistxattr),
-	(14, sys_removexattr),
-	(15, sys_lremovexattr),
-	(66, sys_writev),
-	(65, sys_readv),
-	(67, sys_pread),
-	(68, sys_pwrite),
-	(16, sys_fremovexattr),
-	(25, sys_fcntl),
-	(29, sys_ioctl),
-	(88, sys_utimensat),
-	(215, do_munmap),
-	(222, do_mmap),
-	(226, map_protect),
-
-	);
-	SYSCALL_TABLE.call_once(||table);
+pub fn register_all_syscall() {
+    let mut table = Table::new();
+    register_syscall!(
+        table,
+        (160, sys_uname),
+        (210, shutdown),
+        (169, get_time_of_day),
+        (153, times),
+        (101, sys_nanosleep),
+        (113, clock_get_time),
+        (2002, sys_event_get),
+        (2000, sys_framebuffer),
+        (2001, sys_framebuffer_flush),
+        (59, sys_pipe),
+        (23, sys_dup),
+        (24, sys_dup2),
+        (98, futex),
+        (99, set_robust_list),
+        (100, get_robust_list),
+        (134, sigaction),
+        (137, sigtimewait),
+        (135, sigprocmask),
+        (129, kill),
+        (130, tkill),
+        (139, signal_return),
+        (93, do_exit),
+        (94, exit_group),
+        (124, do_suspend),
+        (172, get_pid),
+        (173, get_ppid),
+        (174, getuid),
+        (175, geteuid),
+        (176, getgid),
+        (177, getegid),
+        (178, get_tid),
+        (220, clone),
+        (221, do_exec),
+        (260, wait4),
+        (214, do_brk),
+        (96, set_tid_address),
+        (261, prlimit64),
+        (40, sys_mount),
+        (39, sys_umount),
+        (56, sys_openat),
+        (57, sys_close),
+        (61, sys_getdents),
+        (45, sys_truncate),
+        (46, sys_ftruncate),
+        (63, sys_read),
+        (64, sys_write),
+        (17, sys_getcwd),
+        (49, sys_chdir),
+        (83, sys_mkdir),
+        (62, sys_lseek),
+        (80, sys_fstat),
+        (37, sys_linkat),
+        (35, sys_unlinkat),
+        (36, sys_symlinkat),
+        (78, sys_readlinkat),
+        (79, sys_fstateat),
+        (44, sys_fstatfs),
+        (43, sys_statfs),
+        (38, sys_renameat),
+        (34, sys_mkdirat),
+        (5, sys_setxattr),
+        (6, sys_lsetxattr),
+        (7, sys_fsetxattr),
+        (8, sys_getxattr),
+        (9, sys_lgetxattr),
+        (10, sys_fgetxattr),
+        (11, sys_listxattr),
+        (12, sys_llistxattr),
+        (13, sys_flistxattr),
+        (14, sys_removexattr),
+        (15, sys_lremovexattr),
+        (66, sys_writev),
+        (65, sys_readv),
+        (67, sys_pread),
+        (68, sys_pwrite),
+        (16, sys_fremovexattr),
+        (25, sys_fcntl),
+        (29, sys_ioctl),
+        (88, sys_utimensat),
+        (215, do_munmap),
+        (222, do_mmap),
+        (226, map_protect),
+    );
+    SYSCALL_TABLE.call_once(|| table);
 }
-pub fn do_syscall(id:usize,args:&[usize])->Option<isize>{
-	let res = SYSCALL_TABLE.get().unwrap().do_call(id,&args);
-	res
+pub fn do_syscall(id: usize, args: &[usize]) -> Option<isize> {
+    let res = SYSCALL_TABLE.get().unwrap().do_call(id, &args);
+    res
 }
 use crate::driver::sys_event_get;
 use crate::fs::sys_chdir;
@@ -135,14 +139,18 @@ use crate::fs::sys_write;
 use crate::fs::sys_writev;
 use crate::gui::sys_framebuffer;
 use crate::gui::sys_framebuffer_flush;
+use crate::ipc::futex;
+use crate::ipc::get_robust_list;
+use crate::ipc::kill;
+use crate::ipc::set_robust_list;
 use crate::ipc::sigaction;
 use crate::ipc::signal_return;
+use crate::ipc::sigprocmask;
 use crate::ipc::sigtimewait;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
-use crate::ipc::sys_futex;
 use crate::ipc::sys_pipe;
-use crate::ipc::sys_sigprocmask;
+use crate::ipc::tkill;
 use crate::memory::do_mmap;
 use crate::memory::do_munmap;
 use crate::memory::map_protect;
@@ -163,7 +171,7 @@ use crate::task::getgid;
 use crate::task::getuid;
 use crate::task::prlimit64;
 use crate::task::set_tid_address;
-use crate::task::wait_pid;
+use crate::task::wait4;
 use crate::timer::clock_get_time;
 use crate::timer::get_time_of_day;
 use crate::timer::sys_nanosleep;

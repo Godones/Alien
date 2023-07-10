@@ -103,6 +103,10 @@ impl SignalReceivers {
         })
     }
 
+    pub fn have_signal(&self) -> bool {
+        self.sig_received.find_first_one(self.mask).is_some()
+    }
+
     pub fn check_signal(&mut self, signum: usize) -> bool {
         self.sig_received.check_bit(signum - 1)
     }
