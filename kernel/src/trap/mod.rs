@@ -16,7 +16,7 @@ use crate::arch::{
     timer_interrupt_enable,
 };
 use crate::config::TRAMPOLINE;
-use crate::ipc::{send_signal, signal_handler, solve_the_futex_wait_time};
+use crate::ipc::{send_signal, signal_handler, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_task, current_user_token};
 use crate::timer::{check_timer_queue, set_next_trigger};
@@ -148,7 +148,7 @@ impl TrapHandler for Trap {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 trace!("timer interrupt");
                 check_timer_queue();
-                solve_the_futex_wait_time();
+                solve_futex_wait();
                 set_next_trigger();
             }
             Trap::Exception(Exception::StorePageFault) => {

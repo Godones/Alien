@@ -296,6 +296,16 @@ bug2：建立好页表后开启mmu卡死
 
 - [ ] 任务栈上的数据被覆盖掉，无法进行正常的系统调用 ----> buddy allocater for page is error
 
+- [ ] 保证任务退出状态更新与引用计数减少原子性。
+
+
+在多核环境下，如果一个任务使用`sigtimewait` 在一个时间点上等待，如果这个任务在不同的核上运行，那么它的时间判断就
+
+
+
+
+
+
 
 ```
 ./final/runtest.exe -w entry-static.exe pthread_cancel
@@ -314,3 +324,8 @@ bug2：建立好页表后开启mmu卡死
 
 
 ![image-20230709214636946](assert/image-20230709214636946.png)
+
+
+
+
+

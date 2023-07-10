@@ -7,8 +7,6 @@ use core::arch::asm;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use riscv::register::sstatus::{set_spp, SPP};
-
 use basemachine::machine_info_from_dtb;
 use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
@@ -61,12 +59,9 @@ extern "C" fn _start() {
 /// rust_main is the entry of the kernel
 #[no_mangle]
 pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
-    clear_bss();
     set_kernel_trap_entry();
-    unsafe {
-        set_spp(SPP::Supervisor);
-    }
     if !STARTED.load(Ordering::Relaxed) {
+        clear_bss();
         println!("{}", config::FLAG);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
