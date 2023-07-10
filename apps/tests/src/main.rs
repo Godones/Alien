@@ -22,7 +22,7 @@ mod timetest;
 
 #[no_mangle]
 fn main(_argc: usize, argv: Vec<String>) -> isize {
-    argv.iter().skip(1).for_each(|test_name| {
+    argv.iter().for_each(|test_name| {
         println!("run test {}", test_name);
         match test_name.as_str() {
             "help" => {

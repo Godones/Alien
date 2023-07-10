@@ -43,6 +43,28 @@ impl FutexWaitManager {
     pub fn add_waiter(&mut self, futex: usize, waiter: FutexWaiter) {
         self.map.entry(futex).or_insert(Vec::new()).push(waiter);
     }
+    pub fn wake_for_signal(&mut self) {
+        for (_, waiters) in self.map.iter_mut() {
+            let mut record = vec![];
+            for (index, waiter) in waiters.iter_mut().enumerate() {
+                let task = waiter.task.as_ref().unwrap();
+                let task_inner = task.access_inner();
+                let receiver = task_inner.signal_receivers.lock();
+                if receiver.have_signal() {
+                    drop(receiver);
+                    drop(task_inner);
+                    let mut task_manager = TASK_MANAGER.lock();
+                    let task = waiter.wake();
+                    task_manager.push_back(task);
+                    record.push(index);
+                }
+            }
+            record.iter().for_each(|index| {
+                waiters.remove(*index);
+            })
+        }
+        self.delete_empty_waiters();
+    }
 
     pub fn wake_for_timeout(&mut self) {
         let now = read_timer();
@@ -64,6 +86,10 @@ impl FutexWaitManager {
             })
         }
         // delete empty waiters
+        self.delete_empty_waiters();
+    }
+
+    fn delete_empty_waiters(&mut self) {
         let mut record = vec![];
         for (futex, waiters) in self.map.iter() {
             if waiters.is_empty() {
@@ -74,6 +100,7 @@ impl FutexWaitManager {
             self.map.remove(futex);
         })
     }
+
     pub fn wake(&mut self, futex: usize, num: usize) -> AlienResult<usize> {
         if let Some(waiters) = self.map.get_mut(&futex) {
             error!("there are {} waiters, wake {}", waiters.len(), num);

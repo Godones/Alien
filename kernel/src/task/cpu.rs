@@ -9,6 +9,7 @@ use lazy_static::lazy_static;
 use spin::Once;
 
 use kernel_sync::Mutex;
+use syscall_define::ipc::FutexOp;
 use syscall_define::signal::SignalNumber;
 use syscall_define::task::{CloneFlags, WaitOptions};
 use syscall_define::{PrLimit, PrLimitRes};
@@ -17,7 +18,7 @@ use syscall_table::syscall_func;
 use crate::arch;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
-use crate::ipc::global_logoff_signals;
+use crate::ipc::{futex, global_logoff_signals};
 use crate::sbi::shutdown;
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
@@ -129,9 +130,9 @@ pub fn do_exit(exit_code: i32) -> isize {
     }
     {
         let init = INIT_PROCESS.clone();
-        task.children().iter().for_each(|child| {
+        task.take_children().into_iter().for_each(|child| {
             child.update_parent(init.clone());
-            init.insert_child(child.clone());
+            init.insert_child(child);
         });
     }
     task.update_state(TaskState::Zombie);
@@ -145,6 +146,15 @@ pub fn do_exit(exit_code: i32) -> isize {
         *addr = 0;
     }
     task.recycle();
+    let clear_child_tid = task.futex_wake();
+    if clear_child_tid != 0 {
+        let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
+        *phy_addr = 0;
+        error!("exit wake futex on {:#x}", clear_child_tid);
+        futex(clear_child_tid, FutexOp::FutexWake as u32, 1, 0, 0, 0);
+    } else {
+        error!("exit clear_child_tid is 0");
+    }
     schedule();
     0
 }
@@ -316,7 +326,15 @@ pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) 
         drop(children);
         if let Some(index) = res {
             let child = process.remove_child(index);
-            assert_eq!(Arc::strong_count(&child), 1);
+            assert_eq!(
+                Arc::strong_count(&child),
+                1,
+                "Father is [{}-{}], wait task is [{}-{}]",
+                process.get_pid(),
+                process.get_tid(),
+                child.get_pid(),
+                child.get_tid()
+            );
             if !exit_code.is_null() {
                 let exit_code_ref = process.transfer_raw_ptr(exit_code);
                 *exit_code_ref = child.exit_code();
@@ -352,9 +370,9 @@ pub fn do_brk(addr: usize) -> isize {
 }
 
 #[syscall_func(96)]
-pub fn set_tid_address(tidptr: *mut i32) -> isize {
+pub fn set_tid_address(tidptr: usize) -> isize {
     let task = current_task().unwrap();
-    task.set_tid_address(tidptr as usize);
+    task.set_tid_address(tidptr);
     task.get_tid()
 }
 

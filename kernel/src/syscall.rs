@@ -17,7 +17,7 @@ pub fn register_all_syscall() {
         (59, sys_pipe),
         (23, sys_dup),
         (24, sys_dup2),
-        (98, sys_futex),
+        (98, futex),
         (99, set_robust_list),
         (100, get_robust_list),
         (134, sigaction),
@@ -139,6 +139,7 @@ use crate::fs::sys_write;
 use crate::fs::sys_writev;
 use crate::gui::sys_framebuffer;
 use crate::gui::sys_framebuffer_flush;
+use crate::ipc::futex;
 use crate::ipc::get_robust_list;
 use crate::ipc::kill;
 use crate::ipc::set_robust_list;
@@ -148,7 +149,6 @@ use crate::ipc::sigprocmask;
 use crate::ipc::sigtimewait;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
-use crate::ipc::sys_futex;
 use crate::ipc::sys_pipe;
 use crate::ipc::tkill;
 use crate::memory::do_mmap;

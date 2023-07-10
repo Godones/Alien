@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+use core::sync::atomic::{AtomicI32, Ordering};
 
 use lazy_static::lazy_static;
 
@@ -85,8 +86,10 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
     new_fd as isize
 }
 
+static FCOUNT: Mutex<usize> = Mutex::new(0);
+
 #[syscall_func(98)]
-pub fn sys_futex(
+pub fn futex(
     uaddr: usize,
     futex_op: u32,
     val: u32,
@@ -94,6 +97,7 @@ pub fn sys_futex(
     uaddr2: usize,
     val3: u32,
 ) -> isize {
+    *FCOUNT.lock() += 1;
     let futex_op = FutexOp::try_from(futex_op).unwrap();
     let task = current_task().unwrap();
     let task_inner = task.access_inner();
@@ -101,11 +105,12 @@ pub fn sys_futex(
         "futex: {:?} {:?} {:?} {:?} {:?} {:?}",
         uaddr, futex_op, val, val2, uaddr2, val3
     );
-    let timeout_flag = Arc::new(Mutex::new(false));
     match futex_op {
         FutexOp::FutexWaitPrivate | FutexOp::FutexWait => {
-            let uaddr_ref = task_inner.transfer_raw_ptr(uaddr as *const u32);
-            if *uaddr_ref != val {
+            let uaddr_ref = task_inner.transfer_raw_ptr_mut(uaddr as *mut i32);
+            let uaddr_atomic = AtomicI32::from_mut(uaddr_ref);
+
+            if uaddr_atomic.load(Ordering::SeqCst) != val as i32 {
                 error!("FutexWait: uaddr_ref != val");
                 return LinuxErrno::EAGAIN as isize;
             }
@@ -120,6 +125,7 @@ pub fn sys_futex(
             // add to wait queue
             drop(task_inner);
             warn!("Futex wait time: {:?}", wait_time);
+            let timeout_flag = Arc::new(Mutex::new(false));
             let waiter = FutexWaiter::new(task.clone(), wait_time, timeout_flag.clone());
             FUTEX_WAITER.lock().add_waiter(uaddr, waiter);
             // switch to other task
@@ -163,7 +169,7 @@ pub fn sys_futex(
             }
             return res2.unwrap() as isize + res.unwrap() as isize;
         }
-        FutexOp::FutexWakePrivate => {
+        FutexOp::FutexWakePrivate | FutexOp::FutexWake => {
             let res = FUTEX_WAITER.lock().wake(uaddr, val as usize);
             if res.is_err() {
                 return LinuxErrno::EINVAL as isize;
@@ -203,7 +209,8 @@ pub fn get_robust_list(pid: usize, head_ptr: usize, len_ptr: usize) -> isize {
     0
 }
 
-pub fn solve_the_futex_wait_time() {
+pub fn solve_futex_wait() {
     let mut futex_waiter = FUTEX_WAITER.lock();
-    futex_waiter.wake_for_timeout()
+    futex_waiter.wake_for_timeout();
+    futex_waiter.wake_for_signal();
 }
