@@ -3,7 +3,7 @@ use alloc::sync::{Arc, Weak};
 use core::intrinsics::forget;
 
 use rvfs::dentry::DirEntry;
-use rvfs::file::{File, FileMode, FileOps, OpenFlags};
+use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
 use rvfs::inode::SpecialData;
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
@@ -11,7 +11,7 @@ use rvfs::StrResult;
 use crate::fs::file::KFile;
 use crate::task::do_suspend;
 
-const PIPE_BUF: usize = 512;
+const PIPE_BUF: usize = 4096;
 
 pub struct Pipe;
 
@@ -43,7 +43,7 @@ impl RingBuffer {
     pub fn is_full(&self) -> bool {
         (self.tail + 1) % PIPE_BUF == self.head
     }
-    /// return the number of bytes that can
+    /// return the number of bytes that can be read
     pub fn available_read(&self) -> usize {
         if self.head <= self.tail {
             self.tail - self.head
@@ -106,6 +106,14 @@ impl Pipe {
             ops.release = pipe_release;
             ops
         };
+        tx_file.access_inner().f_ops_ext = {
+            FileExtOps {
+                is_ready_read: |_| false,
+                is_ready_write: pipe_ready_to_write,
+                is_ready_exception: |_| false,
+                is_hang_up: pipe_write_is_hang_up,
+            }
+        };
         let mut rx_file = File::new(
             Arc::new(DirEntry::empty()),
             Arc::new(VfsMount::empty()),
@@ -119,6 +127,15 @@ impl Pipe {
             ops.release = pipe_release;
             ops
         };
+        rx_file.access_inner().f_ops_ext = {
+            FileExtOps {
+                is_ready_read: pipe_ready_to_read,
+                is_ready_write: |_| false,
+                is_ready_exception: |_| false,
+                is_hang_up: pipe_read_is_hang_up,
+            }
+        };
+
         let (rx_file, tx_file) = (Arc::new(rx_file), Arc::new(tx_file));
         let (rx_file, tx_file) = (KFile::new(rx_file), KFile::new(tx_file));
         buf.read_wait = Some(Arc::downgrade(&rx_file));
@@ -233,4 +250,59 @@ fn pipe_release(file: Arc<File>) -> StrResult<()> {
         forget(buf)
     }
     Ok(())
+}
+
+pub enum PipeFunc {
+    AvailableRead,
+    AvailableWrite,
+    Hangup(bool),
+    Unknown,
+}
+
+fn pipe_exec(file: Arc<File>, func: PipeFunc) -> bool {
+    let inode = file.f_dentry.access_inner().d_inode.clone();
+    let inode_inner = inode.access_inner();
+    assert!(inode_inner.special_data.is_some());
+    let data = inode_inner.special_data.as_ref().unwrap();
+    let ptr = match data {
+        SpecialData::PipeData(ptr) => *ptr,
+        _ => panic!("pipe_read: invalid special data"),
+    };
+    let buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
+    let res = match func {
+        PipeFunc::AvailableRead => {
+            let av = buf.available_read();
+            error!("pipe_exec: available_read:{}", av);
+            av > 0
+        }
+        PipeFunc::AvailableWrite => buf.available_write() > 0,
+        PipeFunc::Hangup(is_read) => {
+            if is_read {
+                !buf.is_write_wait()
+            } else {
+                !buf.is_read_wait()
+            }
+        }
+        _ => false,
+    };
+    forget(buf);
+    res
+}
+
+fn pipe_ready_to_read(file: Arc<File>) -> bool {
+    pipe_exec(file, PipeFunc::AvailableRead)
+}
+
+fn pipe_ready_to_write(file: Arc<File>) -> bool {
+    pipe_exec(file, PipeFunc::AvailableWrite)
+}
+
+fn pipe_read_is_hang_up(file: Arc<File>) -> bool {
+    let pipe_hang_up = pipe_exec(file, PipeFunc::Hangup(true));
+    error!("[pipe] is hangup :{}", pipe_hang_up);
+    pipe_hang_up
+}
+
+fn pipe_write_is_hang_up(file: Arc<File>) -> bool {
+    pipe_exec(file, PipeFunc::Hangup(false))
 }
