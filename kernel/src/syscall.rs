@@ -11,6 +11,8 @@ pub fn register_all_syscall() {
         (153, times),
         (101, sys_nanosleep),
         (113, clock_get_time),
+        (116, syslog),
+        (179, sys_info),
         (2002, sys_event_get),
         (2000, sys_framebuffer),
         (2001, sys_framebuffer_flush),
@@ -26,6 +28,7 @@ pub fn register_all_syscall() {
         (129, kill),
         (130, tkill),
         (139, signal_return),
+        (73, ppoll),
         (93, do_exit),
         (94, exit_group),
         (124, do_suspend),
@@ -63,7 +66,7 @@ pub fn register_all_syscall() {
         (79, sys_fstateat),
         (44, sys_fstatfs),
         (43, sys_statfs),
-        (38, sys_renameat),
+        (276, sys_renameat),
         (34, sys_mkdirat),
         (5, sys_setxattr),
         (6, sys_lsetxattr),
@@ -81,9 +84,11 @@ pub fn register_all_syscall() {
         (67, sys_pread),
         (68, sys_pwrite),
         (16, sys_fremovexattr),
+        (71, send_file),
         (25, sys_fcntl),
         (29, sys_ioctl),
         (88, sys_utimensat),
+        (48, faccessat),
         (215, do_munmap),
         (222, do_mmap),
         (226, map_protect),
@@ -95,6 +100,8 @@ pub fn do_syscall(id: usize, args: &[usize]) -> Option<isize> {
     res
 }
 use crate::driver::sys_event_get;
+use crate::fs::faccessat;
+use crate::fs::send_file;
 use crate::fs::sys_chdir;
 use crate::fs::sys_close;
 use crate::fs::sys_fcntl;
@@ -142,6 +149,7 @@ use crate::gui::sys_framebuffer_flush;
 use crate::ipc::futex;
 use crate::ipc::get_robust_list;
 use crate::ipc::kill;
+use crate::ipc::ppoll;
 use crate::ipc::set_robust_list;
 use crate::ipc::sigaction;
 use crate::ipc::signal_return;
@@ -155,6 +163,8 @@ use crate::memory::do_mmap;
 use crate::memory::do_munmap;
 use crate::memory::map_protect;
 use crate::sbi::shutdown;
+use crate::sys::sys_info;
+use crate::sys::syslog;
 use crate::system::sys_uname;
 use crate::task::clone;
 use crate::task::do_brk;
