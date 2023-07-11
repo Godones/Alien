@@ -153,6 +153,7 @@ fat32:
 	@sudo cp tools/f1.txt /fat
 	@sudo mkdir /fat/folder
 	@sudo cp tools/f1.txt /fat/folder
+	@sudo mkdir /fat/bin
 	@sync
 
 

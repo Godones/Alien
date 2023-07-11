@@ -222,6 +222,9 @@ pub fn signal_handler() {
         match sig {
             SignalNumber::SIGSEGV | SignalNumber::SIGBUS => {
                 // we need exit the process
+                drop(task_inner);
+                drop(handler);
+                drop(receiver);
                 warn!("task {:?} exit by signal {:?}", task.tid, sig);
                 do_exit(-1);
             }
