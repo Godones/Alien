@@ -263,6 +263,70 @@
 
 
 
+## busybox
+
+- [x] echo "#### independent command test"
+- [x] ash -c exit
+- [x] sh -c exit
+- [x] basename /aaa/bbb
+- [x] cal
+- [x] clear
+- [x] date 
+- [x] df 
+- [x] dirname /aaa/bbb
+- [x] dmesg 
+- [x] du
+- [x] expr 1 + 1
+- [x] false
+- [x] true
+- [x] which ls
+- [x] uname
+- [x] uptime
+- [x] printf "abc\n"
+- [x] ps
+- [x] pwd
+- [x] free
+- [x] hwclock
+- [x] kill 10
+- [x] ls
+- [x] sleep 1
+- [x] echo "#### file opration test"
+- [x] touch test.txt
+- [x] echo "hello world" > test.txt
+- [x] cat test.txt
+- [x] cut -c 3 test.txt
+- [x] od test.txt
+- [x] head test.txt
+- [x] tail test.txt 
+- [x] hexdump -C test.txt 
+- [x] md5sum test.txt
+- [x] echo "ccccccc" >> test.txt
+- [x] echo "bbbbbbb" >> test.txt
+- [x] echo "aaaaaaa" >> test.txt
+- [x] echo "2222222" >> test.txt
+- [x] echo "1111111" >> test.txt
+- [x] echo "bbbbbbb" >> test.txt
+- [x] sort test.txt | ./busybox uniq
+- [x] stat test.txt
+- [x] strings test.txt 
+- [x] wc test.txt
+- [x] [ -f test.txt ]
+- [x] more test.txt
+- [x] rm test.txt
+- [x] mkdir test_dir
+- [x] mv test_dir test
+- [x] rmdir test
+- [x] grep hello busybox_cmd.txt
+- [x] cp busybox_cmd.txt busybox_cmd.bak
+- [x] rm busybox_cmd.bak
+- [x] find -name "busybox_cmd.txt"
+
+```
+./final/busybox sh ./final/busybox_testcode2.sh
+```
+
+
+
 ## 工具配置
 
 [Rust cross compilation](https://danielmangum.com/posts/risc-v-bytes-rust-cross-compilation/)

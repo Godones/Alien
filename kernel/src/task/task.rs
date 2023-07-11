@@ -524,14 +524,124 @@ impl TaskInner {
         v
     }
 
-    pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
-        let address_space = &self.address_space.lock();
+    pub fn copy_to_user_buffer<T: 'static + Copy>(
+        &mut self,
+        src: *const T,
+        dst: *mut T,
+        len: usize,
+    ) {
+        let size = core::mem::size_of::<T>() * len;
+        if VirtAddr::from(src as usize).align_down_4k()
+            == VirtAddr::from(dst as usize).align_down_4k()
+        {
+            // the src and dst are in same page
+            let dst = self.transfer_raw(dst as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src, dst as *mut T, size);
+            }
+        } else {
+            let bufs = self.transfer_buffer(dst as *const u8, size);
+            let src = unsafe { core::slice::from_raw_parts(src as *const u8, size) };
+            let mut start = 0;
+            let src_len = src.len();
+            for buffer in bufs {
+                let len = if start + buffer.len() > src_len {
+                    src_len - start
+                } else {
+                    buffer.len()
+                };
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        src.as_ptr().add(start),
+                        buffer.as_mut_ptr(),
+                        len,
+                    );
+                }
+                start += len;
+            }
+        }
+    }
+
+    pub fn copy_from_user_buffer<T: 'static + Copy>(
+        &mut self,
+        src: *const T,
+        dst: *mut T,
+        len: usize,
+    ) {
+        let size = core::mem::size_of::<T>() * len;
+        if VirtAddr::from(src as usize).align_down_4k()
+            == VirtAddr::from(dst as usize).align_down_4k()
+        {
+            // the src and dst are in same page
+            let src = self.transfer_raw(src as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src as *const T, dst, size);
+            }
+        } else {
+            let mut bufs = self.transfer_buffer(src as *const u8, size);
+            let dst = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, size) };
+            let mut start = 0;
+            let dst_len = dst.len();
+            for buffer in bufs.iter_mut() {
+                let len = if start + buffer.len() > dst_len {
+                    dst_len - start
+                } else {
+                    buffer.len()
+                };
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        buffer.as_ptr(),
+                        dst.as_mut_ptr().add(start),
+                        len,
+                    );
+                }
+                start += len;
+            }
+        }
+    }
+
+    /// src is in kernel memory, we don't need trans
+    pub fn copy_to_user<T: 'static + Copy>(&mut self, src: *const T, dst: *mut T) {
+        let size = core::mem::size_of::<T>();
+        if VirtAddr::from(src as usize).align_down_4k()
+            == VirtAddr::from(dst as usize).align_down_4k()
+        {
+            // the src and dst are in same page
+            let dst = self.transfer_raw(dst as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src, dst as *mut T, size);
+            }
+        } else {
+            let mut bufs = self.transfer_buffer(dst as *mut u8, size);
+            let src = unsafe { core::slice::from_raw_parts(src as *const u8, size) };
+            let mut start = 0;
+            let src_len = src.len();
+            for buffer in bufs.iter_mut() {
+                let end = start + buffer.len();
+                if end > src_len {
+                    buffer[..src_len - start].copy_from_slice(&src[start..]);
+                    break;
+                } else {
+                    buffer.copy_from_slice(&src[start..end]);
+                }
+                start = end;
+            }
+        }
+    }
+
+    pub fn transfer_buffer<T>(&mut self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
         let mut start = ptr as usize;
         let end = start + len;
         let mut v = Vec::new();
         while start < end {
-            let (start_phy, flag, _) = address_space.query(VirtAddr::from(start)).unwrap();
-            assert!(flag.contains(MappingFlags::V));
+            let (start_phy, flag, _) = self
+                .address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .unwrap();
+            if !flag.contains(MappingFlags::V) {
+                self.invalid_page_solver(start).unwrap();
+            }
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
             let len = if bound > end {
@@ -1098,6 +1208,7 @@ impl Task {
         inner.name = name.to_string();
         // reset time record
         inner.statistical_data.clear();
+        // todo!
         // close file which contains FD_CLOEXEC flag
         // now we delete all fd
         // inner.fd_table = ;
