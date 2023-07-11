@@ -48,15 +48,43 @@ Other modules are not listed here, you can find them in the cargo.toml file.
 2. install rust nightly
 
 ```
-make run LOG=WARN img=fat32 SMP=4
+make run LOG=WARN img=fat32 SMP=1 GUI=n
 ```
 
-## Run with Gui
+如果只想重新构建`kernel`而不改变测试程序，可以使用：
 
 ```
-make run LOG=WARN img=fat32 SMP=4 GUI=y
+make build SMP=1 LOG=WARN
+```
+
+使用已经编译好的程序运行而不是再次编译可以使用：
+
+```
+make fake_run GUI=n SMP=1
+```
+
+### Run with Gui
+
+```
+make run LOG=WARN img=fat32 SMP=1 GUI=y
 ./slint or ./guitest
 ```
+
+### Run VisionFive2 
+
+```
+make vf2 LOG=WARN VF2=y SMP=1
+```
+
+### Run cv1811h
+
+```
+make vf2 LOG=WARN CV1811h=y SMP=1
+```
+
+ 目前两块开发板都只是启动成功，但目前缺少sd卡驱动，因此不能运行程序。
+
+
 
 ## Doc
 
@@ -74,7 +102,7 @@ make run LOG=WARN img=fat32 SMP=4 GUI=y
 
 ## Feature
 
-- [ ] Thread/Mutil-core
+- [x] Thread/Mutil-core
 - [x] full vfs
 - [x] fat32
 - [x] dbfs
@@ -86,8 +114,13 @@ make run LOG=WARN img=fat32 SMP=4 GUI=y
 - [x] memory management
 - [x] process management
 - [x] stack trace
-- [ ] signal
+- [x] signal
 - [ ] ....
+
+## App
+
+- [x] libc-test
+- [x] busybox
 
 ## Project Structure
 
