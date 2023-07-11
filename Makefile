@@ -19,6 +19,7 @@ GUI ?=n
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
 VF2 ?=n
+CV1811h ?=n
 FEATURES :=
 QEMU_ARGS :=
 
@@ -34,6 +35,8 @@ endif
 
 ifeq ($(VF2),y)
 FEATURES += vf2
+else ifeq ($(CV1811h),y)
+FEATURES += cv1811h
 else
 FEATURES += qemu
 endif
@@ -55,8 +58,8 @@ define boot_qemu
 endef
 
 install:
-	@#cargo install --git  https://github.com/os-module/elfinfo
-	@cd $(TRACE_EXE_PATH) && cargo build --release
+	@cargo install --git  https://github.com/os-module/elfinfo
+	@#cd $(TRACE_EXE_PATH) && cargo build --release
 
 all:run
 
@@ -142,7 +145,10 @@ ZeroFile:
 	@dd if=/dev/zero of=$(IMG) bs=1M count=64
 
 fat32:
-	#创建fat32文件系统
+	if [-f $(IMG)]; then \
+		rm $(IMG); \
+		touch $(IMG); \
+	fi
 	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=128
 	@sudo chmod 777 $(IMG)
 	@sudo mkfs.fat -F 32 $(IMG)
