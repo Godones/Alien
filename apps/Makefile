@@ -10,6 +10,7 @@ all:build
 	@# move to /fat32
 	@echo "Moving apps to /fat32"
 	@$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) /fat/$(dir););)
+	@$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) /fat/bin/$(dir););)
 	@sync
 
 

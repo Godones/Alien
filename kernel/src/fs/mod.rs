@@ -2,7 +2,7 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{vfs_rename, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
+use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
 use rvfs::file::{
     vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
     vfs_write_file, FileMode, FileMode2, OpenFlags, SeekFrom,
@@ -20,7 +20,8 @@ use rvfs::superblock::StatFs;
 
 pub use control::*;
 pub use stdio::*;
-use syscall_define::io::{FsStat, IoVec};
+use syscall_define::io::{FsStat, IoVec, UnlinkatFlags};
+use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::file::KFile;
@@ -113,7 +114,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     // we don't support mode yet
     let file_mode = FileMode2::default();
     let file_mode = FileMode::from(file_mode);
-    let flag = OpenFlags::from_bits(flag as u32).unwrap();
+    let mut flag = OpenFlags::from_bits(flag as u32).unwrap();
     let process = current_task().unwrap();
     let path = process.transfer_str(path as *const u8);
     let path = user_path_at(dirfd, &path, LookUpFlags::empty()).map_err(|_| -1);
@@ -125,6 +126,12 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
         "open file: {:?},flag:{:?}, mode:{:?}",
         path, flag, file_mode
     );
+    if flag.contains(OpenFlags::O_BINARY) {
+        flag |= OpenFlags::O_RDWR;
+    }
+    if flag.contains(OpenFlags::O_EXCL) {
+        flag -= OpenFlags::O_EXCL;
+    }
     let file = vfs_open_file::<VfsProvider>(&path, flag, file_mode);
     if file.is_err() {
         return -1;
@@ -409,7 +416,6 @@ pub fn sys_linkat(
 
 #[syscall_func(35)]
 pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
-    assert_eq!(flag, 0);
     let task = current_task().unwrap();
     let path = task.transfer_str(path);
     let path = user_path_at(fd, &path, LookUpFlags::empty()).map_err(|_| -1);
@@ -429,8 +435,19 @@ pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
         let file = is_used.unwrap();
         file.set_unlink(path);
     } else {
-        let res = vfs_unlink::<VfsProvider>(path.as_str());
+        let flag = UnlinkatFlags::from_bits_truncate(flag as u32);
+        let res = if flag.contains(UnlinkatFlags::AT_REMOVEDIR) {
+            vfs_rmdir::<VfsProvider>(path.as_str())
+        } else {
+            vfs_unlink::<VfsProvider>(path.as_str())
+        };
         if res.is_err() {
+            error!(
+                "sys_unlinkat: vfs_unlink {} failed, flag:{:?}, {}",
+                path,
+                flag,
+                res.err().unwrap()
+            );
             return -1;
         }
     }
@@ -491,10 +508,11 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
         return -1;
     }
     let flag = flag.unwrap();
+    warn!("sys_fstateat: path: {}, flag: {:?}", path, flag);
     let res = vfs_getattr::<VfsProvider>(path.as_str(), flag);
     warn!("sys_fstateat: res: {:?}", res);
     if res.is_err() {
-        return -1;
+        return LinuxErrno::ENOENT as isize;
     }
     let res = res.unwrap();
     *stat = res;
@@ -538,7 +556,7 @@ pub fn sys_statfs(path: *const u8, statfs: *const u8) -> isize {
 }
 
 /// Reference: https://man7.org/linux/man-pages/man2/renameat.2.html
-#[syscall_func(38)]
+#[syscall_func(276)]
 pub fn sys_renameat(
     old_dirfd: isize,
     old_path: *const u8,
@@ -871,6 +889,67 @@ pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {
         return -1;
     }
     0
+}
+
+/// Reference:https://man7.org/linux/man-pages/man2/sendfile64.2.html
+///
+/// 从 in_fd 读取最多 count 个字符，存到 out_fd 中。
+/// - 如果 offset != 0，则其指定了 in_fd 中文件的偏移，此时完成后会修改 offset 为读取后的位置，但不更新文件内部的 offset
+/// - 否则，正常更新文件内部的 offset
+#[syscall_func(71)]
+pub fn send_file(out_fd: usize, in_fd: usize, offset_ptr: usize, count: usize) -> isize {
+    warn!(
+        "send_file: in_fd: {:?}, out_fd: {:?}, offset_ptr: {:?}, count: {:?}",
+        in_fd, out_fd, offset_ptr, count
+    );
+    let task = current_task().unwrap();
+    let in_file = task.get_file(in_fd);
+    let out_file = task.get_file(out_fd);
+    if in_file.is_none() | out_file.is_none() {
+        return -1;
+    }
+    let in_file = in_file.unwrap();
+    let out_file = out_file.unwrap();
+    let mut offset = if offset_ptr == 0 {
+        in_file.get_file().access_inner().f_pos
+    } else {
+        let offset_ptr = task.transfer_raw_ptr(offset_ptr as *mut usize);
+        let offset = *offset_ptr;
+        warn!("send_file: offset: {:?}", offset);
+        let res = vfs_llseek(in_file.get_file(), SeekFrom::Start(offset as u64)).unwrap();
+        res as usize
+    };
+    let old_offset = offset;
+    let mut read_buf = [0; 512];
+    let mut read = 0;
+    let mut write = 0;
+    while read <= count {
+        let r =
+            vfs_read_file::<VfsProvider>(in_file.get_file(), &mut read_buf, offset as u64).unwrap();
+        if r == 0 {
+            break;
+        }
+        read += r;
+        offset += r;
+        let write_offset = out_file.get_file().access_inner().f_pos;
+        let r =
+            vfs_write_file::<VfsProvider>(out_file.get_file(), &read_buf[..r], write_offset as u64)
+                .unwrap();
+        if r == 0 {
+            break;
+        }
+        write += r;
+    }
+    if offset_ptr != 0 {
+        let offset_ptr = task.transfer_raw_ptr(offset_ptr as *mut usize);
+        *offset_ptr = offset;
+        // offset 非零则要求不更新实际文件，更新这个用户给的值
+        vfs_llseek(in_file.get_file(), SeekFrom::Start(old_offset as u64)).unwrap();
+    } else {
+        // offset 为零则要求更新实际文件
+        vfs_llseek(in_file.get_file(), SeekFrom::Current((write - read) as i64)).unwrap();
+    }
+    write as isize
 }
 
 fn user_path_at(fd: isize, path: &str, flag: LookUpFlags) -> Result<String, ()> {

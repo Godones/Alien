@@ -67,3 +67,50 @@ pub struct FsStat {
     /// 空余 padding
     pub f_spare: [isize; 4],
 }
+
+bitflags! {
+    /// ppoll 使用，表示对应在文件上等待或者发生过的事件
+    pub struct PollEvents: u16 {
+        /// 可读
+        const IN = 0x0001;
+        /// 可写
+        const OUT = 0x0004;
+        /// 报错
+        const ERR = 0x0008;
+        /// 已终止，如 pipe 的另一端已关闭连接的情况
+        const HUP = 0x0010;
+        /// 无效的 fd
+        const INVAL = 0x0020;
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+/// ppoll 系统调用参数用到的结构
+pub struct PollFd {
+    /// 等待的 fd
+    pub fd: i32,
+    /// 等待的事件
+    pub events: PollEvents,
+    /// 返回的事件
+    pub revents: PollEvents,
+}
+
+bitflags! {
+    pub struct FaccessatMode: u32 {
+        const F_OK = 0;
+        const R_OK = 4;
+        const W_OK = 2;
+        const X_OK = 1;
+    }
+    pub struct FaccessatFlags: u32 {
+        const AT_SYMLINK_NOFOLLOW = 0x100;
+        const AT_EACCESS = 0x200;
+    }
+}
+
+bitflags! {
+    pub struct UnlinkatFlags: u32 {
+        const AT_REMOVEDIR = 0x200;
+    }
+}

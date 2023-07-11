@@ -26,6 +26,7 @@ pub mod memory;
 mod panic;
 pub mod sbi;
 mod sync;
+pub mod sys;
 pub mod syscall;
 pub mod system;
 pub mod task;
