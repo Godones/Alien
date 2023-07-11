@@ -7,7 +7,9 @@ use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
-use rvfs::file::{vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, FileMode, OpenFlags};
+use rvfs::file::{
+    vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file, FileMode, OpenFlags,
+};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::inode::InodeMode;
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
@@ -17,6 +19,7 @@ use rvfs::superblock::{register_filesystem, DataOps, Device};
 
 use kernel_sync::Mutex;
 
+use crate::config::{MEMINFO, RTC_TIME, UTC};
 use crate::driver::rtc::get_rtc_time;
 use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::task::current_task;
@@ -26,6 +29,12 @@ lazy_static! {
     pub static ref TMP_MNT: Mutex<Arc<VfsMount>> = Mutex::new(Arc::new(VfsMount::empty()));
     pub static ref TMP_DIR: Mutex<Arc<DirEntry>> = Mutex::new(Arc::new(DirEntry::empty()));
 }
+
+const MOUNT_INFO: &str = r"
+ rootfs / rootfs rw 0 0
+ devfs /dev devfs rw 0 0
+ fat32 / fat rw 0 0
+";
 
 /// after call this function, user should set the fs info for the first process
 pub fn init_vfs() {
@@ -59,7 +68,69 @@ pub fn init_vfs() {
     vfs_mkdir::<VfsProvider>("/dev/shm", FileMode::FMODE_RDWR).unwrap();
     do_mount::<VfsProvider>("none", "/dev/shm", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
 
+    prepare_proc();
+    prepare_etc();
+    prepare_test_need();
+    prepare_dev();
     println!("vfs init done");
+}
+
+fn prepare_dev() {
+    vfs_mkdir::<VfsProvider>("/dev/misc", FileMode::FMODE_RDWR).unwrap();
+    let rtc_file = vfs_open_file::<VfsProvider>(
+        "/dev/misc/rtc",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
+    vfs_write_file::<VfsProvider>(rtc_file, RTC_TIME.as_bytes(), 0).unwrap();
+}
+
+fn prepare_test_need() {
+    vfs_open_file::<VfsProvider>(
+        "/test.txt",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
+}
+
+fn prepare_proc() {
+    vfs_mkdir::<VfsProvider>("/proc", FileMode::FMODE_RDWR).unwrap();
+    do_mount::<VfsProvider>("none", "/proc", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    let file = vfs_open_file::<VfsProvider>(
+        "/proc/mounts",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
+    vfs_write_file::<VfsProvider>(file, MOUNT_INFO.as_bytes(), 0).unwrap();
+    let mem_info = vfs_open_file::<VfsProvider>(
+        "/proc/meminfo",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
+    vfs_write_file::<VfsProvider>(mem_info, MEMINFO.as_bytes(), 0).unwrap();
+}
+
+fn prepare_etc() {
+    vfs_mkdir::<VfsProvider>("/etc", FileMode::FMODE_RDWR).unwrap();
+    do_mount::<VfsProvider>("none", "/etc", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    let file = vfs_open_file::<VfsProvider>(
+        "/etc/localtime",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
+    vfs_write_file::<VfsProvider>(file, UTC, 0).unwrap();
+    let adjtime_file = vfs_open_file::<VfsProvider>(
+        "/etc/adjtime",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
+    vfs_write_file::<VfsProvider>(adjtime_file, RTC_TIME.as_bytes(), 0).unwrap();
 }
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {

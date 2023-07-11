@@ -50,3 +50,76 @@ pub const MAX_SUB_PROCESS_NUM: usize = 1024;
 pub const MAX_FD_NUM: usize = 1024;
 
 pub const MAX_INPUT_EVENT_NUM: usize = 1024;
+
+pub const UTC: &[u8] = &[
+    b'T', b'Z', b'i', b'f', b'2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0,
+    0, 0x1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0x4, 0, 0, 0, 0, 0, 0, b'U', b'T', b'C',
+    0, 0, 0, b'T', b'Z', b'i', b'f', b'2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0x1, 0, 0, 0, 0x1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0x4, 0, 0, 0, 0, 0, 0, b'U',
+    b'T', b'C', 0, 0, 0, 0x0a, 0x55, 0x54, 0x43, 0x30, 0x0a,
+];
+
+pub const RTC_TIME: &str = r"
+rtc_time	: 03:01:50
+rtc_date	: 2023-07-11
+alrm_time	: 13:03:24
+alrm_date	: 2023-07-11
+alarm_IRQ	: no
+alrm_pending	: no
+update IRQ enabled	: no
+periodic IRQ enabled	: no
+periodic IRQ frequency	: 1024
+max user IRQ frequency	: 64
+24hr		: yes
+periodic_IRQ	: no
+update_IRQ	: no
+HPET_emulated	: no
+BCD		: yes
+DST_enable	: no
+periodic_freq	: 1024
+batt_status	: okay";
+
+pub const MEMINFO: &str = r"
+MemTotal:         944564 kB
+MemFree:          835248 kB
+MemAvailable:     873464 kB
+Buffers:            6848 kB
+Cached:            36684 kB
+SwapCached:            0 kB
+Active:            19032 kB
+Inactive:          32676 kB
+Active(anon):        128 kB
+Inactive(anon):     8260 kB
+Active(file):      18904 kB
+Inactive(file):    24416 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:          8172 kB
+Mapped:            16376 kB
+Shmem:               216 kB
+KReclaimable:       9960 kB
+Slab:              17868 kB
+SReclaimable:       9960 kB
+SUnreclaim:         7908 kB
+KernelStack:        1072 kB
+PageTables:          600 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      472280 kB
+Committed_AS:      64684 kB
+VmallocTotal:   67108863 kB
+VmallocUsed:       15740 kB
+VmallocChunk:          0 kB
+Percpu:              496 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+";
