@@ -27,6 +27,7 @@ mod sys;
 mod syscall;
 pub mod thread;
 pub mod time;
+pub mod socket;
 
 #[cfg(feature = "gui")]
 pub mod gui;
@@ -73,6 +74,6 @@ fn main(argc: usize, argv: Vec<String>) -> i32 {
 }
 
 pub fn shutdown() -> ! {
-    sys_shutdown();
+    // sys_shutdown();
     panic!("Shutdown failed!");
 }
