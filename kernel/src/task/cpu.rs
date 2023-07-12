@@ -1,5 +1,5 @@
 use alloc::collections::VecDeque;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -240,62 +240,21 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 }
 
 #[syscall_func(221)]
-pub fn do_exec(path: *const u8, args_ptr: *const usize, env: *const usize) -> isize {
-    let process = current_task().unwrap();
-    let mut path_str = process.transfer_str(path);
-
-    // for test app
-    if !path_str.starts_with("/") && !path_str.starts_with("./") && !path_str.contains("ls") {
-        let mut path = String::from("/final/");
-        path.push_str(&path_str);
-        path_str = path;
-    }
-    warn!("exec path: {}", path_str);
+pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
+    let task = current_task().unwrap();
+    let mut path_str = task.transfer_str(path);
     let mut data = Vec::new();
     // get the args and push them into the new process stack
-    let mut args = Vec::new();
-    let mut start = args_ptr as *mut usize;
-    loop {
-        let arg = process.transfer_raw_ptr(start);
-        if *arg == 0 {
-            break;
-        }
-        args.push(*arg);
-        start = unsafe { start.add(1) };
-    }
-    let args = args
-        .into_iter()
-        .map(|arg| {
-            let mut arg = process.transfer_str(arg as *const u8);
-            arg.push('\0');
-            arg
-        })
-        .collect::<Vec<String>>();
-    // let mut elf_name = path_str.clone();
-    // elf_name.push('\0');
-    // args.insert(0, elf_name);
-    // get the env and push them into the new process stack
-    let mut envs = Vec::new();
-    let mut start = env as *mut usize;
-    loop {
-        let env = process.transfer_raw_ptr(start);
-        if *env == 0 {
-            break;
-        }
-        envs.push(*env);
-        start = unsafe { start.add(1) };
-    }
-    let envs = envs
-        .into_iter()
-        .map(|env| {
-            let mut env = process.transfer_str(env as *const u8);
-            env.push('\0');
-            env
-        })
-        .collect::<Vec<String>>();
+    let (mut args, envs) = parse_user_arg_env(args_ptr, env);
 
+    if path_str.ends_with(".sh") {
+        args.insert(0, path_str.clone());
+        path_str = "busybox".to_string();
+        args.insert(0, "sh\0".to_string());
+    }
+    warn!("exec path: {}", path_str);
     if vfs::read_all(&path_str, &mut data) {
-        let res = process.exec(&path_str, data.as_slice(), args, envs);
+        let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
             return res.err().unwrap();
         }
@@ -399,4 +358,45 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
         }
     }
     0
+}
+
+fn parse_user_arg_env(args_ptr: usize, env_ptr: usize) -> (Vec<String>, Vec<String>) {
+    let task = current_task().unwrap();
+    let mut args = Vec::new();
+    let mut start = args_ptr as *mut usize;
+    loop {
+        let arg = task.transfer_raw_ptr(start);
+        if *arg == 0 {
+            break;
+        }
+        args.push(*arg);
+        start = unsafe { start.add(1) };
+    }
+    let args = args
+        .into_iter()
+        .map(|arg| {
+            let mut arg = task.transfer_str(arg as *const u8);
+            arg.push('\0');
+            arg
+        })
+        .collect::<Vec<String>>();
+    let mut envs = Vec::new();
+    let mut start = env_ptr as *mut usize;
+    loop {
+        let env = task.transfer_raw_ptr(start);
+        if *env == 0 {
+            break;
+        }
+        envs.push(*env);
+        start = unsafe { start.add(1) };
+    }
+    let envs = envs
+        .into_iter()
+        .map(|env| {
+            let mut env = task.transfer_str(env as *const u8);
+            env.push('\0');
+            env
+        })
+        .collect::<Vec<String>>();
+    (args, envs)
 }

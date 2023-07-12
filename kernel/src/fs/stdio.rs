@@ -1,10 +1,12 @@
-use crate::print::console::get_char;
 use alloc::sync::Arc;
+
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileMode, FileOps, OpenFlags};
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
+
+use crate::print::console::get_char;
 
 type Stdin = File;
 type Stdout = File;
@@ -25,10 +27,13 @@ lazy_static! {
 }
 
 fn stdin_read(_file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
-    assert_eq!(buf.len(), 1);
     return match get_char() {
         Some(ch) => {
-            buf[0] = ch as u8;
+            if ch == 13 {
+                buf[0] = 10;
+                return Ok(1);
+            }
+            buf[0] = ch;
             Ok(1)
         }
         None => Ok(0),

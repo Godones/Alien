@@ -80,6 +80,9 @@ impl Executor {
             _ => {
                 let mut cmd = self.cmd;
                 cmd.push('\0');
+                if !cmd.starts_with("/") && !cmd.starts_with("./") {
+                    cmd.insert_str(0, "/bin/");
+                }
                 let tid = fork();
                 if tid == 0 {
                     // self.parameter.args.insert(0, cmd.clone());
