@@ -1,7 +1,5 @@
-
-
 use socket::Socket;
-use addr::{Addr, };
+// use addr::{Addr, };
 
 use alloc::sync::Arc;
 use syscall_table::syscall_func;
@@ -27,12 +25,14 @@ pub fn sys_socket(domain: usize, socket_type: usize, protocol:usize) -> isize {
 
 
 #[syscall_func(206)]
-pub fn sys_sendto(socket: usize, message: *const u8, length: usize, flags:i32, dest_addr: *const usize, dest_len: usize) -> isize {
+pub fn sys_sendto(socket: usize, message: *const u8, length: usize, flags:i32, dest_addr: *const usize, _dest_len: usize) -> isize {
     let process = current_task().unwrap();
     let slice = unsafe { core::slice::from_raw_parts(message, length) };
 
     if let Some(socket) = process.get_socket(socket) {
-        // 这里不考虑进程切换
+        if socket.wr_type == SOCKET_WRTYPE::RD_ONLY || socket.wr_type == SOCKET_WRTYPE::CLOSE {
+            return ErrorNo::EPERM as isize
+        }
         if let Some(write_len) = socket.send_to(slice, flags, dest_addr) {
             return write_len as isize
         } else {
@@ -49,9 +49,11 @@ pub fn sys_recvfrom(socket: usize, buffer: *mut u8, length: usize, flags:i32, sr
     let process = current_task().unwrap();
     let slice = unsafe { core::slice::from_raw_parts_mut(buffer, length) };
 
-    if let Some(file) = process.get_socket(socket) {
-        // 这里不考虑进程切换
-        if let Some(read_len) = file.recvfrom(slice, flags, src_addr, address_len){
+    if let Some(socket) = process.get_socket(socket) {
+        if socket.wr_type == SOCKET_WRTYPE::WR_ONLY || socket.wr_type == SOCKET_WRTYPE::CLOSE {
+            return ErrorNo::EPERM as isize
+        }
+        if let Some(read_len) = socket.recvfrom(slice, flags, src_addr, address_len){
             return read_len as isize;
         } else {
             return ErrorNo::EINVAL as isize;
@@ -62,7 +64,22 @@ pub fn sys_recvfrom(socket: usize, buffer: *mut u8, length: usize, flags:i32, sr
 
 }
 
+#[syscall_func(210)]
+pub fn sys_shutdown(socket: usize, how: usize) -> isize {
+    let process = current_task().unwrap();
+    let sdflag = match how {
+        0 => ShutdownFlag::SHUTRD,
+        1 => ShutdownFlag::SHUTWR,
+        2 => ShutdownFlag::SHUTRDWR,
+        _ => return -1,
+    };
+    if let Some(socket) = process.get_socket(socket) {
+        socket.shutdown(sdflag)
+    } else {
+        return ErrorNo::EBADF as isize;
+    }
 
+}
 
 
 #[repr(C)]
@@ -96,4 +113,51 @@ pub enum ErrorNo {
     ESPIPE = -29,
     /// 超过范围。例如用户提供的buffer不够长
     ERANGE = -34,
+}
+
+
+
+
+#[derive(Debug)]
+pub enum ADDRFAMILY {
+    /// 本地域套接字，用于IPC
+    AFUNIX = 1,
+    /// 网络域套接字IPV4，用于跨机器之间的通信
+    AFINET = 2,
+    /// 不指明地址域
+    AFUNSPEC = 0,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum SOCKET_TYPE {
+    /// TCP流
+    SOCKSTREAM = 1,
+    /// UDP数据报
+    SOCKDGRAM = 2,
+    /// 供一个顺序确定的，可靠的，双向基于连接的套接字
+    SOCKSEQPACKET = 5,
+}
+
+
+#[derive(Debug, PartialEq)]
+pub enum SOCKET_WRTYPE {
+    /// socket的发送和接收信息的功能都被关闭，正处于等待关闭状态
+    CLOSE = 0,
+    /// socket只能接收消息，发送消息的功能被关闭
+    RD_ONLY = 1,
+    /// socket只能发送消息，接收消息的功能被关闭
+    WR_ONLY = 2,
+    /// socket发送和接收信息的功能都正常开启
+    RDWR = 3,
+}
+
+
+#[derive(Debug)]
+pub enum ShutdownFlag {
+    /// 禁用接收
+    SHUTRD = 0,
+    /// 禁用传输
+    SHUTWR = 1,
+    /// 同时禁用socket的的传输和接收功能
+    SHUTRDWR = 2,
 }

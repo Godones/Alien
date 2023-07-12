@@ -12,6 +12,10 @@ use crate::fs::{user_path_at, AT_FDCWD};
 use crate::task::current_task;
 use crate::timer::TimeSpec;
 
+
+use crate::fs::{FileLike};
+use alloc::sync::Arc;
+
 #[syscall_func(25)]
 pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
@@ -24,11 +28,11 @@ pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
     warn!("fcntl:{:?} {:?} ", cmd, arg);
     match cmd.unwrap() {
         Fcntl64Cmd::F_DUPFD => {
-            let fd = task.add_file(file.clone()).unwrap();
+            let fd = task.add_file(Arc::new(FileLike::NormalFile(file.clone()))).unwrap();
             return fd as isize;
         }
         Fcntl64Cmd::F_DUPFD_CLOEXEC => {
-            task.add_file(file.clone()).unwrap();
+            task.add_file(Arc::new(FileLike::NormalFile(file.clone()))).unwrap();
             file.access_inner().flags |= OpenFlags::O_CLOSEEXEC;
         }
         Fcntl64Cmd::F_GETFD => {
