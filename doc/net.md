@@ -2,6 +2,7 @@
 
 ``` rust
 pub fn sys_socket(domain: usize, socket_type: usize, protocol:usize) -> isize;
+
 pub fn sys_sendto(
     socket: usize,
     message: *const u8,
@@ -10,6 +11,7 @@ pub fn sys_sendto(
     dest_addr: *const usize, 
     dest_len: usize
     ) -> isize;
+
 pub fn sys_recvfrom(
     socket: usize, 
     buffer: *mut u8, 
@@ -18,6 +20,9 @@ pub fn sys_recvfrom(
     src_addr: *mut usize, 
     address_len: *mut u32
     ) -> isize;
+
+pub fn sys_shutdown(socket: usize, how: usize) -> isize 
+
 ``` 
 
 
@@ -36,9 +41,9 @@ pub fn sys_recvfrom(
 // sys_socket:   syscall_id 198
 // 创建一个未绑定的socket套接字
 // 
-// domain: 指明套接字被创建的通信域（包括文件路径域和网络地址域）
+// domain: 指明套接字被创建的协议簇（包括文件路径协议簇和网络地址协议簇）
 // type: 指明被创建的socket的类型
-// protocol: 指明该socket应用于某一个特定的协议上。取值为0时将导致此socket被视为未指明的默认类型，即实际需要的socket类型。
+// protocol: 指明该socket应用于某一个特定的协议上。当确定了套接字使用的协议簇和类型，该参数可以取为0
 // 返回: 如果创建成功则返回一个能在之后使用的文件描述符，否则返回错误信息。
 pub fn sys_socket(domain: usize, socket_type: usize, protocol:usize) -> isize;
 
@@ -183,27 +188,12 @@ fn sys_recv(socket: usize, buffer: *const usize, length: usize, flags:usize) -> 
 
 ```rust
 
-type SysResult = Result<usize, Erro>;
-
-
 struct sockaddr_in {
     short int sin_family;         // AF_INET
     unsigned short int sin_port;  // 端口号
     struct in_addr  sin_addr;     // IP地址
 };
 
-addrfamily:
-AF_UNIX: 1
-AF_INET: 2
-AF_UNSPEC: 0
-shutdown:
-SHUT_RD: 0
-SHUT_WR: 1
-SHUT_RDWR: 2
-socket_type:
-SOCK_DGRAM: 2
-SOCK_STREAM: 1
-SOCK_SEQPACKET: 5
 
 ```
 

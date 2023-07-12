@@ -302,11 +302,12 @@ impl Task {
         let inner = self.inner.lock();
         let fd_table = inner.fd_table.lock();
         let fds = fd_table.data();
+        
         fds.iter().find_map(|f| {
             if f.is_some() {
                 let f = f.as_ref().unwrap();
-                if Arc::ptr_eq(&f.get_file(), &file) {
-                    Some(f.clone())
+                if Arc::ptr_eq(&f.get_nf().get_file(), &file) {
+                    Some(f.get_nf())
                 } else {
                     None
                 }
@@ -317,14 +318,13 @@ impl Task {
     }
     pub fn get_file(&self, fd: usize) -> Option<Arc<KFile>> {
         let inner = self.inner.lock();
-        let file = inner.fd_table.get(fd);
+        let file = inner.fd_table.lock().get(fd);
         match file {
             Ok(f) => {
                     let f = f.unwrap(); 
                     match f.get_type() {
-                    FileType::NormalFile => f.get_nf(),
+                    FileType::NormalFile => Some(f.get_nf()),
                     FileType::Socket => panic!("get a socket file"),
-                    _ => panic!("get a unknown file type"),
                 }
             },
             Err(_) => None
@@ -333,14 +333,13 @@ impl Task {
 
     pub fn get_socket(&self, fd: usize) -> Option<Arc<Socket>> {
         let inner = self.inner.lock();
-        let file = inner.fd_table.get(fd);
+        let file = inner.fd_table.lock().get(fd);
         match file {
             Ok(f) => {
                     let f = f.unwrap(); 
                     match f.get_type() {
                     FileType::NormalFile => panic!("get a normal file when want a socket"),
-                    FileType::Socket => f.get_socket(),
-                    _ => panic!("get a unknown file type"),
+                    FileType::Socket => Some(f.get_socket()),
                 }
             },
             Err(_) => None
@@ -348,11 +347,12 @@ impl Task {
     }
 
     pub fn add_file(&self, file: Arc<FileLike>) -> Result<usize, ()> {
-        self.access_inner().fd_table.insert(file).map_err(|_| {})
+        self.access_inner().fd_table.lock().insert(file).map_err(|_| {})
     }
-    pub fn add_file_with_fd(&self, file: Arc<File>, fd: usize) -> Result<(), ()> {
-        let mut inner = self.access_inner();
-        inner.fd_table.insert_with_index(fd, Arc::new(FileLike::NormalFile(file))).map_err(|_| {})
+    pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
+        let inner = self.access_inner();
+        let mut fd_table = inner.fd_table.lock();
+        fd_table.insert_with_index(fd, Arc::new(FileLike::NormalFile(file))).map_err(|_| {})
     }
 
     pub fn remove_file(&self, fd: usize) -> Result<Arc<KFile>, ()> {
@@ -369,10 +369,8 @@ impl Task {
         let file = match file.get_type() {
             FileType::NormalFile => file.get_nf(),
             FileType::Socket => panic!("remove a socket file"),
-            _ => panic!("remove a unknown file type"),
         };
-        let file = file.unwrap(); 
-        inner.fd_table.remove(fd).map_err(|_| {})?;
+        inner.fd_table.lock().remove(fd).map_err(|_| {})?;
         Ok(file)
     }
 
@@ -623,7 +621,7 @@ impl TaskInner {
             if file.is_none() {
                 return Err(-1);
             }
-            file
+            Some(file.unwrap().get_nf())
         };
         let v_range = self.mmap.alloc(len);
         let region = MMapRegion::new(
@@ -845,7 +843,7 @@ impl Task {
                     fd_table.insert(Arc::new(FileLike::NormalFile(KFile::new(STDIN.clone())))).unwrap();
                     fd_table.insert(Arc::new(FileLike::NormalFile(KFile::new(STDOUT.clone())))).unwrap();
                     fd_table.insert(Arc::new(FileLike::NormalFile(KFile::new(STDOUT.clone())))).unwrap();
-                    fd_table
+                    Arc::new(Mutex::new(fd_table))
                 },
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: FsContext::empty(),
