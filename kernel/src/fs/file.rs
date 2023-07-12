@@ -3,6 +3,8 @@ use alloc::sync::Arc;
 use core::fmt::Debug;
 use core::ops::{Deref, DerefMut};
 
+use crate::net::socket::Socket;
+
 use rvfs::file::{File, OpenFlags};
 
 use kernel_sync::{Mutex, MutexGuard};
@@ -93,4 +95,42 @@ impl DerefMut for KFile {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.file
     }
+}
+
+
+
+/// kfile + socket
+#[derive(Debug)]
+pub enum FileLike {
+    NormalFile(Arc<KFile>),
+    Socket(Arc<Socket>),
+}
+
+pub enum FileType {
+    NormalFile,
+    Socket,
+}
+
+impl FileLike {
+    pub fn get_type(&self) -> FileType {
+        match self {
+            FileLike::NormalFile(_) => FileType::NormalFile,
+            FileLike::Socket(_) => FileType::Socket,
+        }
+    }
+
+    pub fn get_nf(&self) -> Arc<KFile> {
+        match self {
+            FileLike::NormalFile(nf) => nf.clone(),
+            FileLike::Socket(_) => panic!("get a socket file"),
+        }
+    }
+
+    pub fn get_socket(&self) -> Arc<Socket> {
+        match self {
+            FileLike::NormalFile(_) => panic!("get a normal file when want a socket"),
+            FileLike::Socket(s) => s.clone(),
+        }
+    }
+
 }

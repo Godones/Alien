@@ -42,7 +42,12 @@ syscall_id!(SYSCALL_GETPID, 172);
 syscall_id!(SYSCALL_FORK, 220);
 syscall_id!(SYSCALL_EXEC, 221);
 syscall_id!(SYSCALL_WAITPID, 260);
+
+syscall_id!(SYSCALL_SOCKET, 198);
+syscall_id!(SYSCALL_SENDTO, 206);
+syscall_id!(SYSCALL_RECVFROM, 207);
 syscall_id!(SYSCALL_SHUTDOWN, 210);
+
 
 syscall_id!(SYSCALL_OPENAT, 56);
 
@@ -100,7 +105,12 @@ syscall!(
     *const usize
 );
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
-syscall!(sys_shutdown, SYSCALL_SHUTDOWN);
+
+syscall!(sys_socket, SYSCALL_SOCKET, usize, usize, usize);
+syscall!(sys_sendto, SYSCALL_SENDTO, usize, *const u8, usize, i32, *const usize, usize);
+syscall!(sys_recvfrom, SYSCALL_RECVFROM, usize, *mut u8, usize, i32, *mut usize, *mut u32);
+syscall!(sys_shutdown, SYSCALL_SHUTDOWN, usize, usize);
+
 syscall!(sys_list, SYSCALL_LIST, *const u8);
 syscall!(sys_openat, SYSCALL_OPENAT, isize, *const u8, usize, usize);
 syscall!(sys_close, SYSCALL_CLOSE, usize);

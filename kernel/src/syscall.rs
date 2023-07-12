@@ -7,16 +7,12 @@ pub fn register_all_syscall(){
 	(160, sys_uname),
 	(215, do_munmap),
 	(222, do_mmap),
+	(226, map_protect),
 	(169, get_time_of_day),
 	(153, times),
 	(101, sys_nanosleep),
 	(113, clock_get_time),
 	(2002, sys_event_get),
-	(2000, sys_framebuffer),
-	(2001, sys_framebuffer_flush),
-	(59, sys_pipe),
-	(23, sys_dup),
-	(24, sys_dup2),
 	(93, do_exit),
 	(94, exit_group),
 	(124, do_suspend),
@@ -72,8 +68,24 @@ pub fn register_all_syscall(){
 	(67, sys_pread),
 	(68, sys_pwrite),
 	(16, sys_fremovexattr),
-	(215, do_munmap),
-	(222, do_mmap),
+	(25, sys_fcntl),
+	(29, sys_ioctl),
+	(88, sys_utimensat),
+	(134, sigaction),
+	(137, sigtimewait),
+	(135, sys_sigprocmask),
+	(999, signal_return),
+	(59, sys_pipe),
+	(23, sys_dup),
+	(24, sys_dup2),
+	(98, sys_futex),
+	(210, shutdown),
+	(198, sys_socket),
+	(206, sys_sendto),
+	(207, sys_recvfrom),
+	(210, sys_shutdown),
+	(2000, sys_framebuffer),
+	(2001, sys_framebuffer_flush),
 
 	);
 	SYSCALL_TABLE.call_once(||table);
@@ -137,6 +149,11 @@ use crate::ipc::sys_pipe;
 use crate::ipc::sys_sigprocmask;
 use crate::memory::do_mmap;
 use crate::memory::do_munmap;
+use crate::memory::map_protect;
+use crate::net::sys_recvfrom;
+use crate::net::sys_sendto;
+use crate::net::sys_shutdown;
+use crate::net::sys_socket;
 use crate::sbi::shutdown;
 use crate::system::sys_uname;
 use crate::task::clone;
