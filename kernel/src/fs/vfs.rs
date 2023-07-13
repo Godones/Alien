@@ -8,20 +8,20 @@ use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
 use rvfs::file::{
-    FileMode, OpenFlags, vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file,
+    vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file, FileMode, OpenFlags,
 };
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::inode::InodeMode;
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
 use rvfs::ramfs::tmpfs::TMP_FS_TYPE;
-use rvfs::superblock::{DataOps, Device, register_filesystem};
+use rvfs::superblock::{register_filesystem, DataOps, Device};
 
 use kernel_sync::Mutex;
 
 use crate::config::{MEMINFO, RTC_TIME, UTC};
-use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::driver::rtc::get_rtc_time;
+use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::task::current_task;
 
 // only call once before the first process is created
@@ -61,18 +61,29 @@ pub fn init_vfs() {
         FileMode::FMODE_RDWR,
         u32::MAX,
     )
-        .unwrap();
+    .unwrap();
     vfs_mknod::<VfsProvider>("/dev/zero", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
 
     register_filesystem(TMP_FS_TYPE).unwrap();
     vfs_mkdir::<VfsProvider>("/dev/shm", FileMode::FMODE_RDWR).unwrap();
     do_mount::<VfsProvider>("none", "/dev/shm", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
 
+    prepare_root();
     prepare_proc();
     prepare_etc();
     prepare_test_need();
     prepare_dev();
     println!("vfs init done");
+}
+
+fn prepare_root() {
+    vfs_mkdir::<VfsProvider>("/root", FileMode::FMODE_RDWR).unwrap();
+    let _bash_profile = vfs_open_file::<VfsProvider>(
+        "/root/.bashrc",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
 }
 
 fn prepare_dev() {
@@ -83,8 +94,9 @@ fn prepare_dev() {
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
-        .unwrap();
+    .unwrap();
     vfs_write_file::<VfsProvider>(rtc_file, RTC_TIME.as_bytes(), 0).unwrap();
+    vfs_mknod::<VfsProvider>("/dev/tty", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
 }
 
 fn prepare_test_need() {
@@ -93,7 +105,7 @@ fn prepare_test_need() {
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
-        .unwrap();
+    .unwrap();
 }
 
 fn prepare_proc() {
@@ -104,14 +116,14 @@ fn prepare_proc() {
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
-        .unwrap();
+    .unwrap();
     vfs_write_file::<VfsProvider>(file, MOUNT_INFO.as_bytes(), 0).unwrap();
     let mem_info = vfs_open_file::<VfsProvider>(
         "/proc/meminfo",
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
-        .unwrap();
+    .unwrap();
     vfs_write_file::<VfsProvider>(mem_info, MEMINFO.as_bytes(), 0).unwrap();
 }
 
@@ -123,19 +135,19 @@ fn prepare_etc() {
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
-        .unwrap();
+    .unwrap();
     vfs_write_file::<VfsProvider>(file, UTC, 0).unwrap();
     let adjtime_file = vfs_open_file::<VfsProvider>(
         "/etc/adjtime",
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
-        .unwrap();
+    .unwrap();
     vfs_write_file::<VfsProvider>(adjtime_file, RTC_TIME.as_bytes(), 0).unwrap();
 }
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
-    let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
+    let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_RDWR);
     if file.is_err() {
         warn!("open file {} failed", file_name);
         return false;

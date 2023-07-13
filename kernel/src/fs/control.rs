@@ -3,10 +3,11 @@ use rvfs::file::{vfs_ioctl, vfs_open_file, FileMode, OpenFlags};
 use rvfs::info::VfsTime;
 use rvfs::stat::vfs_set_time;
 
-use syscall_define::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd};
+use syscall_define::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, TeletypeCommand};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
+use crate::fs::file::FileIoctlExt;
 use crate::fs::vfs::VfsProvider;
 use crate::fs::{user_path_at, AT_FDCWD};
 use crate::task::current_task;
@@ -68,11 +69,18 @@ pub fn sys_ioctl(fd: usize, cmd: usize, arg: usize) -> isize {
         return LinuxErrno::EBADF as isize;
     }
     let file = file.unwrap();
-    let res = vfs_ioctl(file.get_file(), cmd as u32, arg);
+    let cmd = TeletypeCommand::try_from(cmd as u32);
+    if cmd.is_err() {
+        return LinuxErrno::EBADF.into();
+    }
+    warn!("ioctl: {:?} {:?} {:?}", fd, cmd, arg);
+    let cmd = cmd.unwrap();
+    let res = vfs_ioctl(file.get_file(), cmd as u32, arg); // now it is a fake impl
     if res.is_err() {
         return -1;
     }
-    res.unwrap() as isize
+    let res = file.ioctl(cmd as u32, arg);
+    res
 }
 
 #[syscall_func(88)]

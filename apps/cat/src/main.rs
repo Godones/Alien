@@ -11,7 +11,7 @@ use Mstd::{print, println};
 
 #[no_mangle]
 fn main(_argc: usize, argv: Vec<String>) -> isize {
-    let file_name = &argv[0];
+    let file_name = &argv[1];
     let fd = open(file_name, OpenFlags::O_RDONLY);
     if fd != -1 {
         let mut buf = [0u8; 10];
