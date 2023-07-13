@@ -1,3 +1,4 @@
+use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
@@ -29,7 +30,7 @@ use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::file::KFile;
 use crate::fs::{STDIN, STDOUT};
-use crate::ipc::global_register_signals;
+use crate::ipc::{global_register_signals, ShmInfo};
 use crate::memory::{
     build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
     MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
@@ -112,6 +113,7 @@ pub struct TaskInner {
     /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
     pub signal_set_siginfo: bool,
     pub robust: RobustList,
+    pub shm: BTreeMap<usize, ShmInfo>,
 }
 
 /// statistics of a process
@@ -1005,6 +1007,7 @@ impl Task {
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
+                shm: BTreeMap::new(),
             }),
             send_sigchld_when_exit: false,
         };
@@ -1044,7 +1047,8 @@ impl Task {
             inner.address_space.clone()
         } else {
             // to create process
-            let address_space = build_cow_address_space(&mut inner.address_space.lock());
+            let address_space =
+                build_cow_address_space(&mut inner.address_space.lock(), inner.shm.clone());
             Arc::new(Mutex::new(address_space))
         };
 
@@ -1172,6 +1176,7 @@ impl Task {
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
+                shm: inner.shm.clone(),
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
@@ -1182,7 +1187,6 @@ impl Task {
         Some(task)
     }
 
-    #[no_mangle]
     pub fn exec(
         &self,
         name: &str,

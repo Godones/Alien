@@ -118,6 +118,7 @@ testelf:
 	@sudo mkdir /fat/libc
 	if [ -d "sdcard" ]; then \
 		sudo cp sdcard/* /fat -r; \
+		sudo cp sdcard/* /fat/bin -r;\
 	fi
 	if [ -d "tools/siglibc" ]; then \
 		sudo cp tools/siglibc/build/* /fat/libc -r; \
@@ -146,7 +147,7 @@ fat32:
 		rm $(IMG); \
 		touch $(IMG); \
 	fi
-	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=128
+	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=256
 	@sudo chmod 777 $(IMG)
 	@sudo mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
