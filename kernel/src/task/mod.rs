@@ -20,8 +20,8 @@ mod task;
 lazy_static! {
     pub static ref INIT_PROCESS: Arc<Task> = {
         let mut data = Vec::new();
-        vfs::read_all("/init", &mut data);
-        let task = Task::from_elf("/init", data.as_slice()).unwrap();
+        vfs::read_all("/bin/init", &mut data);
+        let task = Task::from_elf("/bin/init", data.as_slice()).unwrap();
         Arc::new(task)
     };
 }

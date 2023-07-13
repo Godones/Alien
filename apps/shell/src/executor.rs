@@ -57,7 +57,7 @@ impl Executor {
         }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         if self.cmd.is_empty() {
             return;
         }
@@ -80,14 +80,18 @@ impl Executor {
             _ => {
                 let mut cmd = self.cmd;
                 cmd.push('\0');
+                if !cmd.starts_with("/") && !cmd.starts_with("./") {
+                    cmd.insert_str(0, "/bin/");
+                }
+                let env = if cmd.ends_with("bash\0") {
+                    BASH_ENV
+                } else {
+                    &[0 as *const u8]
+                };
                 let tid = fork();
                 if tid == 0 {
-                    // self.parameter.args.insert(0, cmd.clone());
-                    exec(
-                        cmd.as_str(),
-                        self.parameter.get_args_raw().as_slice(),
-                        &[0 as *const u8],
-                    );
+                    self.parameter.args.insert(0, cmd.clone());
+                    exec(cmd.as_str(), self.parameter.get_args_raw().as_slice(), env);
                     exit(0);
                 } else {
                     m_yield();
@@ -107,3 +111,21 @@ const HELP: &str = r#"
     echo - Echo the arguments
     exit - Exit the shell
     "#;
+
+const BASH_ENV: &[*const u8] = &[
+    "SHELL=/bash\0".as_ptr(),
+    "PWD=/\0".as_ptr(),
+    "LOGNAME=root\0".as_ptr(),
+    "MOTD_SHOWN=pam\0".as_ptr(),
+    "HOME=/root\0".as_ptr(),
+    "LANG=C.UTF-8\0".as_ptr(),
+    "TERM=vt220\0".as_ptr(),
+    "USER=root\0".as_ptr(),
+    "SHLVL=0\0".as_ptr(),
+    "OLDPWD=/root\0".as_ptr(),
+    "PS1=\x1b[1m\x1b[32mAlien\x1b[0m:\x1b[1m\x1b[34m\\w\x1b[0m\\$ \0".as_ptr(),
+    "_=/bin/bash\0".as_ptr(),
+    "PATH=/:/bin\0".as_ptr(),
+    "LD_LIBRARY_PATH=/\0".as_ptr(),
+    core::ptr::null(),
+];
