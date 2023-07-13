@@ -353,11 +353,13 @@ bug2：建立好页表后开启mmu卡死
 
 1. 添加iozone的支持  https://www.cnblogs.com/licheng/archive/2008/06/30/1232527.html
 
-- [ ] vfs中添加与`poll`   `pselect` 系统调用的支持
+- [x] vfs中添加与`poll`   `pselect` 系统调用的支持
 
 在`File`定义内部，我们扩展了几个功能，这些函数用来探测文件是否可读、是否可写、以及是否损坏等，需要为这个扩展功能提供默认实现。
 
-- [ ] 如何处理`/dev/tty`
+- [x] 如何处理`/dev/tty`
 
 tty回显问题：https://gitlab.eduxiji.net/2019301887/oskernel2022-npucore/-/blob/master/Doc/debug/TTY%E4%B8%8D%E5%9B%9E%E6%98%BEbug.md
+
+不需要在内核中输出，bash会根据系统维护的值选择是否调用`writev`
 
