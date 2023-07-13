@@ -1,3 +1,4 @@
+use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use core::cmp::min;
 use core::fmt::{Debug, Formatter};
@@ -13,6 +14,7 @@ use xmas_elf::program::Type;
 use kernel_sync::RwLock;
 
 use crate::config::{FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::ipc::ShmInfo;
 use crate::memory::frame::{addr_to_frame, frame_alloc};
 use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::trap::TrapFrame;
@@ -252,11 +254,23 @@ pub fn build_thread_address_space(
 
 pub fn build_cow_address_space(
     p_table: &mut Sv39PageTable<PageAllocator>,
+    shm: BTreeMap<usize, ShmInfo>,
 ) -> Sv39PageTable<PageAllocator> {
     let mut address_space = Sv39PageTable::<PageAllocator>::try_new().unwrap();
     for (v_addr, target) in p_table.get_record().into_iter() {
         trace!("v_addr: {:?}, target: {}", v_addr, target);
         let (phy, flag, page_size) = p_table.query(v_addr).unwrap();
+
+        // shm should remap, we can't use cow for it
+        let is_in_segs = |addr: usize| -> bool {
+            for (_id, shminfo) in shm.iter() {
+                if addr >= shminfo.start_va && addr < shminfo.end_va {
+                    return true;
+                }
+            }
+            false
+        };
+
         if v_addr.as_usize() == TRAP_CONTEXT_BASE {
             // for Trap_context, we remap it
             assert_eq!(usize::from(page_size), TRAMPOLINE - TRAP_CONTEXT_BASE);
@@ -269,6 +283,9 @@ pub fn build_cow_address_space(
             unsafe {
                 core::ptr::copy(src_ptr, dst_ptr, usize::from(page_size));
             }
+        } else if is_in_segs(v_addr.as_usize()) {
+            // for shm, we now skip it
+            address_space.map(v_addr, phy, page_size, flag).unwrap();
         } else {
             // cow
             // checkout whether pte flags has `W` flag

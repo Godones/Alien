@@ -246,13 +246,18 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
     let mut data = Vec::new();
     // get the args and push them into the new process stack
     let (mut args, envs) = parse_user_arg_env(args_ptr, env);
-
+    warn!("exec path: {}", path_str);
+    warn!("exec args: {:?} ,env: {:?}", args, envs);
     if path_str.ends_with(".sh") {
-        args.insert(0, path_str.clone());
+        if args.is_empty() {
+            let mut new_path = path_str.clone();
+            new_path.push('\0');
+            args.insert(0, new_path);
+        }
         path_str = "busybox".to_string();
         args.insert(0, "sh\0".to_string());
     }
-    warn!("exec path: {}", path_str);
+
     if vfs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
