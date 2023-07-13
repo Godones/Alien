@@ -16,6 +16,8 @@ pub trait CharDevice {
     fn put(&self, c: u8);
     fn get(&self) -> Option<u8>;
     fn put_bytes(&self, bytes: &[u8]);
+    fn have_data_to_get(&self) -> bool;
+    fn have_space_to_put(&self) -> bool;
 }
 
 lazy_static! {
@@ -122,6 +124,14 @@ impl CharDevice for Uart {
         for &c in bytes {
             self.put(c);
         }
+    }
+
+    fn have_data_to_get(&self) -> bool {
+        !self.inner.lock().1.rx_buf.is_empty()
+    }
+
+    fn have_space_to_put(&self) -> bool {
+        true
     }
 }
 

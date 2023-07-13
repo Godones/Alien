@@ -29,3 +29,5 @@
 `fcntl`：https://man7.org/linux/man-pages/man2/fcntl64.2.html
 
 `futex`:https://man7.org/linux/man-pages/man2/futex.2.html   http://linuxperf.com/?p=23
+
+`shmget`：https://blog.csdn.net/tjcwt2011/article/details/123919503

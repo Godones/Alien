@@ -1,6 +1,4 @@
-
-TRACE_EXE_PATH:= ../os-module/elfinfo/
-TRACE_EXE  := ../os-module/elfinfo/target/release/trace_exe
+TRACE_EXE  := trace_exe
 TARGET      := riscv64gc-unknown-none-elf
 OUTPUT := target/$(TARGET)/release/
 KERNEL_FILE := $(OUTPUT)/boot
@@ -12,7 +10,6 @@ BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/fs.img
-#IMG := tools/fs1.img
 SMP ?= 4
 GUI ?=n
 #IMG1 := tools/fs1.img
@@ -22,6 +19,8 @@ VF2 ?=n
 CV1811h ?=n
 FEATURES :=
 QEMU_ARGS :=
+
+img ?=fat32
 
 
 ifeq ($(GUI),y)
@@ -43,7 +42,6 @@ endif
 
 
 
-
 define boot_qemu
 	qemu-system-riscv64 \
         -M virt $(1)\
@@ -57,14 +55,17 @@ define boot_qemu
         -serial mon:stdio
 endef
 
+all:run
+
 install:
 	@cargo install --git  https://github.com/os-module/elfinfo
 	@#cd $(TRACE_EXE_PATH) && cargo build --release
 
-all:run
+build:compile
+
 
 compile:
-	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	@cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 	@#call trace_info
 	@cargo build --release -p boot --target riscv64gc-unknown-none-elf   --features $(FEATURES)
@@ -77,12 +78,9 @@ trace_info:
 user:
 	@cd apps && make all
 
+img:$(img) user testelf
 
-
-build:compile
-
-
-run:install compile $(img) user testelf
+run:install compile img
 	@echo qemu booot $(SMP)
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
@@ -117,10 +115,10 @@ test:install compile $(img) SecondFile testelf
 testelf:
 	@sudo mkdir /fat/ostest
 	@sudo cp test/* /fat/ostest -r
-	@sudo mkdir /fat/final
 	@sudo mkdir /fat/libc
 	if [ -d "sdcard" ]; then \
-		sudo cp sdcard/* /fat/final -r; \
+		sudo cp sdcard/* /fat -r; \
+		sudo cp sdcard/* /fat/bin -r;\
 	fi
 	if [ -d "tools/siglibc" ]; then \
 		sudo cp tools/siglibc/build/* /fat/libc -r; \
@@ -145,11 +143,11 @@ ZeroFile:
 	@dd if=/dev/zero of=$(IMG) bs=1M count=64
 
 fat32:
-	if [-f $(IMG)]; then \
+	if [ -f "$(IMG)" ]; then \
 		rm $(IMG); \
 		touch $(IMG); \
 	fi
-	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=128
+	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=256
 	@sudo chmod 777 $(IMG)
 	@sudo mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
@@ -167,8 +165,7 @@ img-hex:
 	@hexdump $(IMG) > test.hex
 	@cat test.hex
 
-
-gdb:
+gdb-server:
 	@qemu-system-riscv64 \
             -M virt $(1)\
             -bios $(BOOTLOADER) \
@@ -187,20 +184,20 @@ debug: compile $(img) user
 		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
 		tmux -2 attach-session -d
 
-ddd:
+gdb-client:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
-asm:
+kernel_asm:
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/boot > kernel.asm
 	@vim kernel.asm
 	@rm kernel.asm
 
 
-
 clean:
 	@cargo clean
 	@rm riscv.*
-
+	@rm kernel-qemu
+	@rm alien-*
 
 .PHONY: all run clean fake_run
 
