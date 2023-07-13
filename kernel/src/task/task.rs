@@ -1,3 +1,4 @@
+use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
@@ -29,7 +30,7 @@ use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::file::KFile;
 use crate::fs::{STDIN, STDOUT};
-use crate::ipc::global_register_signals;
+use crate::ipc::{global_register_signals, ShmInfo};
 use crate::memory::{
     build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
     MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
@@ -112,6 +113,7 @@ pub struct TaskInner {
     /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
     pub signal_set_siginfo: bool,
     pub robust: RobustList,
+    pub shm: BTreeMap<usize, ShmInfo>,
 }
 
 /// statistics of a process
@@ -629,6 +631,34 @@ impl TaskInner {
         }
     }
 
+    pub fn copy_from_user<T: 'static + Copy>(&mut self, src: *const T, dst: *mut T) {
+        let size = core::mem::size_of::<T>();
+        if VirtAddr::from(src as usize).align_down_4k()
+            == VirtAddr::from(dst as usize).align_down_4k()
+        {
+            // the src and dst are in same page
+            let src = self.transfer_raw(src as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src as *const T, dst, size);
+            }
+        } else {
+            let mut bufs = self.transfer_buffer(src as *const u8, size);
+            let dst = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, size) };
+            let mut start = 0;
+            let dst_len = dst.len();
+            for buffer in bufs.iter_mut() {
+                let end = start + buffer.len();
+                if end > dst_len {
+                    dst[start..].copy_from_slice(&buffer[..dst_len - start]);
+                    break;
+                } else {
+                    dst[start..end].copy_from_slice(buffer);
+                }
+                start = end;
+            }
+        }
+    }
+
     pub fn transfer_buffer<T>(&mut self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
         let mut start = ptr as usize;
         let end = start + len;
@@ -1005,6 +1035,7 @@ impl Task {
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
+                shm: BTreeMap::new(),
             }),
             send_sigchld_when_exit: false,
         };
@@ -1044,7 +1075,8 @@ impl Task {
             inner.address_space.clone()
         } else {
             // to create process
-            let address_space = build_cow_address_space(&mut inner.address_space.lock());
+            let address_space =
+                build_cow_address_space(&mut inner.address_space.lock(), inner.shm.clone());
             Arc::new(Mutex::new(address_space))
         };
 
@@ -1172,6 +1204,7 @@ impl Task {
                 trap_cx_before_signal: None,
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
+                shm: inner.shm.clone(),
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
@@ -1182,7 +1215,6 @@ impl Task {
         Some(task)
     }
 
-    #[no_mangle]
     pub fn exec(
         &self,
         name: &str,

@@ -27,6 +27,21 @@ macro_rules! println {
 }
 
 #[macro_export]
+macro_rules! eprint {
+    ($($arg:tt)*) => {
+        $crate::print::console::__print(format_args!("{}", format_args!($($arg)*)))
+    };
+}
+
+#[macro_export]
+macro_rules! eprintln {
+    () => ($crate::eprint!("\n"));
+    ($fmt:expr) => ($crate::eprint!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::eprint!(
+        concat!($fmt, "\n"), $($arg)*));
+}
+
+#[macro_export]
 macro_rules! uprint {
    ($($arg:tt)*) => {
         $crate::print::console::__uprint(format_args!($($arg)*))
@@ -66,6 +81,16 @@ impl Write for Stdout {
 pub fn get_char() -> Option<u8> {
     let uart = USER_UART.get().unwrap();
     uart.get()
+}
+
+pub fn check_have_char() -> bool {
+    let uart = USER_UART.get().unwrap();
+    uart.have_data_to_get()
+}
+
+pub fn check_have_space() -> bool {
+    let uart = USER_UART.get().unwrap();
+    uart.have_space_to_put()
 }
 
 /// 输出函数

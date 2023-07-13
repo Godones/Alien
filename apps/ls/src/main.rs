@@ -12,10 +12,10 @@ use Mstd::println;
 
 #[no_mangle]
 fn main(_: usize, argv: Vec<String>) -> isize {
-    if argv.len() == 0 {
+    if argv.len() == 1 {
         parse_args("./\0")
     } else {
-        let mut path = argv[0].clone();
+        let mut path = argv[1].clone();
         path.push('\0');
         parse_args(path.as_str())
     }

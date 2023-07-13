@@ -142,3 +142,15 @@ impl FilePollExt for KFile {
         is_ready_exception(file)
     }
 }
+
+pub trait FileIoctlExt {
+    fn ioctl(&self, cmd: u32, arg: usize) -> isize;
+}
+
+impl FileIoctlExt for KFile {
+    fn ioctl(&self, cmd: u32, arg: usize) -> isize {
+        let file = self.file.clone();
+        let ioctl = file.access_inner().f_ops_ext.ioctl;
+        ioctl(file, cmd, arg)
+    }
+}

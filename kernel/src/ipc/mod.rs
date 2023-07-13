@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 
 use kernel_sync::Mutex;
 pub use pipe::*;
-pub use poll::*;
+pub use shm::*;
 pub use signal::*;
 use syscall_define::ipc::{FutexOp, RobustList};
 use syscall_define::LinuxErrno;
@@ -19,7 +19,7 @@ use crate::timer::TimeSpec;
 
 pub mod futex;
 mod pipe;
-pub mod poll;
+pub mod shm;
 pub mod signal;
 
 lazy_static! {
