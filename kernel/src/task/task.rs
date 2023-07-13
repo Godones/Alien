@@ -631,6 +631,34 @@ impl TaskInner {
         }
     }
 
+    pub fn copy_from_user<T: 'static + Copy>(&mut self, src: *const T, dst: *mut T) {
+        let size = core::mem::size_of::<T>();
+        if VirtAddr::from(src as usize).align_down_4k()
+            == VirtAddr::from(dst as usize).align_down_4k()
+        {
+            // the src and dst are in same page
+            let src = self.transfer_raw(src as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src as *const T, dst, size);
+            }
+        } else {
+            let mut bufs = self.transfer_buffer(src as *const u8, size);
+            let dst = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, size) };
+            let mut start = 0;
+            let dst_len = dst.len();
+            for buffer in bufs.iter_mut() {
+                let end = start + buffer.len();
+                if end > dst_len {
+                    dst[start..].copy_from_slice(&buffer[..dst_len - start]);
+                    break;
+                } else {
+                    dst[start..end].copy_from_slice(buffer);
+                }
+                start = end;
+            }
+        }
+    }
+
     pub fn transfer_buffer<T>(&mut self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
         let mut start = ptr as usize;
         let end = start + len;

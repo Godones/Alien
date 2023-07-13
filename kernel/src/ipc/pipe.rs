@@ -112,6 +112,7 @@ impl Pipe {
                 is_ready_write: pipe_ready_to_write,
                 is_ready_exception: |_| false,
                 is_hang_up: pipe_write_is_hang_up,
+                ioctl: |_, _, _| -1,
             }
         };
         let mut rx_file = File::new(
@@ -133,6 +134,7 @@ impl Pipe {
                 is_ready_write: |_| false,
                 is_ready_exception: |_| false,
                 is_hang_up: pipe_read_is_hang_up,
+                ioctl: |_, _, _| -1,
             }
         };
 

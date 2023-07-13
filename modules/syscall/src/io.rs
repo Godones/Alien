@@ -114,3 +114,146 @@ bitflags! {
         const AT_REMOVEDIR = 0x200;
     }
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct WinSize {
+    ws_row: u16,
+    ws_col: u16,
+    xpixel: u16,
+    ypixel: u16,
+}
+
+impl Default for WinSize {
+    fn default() -> Self {
+        Self {
+            ws_row: 24,
+            ws_col: 80,
+            xpixel: 0,
+            ypixel: 0,
+        }
+    }
+}
+
+numeric_enum_macro::numeric_enum! {
+    #[repr(u32)]
+    #[allow(non_camel_case_types)]
+    #[derive(Debug, Eq, PartialEq,Copy, Clone)]
+    pub enum TeletypeCommand {
+        // For struct termios
+        /// Gets the current serial port settings.
+        TCGETS = 0x5401,
+        /// Sets the serial port settings immediately.
+        TCSETS = 0x5402,
+        /// Sets the serial port settings after allowing the input and output buffers to drain/empty.
+        TCSETSW = 0x5403,
+        /// Sets the serial port settings after flushing the input and output buffers.
+        TCSETSF = 0x5404,
+        /// For struct termio
+        /// Gets the current serial port settings.
+        TCGETA = 0x5405,
+        /// Sets the serial port settings immediately.
+        TCSETA = 0x5406,
+        /// Sets the serial port settings after allowing the input and output buffers to drain/empty.
+        TCSETAW = 0x5407,
+        /// Sets the serial port settings after flushing the input and output buffers.
+        TCSETAF = 0x5408,
+        /// Get the process group ID of the foreground process group on this terminal.
+        TIOCGPGRP = 0x540F,
+        /// Set the foreground process group ID of this terminal.
+        TIOCSPGRP = 0x5410,
+        /// Get window size.
+        TIOCGWINSZ = 0x5413,
+        /// Set window size.
+        TIOCSWINSZ = 0x5414,
+        /// Non-cloexec
+        FIONCLEX = 0x5450,
+        /// Cloexec
+        FIOCLEX = 0x5451,
+        /// rustc using pipe and ioctl pipe file with this request id
+        /// for non-blocking/blocking IO control setting
+        FIONBIO = 0x5421,
+        /// Read time
+        RTC_RD_TIME = 0x80247009,
+        ILLEAGAL = 0,
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+/// The termios functions describe a general terminal interface that
+/// is provided to control asynchronous communications ports.
+pub struct Termios {
+    /// input modes
+    pub iflag: u32,
+    /// ouput modes
+    pub oflag: u32,
+    /// control modes
+    pub cflag: u32,
+    /// local modes
+    pub lflag: u32,
+    pub line: u8,
+    /// terminal special characters.
+    pub cc: [u8; 32],
+    pub ispeed: u32,
+    pub ospeed: u32,
+}
+
+impl Default for Termios {
+    fn default() -> Self {
+        Termios {
+            // IMAXBEL | IUTF8 | IXON | IXANY | ICRNL | BRKINT
+            iflag: 0o66402,
+            // OPOST | ONLCR
+            oflag: 0o5,
+            // HUPCL | CREAD | CSIZE | EXTB
+            cflag: 0o2277,
+            // IEXTEN | ECHOTCL | ECHOKE ECHO | ECHOE | ECHOK | ISIG | ICANON
+            lflag: 0o105073,
+            line: 0,
+            cc: [
+                3,   // VINTR Ctrl-C
+                28,  // VQUIT
+                127, // VERASE
+                21,  // VKILL
+                4,   // VEOF Ctrl-D
+                0,   // VTIME
+                1,   // VMIN
+                0,   // VSWTC
+                17,  // VSTART
+                19,  // VSTOP
+                26,  // VSUSP Ctrl-Z
+                255, // VEOL
+                18,  // VREPAINT
+                15,  // VDISCARD
+                23,  // VWERASE
+                22,  // VLNEXT
+                255, // VEOL2
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+            ispeed: 0,
+            ospeed: 0,
+        }
+    }
+}
+
+bitflags! {
+    pub struct LocalModes : u32 {
+        const ISIG = 0o000001;
+        const ICANON = 0o000002;
+        const ECHO = 0o000010;
+        const ECHOE = 0o000020;
+        const ECHOK = 0o000040;
+        const ECHONL = 0o000100;
+        const NOFLSH = 0o000200;
+        const TOSTOP = 0o000400;
+        const IEXTEN = 0o100000;
+        const XCASE = 0o000004;
+        const ECHOCTL = 0o001000;
+        const ECHOPRT = 0o002000;
+        const ECHOKE = 0o004000;
+        const FLUSHO = 0o010000;
+        const PENDIN = 0o040000;
+        const EXTPROC = 0o200000;
+    }
+}
