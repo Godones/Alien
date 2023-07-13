@@ -172,6 +172,16 @@ pub fn do_suspend() -> isize {
     0
 }
 
+#[syscall_func(154)]
+pub fn set_pgid() -> isize {
+    0
+}
+
+#[syscall_func(155)]
+pub fn git_pgid() -> isize {
+    0
+}
+
 #[syscall_func(172)]
 pub fn get_pid() -> isize {
     let process = current_task().unwrap();

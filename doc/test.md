@@ -155,7 +155,7 @@
 - [x] busybox
 - [x] lua
 - [x] time-test
-- [ ] bash
+- [x] bash
 - [x] iozone
   - [x] ./iozone -a -r 1k -s 4m
   - [x] ./iozone -t 4 -i 0 -i 1 -r 1k -s 1m

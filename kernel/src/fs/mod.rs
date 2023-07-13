@@ -489,6 +489,7 @@ pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> 
     let mut buf = process.transfer_raw_buffer(buf, size);
 
     println!("readlink path: {}", path);
+    assert!(false, "now we can't solve link");
     let res = vfs_readlink::<VfsProvider>(path.as_str(), buf[0]);
     if res.is_err() {
         return -1;
