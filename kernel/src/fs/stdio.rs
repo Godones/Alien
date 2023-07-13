@@ -3,6 +3,7 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileMode, FileOps, OpenFlags};
+use rvfs::inode::SpecialData;
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 
@@ -22,6 +23,11 @@ lazy_static! {
             FileMode::FMODE_READ,
             file_ops,
         );
+        file.f_dentry
+            .access_inner()
+            .d_inode
+            .access_inner()
+            .special_data = Some(SpecialData::CharData(0 as *const u8));
         Arc::new(file)
     };
 }
@@ -50,6 +56,11 @@ lazy_static! {
             FileMode::FMODE_WRITE,
             file_ops,
         );
+        file.f_dentry
+            .access_inner()
+            .d_inode
+            .access_inner()
+            .special_data = Some(SpecialData::CharData(0 as *const u8));
         Arc::new(file)
     };
 }
