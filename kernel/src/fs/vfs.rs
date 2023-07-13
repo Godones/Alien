@@ -68,11 +68,22 @@ pub fn init_vfs() {
     vfs_mkdir::<VfsProvider>("/dev/shm", FileMode::FMODE_RDWR).unwrap();
     do_mount::<VfsProvider>("none", "/dev/shm", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
 
+    prepare_root();
     prepare_proc();
     prepare_etc();
     prepare_test_need();
     prepare_dev();
     println!("vfs init done");
+}
+
+fn prepare_root() {
+    vfs_mkdir::<VfsProvider>("/root", FileMode::FMODE_RDWR).unwrap();
+    let _bash_profile = vfs_open_file::<VfsProvider>(
+        "/root/.bashrc",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
 }
 
 fn prepare_dev() {
@@ -85,6 +96,7 @@ fn prepare_dev() {
     )
     .unwrap();
     vfs_write_file::<VfsProvider>(rtc_file, RTC_TIME.as_bytes(), 0).unwrap();
+    vfs_mknod::<VfsProvider>("/dev/tty", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
 }
 
 fn prepare_test_need() {
