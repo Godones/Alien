@@ -61,6 +61,7 @@ const SYSCALL_DUP: usize = 23;
 const SYSCALL_DUP3: usize = 24;
 const SYSCALL_FCNTL: usize = 25;
 const SYSCALL_IOCTL: usize = 29;
+const SYSCALL_MKNODAT: usize = 33;
 const SYSCALL_MKDIRAT: usize = 34;
 const SYSCALL_UNLINKAT: usize = 35;
 const SYSCALL_LINKAT: usize = 37;
@@ -87,6 +88,7 @@ const SYSCALL_PPOLL: usize = 73;
 const SYSCALL_READLINKAT: usize = 78;
 const SYSCALL_FSTATAT: usize = 79;
 const SYSCALL_FSTAT: usize = 80;
+const SYSCALL_SYNC: usize = 81;
 const SYSCALL_FSYNC: usize = 82;
 const SYSCALL_UTIMENSAT: usize = 88;
 const SYSCALL_EXIT: usize = 93;
@@ -122,6 +124,10 @@ const SYSCALL_GETGID: usize = 176;
 const SYSCALL_GETEGID: usize = 177;
 const SYSCALL_GETTID: usize = 178;
 const SYSCALL_SYSINFO: usize = 179;
+const SYSCALL_SHMGET: usize = 194;
+const SYSCALL_SHAMCTL: usize = 195;
+const SYSCALL_SHAMAT: usize = 196;
+const SYSCALL_SHAMDT: usize = 197;
 const SYSCALL_SOCKET: usize = 198;
 const SYSCALL_BIND: usize = 200;
 const SYSCALL_LISTEN: usize = 201;
@@ -158,6 +164,11 @@ const SYSCALL_GET_TIME: usize = 1690; //you mean get time of day by 169?
 
 pub fn syscall_name(id: usize) -> &'static str {
     match id {
+        SYSCALL_MKNODAT => "mknodat",
+        SYSCALL_SHMGET => "shmget",
+        SYSCALL_SHAMCTL => "shamctl",
+        SYSCALL_SHAMAT => "shamat",
+        SYSCALL_SHAMDT => "shamdt",
         SYSCALL_DUP => "dup",
         SYSCALL_DUP3 => "dup3",
         SYSCALL_OPEN => "open",
@@ -191,6 +202,7 @@ pub fn syscall_name(id: usize) -> &'static str {
         SYSCALL_FSTAT => "fstat",
         SYSCALL_STATFS => "statfs",
         SYSCALL_FTRUNCATE => "ftruncate",
+        SYSCALL_SYNC => "sync",
         SYSCALL_FSYNC => "fsync",
         SYSCALL_UTIMENSAT => "utimensat",
         SYSCALL_EXIT => "exit",

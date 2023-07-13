@@ -1,5 +1,5 @@
 use alloc::string::{String, ToString};
-use alloc::vec;
+use alloc::{format, vec};
 use core::cmp::min;
 
 use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
@@ -19,6 +19,8 @@ use rvfs::stat::{
 use rvfs::superblock::StatFs;
 
 pub use control::*;
+pub use poll::*;
+pub use select::*;
 pub use stdio::*;
 use syscall_define::io::{FsStat, IoVec, UnlinkatFlags};
 use syscall_define::LinuxErrno;
@@ -32,6 +34,9 @@ mod stdio;
 
 mod control;
 pub mod file;
+pub mod poll;
+pub mod select;
+pub mod tty;
 pub mod vfs;
 
 pub const AT_FDCWD: isize = -100isize;
@@ -113,7 +118,7 @@ pub fn sys_umount(dir: *const u8) -> isize {
 pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize {
     // we don't support mode yet
     let file_mode = FileMode2::default();
-    let file_mode = FileMode::from(file_mode);
+    let mut file_mode = FileMode::from(file_mode);
     let mut flag = OpenFlags::from_bits(flag as u32).unwrap();
     let process = current_task().unwrap();
     let path = process.transfer_str(path as *const u8);
@@ -132,6 +137,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     if flag.contains(OpenFlags::O_EXCL) {
         flag -= OpenFlags::O_EXCL;
     }
+    file_mode |= FileMode::FMODE_RDWR;
     let file = vfs_open_file::<VfsProvider>(&path, flag, file_mode);
     if file.is_err() {
         return -1;
@@ -291,7 +297,7 @@ pub fn sys_chdir(path: *const u8) -> isize {
     let file = vfs_open_file::<VfsProvider>(
         path.as_str(),
         OpenFlags::O_RDWR | OpenFlags::O_DIRECTORY,
-        FileMode::FMODE_READ,
+        FileMode::FMODE_RDWR,
     );
     if file.is_err() {
         return -1;
@@ -425,7 +431,7 @@ pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
     // TODO we need make sure the file of the path is not being used
     let path = path.unwrap();
     // find the file, checkout whether it is being used
-    let file = vfs_open_file::<VfsProvider>(&path, OpenFlags::empty(), FileMode::empty());
+    let file = vfs_open_file::<VfsProvider>(&path, OpenFlags::empty(), FileMode::FMODE_RDWR);
     if file.is_err() {
         return -1;
     }
@@ -794,7 +800,13 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
         let mut offset = file.get_file().access_inner().f_pos;
         buf.iter().for_each(|b| {
             // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
-            let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+            let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).expect(
+                format!(
+                    "write file failed: {:?}",
+                    file.get_file().f_dentry.access_inner().d_name
+                )
+                .as_str(),
+            );
             count += r;
             offset += r;
         });
@@ -950,6 +962,16 @@ pub fn send_file(out_fd: usize, in_fd: usize, offset_ptr: usize, count: usize) -
         vfs_llseek(in_file.get_file(), SeekFrom::Current((write - read) as i64)).unwrap();
     }
     write as isize
+}
+
+#[syscall_func(81)]
+pub fn sync() -> isize {
+    0
+}
+
+#[syscall_func(82)]
+pub fn fsync(_fd: usize) -> isize {
+    0
 }
 
 fn user_path_at(fd: isize, path: &str, flag: LookUpFlags) -> Result<String, ()> {

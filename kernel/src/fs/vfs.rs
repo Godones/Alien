@@ -135,7 +135,7 @@ fn prepare_etc() {
 }
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
-    let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_READ);
+    let file = vfs_open_file::<VfsProvider>(file_name, OpenFlags::O_RDONLY, FileMode::FMODE_RDWR);
     if file.is_err() {
         warn!("open file {} failed", file_name);
         return false;

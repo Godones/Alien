@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 use syscall_define::io::{PollEvents, PollFd};
+use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::file::FilePollExt;
@@ -75,7 +76,7 @@ pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, mask: usize) -> isize {
         let task_inner = task.access_inner();
         let receiver = task_inner.signal_receivers.lock();
         if receiver.have_signal() {
-            return -1;
+            return LinuxErrno::EINTR.into();
         }
     }
 }
