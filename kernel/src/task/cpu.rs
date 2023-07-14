@@ -19,7 +19,7 @@ use crate::arch;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::ipc::{futex, global_logoff_signals};
-use crate::sbi::shutdown;
+use crate::sbi::system_shutdown;
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
@@ -126,7 +126,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     let exit_code = (exit_code & 0xff) << 8;
     if task.get_pid() == 0 {
         println!("init process exit with code {}", exit_code);
-        shutdown();
+        system_shutdown();
     }
     {
         let init = INIT_PROCESS.clone();

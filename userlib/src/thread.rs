@@ -4,7 +4,6 @@ pub fn m_yield() -> isize {
     sys_yield()
 }
 
-
 pub fn gettid() -> isize {
     sys_gettid()
 }

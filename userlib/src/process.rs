@@ -31,7 +31,6 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     sys_waitpid(pid as isize, exit_code as *mut _)
 }
 
-
 bitflags! {
     pub struct CloneFlags: u32 {
         const CLONE_VM = 0x00000100;

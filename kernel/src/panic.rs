@@ -1,7 +1,7 @@
 use core::panic::PanicInfo;
 use core::sync::atomic::AtomicBool;
 
-use crate::sbi::shutdown;
+use crate::sbi::system_shutdown;
 
 static RECURSION: AtomicBool = AtomicBool::new(false);
 
@@ -23,7 +23,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
     if !RECURSION.swap(true, core::sync::atomic::Ordering::SeqCst) {
         back_trace();
     }
-    shutdown();
+    system_shutdown();
     loop {}
 }
 
