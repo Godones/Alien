@@ -44,6 +44,10 @@ syscall_id!(SYSCALL_GETTID, 178);
 syscall_id!(SYSCALL_FORK, 220);
 syscall_id!(SYSCALL_EXEC, 221);
 syscall_id!(SYSCALL_WAITPID, 260);
+
+syscall_id!(SYSCALL_SOCKET, 198);
+syscall_id!(SYSCALL_SENDTO, 206);
+syscall_id!(SYSCALL_RECVFROM, 207);
 syscall_id!(SYSCALL_SHUTDOWN, 210);
 
 syscall_id!(SYSCALL_OPENAT, 56);
@@ -70,6 +74,7 @@ syscall_id!(SYSCALL_EXECUTE_OPERATE, 1004);
 syscall_id!(SYSCALL_FRAME_BUFFER, 2000);
 syscall_id!(SYSCALL_FRAME_FLUSH, 2001);
 syscall_id!(SYSCALL_EVENT, 2002);
+syscall_id!(SYSCALL_SYSTEMSHUTDOWN, 2003);
 fn syscall(id: usize, args: [usize; 6]) -> isize {
     let mut ret: isize;
     unsafe {
@@ -103,7 +108,30 @@ syscall!(
     *const usize
 );
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
-syscall!(sys_shutdown, SYSCALL_SHUTDOWN);
+
+syscall!(sys_socket, SYSCALL_SOCKET, usize, usize, usize);
+syscall!(
+    sys_sendto,
+    SYSCALL_SENDTO,
+    usize,
+    *const u8,
+    usize,
+    i32,
+    *const usize,
+    usize
+);
+syscall!(
+    sys_recvfrom,
+    SYSCALL_RECVFROM,
+    usize,
+    *mut u8,
+    usize,
+    i32,
+    *mut usize,
+    *mut u32
+);
+syscall!(sys_shutdown, SYSCALL_SHUTDOWN, usize, usize);
+
 syscall!(sys_list, SYSCALL_LIST, *const u8);
 syscall!(sys_openat, SYSCALL_OPENAT, isize, *const u8, usize, usize);
 syscall!(sys_close, SYSCALL_CLOSE, usize);
@@ -276,3 +304,4 @@ syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);
 syscall!(sys_framebuffer, SYSCALL_FRAME_BUFFER);
 syscall!(sys_framebuffer_flush, SYSCALL_FRAME_FLUSH);
 syscall!(sys_event, SYSCALL_EVENT, *mut u64, usize);
+syscall!(system_shutdown, SYSCALL_SYSTEMSHUTDOWN);
