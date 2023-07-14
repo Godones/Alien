@@ -14,11 +14,11 @@ mod attrtest;
 mod dirtest;
 mod forktest;
 mod linktest;
-mod thread_create;
 mod mmmap;
 mod pipe;
 mod seek;
 mod stat;
+mod thread_create;
 mod timetest;
 
 #[no_mangle]

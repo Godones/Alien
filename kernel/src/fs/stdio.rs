@@ -75,11 +75,6 @@ fn stdin_ready_to_read(_file: Arc<File>) -> bool {
 fn stdin_read(_file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
     return match get_char() {
         Some(ch) => {
-            // if ch == 13 {
-            //     buf[0] = 10;
-            // } else {
-            //     buf[0] = ch;
-            // }
             buf[0] = ch;
             Ok(1)
         }
