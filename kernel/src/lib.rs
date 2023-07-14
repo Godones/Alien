@@ -23,6 +23,7 @@ pub mod fs;
 mod gui;
 pub mod ipc;
 pub mod memory;
+pub mod net;
 mod panic;
 pub mod sbi;
 mod sync;

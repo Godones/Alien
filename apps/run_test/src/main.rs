@@ -45,7 +45,6 @@ fn main() -> isize {
         "write",
         "yield",
     ];
-
     commands.into_iter().for_each(|app| {
         println!("run {}", app);
         let mut app = app.to_string();

@@ -41,6 +41,9 @@ numeric_enum!(
         ENOSYS = -38,
         ELOOP = -40,
         EADDRINUSE = -98,
+        EPFNOSUPPORT = -96,
+        /// 不支持的地址
+        EAFNOSUPPORT = -97,
         EADDRNOTAVAIL = -99,
         ENETDOWN = -100,
         ENETUNREACH = -101,
@@ -50,7 +53,8 @@ numeric_enum!(
         ENOBUFS = -105,
         EISCONN = -106,
         ENOTCONN = -107,
-
+        /// 拒绝连接
+        ECONNREFUSED = -111,
         /// Temporary errno to use until I get everything POSIX-compatible.
         ETMP = -255,
     }
