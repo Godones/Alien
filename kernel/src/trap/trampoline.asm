@@ -8,7 +8,7 @@
     .section .text.trampoline
     .globl user_v
     .globl user_r
-    .align 2
+    .align 3
 user_v:
     csrrw sp, sscratch, sp
     # now sp->*TrapContext in user space, sscratch->user stack

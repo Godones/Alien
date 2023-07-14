@@ -58,7 +58,7 @@ extern "C" fn _start() {
 
 /// rust_main is the entry of the kernel
 #[no_mangle]
-pub fn main(hart_id: usize, device_tree_addr: usize) -> ! {
+fn main(hart_id: usize, device_tree_addr: usize) -> ! {
     set_kernel_trap_entry();
     if !STARTED.load(Ordering::Relaxed) {
         clear_bss();

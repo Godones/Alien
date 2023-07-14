@@ -178,7 +178,7 @@ pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let user_bufs = process.transfer_raw_buffer(buf, len);
+    let user_bufs = process.transfer_buffer(buf, len);
     let mut buf = vec![0u8; len];
     let res = vfs_readdir(file.get_file(), buf.as_mut_slice());
     if res.is_err() {
@@ -229,7 +229,7 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let mut buf = process.transfer_raw_buffer(buf, len);
+    let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
     buf.iter_mut().for_each(|b| {
@@ -249,7 +249,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let mut buf = process.transfer_raw_buffer(buf, len);
+    let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
     buf.iter_mut().for_each(|b| {
@@ -275,7 +275,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     )
     .unwrap();
 
-    let mut buf = process.transfer_raw_buffer(buf, len);
+    let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut cwd = path.as_bytes();
     buf.iter_mut().for_each(|buf| {
@@ -486,7 +486,7 @@ pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> 
         return -1;
     }
     let path = path.unwrap();
-    let mut buf = process.transfer_raw_buffer(buf, size);
+    let mut buf = process.transfer_buffer(buf, size);
 
     println!("readlink path: {}", path);
     assert!(false, "now we can't solve link");
@@ -627,7 +627,7 @@ pub fn sys_setxattr(
     let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let name = process.transfer_str(name);
-    let value = process.transfer_raw_buffer(value, size);
+    let value = process.transfer_buffer(value, size);
     let res = vfs_setxattr::<VfsProvider>(path.as_str(), name.as_str(), value[0]);
     if res.is_err() {
         return -1;
@@ -659,7 +659,7 @@ pub fn sys_fsetxattr(
     assert_eq!(flag, 0);
     let process = current_task().unwrap();
     let name = process.transfer_str(name);
-    let value = process.transfer_raw_buffer(value, size);
+    let value = process.transfer_buffer(value, size);
     let file = process.get_file(fd);
     if file.is_none() {
         return -1;
@@ -678,7 +678,7 @@ pub fn sys_getxattr(path: *const u8, name: *const u8, value: *const u8, size: us
     let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let name = process.transfer_str(name);
-    let mut value = process.transfer_raw_buffer(value, size);
+    let mut value = process.transfer_buffer(value, size);
     // assert_eq!(value.len(),1);
     if value.is_empty() {
         value.push(&mut [0u8; 0])
@@ -700,7 +700,7 @@ pub fn sys_lgetxattr(path: *const u8, name: *const u8, value: *const u8, size: u
 pub fn sys_fgetxattr(fd: usize, name: *const u8, value: *const u8, size: usize) -> isize {
     let process = current_task().unwrap();
     let name = process.transfer_str(name);
-    let mut value = process.transfer_raw_buffer(value, size);
+    let mut value = process.transfer_buffer(value, size);
     // assert_eq!(value.len(),1);
     if value.is_empty() {
         value.push(&mut [0u8; 0])
@@ -723,7 +723,7 @@ pub fn sys_fgetxattr(fd: usize, name: *const u8, value: *const u8, size: usize) 
 pub fn sys_listxattr(path: *const u8, list: *const u8, size: usize) -> isize {
     let process = current_task().unwrap();
     let path = process.transfer_str(path);
-    let mut list = process.transfer_raw_buffer(list, size);
+    let mut list = process.transfer_buffer(list, size);
     if list.is_empty() {
         list.push(&mut [0u8; 0])
     }
@@ -743,7 +743,7 @@ pub fn sys_llistxattr(path: *const u8, list: *const u8, size: usize) -> isize {
 #[syscall_func(13)]
 pub fn sys_flistxattr(fd: usize, list: *const u8, size: usize) -> isize {
     let process = current_task().unwrap();
-    let mut list = process.transfer_raw_buffer(list, size);
+    let mut list = process.transfer_buffer(list, size);
     if list.is_empty() {
         list.push(&mut [0u8; 0])
     }
@@ -796,7 +796,7 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
             continue;
         }
         let len = iov.len;
-        let buf = process.transfer_raw_buffer(base, len);
+        let buf = process.transfer_buffer(base, len);
 
         let mut offset = file.get_file().access_inner().f_pos;
         buf.iter().for_each(|b| {
@@ -832,7 +832,7 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
             continue;
         }
         let len = iov.len;
-        let mut buf = task.transfer_raw_buffer(base, len);
+        let mut buf = task.transfer_buffer(base, len);
 
         let mut offset = file.get_file().access_inner().f_pos;
         buf.iter_mut().for_each(|b| {
@@ -858,7 +858,7 @@ pub fn sys_pread(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let mut buf = task.transfer_raw_buffer(buf as *mut u8, count);
+    let mut buf = task.transfer_buffer(buf as *mut u8, count);
     let mut offset = offset;
     let mut count = 0;
     buf.iter_mut().for_each(|b| {
@@ -877,7 +877,7 @@ pub fn sys_pwrite(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let buf = task.transfer_raw_buffer(buf as *mut u8, count);
+    let buf = task.transfer_buffer(buf as *mut u8, count);
     let mut offset = offset;
     let mut count = 0;
     buf.iter().for_each(|b| {
