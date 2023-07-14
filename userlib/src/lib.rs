@@ -23,6 +23,7 @@ mod macros;
 pub mod memory;
 mod panic;
 pub mod process;
+pub mod pthread;
 mod sys;
 mod syscall;
 pub mod thread;
