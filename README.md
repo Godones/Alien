@@ -70,7 +70,7 @@ make run LOG=WARN img=fat32 SMP=1 GUI=y
 ./slint or ./guitest
 ```
 
-### Run VisionFive2 
+### Run VisionFive2
 
 ```
 make vf2 LOG=WARN VF2=y SMP=1
@@ -82,9 +82,7 @@ make vf2 LOG=WARN VF2=y SMP=1
 make vf2 LOG=WARN CV1811h=y SMP=1
 ```
 
- 目前两块开发板都只是启动成功，但目前缺少sd卡驱动，因此不能运行程序。
-
-
+目前两块开发板都只是启动成功，但目前缺少sd卡驱动，因此不能运行程序。
 
 ## Doc
 
@@ -121,6 +119,8 @@ make vf2 LOG=WARN CV1811h=y SMP=1
 
 - [x] libc-test
 - [x] busybox
+- [x] lua
+- [x] bash
 
 ## Project Structure
 

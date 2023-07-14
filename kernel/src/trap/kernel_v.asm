@@ -9,7 +9,7 @@
 
 .section .text
 .globl kernel_v
-.align 2
+.align 3
 kernel_v:
     addi sp, sp, -34*8
     sd x1, 1*8(sp)

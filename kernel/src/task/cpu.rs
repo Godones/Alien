@@ -334,7 +334,8 @@ pub fn do_brk(addr: usize) -> isize {
         return heap_info.current as isize;
     }
     if addr < heap_info.start || addr < heap_info.current {
-        return -1;
+        panic!("heap can't be shrinked");
+        // return -1;
     }
     let res = inner.extend_heap(addr);
     if res.is_err() {
