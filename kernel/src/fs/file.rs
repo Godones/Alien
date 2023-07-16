@@ -7,6 +7,7 @@ use rvfs::file::{File, OpenFlags};
 
 use kernel_sync::{Mutex, MutexGuard};
 
+use crate::net::socket::SocketData;
 use crate::timer::TimeSpec;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -69,6 +70,12 @@ impl KFile {
             FileState::Unlink(ref path) => Some(path.clone()),
             _ => None,
         }
+    }
+    pub fn set_nonblock(&self) {
+        self.get_file().access_inner().flags |= OpenFlags::O_NONBLOCK;
+    }
+    pub fn set_close_on_exec(&self) {
+        self.inner.lock().flags |= OpenFlags::O_CLOSEEXEC;
     }
 }
 
@@ -152,5 +159,24 @@ impl FileIoctlExt for KFile {
         let file = self.file.clone();
         let ioctl = file.access_inner().f_ops_ext.ioctl;
         ioctl(file, cmd, arg)
+    }
+}
+
+pub trait FileSocketExt {
+    fn get_socketdata_mut(&self) -> &mut SocketData;
+    fn get_socketdata(&self) -> &SocketData;
+}
+
+impl FileSocketExt for KFile {
+    fn get_socketdata_mut(&self) -> &mut SocketData {
+        let file = self.get_file();
+        let dentry_inner = file.f_dentry.access_inner();
+        let inode_inner = dentry_inner.d_inode.access_inner();
+        let data = inode_inner.data.as_ref().unwrap();
+        SocketData::from_ptr(data.data())
+    }
+
+    fn get_socketdata(&self) -> &SocketData {
+        self.get_socketdata_mut()
     }
 }

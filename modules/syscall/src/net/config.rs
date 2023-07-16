@@ -55,3 +55,5 @@ numeric_enum! {
         SHUTRDWR = 2,
     }
 }
+
+pub const LOCAL_LOOPBACK_ADDR: u32 = 0x7f000001;

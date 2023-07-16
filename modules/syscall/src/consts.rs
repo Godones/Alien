@@ -53,6 +53,7 @@ numeric_enum!(
         ENOBUFS = -105,
         EISCONN = -106,
         ENOTCONN = -107,
+        EINPROGRESS = -115,
         /// 拒绝连接
         ECONNREFUSED = -111,
         /// Temporary errno to use until I get everything POSIX-compatible.
