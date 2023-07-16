@@ -34,7 +34,11 @@ pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
             return new_fd as isize;
         }
         Fcntl64Cmd::F_GETFD => {
-            return file.access_inner().flags.bits() as isize;
+            return if file.access_inner().flags.contains(OpenFlags::O_CLOSEEXEC) {
+                1
+            } else {
+                0
+            };
         }
         Fcntl64Cmd::F_SETFD => {
             warn!(

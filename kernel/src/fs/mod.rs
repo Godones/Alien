@@ -159,13 +159,19 @@ pub fn sys_close(fd: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let _ = vfs_close_file::<VfsProvider>(file.get_file());
     if file.is_unlink() {
         let path = file.unlink_path().unwrap();
+        let real_file = file.get_file();
+        drop(file);
+        let _ = vfs_close_file::<VfsProvider>(real_file);
         let res = vfs_unlink::<VfsProvider>(&path);
         if res.is_err() {
             return -1;
         }
+    } else {
+        let real_file = file.get_file();
+        drop(file);
+        let _ = vfs_close_file::<VfsProvider>(real_file);
     }
     0
 }

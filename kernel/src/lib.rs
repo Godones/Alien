@@ -3,7 +3,7 @@
 #![feature(error_in_core)]
 #![feature(panic_info_message)]
 #![feature(atomic_from_mut)]
-
+#![feature(ip_in_core)]
 extern crate alloc;
 #[macro_use]
 extern crate log;
