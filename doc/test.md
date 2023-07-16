@@ -54,8 +54,8 @@
 - [x] fscanf
 - [x] ftello_unflushed_append
 - [x] fwscanf
-- [ ] getpwnam_r_crash    [socket+connect]
-- [ ] getpwnam_r_errno    [socket+connect]
+- [x] getpwnam_r_crash    [socket+connect]
+- [x] getpwnam_r_errno    [socket+connect]
 - [x] iconv_open
 - [x] iconv_roundtrips
 - [x] inet_ntop_v4mapped
@@ -110,7 +110,7 @@
 - [x] setvbuf_unget
 - [x] sigprocmask_internal
 - [x] snprintf
-- [ ] socket
+- [x] socket
 - [x] sscanf
 - [x] sscanf_eof
 - [x] sscanf_long

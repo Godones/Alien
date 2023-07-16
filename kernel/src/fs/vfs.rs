@@ -19,7 +19,7 @@ use rvfs::superblock::{register_filesystem, DataOps, Device};
 
 use kernel_sync::Mutex;
 
-use crate::config::{MEMINFO, RTC_TIME, UTC};
+use crate::config::{MEMINFO, PASSWORD, RTC_TIME, UTC};
 use crate::driver::rtc::get_rtc_time;
 use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::task::current_task;
@@ -144,6 +144,14 @@ fn prepare_etc() {
     )
     .unwrap();
     vfs_write_file::<VfsProvider>(adjtime_file, RTC_TIME.as_bytes(), 0).unwrap();
+
+    let password = vfs_open_file::<VfsProvider>(
+        "/etc/passwd",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_RDWR,
+    )
+    .unwrap();
+    vfs_write_file::<VfsProvider>(password, PASSWORD.as_bytes(), 0).unwrap();
 }
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {

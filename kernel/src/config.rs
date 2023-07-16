@@ -123,3 +123,7 @@ HugePages_Surp:        0
 Hugepagesize:       2048 kB
 Hugetlb:               0 kB
 ";
+
+pub const PASSWORD: &str = r"
+root:x:0:0:root:/root:/bin/bash
+";
