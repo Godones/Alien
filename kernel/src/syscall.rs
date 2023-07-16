@@ -6,9 +6,15 @@ pub fn register_all_syscall() {
     register_syscall!(
         table,
         (160, sys_uname),
-        (198, sys_socket),
-        (206, sys_sendto),
-        (207, sys_recvfrom),
+        (198, socket),
+        (200, bind),
+        (201, listening),
+        (202, accept),
+        (203, connect),
+        (204, getsockname),
+        (206, sendto),
+        (207, recvfrom),
+        (208, setsockopt),
         (210, sys_shutdown),
         (2003, system_shutdown),
         (169, get_time_of_day),
@@ -180,10 +186,16 @@ use crate::ipc::tkill;
 use crate::memory::do_mmap;
 use crate::memory::do_munmap;
 use crate::memory::map_protect;
-use crate::net::sys_recvfrom;
-use crate::net::sys_sendto;
+use crate::net::accept;
+use crate::net::bind;
+use crate::net::connect;
+use crate::net::getsockname;
+use crate::net::listening;
+use crate::net::recvfrom;
+use crate::net::sendto;
+use crate::net::setsockopt;
+use crate::net::socket;
 use crate::net::sys_shutdown;
-use crate::net::sys_socket;
 use crate::sbi::system_shutdown;
 use crate::sys::sys_info;
 use crate::sys::syslog;
