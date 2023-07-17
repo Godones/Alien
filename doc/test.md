@@ -144,6 +144,22 @@
 - [x] wcsstr_false_negative
 - [x] wcstol
 
+```
+./final/runtest.exe -w entry-static.exe pthread_cancel
+./final/runtest.exe -w entry-static.exe pthread_cancel_points
+./final/runtest.exe -w entry-static.exe pthread_cond
+./final/runtest.exe -w entry-static.exe pthread_tsd
+./final/runtest.exe -w entry-static.exe pthread_robust_detach
+./final/runtest.exe -w entry-static.exe pthread_cancel_sem_wait
+./final/runtest.exe -w entry-static.exe pthread_cond_smasher
+./final/runtest.exe -w entry-static.exe pthread_condattr_setclock
+./final/runtest.exe -w entry-static.exe pthread_exit_cancel
+./final/runtest.exe -w entry-static.exe pthread_once_deadlock
+./final/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+```
+
+
+
 
 
 ## libctest-dyn
@@ -167,7 +183,8 @@
   - [x] ./iozone -t 4 -i 11 -i 12 -r 1k -s 1m
 - [ ] unixbench
 - [ ] netperf
-  - [ ] ./busybox sh netperf_testcode2.sh
+  - [x] ./busybox sh netperf_testcode2.sh
+  - [ ] 
 
 - [ ] iperf
 
