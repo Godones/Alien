@@ -285,40 +285,36 @@ bug2：建立好页表后开启mmu卡死
 
 1. 删除掉当`execv`无参数时额外增加的可执行程序名称的参数
 
-2. 在自己编写的os中程序运行与qemu镜像不一致，因此需要根据运行的错误进行调整
+在一般的shell中，输入命令后shell会向执行都命令传入参数，而一般来说，参数的第一个都是执行的命令的名称。之前我们是在内核的`execv`中手动判断是否参数为空并手动加入程序的名称，但在执行`busybox`的相关命令时，发现`busybox`会往第一个参数放置程序的名称，因此我们手动加入一个额外的就会造成错误。解决方法是我们在自己编写的简易`shell`中按照一般方法放置了参数。
 
-3. 增加对`FutexRequeuePrivate` 的处理
-4. `sigtimewait`会使得任务睡眠，是否在必要的时候唤醒任务，因为子任务也许已经完成 ××××
+1. 在自己编写的os中程序运行与qemu镜像不一致，因此需要根据运行的错误进行调整
+
+在添加系统调用过程中，一般参考`debian`中程序的执行流程，但是实验发现，我们的os与其执行的系统调用并不完全一致，因为我们的os中缺少linux中一些功能或者说前置的系统调用结果与linux中不一样导致了这种情况发生。但总体而言关键的系统调用是一致的。
+
+1. 增加对`FutexRequeuePrivate` 的处理
+2. `sigtimewait`会使得任务睡眠，是否在必要的时候唤醒任务，因为子任务也许已经完成 
+
+目前的处理是没有检查信号是否来了。
 
 
 
-- [ ] 无法连续运行这些测试，任务退出后有必要删除掉无用的内容
+- [x] 无法连续运行这些测试，任务退出后有必要删除掉无用的内容
 
 - [x] 任务栈上的数据被覆盖掉，无法进行正常的系统调用 ----> buddy allocater for page is error
 
-- [ ] 保证任务退出状态更新与引用计数减少原子性。
+检查发现使用伙伴算法的页面分配器有错，暂时换成位图算法后即可。后续需要检查伙伴算法的错误。
+
+- [x] 保证任务退出状态更新与引用计数减少原子性。
+
+在任务退出时，我们更新了任务的状态，同时父进程会等待子进程的退出，当在多核环境中时，如果子进程更新状态后父进程可能会立即监听到，但是由于此时子进程的引用计数还没有减少，那么父进程的判断就会出错。所以需要保证在更新状态结束时，引用计数也减少。
 
 
 
-```
-./final/runtest.exe -w entry-static.exe pthread_cancel
-./final/runtest.exe -w entry-static.exe pthread_cancel_points
-./final/runtest.exe -w entry-static.exe pthread_cond
-./final/runtest.exe -w entry-static.exe pthread_tsd
-./final/runtest.exe -w entry-static.exe pthread_robust_detach
-./final/runtest.exe -w entry-static.exe pthread_cancel_sem_wait
-./final/runtest.exe -w entry-static.exe pthread_cond_smasher
-./final/runtest.exe -w entry-static.exe pthread_condattr_setclock
-./final/runtest.exe -w entry-static.exe pthread_exit_cancel
-./final/runtest.exe -w entry-static.exe pthread_once_deadlock
-./final/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
-```
+对于多线程程序，调试手段只能一步步观察各个线程发起的系统调用。
 
 
 
 ![image-20230709214636946](assert/image-20230709214636946.png)
-
-
 
 
 
@@ -343,11 +339,9 @@ bug2：建立好页表后开启mmu卡死
 
 1. 处理测试程序的运行问题
 
-将程序放到根目录下，并在execv时处理sh文件
-
-添加lua的支持
-
-添加共享内存相关的系统调用，供iozone使用
+2. 将程序放到根目录下，并在execv时处理sh文件
+3. 添加lua的支持
+4. 添加共享内存相关的系统调用，供iozone使用
 
 ## 2023/7/13
 
@@ -367,3 +361,8 @@ tty回显问题：https://gitlab.eduxiji.net/2019301887/oskernel2022-npucore/-/b
 
 1. 添加网络的基本支持
 2. 修复`pselect`中都bug，`pselect`会在参数中说明要监听的文件，因此判断时不能仅根据数量去查找，还需要从参数中拿到程序需要监听都文件。
+
+## 2023/7/17
+
+1. 添加网络相关的更多系统调用
+
