@@ -5,7 +5,7 @@ use core::cmp::Ordering;
 use lazy_static::lazy_static;
 
 use kernel_sync::Mutex;
-use syscall_define::time::ClockId;
+use syscall_define::time::{ClockId, TimerType};
 use syscall_table::syscall_func;
 
 use crate::arch;
@@ -15,6 +15,7 @@ use crate::task::{current_task, StatisticalData, Task, TaskState, TASK_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
+const USEC_PER_SEC: usize = 1000_000;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -50,7 +51,7 @@ impl Times {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct TimeVal {
     /// seconds
     pub tv_sec: usize,
@@ -65,6 +66,21 @@ impl TimeVal {
             tv_sec: time / CLOCK_FREQ,
             tv_usec: (time % CLOCK_FREQ) * 1000000 / CLOCK_FREQ,
         }
+    }
+}
+
+impl From<usize> for TimeVal {
+    fn from(value: usize) -> Self {
+        Self {
+            tv_sec: value / USEC_PER_SEC,
+            tv_usec: value % USEC_PER_SEC,
+        }
+    }
+}
+
+impl Into<usize> for TimeVal {
+    fn into(self) -> usize {
+        self.tv_sec * USEC_PER_SEC + self.tv_usec
     }
 }
 
@@ -93,6 +109,14 @@ impl TimeSpec {
     pub fn to_clock(&self) -> usize {
         self.tv_sec * CLOCK_FREQ + self.tv_nsec * CLOCK_FREQ / 1000000000
     }
+}
+
+/// gettimer / settimer 指定的类型，用户输入输出计时器
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default)]
+pub struct ITimerVal {
+    pub it_interval: TimeVal,
+    pub it_value: TimeVal,
 }
 
 /// 获取当前计时器的值
@@ -218,4 +242,43 @@ pub fn check_timer_queue() {
             break;
         }
     }
+}
+
+#[syscall_func(102)]
+pub fn getitimer(_which: usize, current_value: usize) -> isize {
+    let task = current_task().unwrap();
+    let timer = &task.access_inner().timer;
+    let itimer = ITimerVal {
+        it_interval: timer.timer_interval_us.into(),
+        it_value: timer.timer_remained_us.into(),
+    };
+    task.access_inner()
+        .copy_to_user(&itimer, current_value as *mut ITimerVal);
+    0
+}
+
+#[syscall_func(103)]
+pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize {
+    let which = TimerType::try_from(which).unwrap();
+    assert_ne!(which, TimerType::NONE);
+    warn!(
+        "setitimer: which {:?} ,curret_value {:#x}, old_value {:#x}",
+        which, current_value, old_value
+    );
+    let task = current_task().unwrap();
+    if old_value != 0 {
+        let timer = task.access_inner().get_timer();
+        let itimer = ITimerVal {
+            it_interval: timer.timer_interval_us.into(),
+            it_value: timer.timer_remained_us.into(),
+        };
+        task.access_inner()
+            .copy_to_user(&itimer, old_value as *mut ITimerVal);
+    }
+    assert_ne!(current_value, 0);
+    let mut itimer = ITimerVal::default();
+    task.access_inner()
+        .copy_from_user(current_value as *const ITimerVal, &mut itimer);
+    task.access_inner().set_timer(itimer, which);
+    0
 }

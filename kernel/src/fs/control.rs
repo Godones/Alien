@@ -171,3 +171,13 @@ pub fn faccessat(dirfd: isize, path: usize, mode: usize, flag: usize) -> isize {
     }
     0
 }
+
+#[syscall_func(52)]
+pub fn chmod(_fd: usize, _mode: usize) -> isize {
+    0
+}
+
+#[syscall_func(53)]
+pub fn chmodat() -> isize {
+    0
+}

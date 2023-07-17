@@ -23,6 +23,7 @@ use syscall_define::io::MapFlags;
 use syscall_define::ipc::RobustList;
 use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
 use syscall_define::task::CloneFlags;
+use syscall_define::time::TimerType;
 use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 
 use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
@@ -38,7 +39,7 @@ use crate::memory::{
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
-use crate::timer::read_timer;
+use crate::timer::{read_timer, ITimerVal};
 use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<KFile>>;
@@ -92,6 +93,7 @@ pub struct TaskInner {
     pub context: Context,
     pub fs_info: FsContext,
     pub statistical_data: StatisticalData,
+    pub timer: TaskTimer,
     pub exit_code: i32,
     pub heap: HeapInfo,
     pub mmap: MMapInfo,
@@ -114,6 +116,34 @@ pub struct TaskInner {
     pub signal_set_siginfo: bool,
     pub robust: RobustList,
     pub shm: BTreeMap<usize, ShmInfo>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct TaskTimer {
+    /// 计时器类型
+    pub timer_type: TimerType,
+    /// 设置下一次触发计时器的区间
+    ///
+    /// 当 timer_remained_us 归零时，如果 timer_interval_us 非零，则将其重置为 timer_interval_us 的值；
+    /// 否则，则这个计时器不再触发
+    pub timer_interval_us: usize,
+    /// 当前计时器还剩下多少时间。
+    ///
+    /// 根据 timer_type 的规则不断减少，当归零时触发信号
+    pub timer_remained_us: usize,
+
+    pub expired: bool,
+}
+
+impl Default for TaskTimer {
+    fn default() -> Self {
+        Self {
+            timer_type: TimerType::NONE,
+            timer_interval_us: 0,
+            timer_remained_us: 0,
+            expired: false,
+        }
+    }
 }
 
 /// statistics of a process
@@ -384,6 +414,9 @@ impl TaskInner {
         self.fs_info.clone()
     }
 
+    pub fn get_timer(&self) -> TaskTimer {
+        self.timer.clone()
+    }
     pub fn get_prlimit(&self, resource: PrLimitRes) -> PrLimit {
         match resource {
             PrLimitRes::RlimitStack => PrLimit::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64),
@@ -531,13 +564,13 @@ impl TaskInner {
         len: usize,
     ) {
         let size = core::mem::size_of::<T>() * len;
-        if VirtAddr::from(src as usize).align_down_4k()
-            == VirtAddr::from(dst as usize).align_down_4k()
+        if VirtAddr::from(dst as usize).align_down_4k()
+            == VirtAddr::from(dst as usize + size - 1).align_down_4k()
         {
             // the src and dst are in same page
             let dst = self.transfer_raw(dst as usize);
             unsafe {
-                core::ptr::copy_nonoverlapping(src, dst as *mut T, size);
+                core::ptr::copy_nonoverlapping(src as *const u8, dst as *mut u8, size);
             }
         } else {
             let bufs = self.transfer_buffer(dst as *const u8, size);
@@ -570,12 +603,12 @@ impl TaskInner {
     ) {
         let size = core::mem::size_of::<T>() * len;
         if VirtAddr::from(src as usize).align_down_4k()
-            == VirtAddr::from(dst as usize).align_down_4k()
+            == VirtAddr::from(src as usize + size - 1).align_down_4k()
         {
             // the src and dst are in same page
             let src = self.transfer_raw(src as usize);
             unsafe {
-                core::ptr::copy_nonoverlapping(src as *const T, dst, size);
+                core::ptr::copy_nonoverlapping(src as *const u8, dst as *mut u8, size);
             }
         } else {
             let mut bufs = self.transfer_buffer(src as *const u8, size);
@@ -602,11 +635,71 @@ impl TaskInner {
 
     /// src is in kernel memory, we don't need trans
     pub fn copy_to_user<T: 'static + Copy>(&mut self, src: *const T, dst: *mut T) {
-        self.copy_to_user_buffer(src, dst, 1);
+        // self.copy_to_user_buffer(src, dst, 1);
+        let size = core::mem::size_of::<T>();
+        if VirtAddr::from(dst as usize).align_down_4k()
+            == VirtAddr::from(dst as usize + size - 1).align_down_4k()
+        {
+            // the src and dst are in same page
+            let dst = self.transfer_raw(dst as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src as *const u8, dst as *mut u8, size);
+            }
+        } else {
+            let bufs = self.transfer_buffer(dst as *const u8, size);
+            let src = unsafe { core::slice::from_raw_parts(src as *const u8, size) };
+            let mut start = 0;
+            let src_len = src.len();
+            for buffer in bufs {
+                let len = if start + buffer.len() > src_len {
+                    src_len - start
+                } else {
+                    buffer.len()
+                };
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        src.as_ptr().add(start),
+                        buffer.as_mut_ptr(),
+                        len,
+                    );
+                }
+                start += len;
+            }
+        }
     }
 
     pub fn copy_from_user<T: 'static + Copy>(&mut self, src: *const T, dst: *mut T) {
-        self.copy_from_user_buffer(src, dst, 1);
+        // self.copy_from_user_buffer(src, dst, 1);
+        let size = core::mem::size_of::<T>();
+        if VirtAddr::from(src as usize).align_down_4k()
+            == VirtAddr::from(src as usize + size - 1).align_down_4k()
+        {
+            // the src and dst are in same page
+            let src = self.transfer_raw(src as usize);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src as *const u8, dst as *mut u8, size);
+            }
+        } else {
+            let mut bufs = self.transfer_buffer(src as *const u8, size);
+            let dst = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, size) };
+            let mut start = 0;
+            let dst_len = dst.len();
+            for buffer in bufs.iter_mut() {
+                let len = if start + buffer.len() > dst_len {
+                    dst_len - start
+                } else {
+                    buffer.len()
+                };
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        buffer.as_ptr(),
+                        dst.as_mut_ptr().add(start),
+                        len,
+                    );
+                }
+                start += len;
+            }
+        }
     }
 
     pub fn transfer_buffer<T>(&mut self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
@@ -618,7 +711,7 @@ impl TaskInner {
                 .address_space
                 .lock()
                 .query(VirtAddr::from(start))
-                .unwrap();
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
             if !flag.contains(MappingFlags::V) {
                 self.invalid_page_solver(start).unwrap();
             }
@@ -664,6 +757,7 @@ impl TaskInner {
     pub fn update_kernel_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_stime;
+        self.update_timer(time);
         self.statistical_data.tms_stime += time;
         self.statistical_data.last_utime = now;
     }
@@ -672,8 +766,43 @@ impl TaskInner {
     pub fn update_user_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_utime;
+        self.update_timer(time);
         self.statistical_data.tms_utime += time;
         self.statistical_data.last_stime = now;
+    }
+
+    pub fn set_timer(&mut self, itimer: ITimerVal, timer_type: TimerType) {
+        self.timer.timer_remained_us = itimer.it_value.into();
+        self.timer.timer_interval_us = itimer.it_interval.into();
+        self.timer.timer_type = timer_type;
+    }
+
+    pub fn update_timer(&mut self, delta: usize) {
+        if self.timer.timer_remained_us == 0 {
+            // 等于0说明没有计时器，或者 one-shot 计时器已结束
+            return;
+        }
+        if self.timer.timer_remained_us > delta {
+            // 时辰未到，减少寄存器计数
+            self.timer.timer_remained_us -= delta;
+            return;
+        }
+        // 到此说明计时器已经到时间了，更新计时器
+        // 如果是 one-shot 计时器，则 timer_interval_us == 0，这样赋值也恰好是符合语义的
+        self.timer.timer_remained_us = self.timer.timer_interval_us;
+        self.timer.expired = true;
+    }
+
+    /// After call `update_user_mode_time` and `update_kernel_mode_time`, we
+    /// need to check if the timer is expired
+    #[must_use]
+    pub fn check_timer_expired(&mut self) -> Option<TimerType> {
+        if self.timer.expired {
+            self.timer.expired = false;
+            Some(self.timer.timer_type)
+        } else {
+            None
+        }
     }
 
     pub fn statistical_data(&self) -> &StatisticalData {
@@ -975,6 +1104,7 @@ impl Task {
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: FsContext::empty(),
                 statistical_data: StatisticalData::new(),
+                timer: TaskTimer::default(),
                 exit_code: 0,
                 heap: HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom),
                 mmap: MMapInfo::new(),
@@ -1136,6 +1266,7 @@ impl Task {
                 context: Context::new(trap_return as usize, k_stack_top),
                 fs_info: inner.fs_info.clone(),
                 statistical_data: StatisticalData::new(),
+                timer: TaskTimer::default(),
                 exit_code: 0,
                 heap: inner.heap.clone(),
                 mmap: inner.mmap.clone(),

@@ -156,7 +156,7 @@ pub fn sys_close(fd: usize) -> isize {
     let process = current_task().unwrap();
     let file = process.remove_file(fd);
     if file.is_err() {
-        return -1;
+        return LinuxErrno::EBADF.into();
     }
     let file = file.unwrap();
     if file.is_unlink() {
