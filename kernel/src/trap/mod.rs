@@ -6,6 +6,7 @@ use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 use syscall_define::signal::SignalNumber;
+use syscall_define::time::TimerType;
 
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
@@ -191,13 +192,14 @@ pub fn user_trap_vector() {
     }
     // update process statistics
     {
-        let process = current_task().unwrap_or_else(|| {
+        let task = current_task().unwrap_or_else(|| {
             panic!(
                 "can't find task in hart {}, but it's in user mode",
                 hart_id() as usize
             )
         });
-        process.access_inner().update_user_mode_time();
+        task.access_inner().update_user_mode_time();
+        check_task_timer_expired();
     }
     set_kernel_trap_entry();
     let cause = riscv::register::scause::read();
@@ -207,9 +209,27 @@ pub fn user_trap_vector() {
         // update process statistics
         let process = current_task().unwrap();
         process.access_inner().update_kernel_mode_time();
+        check_task_timer_expired();
     }
-
     trap_return();
+}
+
+fn check_task_timer_expired() {
+    let task = current_task().unwrap();
+    let timer_expired = task.access_inner().check_timer_expired();
+    let tid = task.get_tid() as usize;
+    if timer_expired.is_some() {
+        error!("timer expired: {:?}", timer_expired);
+        let timer_type = timer_expired.unwrap();
+        match timer_type {
+            TimerType::REAL => send_signal(tid, SignalNumber::SIGALRM as usize),
+            TimerType::VIRTUAL => send_signal(tid, SignalNumber::SIGVTALRM as usize),
+            TimerType::PROF => send_signal(tid, SignalNumber::SIGPROF as usize),
+            _ => {
+                panic!("timer type error");
+            }
+        };
+    }
 }
 
 /// 只有在内核态下才能进入这个函数

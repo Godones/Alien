@@ -47,9 +47,11 @@ pub const USER_STACK_SIZE: usize = 0x8000;
 pub const MAX_PROCESS_NUM: usize = 1024;
 pub const MAX_THREAD_NUM: usize = 65536;
 pub const MAX_SUB_PROCESS_NUM: usize = 1024;
-pub const MAX_FD_NUM: usize = 256;
+pub const MAX_FD_NUM: usize = 4096;
 
 pub const MAX_INPUT_EVENT_NUM: usize = 1024;
+
+pub const MAX_SOCKET_DATA_LEN: usize = 1024 * 4;
 
 pub const UTC: &[u8] = &[
     b'T', b'Z', b'i', b'f', b'2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0,

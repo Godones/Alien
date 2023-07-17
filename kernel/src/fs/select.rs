@@ -1,5 +1,9 @@
+use alloc::vec::Vec;
+use core::cmp::min;
+
 use bit_field::BitField;
 
+use syscall_define::signal::{SignalNumber, SimpleBitSet};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
@@ -22,8 +26,16 @@ pub fn pselect6(
     }
     warn!("pselect6: nfds = {}, readfds = {:#x}, writefds = {:#x}, exceptfds = {:#x}, timeout = {:#x}, sigmask = {:#x}",
         nfds, readfds, writefds, exceptfds, timeout, sigmask);
+
     // 注意 pselect 不会修改用户空间中的 timeout，所以需要内核自己记录
     let task = current_task().unwrap().clone();
+
+    if sigmask != 0 {
+        let mask = task.access_inner().transfer_raw_ptr(sigmask as *mut usize);
+        let mask_num: Vec<SignalNumber> = SimpleBitSet(*mask).into();
+        error!("pselect6: sigmask = {} ---> {:?}, ", *mask, mask_num);
+    }
+
     let wait_time = if timeout != 0 {
         let time_spec = task.transfer_raw_ptr(timeout as *mut TimeSpec);
         Some(time_spec.to_clock() + TimeSpec::now().to_clock())
@@ -31,19 +43,32 @@ pub fn pselect6(
         // wait forever
         None
     };
-    assert!(nfds <= 64);
+    // assert!(nfds <= 64);
+    let nfds = min(nfds, 64);
+
     // 这里暂时不考虑 sigmask 的问题
     loop {
         let mut set = 0;
         // 如果设置了监视是否可读的 fd
         if readfds != 0 {
             let readfds = task.transfer_raw_ptr(readfds as *mut u64);
-            *readfds = 0;
+            warn!(
+                "[tid:{}]pselect6: readfds = {:#b}",
+                task.get_tid(),
+                *readfds
+            );
             for i in 0..nfds {
-                if let Some(fd) = task.get_file(i) {
-                    if fd.ready_to_read() {
-                        readfds.set_bit(i, true);
-                        set += 1;
+                if readfds.get_bit(i) {
+                    if let Some(fd) = task.get_file(i) {
+                        if fd.ready_to_read() {
+                            warn!("pselect6: fd {} ready to read", i);
+                            readfds.set_bit(i, true);
+                            set += 1;
+                        } else {
+                            // readfds.set_bit(i, false);
+                        }
+                    } else {
+                        return LinuxErrno::EBADF as isize;
                     }
                 }
             }
@@ -51,12 +76,23 @@ pub fn pselect6(
         // 如果设置了监视是否可写的 fd
         if writefds != 0 {
             let writefds = task.transfer_raw_ptr(writefds as *mut u64);
-            *writefds = 0;
+            warn!(
+                "[tid:{}]pselect6: writefds = {:#b}",
+                task.get_tid(),
+                *writefds
+            );
             for i in 0..nfds {
-                if let Some(fd) = task.get_file(i) {
-                    if fd.ready_to_write() {
-                        writefds.set_bit(i, true);
-                        set += 1;
+                if writefds.get_bit(i) {
+                    if let Some(fd) = task.get_file(i) {
+                        if fd.ready_to_write() {
+                            warn!("pselect6: fd {} ready to write", i);
+                            writefds.set_bit(i, true);
+                            set += 1;
+                        } else {
+                            // writefds.set_bit(i, false);
+                        }
+                    } else {
+                        return LinuxErrno::EBADF as isize;
                     }
                 }
             }
@@ -64,12 +100,18 @@ pub fn pselect6(
         // 如果设置了监视是否异常的 fd
         if exceptfds != 0 {
             let exceptfds = task.transfer_raw_ptr(exceptfds as *mut u64);
-            *exceptfds = 0;
             for i in 0..nfds {
-                if let Some(fd) = task.get_file(i) {
-                    if fd.in_exceptional_conditions() {
-                        exceptfds.set_bit(i, true);
-                        set += 1;
+                if exceptfds.get_bit(i) {
+                    if let Some(fd) = task.get_file(i) {
+                        if fd.in_exceptional_conditions() {
+                            warn!("pselect6: fd {} in exceptional conditions", i);
+                            exceptfds.set_bit(i, true);
+                            set += 1;
+                        } else {
+                            // exceptfds.set_bit(i, false);
+                        }
+                    } else {
+                        return LinuxErrno::EBADF as isize;
                     }
                 }
             }

@@ -76,6 +76,8 @@ const SYSCALL_STATFS: usize = 43;
 const SYSCALL_FTRUNCATE: usize = 46;
 const SYSCALL_FACCESSAT: usize = 48;
 const SYSCALL_CHDIR: usize = 49;
+const SYSCALL_FCHMOD: usize = 52;
+const SYSCALL_FCHMODAT: usize = 53;
 const SYSCALL_OPENAT: usize = 56;
 const SYSCALL_CLOSE: usize = 57;
 const SYSCALL_PIPE2: usize = 59;
@@ -143,6 +145,7 @@ const SYSCALL_GETPEERNAME: usize = 205;
 const SYSCALL_SENDTO: usize = 206;
 const SYSCALL_RECVFROM: usize = 207;
 const SYSCALL_SETSOCKOPT: usize = 208;
+const SYSCALL_GETSOCKOPT: usize = 209;
 const SYSCALL_SBRK: usize = 213;
 const SYSCALL_BRK: usize = 214;
 const SYSCALL_MUNMAP: usize = 215;
@@ -159,9 +162,9 @@ const SYSCALL_PRLIMIT: usize = 261;
 const SYSCALL_RENAMEAT2: usize = 276;
 const SYSCALL_MEMBARRIER: usize = 283;
 const SYSCALL_FACCESSAT2: usize = 439;
+const SYSCALL_SHUTDOWN: usize = 210;
 // Not standard POSIX sys_call
 const SYSCALL_LS: usize = 500;
-const SYSCALL_SHUTDOWN: usize = 501;
 const SYSCALL_CLEAR: usize = 502;
 const SYSCALL_OPEN: usize = 506;
 //where?
@@ -169,6 +172,10 @@ const SYSCALL_GET_TIME: usize = 1690; //you mean get time of day by 169?
 
 pub fn syscall_name(id: usize) -> &'static str {
     match id {
+        SYSCALL_SHUTDOWN => "shutdown",
+        SYSCALL_FCHMODAT => "fchmodat",
+        SYSCALL_FCHMOD => "fchmod",
+        SYSCALL_GETSOCKOPT => "getsockopt",
         SYSCALL_MKNODAT => "mknodat",
         SYSCALL_SHMGET => "shmget",
         SYSCALL_SHAMCTL => "shamctl",

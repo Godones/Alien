@@ -166,6 +166,10 @@
   - [x] ./iozone -t 4 -i 9 -i 10 -r 1k -s 1m
   - [x] ./iozone -t 4 -i 11 -i 12 -r 1k -s 1m
 - [ ] unixbench
+- [ ] netperf
+  - [ ] ./busybox sh netperf_testcode2.sh
+
+- [ ] iperf
 
 
 

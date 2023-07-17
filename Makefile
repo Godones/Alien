@@ -87,7 +87,7 @@ run:install compile img
 
 
 fake_run:
-	@$(call boot_qemu)
+	$(call boot_qemu)
 
 
 
