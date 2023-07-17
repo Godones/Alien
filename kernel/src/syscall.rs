@@ -15,12 +15,15 @@ pub fn register_all_syscall() {
         (206, sendto),
         (207, recvfrom),
         (208, setsockopt),
-        (210, sys_shutdown),
+        (209, getsockopt),
+        (210, shutdown),
         (2003, system_shutdown),
         (169, get_time_of_day),
         (153, times),
         (101, sys_nanosleep),
         (113, clock_get_time),
+        (102, getitimer),
+        (103, setitimer),
         (116, syslog),
         (179, sys_info),
         (2002, sys_event_get),
@@ -105,6 +108,8 @@ pub fn register_all_syscall() {
         (29, sys_ioctl),
         (88, sys_utimensat),
         (48, faccessat),
+        (52, chmod),
+        (53, chmodat),
         (72, pselect6),
         (73, ppoll),
         (215, do_munmap),
@@ -118,6 +123,8 @@ pub fn do_syscall(id: usize, args: &[usize]) -> Option<isize> {
     res
 }
 use crate::driver::sys_event_get;
+use crate::fs::chmod;
+use crate::fs::chmodat;
 use crate::fs::faccessat;
 use crate::fs::fsync;
 use crate::fs::ppoll;
@@ -190,12 +197,13 @@ use crate::net::accept;
 use crate::net::bind;
 use crate::net::connect;
 use crate::net::getsockname;
+use crate::net::getsockopt;
 use crate::net::listening;
 use crate::net::recvfrom;
 use crate::net::sendto;
 use crate::net::setsockopt;
+use crate::net::shutdown;
 use crate::net::socket;
-use crate::net::sys_shutdown;
 use crate::sbi::system_shutdown;
 use crate::sys::sys_info;
 use crate::sys::syslog;
@@ -220,5 +228,7 @@ use crate::task::set_tid_address;
 use crate::task::wait4;
 use crate::timer::clock_get_time;
 use crate::timer::get_time_of_day;
+use crate::timer::getitimer;
+use crate::timer::setitimer;
 use crate::timer::sys_nanosleep;
 use crate::timer::times;

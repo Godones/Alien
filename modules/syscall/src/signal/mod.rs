@@ -3,7 +3,6 @@
 //! 且如果单纯作为线程的一部分，容易因为信号发送的任意性导致死锁，因此单独列出来。
 //!
 //! 目前的模型中，不采用 ipi 实时发送信号，而是由被目标线程在 trap 时处理。因此需要开启**时钟中断**来保证信号能实际送到
-use alloc::collections::btree_set::Union;
 use alloc::vec::Vec;
 
 pub use action::{SigAction, SigActionDefault, SigActionFlags, SIG_DFL, SIG_IGN};
@@ -122,7 +121,7 @@ impl SignalReceivers {
 }
 
 #[derive(Debug, Default, Copy, Clone)]
-pub struct SimpleBitSet(usize);
+pub struct SimpleBitSet(pub usize);
 
 impl SimpleBitSet {
     /// 寻找不在mask中的最小的 1 的位置，如果有，返回其位置，如没有则返回 None。

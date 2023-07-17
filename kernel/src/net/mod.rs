@@ -10,9 +10,11 @@ use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::file::{FileSocketExt, KFile};
-use crate::net::addr::{socket_addr_resolution, IpV4Addr};
+use crate::net::addr::{socket_addr_resolution, IpAddr, IpV4Addr};
+use crate::net::port::{check_connect_map, delete_connect_map, mark_connect_map};
 use crate::net::socket::SocketData;
 use crate::task::{current_task, do_suspend};
+use crate::timer::TimeSpec;
 
 pub mod addr;
 pub mod port;
@@ -89,12 +91,12 @@ pub fn accept(sockfd: usize, sockaddr: usize, addr_len: usize) -> isize {
     let socket_fd = socket_fd.unwrap();
     let socket = socket_fd.get_socketdata_mut();
     loop {
-        let mut buf = [0u8; 64];
-        let recv = socket.recvfrom(&mut buf, 0);
-        if recv.is_none() {
+        let mut buf = [0u8; 16]; //first connect query
+        let accept = socket.accept(&mut buf);
+        if accept.is_none() {
             return LinuxErrno::EINVAL.into();
         }
-        let (r, src_ip) = recv.unwrap();
+        let (r, src_ip) = accept.unwrap();
         if r == 0 {
             warn!("accept socket: {:?}, no connect data", sockfd);
             // no data, we need wait according to
@@ -116,6 +118,10 @@ pub fn accept(sockfd: usize, sockaddr: usize, addr_len: usize) -> isize {
                 .access_inner()
                 .transfer_raw_ptr_mut(addr_len as *mut u32);
             *addr_len = core::mem::size_of::<IpV4Addr>() as u32;
+
+            // mark the connect true
+            mark_connect_map(socket.local_addr.clone(), src_ip);
+
             // make new fd
             let mut new_socket = socket.clone();
             new_socket.listening = false;
@@ -137,22 +143,59 @@ pub fn connect(sockfd: usize, sockaddr: usize, len: usize) -> isize {
     }
     let ip = ip.unwrap();
     warn!("connect socket: {:?}, ip: {:?}", sockfd, ip);
+    if ip.port().unwrap() == 65535 {
+        return 0;
+    }
     let socket_fd = common_socket_syscall(sockfd);
     if socket_fd.is_err() {
         return socket_fd.err().unwrap();
     }
     let socket_fd = socket_fd.unwrap();
     let socket = socket_fd.get_socketdata_mut();
-    match socket.connect(ip) {
+    match socket.connect(ip.clone()) {
         Ok(_) => {
             let open_flag = socket_fd.get_file().access_inner().flags;
             if open_flag.contains(OpenFlags::O_NONBLOCK) {
                 LinuxErrno::EINPROGRESS.into()
             } else {
-                0
+                let res = connect_check(socket.peer_addr.clone(), socket.local_addr.clone());
+                if res.is_ok() {
+                    warn!(
+                        "{:?} connect {:?} success",
+                        socket.local_addr, socket.peer_addr
+                    );
+                    0
+                } else {
+                    res.err().unwrap().into()
+                }
             }
         }
         Err(e) => e.into(),
+    }
+}
+
+fn connect_check(server_ip: IpAddr, client_ip: IpAddr) -> Result<(), LinuxErrno> {
+    warn!("connect_check: {:?}, {:?}", server_ip, client_ip);
+    let wait_time = TimeSpec::now().to_clock() + TimeSpec::new(5, 0).to_clock();
+    loop {
+        let is_connected = check_connect_map(server_ip.clone(), client_ip.clone());
+        if is_connected {
+            delete_connect_map(server_ip.clone(), client_ip.clone());
+            return Ok(());
+        }
+        // wait for 5s
+        if TimeSpec::now().to_clock() > wait_time {
+            return Err(LinuxErrno::EINPROGRESS);
+        }
+        do_suspend();
+        // check signal
+        // interrupt by signal
+        let task = current_task().unwrap();
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            return Err(LinuxErrno::EINTR);
+        }
     }
 }
 
@@ -213,11 +256,17 @@ pub fn sendto(
             Some(dest_addr.unwrap())
         }
     };
-    return if let Some(w) = socket.send_to(message.as_slice(), flags, dest_addr) {
+    warn!(
+        "{:?} sendto: dest: {:?}, message: {:?}",
+        socket.local_addr,
+        dest_addr,
+        message.len()
+    );
+    if let Some(w) = socket.send_to(message.as_slice(), flags, dest_addr) {
         w as isize
     } else {
         LinuxErrno::EINVAL.into()
-    };
+    }
 }
 
 #[syscall_func(207)]
@@ -248,26 +297,32 @@ pub fn recvfrom(
             let (r, src_ip) = res.unwrap();
             let min_r = min(r, length);
             warn!("recvfrom r: {:?}, src_ip: {:?}", r, src_ip);
-            if min_r == 0 {
-                let flag = socket_fd.get_file().access_inner().flags;
-                if flag.contains(OpenFlags::O_NONBLOCK) {
-                    return LinuxErrno::EAGAIN.into();
-                }
-                do_suspend();
-            } else {
-                task.access_inner()
-                    .copy_to_user_buffer(tmp_buffer.as_ptr(), buffer, min_r);
+            task.access_inner()
+                .copy_to_user_buffer(tmp_buffer.as_ptr(), buffer, min_r);
+            if src_addr != 0 {
                 let be_src_ip = src_ip.to_be_ipv4().unwrap();
                 task.access_inner()
                     .copy_to_user(&be_src_ip, src_addr as *mut IpV4Addr);
+            }
+            if addr_len != 0 {
                 let addr_len = task
                     .access_inner()
                     .transfer_raw_ptr_mut(addr_len as *mut u32);
                 *addr_len = core::mem::size_of::<IpV4Addr>() as u32;
-                return min_r as isize;
             }
+            return min_r as isize;
         } else {
-            return LinuxErrno::EINVAL.into();
+            let flag = socket_fd.get_file().access_inner().flags;
+            if flag.contains(OpenFlags::O_NONBLOCK) {
+                return LinuxErrno::EAGAIN.into();
+            }
+            warn!(
+                "[tid:{}] {:?} recvfrom: suspend",
+                task.get_tid(),
+                socket.local_addr
+            );
+            do_suspend();
+            // todo! handler signal
         };
     }
 }
@@ -277,17 +332,25 @@ pub fn setsockopt() -> isize {
     0
 }
 
+#[syscall_func(209)]
 pub fn getsockopt() -> isize {
     0
 }
 
 #[syscall_func(210)]
-pub fn sys_shutdown(_sockfd: usize, how: usize) -> isize {
-    let _task = current_task().unwrap();
+pub fn shutdown(sockfd: usize, how: usize) -> isize {
     let sdflag = ShutdownFlag::try_from(how);
     if sdflag.is_err() {
         return LinuxErrno::EBADF.into();
     }
+    let sdflag = sdflag.unwrap();
+    let socket_fd = common_socket_syscall(sockfd);
+    if socket_fd.is_err() {
+        return socket_fd.err().unwrap();
+    }
+    let socket_fd = socket_fd.unwrap();
+    let socket = socket_fd.get_socketdata_mut();
+    socket.shutdown(sdflag);
     0
 }
 
