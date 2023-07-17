@@ -71,3 +71,20 @@ impl ClockId {
         }
     }
 }
+
+numeric_enum_macro::numeric_enum! {
+    #[repr(usize)]
+    #[allow(non_camel_case_types)]
+    #[derive(Eq, PartialEq, Debug,Copy,Clone)]
+    /// sys_settimer / sys_gettimer 中设定的 which，即计时器类型
+    pub enum TimerType {
+        /// 表示目前没有任何计时器(不在linux规范中，是os自己规定的)
+        NONE = 999,
+        /// 统计系统实际运行时间
+        REAL = 0,
+        /// 统计用户态运行时间
+        VIRTUAL = 1,
+        /// 统计进程的所有用户态/内核态运行时间
+        PROF = 2,
+    }
+}

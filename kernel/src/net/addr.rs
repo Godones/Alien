@@ -7,7 +7,7 @@ use syscall_define::LinuxErrno;
 
 use crate::task::current_task;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum IpAddr {
     /// ip 地址+端口
     Ipv4(u32, u16),
@@ -57,6 +57,13 @@ impl IpAddr {
                 zero: [0; 8],
             }),
             _ => None,
+        }
+    }
+    pub fn is_valid(&self) -> bool {
+        match self {
+            IpAddr::Empty => false,
+            IpAddr::Unknown => false,
+            _ => true,
         }
     }
 }
