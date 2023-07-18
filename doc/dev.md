@@ -366,3 +366,23 @@ tty回显问题：https://gitlab.eduxiji.net/2019301887/oskernel2022-npucore/-/b
 
 1. 添加网络相关的更多系统调用
 
+## 2023/7/18
+
+1. 添加动态链接的支持
+
+动态链接的支持需要读取elf文件的`INTERP`段查找到动态库，并按照之前加载可执行文件的方式加载动态库到内存中，同时，针对动态库中的`.rela.dyn .rela.plt` 等段，需要对里面的符号进行重定位操作。
+
+https://zhuanlan.zhihu.com/p/77264742
+
+https://blog.csdn.net/dai_xiangjun/article/details/123629743
+
+https://bbs.kanxue.com/thread-270935.htm
+
+http://nicephil.blinkenshell.org/my_book/ch07.html 比较细致
+
+
+
+动态链接器在加载真正的程序时，会使用mmap系统调用映射，而且要求内核为其分配的虚拟地址程序的相同，在之前，内核对用户的mmap系统调用会从一个固定的地址开始分配，因此这部分需要修改代码来适配，同时，动态链接器还会使用带`MAPFIXED`的mmap来对映射的地址空间进行重映射，这有可能导致一段连续的地址空间变成两部分或者三部分，同时如果映射了文件，文件的起始偏移量也会被修改。
+
+在之前的实现中，我们忽略了指令页异常处理，在动态链接程序中，由于使用了mmap进行懒加载机制，因此代码段可能会发生缺页异常，需要新增代码处理。
+

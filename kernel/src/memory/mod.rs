@@ -6,6 +6,7 @@ pub use rslab::*;
 
 pub use frame::*;
 pub use map::*;
+use syscall_table::syscall_func;
 pub use vmm::*;
 
 use crate::arch::hart_id;
@@ -15,6 +16,7 @@ mod frame;
 mod manager;
 mod map;
 mod vmm;
+mod elf;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
@@ -81,4 +83,10 @@ pub fn kernel_satp() -> usize {
 #[no_mangle]
 fn current_cpu_id() -> usize {
     hart_id()
+}
+
+
+#[syscall_func(283)]
+pub fn membarrier() -> isize {
+    0
 }

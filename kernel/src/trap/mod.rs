@@ -1,21 +1,21 @@
 use core::arch::{asm, global_asm};
 
 use page_table::addr::VirtAddr;
-use riscv::register::sstatus::SPP;
 use riscv::register::{sepc, sscratch, stval};
+use riscv::register::sstatus::SPP;
 
 pub use context::TrapFrame;
 use syscall_define::signal::SignalNumber;
 use syscall_define::time::TimerType;
 
-use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
-use crate::arch::riscv::register::stvec;
-use crate::arch::riscv::register::stvec::TrapMode;
-use crate::arch::riscv::sstatus;
 use crate::arch::{
     external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
     timer_interrupt_enable,
 };
+use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
+use crate::arch::riscv::register::stvec;
+use crate::arch::riscv::register::stvec::TrapMode;
+use crate::arch::riscv::sstatus;
 use crate::config::TRAMPOLINE;
 use crate::ipc::{send_signal, signal_handler, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
@@ -101,7 +101,7 @@ impl TrapHandler for Trap {
             | Trap::Exception(Exception::InstructionFault)
             | Trap::Exception(Exception::IllegalInstruction) => {
                 error!(
-                    "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                    "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
                     self, stval, sepc
                 );
                 let task = current_task().unwrap();
@@ -109,10 +109,14 @@ impl TrapHandler for Trap {
             }
             Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
+                trace!(
+                        "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                        self, stval, sepc
+                    );
                 let res = exception::page_exception_handler(self.clone(), stval);
                 if res.is_err() {
                     error!(
-                        "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                        "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
                         self, stval, sepc
                     );
                     let task = current_task().unwrap();
@@ -120,13 +124,18 @@ impl TrapHandler for Trap {
                 }
             }
             Trap::Exception(Exception::InstructionPageFault) => {
-                // todo!("instruction page fault");
-                error!(
-                    "[kernel] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                    self, stval, sepc
-                );
-                let task = current_task().unwrap();
-                send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
+                trace!(
+                        "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                        self, stval, sepc);
+                let res = exception::page_exception_handler(self.clone(), stval);
+                if res.is_err() {
+                    error!(
+                        "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                        self, stval, sepc
+                    );
+                    let task = current_task().unwrap();
+                    send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
+                }
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 interrupt::timer_interrupt_handler();
