@@ -53,6 +53,11 @@ pub const MAX_INPUT_EVENT_NUM: usize = 1024;
 
 pub const MAX_SOCKET_DATA_LEN: usize = 1024 * 4;
 
+
+/// 如果 elf 的 phdr 指示 base 是 0(如 libc-test 的 libc.so)，则需要找一个非0的位置放置
+pub const ELF_BASE_RELOCATE: usize = 0x400_0000;
+
+
 pub const UTC: &[u8] = &[
     b'T', b'Z', b'i', b'f', b'2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0,
     0, 0x1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0, 0, 0x4, 0, 0, 0, 0, 0, 0, b'U', b'T', b'C',

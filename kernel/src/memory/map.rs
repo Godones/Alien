@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use core::ops::Range;
 
 use bitflags::bitflags;
+use page_table::addr::align_up_4k;
 use page_table::pte::MappingFlags;
 
 use syscall_define::io::MapFlags;
@@ -134,6 +135,26 @@ impl MMapRegion {
             offset,
         }
     }
+    // [a-b]
+    // [a-c] [c-b]
+    pub fn split(&self, addr: usize) -> (Self, Self) {
+        let mut region1 = self.clone();
+        let mut region2 = self.clone();
+        region1.len = addr - self.start;
+        region1.map_len = align_up_4k(region1.len);
+        region2.start = addr;
+        region2.len = self.start + self.len - addr;
+        region2.map_len = align_up_4k(region2.len);
+        region2.offset += region1.len;
+        (region1, region2)
+    }
+
+    pub fn set_prot(&mut self, prot: ProtFlags) {
+        self.prot = prot;
+    }
+    pub fn set_flags(&mut self, flags: MapFlags) {
+        self.flags = flags;
+    }
 }
 
 #[syscall_func(215)]
@@ -169,6 +190,7 @@ pub fn map_protect(start: usize, len: usize, prot: u32) -> isize {
     let process = current_task().unwrap();
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
+    warn!("mprotect: start: {:#x}, len: {:#x}, prot: {:?}", start, len, prot);
     let res = process_inner.map_protect(start, len, prot);
     if res.is_err() {
         return -1;
