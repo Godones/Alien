@@ -12,6 +12,7 @@ use spin::Once;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::device::input::VirtIOInput;
+use virtio_drivers::device::net::VirtIONet;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::transport::{DeviceType, Transport};
 
@@ -27,6 +28,7 @@ use crate::driver::rtc::init_rtc;
 use crate::driver::uart::init_uart;
 use crate::driver::DeviceBase;
 use crate::driver::{pci_probe, QemuBlockDevice, QEMU_BLOCK_DEVICE};
+use crate::driver::net::{VirtIONetWrapper, NET_DEVICE, NET_QUEUE_SIZE, NET_BUFFER_LEN};
 
 pub static PLIC: Once<PLIC> = Once::new();
 
@@ -166,6 +168,7 @@ fn virtio_device(transport: MmioTransport, addr: usize, irq: usize) {
         DeviceType::Block => virtio_blk(transport),
         DeviceType::GPU => virtio_gpu(transport),
         DeviceType::Input => virto_input(transport, addr, irq),
+        DeviceType::Network => virto_net(transport),
         t => warn!("Unrecognized virtio device: {:?}", t),
     }
 }
@@ -211,4 +214,15 @@ fn virto_input(transport: MmioTransport, addr: usize, irq: usize) {
     let mut table = DEVICE_TABLE.lock();
     table.insert(irq, input_device);
     println!("virtio-input init finished");
+}
+
+
+
+fn virto_net(transport: MmioTransport){
+    let net = VirtIONet::<HalImpl, MmioTransport, NET_QUEUE_SIZE>::new(transport, NET_BUFFER_LEN)
+        .expect("failed to create net driver");
+    println!("MAC address: {:02x?}", net.mac_address());
+    NET_DEVICE.call_once(|| VirtIONetWrapper::new(net));
+    println!("virtio-net init finished");
+
 }
