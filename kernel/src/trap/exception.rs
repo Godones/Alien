@@ -1,8 +1,11 @@
+use alloc::sync::Arc;
+
 use riscv::register::scause::{Exception, Trap};
 use rvfs::file::vfs_read_file;
 
 use crate::arch::interrupt_enable;
 use crate::error::{AlienError, AlienResult};
+use crate::fs::file::KFile;
 use crate::fs::vfs::VfsProvider;
 use crate::syscall;
 use crate::task::{current_task, current_trap_frame, do_exit};
@@ -66,6 +69,9 @@ pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     match trap {
         Trap::Exception(Exception::LoadPageFault) => load_page_fault_exception_handler(addr)?,
         Trap::Exception(Exception::StorePageFault) => store_page_fault_exception_handler(addr)?,
+        Trap::Exception(Exception::InstructionPageFault) => {
+            instruction_page_fault_exception_handler(addr)?
+        }
         _ => {
             return Err(AlienError::Other);
         }
@@ -73,19 +79,35 @@ pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     Ok(())
 }
 
+pub fn instruction_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
+    let task = current_task().unwrap();
+    trace!(
+        "[tid: {}] do instruction_page_fault  addr:{:#x}",
+        task.get_tid(),
+        addr
+    );
+    let res = task.access_inner().do_instruction_page_fault(addr)?;
+    if res.is_some() {
+        let (file, buf, offset) = res.unwrap();
+        if file.is_some() {
+            common_read_file(file.unwrap(), buf, offset);
+        }
+    }
+    Ok(())
+}
+
+
 pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let info = {
         let process = current_task().unwrap();
-        process.access_inner().do_load_page_fault(addr)
+        process.access_inner().do_load_page_fault(addr)?
     };
-    if info.is_err() {
-        return Err(AlienError::Other);
+    if info.is_some() {
+        let (file, buf, offset) = info.unwrap();
+        if file.is_some() {
+            common_read_file(file.unwrap(), buf, offset);
+        }
     }
-    let (file, buf, offset) = info.unwrap();
-    if file.is_some() {
-        let _r = vfs_read_file::<VfsProvider>(file.unwrap().get_file(), buf, offset);
-    }
-
     Ok(())
 }
 
@@ -100,8 +122,16 @@ pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     if res.is_some() {
         let (file, buf, offset) = res.unwrap();
         if file.is_some() {
-            let _r = vfs_read_file::<VfsProvider>(file.unwrap().get_file(), buf, offset);
+            common_read_file(file.unwrap(), buf, offset);
         }
     }
     Ok(())
+}
+
+
+fn common_read_file(file: Arc<KFile>, buf: &mut [u8], offset: u64) {
+    let r = vfs_read_file::<VfsProvider>(file.get_file(), buf, offset);
+    if r.is_err() {
+        error!("load page fault: read file error");
+    }
 }
