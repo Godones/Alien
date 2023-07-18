@@ -180,18 +180,6 @@ fn sys_recv(socket: usize, buffer: *const usize, length: usize, flags:usize) -> 
 
 ```
 
-#### 一些必要的结构
-
-```rust
-
-struct sockaddr_in {
-    short int sin_family;         // AF_INET
-    unsigned short int sin_port;  // 端口号
-    struct in_addr  sin_addr;     // IP地址
-};
-
-```
-
 
 
 
@@ -202,4 +190,10 @@ struct sockaddr_in {
 
 [Matruin实现 socket](https://gitlab.eduxiji.net/scPointer/maturin/-/tree/master/kernel/src/file/socket)
 
-[rCore-N net](http0s://github.com/CtrlZ233/rCore-N/tree/main/os/src/net)
+[rCore-N net](https://github.com/CtrlZ233/rCore-N/tree/main/os/src/net)
+
+[virtio-net](https://github.com/rcore-os/virtio-drivers/blob/master/src/device/net.rs)
+
+[组件化OS--aceros的改进：支持和优化lwip网络协议栈](http://hub.fgit.ml/Centaurus99/arceos-lwip/blob/main/reports/final.md)
+
+[详解：VirtIO Networking 虚拟网络设备实现架构](https://www.sdnlab.com/26199.html)
