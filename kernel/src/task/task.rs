@@ -1,9 +1,10 @@
-use alloc::{format, vec};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
+use alloc::{format, vec};
 
+use bit_field::BitField;
 use lazy_static::lazy_static;
 use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
@@ -15,29 +16,32 @@ use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
 use kernel_sync::{Mutex, MutexGuard};
-use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
-use syscall_define::aux::{AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM, AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID};
+use syscall_define::aux::{
+    AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
+    AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
+};
 use syscall_define::io::MapFlags;
 use syscall_define::ipc::RobustList;
 use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
 use syscall_define::task::CloneFlags;
 use syscall_define::time::TimerType;
+use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 
-use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::config::{CPU_NUM, FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
-use crate::fs::{STDIN, STDOUT};
 use crate::fs::file::KFile;
+use crate::fs::{STDIN, STDOUT};
 use crate::ipc::{global_register_signals, ShmInfo};
 use crate::memory::{
-    build_cow_address_space, build_elf_address_space, build_thread_address_space, FRAME_REF_MANAGER,
-    kernel_satp, MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack,
+    build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
+    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
 };
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
-use crate::timer::{ITimerVal, read_timer};
-use crate::trap::{trap_return, TrapFrame, user_trap_vector};
+use crate::timer::{read_timer, ITimerVal};
+use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
@@ -113,6 +117,9 @@ pub struct TaskInner {
     pub signal_set_siginfo: bool,
     pub robust: RobustList,
     pub shm: BTreeMap<usize, ShmInfo>,
+    pub cpu_affinity: usize,
+    /// process's file mode creation mask
+    pub unmask: usize,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -131,7 +138,6 @@ pub struct TaskTimer {
 
     pub expired: bool,
 }
-
 
 impl TaskTimer {
     pub fn new() -> Self {
@@ -838,6 +844,7 @@ impl TaskInner {
         let end = self.heap.end;
         // align addition to PAGE_SIZE
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+        trace!("extend heap: {:#x} -- {:#x}", end, addition);
         self.address_space
             .lock()
             .map_region_no_target(
@@ -873,7 +880,7 @@ impl TaskInner {
         } else {
             let file = self.fd_table.lock().get(fd).map_err(|_| -1isize)?;
             if file.is_none() {
-                return Err(-1);
+                return Err(LinuxErrno::EBADF.into());
             }
             file
         };
@@ -907,7 +914,11 @@ impl TaskInner {
                 self.mmap.add_region(left);
                 if start + len < right.start + right.map_len {
                     // slice the right region
-                    trace!("again slice the right region:{:#x?}, len:{:#x}",right.start,right.len);
+                    trace!(
+                        "again slice the right region:{:#x?}, len:{:#x}",
+                        right.start,
+                        right.len
+                    );
                     let (mut left, right) = right.split(start + len);
                     // add the right region
                     self.mmap.add_region(right);
@@ -918,7 +929,11 @@ impl TaskInner {
                     left.fd = fd;
                     self.mmap.add_region(left);
                 } else {
-                    trace!("directly add the right region:{:#x?}, len:{:#x}",right.start,right.len);
+                    trace!(
+                        "directly add the right region:{:#x?}, len:{:#x}",
+                        right.start,
+                        right.len
+                    );
                     // update prot and flags
                     right.set_prot(prot);
                     right.set_flags(flags);
@@ -965,12 +980,12 @@ impl TaskInner {
         // check whether the start is in mmap
         let x = self.mmap.get_region(start);
         if x.is_none() {
-            return Err(-1);
+            return Err(LinuxErrno::EINVAL.into());
         }
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
         let region = x.unwrap();
         if region.start != start || len != region.len {
-            return Err(-1);
+            return Err(LinuxErrno::EINVAL.into());
         }
         self.address_space
             .lock()
@@ -984,13 +999,18 @@ impl TaskInner {
         // check whether the start is in mmap
         let x = self.mmap.get_region_mut(start);
         if x.is_none() {
-            return Err(-1);
+            let res = self.address_space.lock().query(VirtAddr::from(start));
+            return if res.is_err() {
+                Err(LinuxErrno::EINVAL as isize)
+            } else {
+                Ok(())
+            };
         }
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
         let region = x.unwrap();
         if start + len > region.start + region.len {
             error!("start+len > region.start + region.len");
-            return Err(-1);
+            return Err(LinuxErrno::EINVAL.into());
         }
         region.prot = prot;
         Ok(())
@@ -1087,7 +1107,6 @@ impl TaskInner {
         }
         Ok(None)
     }
-
 
     pub fn do_instruction_page_fault(
         &mut self,
@@ -1216,6 +1235,12 @@ impl Task {
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
                 shm: BTreeMap::new(),
+                cpu_affinity: {
+                    let mut affinity = 0;
+                    affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
+                    affinity
+                },
+                unmask: 0o666,
             }),
             send_sigchld_when_exit: false,
         };
@@ -1387,6 +1412,12 @@ impl Task {
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
                 shm: inner.shm.clone(),
+                cpu_affinity: {
+                    let mut affinity = 0;
+                    affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
+                    affinity
+                },
+                unmask: 0o666,
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
@@ -1436,9 +1467,12 @@ impl Task {
             let envp = vec![
                 "LD_LIBRARY_PATH=/",
                 "PS1=\x1b[1m\x1b[32mAlien\x1b[0m:\x1b[1m\x1b[34m\\w\x1b[0m\\$ \0",
-                "PATH=/:/bin:/usr/bin",
+                "PATH=/bin:/usr/bin",
                 "UB_BINDIR=./",
-            ].iter().map(|x| x.to_string()).collect::<Vec<String>>();
+            ]
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
             envp
         } else {
             env

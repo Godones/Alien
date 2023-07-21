@@ -8,7 +8,7 @@ use crate::signal::SimpleBitSet;
 use super::number::SignalNumber;
 
 #[cfg(feature = "riscv")]
-const SIGNAL_RETURN_TRAP: usize = 0x0000000000000000;
+pub const SIGNAL_RETURN_TRAP: usize = 0xffff_0000_8080_0000;
 
 /// SigAction::handler 的特殊取值，表示默认处理函数
 pub const SIG_DFL: usize = 0;
@@ -41,6 +41,17 @@ pub struct SigAction {
     restorer: usize,
     /// 信号的掩码
     pub mask: SimpleBitSet,
+}
+
+impl SigAction {
+    pub fn empty() -> Self {
+        Self {
+            handler: 0,
+            flags: SigActionFlags::empty(),
+            restorer: 0,
+            mask: SimpleBitSet(0),
+        }
+    }
 }
 
 impl SigAction {

@@ -16,6 +16,7 @@ pub struct TrapFrame {
     hart_id: usize,
     ///
     sstatus: Sstatus,
+    fg: [usize; 2],
 }
 
 impl TrapFrame {
@@ -28,6 +29,7 @@ impl TrapFrame {
             trap_handler: 0,
             hart_id: 0,
             sstatus: Sstatus::default(),
+            fg: [0; 2],
         }
     }
     pub fn update_sepc(&mut self) {
@@ -65,6 +67,7 @@ impl TrapFrame {
             trap_handler,
             hart_id: 0,
             sstatus,
+            fg: [0; 2],
         };
         res.x[2] = sp;
         res

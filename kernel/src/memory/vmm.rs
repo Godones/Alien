@@ -15,12 +15,14 @@ use xmas_elf::program::{SegmentData, Type};
 
 use kernel_sync::RwLock;
 
-use crate::config::{ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::config::{
+    ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
+};
 use crate::fs::vfs;
 use crate::ipc::ShmInfo;
-use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::memory::elf::{ELFError, ELFInfo, ELFReader};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
+use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::trap::TrapFrame;
 
 lazy_static! {
@@ -126,7 +128,6 @@ pub fn build_kernel_address_space(memory_end: usize) {
     }
 }
 
-
 #[derive(Debug)]
 pub struct UserStack {
     pub virt_stack_top: usize,
@@ -196,7 +197,6 @@ impl UserStack {
         Ok(self.virt_stack_top - (FRAME_SIZE - (self.stack_top - self.stack_bottom)))
     }
 }
-
 
 pub fn build_thread_address_space(
     table: &mut Sv39PageTable<PageAllocator>,
@@ -276,7 +276,7 @@ pub fn build_cow_address_space(
             if flag.contains(MappingFlags::W) {
                 flags -= MappingFlags::W;
                 flags |= MappingFlags::RSD; // we use the RSD flag to indicate that this page is a cow page
-                // update parent's flag and clear dirty
+                                            // update parent's flag and clear dirty
                 p_table.modify_pte_flags(v_addr, flags, false).unwrap();
             }
             address_space.map(v_addr, phy, page_size, flags).unwrap();
@@ -294,7 +294,11 @@ pub fn build_cow_address_space(
     address_space
 }
 
-pub fn build_elf_address_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> Result<ELFInfo, ELFError> {
+pub fn build_elf_address_space(
+    elf: &[u8],
+    args: &mut Vec<String>,
+    name: &str,
+) -> Result<ELFInfo, ELFError> {
     let mut address_space = Sv39PageTable::<PageAllocator>::try_new().unwrap();
     const ELF_MAGIC: [u8; 4] = [0x7f, b'E', b'L', b'F'];
     if elf[0..4] != ELF_MAGIC {
@@ -302,8 +306,10 @@ pub fn build_elf_address_space(elf: &[u8], args: &mut Vec<String>, name: &str) -
     }
     let elf = xmas_elf::ElfFile::new(elf).map_err(|_| ELFError::NotELF)?;
     // check whether it's a dynamic linked elf
-    if let Some(inter) = elf.program_iter()
-        .find(|ph| ph.get_type().unwrap() == Type::Interp) {
+    if let Some(inter) = elf
+        .program_iter()
+        .find(|ph| ph.get_type().unwrap() == Type::Interp)
+    {
         let data = match inter.get_data(&elf).unwrap() {
             SegmentData::Undefined(data) => data,
             _ => return Err(ELFError::NoEntrySegment),
@@ -315,7 +321,7 @@ pub fn build_elf_address_space(elf: &[u8], args: &mut Vec<String>, name: &str) -
         *args = new_args;
         // load interpreter
         let mut data = vec![];
-        warn!("load interpreter: {}, new_args:{:?}", path,args);
+        warn!("load interpreter: {}, new_args:{:?}", path, args);
         if vfs::read_all("libc.so", &mut data) {
             return build_elf_address_space(&data, args, "libc.so");
         } else {
@@ -356,7 +362,8 @@ pub fn build_elf_address_space(elf: &[u8], args: &mut Vec<String>, name: &str) -
     warn!("ELF tls: {:#x}", tls);
 
     let mut break_addr = 0usize;
-    elf.program_iter().filter(|ph| ph.get_type() == Ok(Type::Load))
+    elf.program_iter()
+        .filter(|ph| ph.get_type() == Ok(Type::Load))
         .for_each(|ph| {
             let start_addr = ph.virtual_addr() as usize + bias;
             let end_addr = start_addr + ph.mem_size() as usize;
@@ -378,12 +385,12 @@ pub fn build_elf_address_space(elf: &[u8], args: &mut Vec<String>, name: &str) -
             let len = end_vaddr.as_usize() - vaddr.as_usize();
             warn!(
                 "load segment: {:#x} - {:#x} -> {:#x}-{:#x}, permission: {:?}",
-                    start_addr,
-                    end_addr,
-                    vaddr.as_usize(),
-                    end_vaddr.as_usize(),
-                    permission
-                );
+                start_addr,
+                end_addr,
+                vaddr.as_usize(),
+                end_vaddr.as_usize(),
+                permission
+            );
             let mut data =
                 &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
             let map_info = address_space
@@ -464,7 +471,7 @@ pub fn build_elf_address_space(elf: &[u8], args: &mut Vec<String>, name: &str) -
         warn!("elf: no phdr found, tls might not work");
         Err(ELFError::NoEntrySegment)
     }
-        .unwrap_or(0);
+    .unwrap_or(0);
     warn!(
         "entry: {:#x}, phdr:{:#x}",
         elf.header.pt2.entry_point() + bias as u64,
@@ -475,9 +482,7 @@ pub fn build_elf_address_space(elf: &[u8], args: &mut Vec<String>, name: &str) -
         kvs.into_iter().for_each(|kv| {
             trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
             let (addr, ..) = address_space.query(VirtAddr::from(kv.0)).unwrap();
-            unsafe {
-                (addr.as_usize() as *mut usize).write(kv.1)
-            }
+            unsafe { (addr.as_usize() as *mut usize).write(kv.1) }
         })
     }
     Ok(ELFInfo {
