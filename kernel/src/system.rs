@@ -3,6 +3,7 @@ use syscall_table::syscall_func;
 use crate::task::current_task;
 
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct Utsname {
     sysname: [u8; 65],
     nodename: [u8; 65],
@@ -13,10 +14,10 @@ pub struct Utsname {
 }
 
 fn system_info() -> Utsname {
-    const SYSNAME: &str = "RustOS";
-    const NODENAME: &str = "RustOS";
-    const RELEASE: &str = "0.1";
-    const VERSION: &str = "0.1";
+    const SYSNAME: &str = "Linux";
+    const NODENAME: &str = "Alien";
+    const RELEASE: &str = "5.1";
+    const VERSION: &str = "5.1";
     const MACHINE: &str = "riscv64";
     const DOMAINNAME: &str = "RustOS";
     let mut name = Utsname {
@@ -37,9 +38,9 @@ fn system_info() -> Utsname {
 }
 
 #[syscall_func(160)]
-pub fn sys_uname(utsname: *const u8) -> isize {
-    let process = current_task().unwrap();
-    let utsname = process.transfer_raw_ptr(utsname as *mut Utsname);
-    *utsname = system_info();
+pub fn uname(utsname: *const u8) -> isize {
+    let task = current_task().unwrap();
+    task.access_inner()
+        .copy_to_user(&system_info(), utsname as *mut Utsname);
     0
 }

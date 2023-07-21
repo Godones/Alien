@@ -5,17 +5,18 @@ use core::cmp::Ordering;
 use lazy_static::lazy_static;
 
 use kernel_sync::Mutex;
+use syscall_define::sys::TimeVal;
 use syscall_define::time::{ClockId, TimerType};
+use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
 use crate::task::schedule::schedule;
-use crate::task::{current_task, StatisticalData, Task, TaskState, TASK_MANAGER};
+use crate::task::{current_task, do_suspend, StatisticalData, Task, TaskState, TASK_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
 const MSEC_PER_SEC: usize = 1000;
-const USEC_PER_SEC: usize = 1000_000;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -50,17 +51,16 @@ impl Times {
     }
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, Default)]
-pub struct TimeVal {
-    /// seconds
-    pub tv_sec: usize,
-    /// microseconds
-    pub tv_usec: usize,
+pub trait TimeNow {
+    fn now() -> Self;
 }
 
-impl TimeVal {
-    pub fn now() -> Self {
+pub trait TimeFromFreq {
+    fn from_freq(freq: usize) -> Self;
+}
+
+impl TimeNow for TimeVal {
+    fn now() -> Self {
         let time = read_timer();
         Self {
             tv_sec: time / CLOCK_FREQ,
@@ -69,18 +69,12 @@ impl TimeVal {
     }
 }
 
-impl From<usize> for TimeVal {
-    fn from(value: usize) -> Self {
+impl TimeFromFreq for TimeVal {
+    fn from_freq(freq: usize) -> Self {
         Self {
-            tv_sec: value / USEC_PER_SEC,
-            tv_usec: value % USEC_PER_SEC,
+            tv_sec: freq / CLOCK_FREQ,
+            tv_usec: (freq % CLOCK_FREQ) * 1000000 / CLOCK_FREQ,
         }
-    }
-}
-
-impl Into<usize> for TimeVal {
-    fn into(self) -> usize {
-        self.tv_sec * USEC_PER_SEC + self.tv_usec
     }
 }
 
@@ -108,6 +102,15 @@ impl TimeSpec {
 
     pub fn to_clock(&self) -> usize {
         self.tv_sec * CLOCK_FREQ + self.tv_nsec * CLOCK_FREQ / 1000000000
+    }
+}
+
+impl TimeFromFreq for TimeSpec {
+    fn from_freq(freq: usize) -> Self {
+        Self {
+            tv_sec: freq / CLOCK_FREQ,
+            tv_nsec: (freq % CLOCK_FREQ) * 1000000000 / CLOCK_FREQ,
+        }
     }
 }
 
@@ -149,20 +152,18 @@ pub fn get_time_of_day(tv: *mut u8) -> isize {
 /// Reference: https://man7.org/linux/man-pages/man2/times.2.html
 #[syscall_func(153)]
 pub fn times(tms: *mut u8) -> isize {
-    let task = current_task().unwrap().access_inner();
+    let mut task = current_task().unwrap().access_inner();
     let statistic_data = task.statistical_data();
     let time = Times::from_process_data(statistic_data);
-    let tms = task.transfer_raw_ptr_mut(tms as *mut Times);
-    // copy_to_user_buf(tv,&time);
-    *tms = time;
+    task.copy_to_user(&time, tms as *mut Times);
     0
 }
 
 #[syscall_func(101)]
-pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
+pub fn nanosleep(req: *mut u8, _: *mut u8) -> isize {
     let task = current_task().unwrap();
     let req = task.transfer_raw_ptr(req as *mut TimeSpec);
-    let end_time = read_timer() + req.tv_sec * CLOCK_FREQ + req.tv_nsec * CLOCK_FREQ / 1000000000;
+    let end_time = read_timer() + req.to_clock();
     if read_timer() < end_time {
         let process = current_task().unwrap();
         process.update_state(TaskState::Sleeping);
@@ -176,11 +177,10 @@ pub fn sys_nanosleep(req: *mut u8, _: *mut u8) -> isize {
 pub fn clock_get_time(clock_id: usize, tp: *mut u8) -> isize {
     let id = ClockId::from_raw(clock_id).unwrap();
     let task = current_task().unwrap();
-    let tp = task.transfer_raw_ptr(tp as *mut TimeSpec);
     match id {
-        ClockId::Realtime => {
+        ClockId::Monotonic | ClockId::Realtime => {
             let time = TimeSpec::now();
-            *tp = time;
+            task.access_inner().copy_to_user(&time, tp as *mut TimeSpec)
         }
         _ => {
             panic!("clock_get_time: clock_id {:?} not supported", id);
@@ -198,6 +198,9 @@ pub struct Timer {
 impl Timer {
     pub fn new(end_time: usize, process: Arc<Task>) -> Self {
         Self { end_time, process }
+    }
+    pub fn get_task(&self) -> &Arc<Task> {
+        &self.process
     }
 }
 
@@ -280,5 +283,62 @@ pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize 
     task.access_inner()
         .copy_from_user(current_value as *const ITimerVal, &mut itimer);
     task.access_inner().set_timer(itimer, which);
+    0
+}
+
+#[syscall_func(114)]
+pub fn clock_getres(id: usize, res: usize) -> isize {
+    let id = ClockId::from_raw(id).unwrap();
+    warn!("clock_getres: id {:?} ,res {:#x}", id, res);
+    let task = current_task().unwrap();
+    let time_res = match id {
+        ClockId::Monotonic => {
+            let time = TimeSpec::new(0, 1);
+            time
+        }
+        _ => {
+            panic!("clock_get_time: clock_id {:?} not supported", id);
+        }
+    };
+    task.access_inner()
+        .copy_to_user(&time_res, res as *mut TimeSpec);
+    0
+}
+
+#[syscall_func(115)]
+pub fn clock_nanosleep(clock_id: usize, flags: usize, req: usize, remain: usize) -> isize {
+    const TIMER_ABSTIME: usize = 1;
+    let id = ClockId::from_raw(clock_id).unwrap();
+    warn!(
+        "clock_nanosleep: id {:?} ,flags {:#x}, req {:#x}, remain {:#x}",
+        id, flags, req, remain
+    );
+    let task = current_task().unwrap().clone();
+    match id {
+        ClockId::Monotonic => {
+            assert_eq!(flags, TIMER_ABSTIME);
+            let mut target_time = TimeSpec::new(0, 0);
+            task.access_inner()
+                .copy_from_user(req as *const TimeSpec, &mut target_time);
+            let end_time = target_time.to_clock();
+
+            loop {
+                let now = read_timer();
+                if now >= end_time {
+                    break;
+                }
+                do_suspend();
+                // check signal
+                let task_inner = task.access_inner();
+                let receiver = task_inner.signal_receivers.lock();
+                if receiver.have_signal() {
+                    return LinuxErrno::EINTR.into();
+                }
+            }
+        }
+        _ => {
+            panic!("clock_nanotime: clock_id {:?} not supported", id);
+        }
+    }
     0
 }

@@ -17,4 +17,4 @@ busybox echo "run netperf_testcode.sh"
 busybox echo "run iperf_testcode.sh"
 ./iperf_testcode.sh
 busybox echo "run cyclic_testcode.sh"
-./cyclic_testcode.sh
+./cyclictest_testcode.sh

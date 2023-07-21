@@ -1,3 +1,4 @@
+.attribute arch, "rv64gc"
 .altmacro
 .macro SAVE_GP n
     sd x\n, \n*8(sp)
@@ -26,6 +27,8 @@ user_v:
     csrr t1, sepc
     sd t1, 32*8(sp)
     sd t0, 37*8(sp)
+    fsd fs0, 38*8(sp)
+    fsd fs1, 39*8(sp)
     # read user stack from sscratch and save it in TrapContext
     csrr t2, sscratch
     sd t2, 2*8(sp)
@@ -72,6 +75,9 @@ user_r:
         LOAD_GP %n
         .set n, n+1
     .endr
+    fld fs0, 38*8(sp)
+    fld fs1, 39*8(sp)
+
     # back to user stack
     ld sp, 2*8(sp)
     sret

@@ -8,7 +8,7 @@ use crate::error::{AlienError, AlienResult};
 use crate::fs::file::KFile;
 use crate::fs::vfs::VfsProvider;
 use crate::syscall;
-use crate::task::{current_task, current_trap_frame, do_exit};
+use crate::task::{current_task, current_trap_frame};
 
 pub fn syscall_exception_handler() {
     // enable interrupt
@@ -42,6 +42,14 @@ pub fn syscall_exception_handler() {
     }
 
     let result = syscall::do_syscall(parameters[0], &parameters[1..]);
+
+    if result.is_none() {
+        panic!("The syscall {} is not implemented!", syscall_name);
+    }
+
+    // cx is changed during sys_exec, so we have to call it again
+    cx = current_trap_frame();
+
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         warn!(
             "[pid:{}, tid: {}] syscall: [{}] result: {:?}",
@@ -49,12 +57,6 @@ pub fn syscall_exception_handler() {
         );
     }
 
-    if result.is_none() {
-        error!("The syscall {} is not implemented!", syscall_name);
-        do_exit(-1);
-    }
-    // cx is changed during sys_exec, so we have to call it again
-    cx = current_trap_frame();
     cx.update_res(result.unwrap() as usize);
 }
 
@@ -96,7 +98,6 @@ pub fn instruction_page_fault_exception_handler(addr: usize) -> AlienResult<()> 
     Ok(())
 }
 
-
 pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let info = {
         let process = current_task().unwrap();
@@ -127,7 +128,6 @@ pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     }
     Ok(())
 }
-
 
 fn common_read_file(file: Arc<KFile>, buf: &mut [u8], offset: u64) {
     let r = vfs_read_file::<VfsProvider>(file.get_file(), buf, offset);

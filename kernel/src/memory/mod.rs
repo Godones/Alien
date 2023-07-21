@@ -12,11 +12,11 @@ pub use vmm::*;
 use crate::arch::hart_id;
 use crate::config::FRAME_SIZE;
 
+mod elf;
 mod frame;
 mod manager;
 mod map;
 mod vmm;
-mod elf;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator {
@@ -84,7 +84,6 @@ pub fn kernel_satp() -> usize {
 fn current_cpu_id() -> usize {
     hart_id()
 }
-
 
 #[syscall_func(283)]
 pub fn membarrier() -> isize {

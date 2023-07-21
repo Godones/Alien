@@ -73,7 +73,15 @@ pub fn init_vfs() {
     prepare_etc();
     prepare_test_need();
     prepare_dev();
+    prepare_var();
     println!("vfs init done");
+}
+
+fn prepare_var() {
+    vfs_mkdir::<VfsProvider>("/var", FileMode::FMODE_RDWR).unwrap();
+    do_mount::<VfsProvider>("none", "/var", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    vfs_mkdir::<VfsProvider>("/var/log", FileMode::FMODE_RDWR).unwrap();
+    vfs_mkdir::<VfsProvider>("/var/tmp", FileMode::FMODE_RDWR).unwrap();
 }
 
 fn prepare_root() {

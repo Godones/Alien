@@ -4,9 +4,9 @@ use alloc::vec::Vec;
 use core::fmt::{Debug, Formatter};
 
 use page_table::table::Sv39PageTable;
-use xmas_elf::ElfFile;
 use xmas_elf::sections::SectionData;
 use xmas_elf::symbol_table::Entry;
+use xmas_elf::ElfFile;
 
 use crate::memory::PageAllocator;
 
@@ -21,7 +21,6 @@ pub enum ELFError {
     RelocationError,
     DynsymNotFind,
 }
-
 
 impl Debug for ELFInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -119,8 +118,7 @@ impl ELFReader for ElfFile<'_> {
                 5 => {
                     let dynsym = &dynsym[entry.get_symbol_table_index() as usize];
                     let symval = if dynsym.shndx() == 0 {
-                        let name = dynsym.get_name(self)
-                            .map_err(|_| ELFError::DynsymNotFind)?;
+                        let name = dynsym.get_name(self).map_err(|_| ELFError::DynsymNotFind)?;
                         panic!("symbol not found: {:?}", name);
                     } else {
                         dynsym.value() as usize
