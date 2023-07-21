@@ -64,7 +64,7 @@ impl<const N: usize> Bitmap<N> {
 
     #[inline]
     fn alloc_pages_inner(&mut self, pages: usize) -> BuddyResult<()> {
-        let flag = false; // make sure we scan the whole bitmap once
+        let mut flag = false; // make sure we scan the whole bitmap once
         loop {
             let end = self.current + pages;
             if end > self.max && flag {
@@ -72,6 +72,7 @@ impl<const N: usize> Bitmap<N> {
             }
             if end > self.max {
                 self.current = 0;
+                flag = true;
                 continue;
             }
             let busy_index = (self.current..end).find(|x| self.test(*x));
@@ -123,7 +124,14 @@ impl<const N: usize> PageAllocator for Bitmap<N> {
     fn alloc(&mut self, order: usize) -> BuddyResult<usize> {
         let need_pages = 1 << order;
         self.alloc_pages_inner(need_pages)?;
-        Ok(self.current - need_pages + self.start)
+
+        let res = self.current - need_pages + self.start;
+        // init page
+        let page_addr = res << 12;
+        unsafe {
+            core::ptr::write_bytes(page_addr as *mut u8, 0, 4096 * need_pages);
+        }
+        Ok(res)
     }
     fn free(&mut self, page: usize, order: usize) -> BuddyResult<()> {
         let need_pages = 1 << order;
@@ -135,7 +143,13 @@ impl<const N: usize> PageAllocator for Bitmap<N> {
 impl<const N: usize> PageAllocatorExt for Bitmap<N> {
     fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize> {
         self.alloc_pages_inner(pages)?;
-        Ok(self.current - pages + self.start)
+        let res = self.current - pages + self.start;
+        // init page
+        let page_addr = res << 12;
+        unsafe {
+            core::ptr::write_bytes(page_addr as *mut u8, 0, 4096 * pages);
+        }
+        Ok(res)
     }
     fn free_pages(&mut self, page: usize, pages: usize) -> BuddyResult<()> {
         self.free_pages_inner(page - self.start, pages)?;

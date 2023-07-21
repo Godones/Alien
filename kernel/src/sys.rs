@@ -1,11 +1,11 @@
 use core::cmp::min;
 
-use syscall_define::sys::{Sysinfo, SyslogAction};
+use syscall_define::sys::{Rusage, Sysinfo, SyslogAction, TimeVal};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, TASK_MANAGER};
-use crate::timer::get_time_ms;
+use crate::timer::{get_time_ms, TimeFromFreq};
 use crate::MACHINE_INFO;
 
 const LOG_BUF_LEN: usize = 4096;
@@ -72,5 +72,62 @@ pub fn sys_info(dst_info: usize) -> isize {
     };
     task.access_inner()
         .copy_to_user(&info, dst_info as *mut Sysinfo);
+    0
+}
+
+#[syscall_func(118)]
+pub fn sched_setparam() -> isize {
+    0
+}
+
+#[syscall_func(121)]
+pub fn sched_getparam() -> isize {
+    0
+}
+
+#[syscall_func(122)]
+pub fn sched_setaffinity() -> isize {
+    0
+}
+
+#[syscall_func(123)]
+pub fn sched_getaffinity(pid: usize, size: usize, mask: usize) -> isize {
+    warn!(
+        "sched_getaffinity: pid: {}, size: {}, mask: {}",
+        pid, size, mask
+    );
+    assert_eq!(pid, 0);
+    let task = current_task().unwrap();
+    let res = task.access_inner().cpu_affinity;
+    let mask = task.access_inner().transfer_raw_ptr_mut(mask as *mut usize);
+    *mask = res;
+    8
+}
+
+#[syscall_func(120)]
+pub fn sched_getscheduler(pid: usize) -> isize {
+    assert_eq!(pid, 0);
+    // let task = current_task().unwrap();
+    0
+}
+
+#[syscall_func(119)]
+pub fn sched_setscheduler(_pid: usize, _policy: usize, _param: usize) -> isize {
+    0
+}
+
+#[syscall_func(165)]
+pub fn getrusage(who: usize, usage: usize) -> isize {
+    warn!("getrusage: who: {}, usage: {}", who, usage);
+    if who != 0 {
+        panic!("[sys_getrusage] parameter 'who' is not RUSAGE_SELF.");
+    }
+    let task = current_task().unwrap();
+    let static_info = task.access_inner().statistical_data().clone();
+    let mut task_usage = Rusage::new();
+    task_usage.ru_utime = TimeVal::from_freq(static_info.tms_utime);
+    task_usage.ru_stime = TimeVal::from_freq(static_info.tms_stime);
+    task.access_inner()
+        .copy_to_user(&task_usage, usage as *mut Rusage);
     0
 }

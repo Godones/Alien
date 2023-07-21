@@ -9,7 +9,7 @@ use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 
 use crate::fs::file::KFile;
-use crate::task::do_suspend;
+use crate::task::{current_task, do_suspend};
 
 const PIPE_BUF: usize = 4096;
 
@@ -219,6 +219,15 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
             // wait for writing
             drop(inode_inner);
             do_suspend();
+
+            // check signal
+            let task = current_task().unwrap();
+            // interrupt by signal
+            let task_inner = task.access_inner();
+            let receiver = task_inner.signal_receivers.lock();
+            if receiver.have_signal() {
+                return Err("interrupted by signal");
+            }
         } else {
             let min = core::cmp::min(available, user_buf.len() - count);
             count += buf.read(&mut user_buf[count..count + min]);

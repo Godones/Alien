@@ -108,8 +108,19 @@ const SYSCALL_NANOSLEEP: usize = 101;
 const SYSCALL_GETITIMER: usize = 102;
 const SYSCALL_SETITIMER: usize = 103;
 const SYSCALL_CLOCK_GETTIME: usize = 113;
+
+const SYSCALL_CLOCK_GETRES: usize = 114;
+const SYSCALL_CLOCK_NANOSLEEP: usize = 115;
 const SYSCALL_SYSLOG: usize = 116;
 const SYSCALL_YIELD: usize = 124;
+
+const SYSCALL_SCHED_SETPARAM: usize = 118;
+const SYSCALL_SCHED_GETPARAM: usize = 121;
+const SYSCALL_SCHED_SETAFFINITY: usize = 122;
+const SYSCALL_SCHED_GETAFFINITY: usize = 123;
+const SYSCALL_SCHED_GETSCHEDULER: usize = 120;
+const SYSCALL_SCHED_SETSCHEDULER: usize = 119;
+
 const SYSCALL_KILL: usize = 129;
 const SYSCALL_TKILL: usize = 130;
 const SYSCALL_SIGACTION: usize = 134;
@@ -156,6 +167,8 @@ const SYSCALL_EXECVE: usize = 221;
 const SYSCALL_MMAP: usize = 222;
 const SYSCALL_MPROTECT: usize = 226;
 const SYSCALL_MSYNC: usize = 227;
+
+const SYSCALL_MADVISE: usize = 233;
 const SYSCALL_WAIT4: usize = 260;
 // wait is implemented as wait4(pid, status, options, 0) in lib.
 const SYSCALL_PRLIMIT: usize = 261;
@@ -172,6 +185,15 @@ const SYSCALL_GET_TIME: usize = 1690; //you mean get time of day by 169?
 
 pub fn syscall_name(id: usize) -> &'static str {
     match id {
+        SYSCALL_MADVISE => "madvise",
+        SYSCALL_CLOCK_NANOSLEEP => "clock_nanosleep",
+        SYSCALL_CLOCK_GETRES => "clock_getres",
+        SYSCALL_SCHED_SETPARAM => "sched_setparam",
+        SYSCALL_SCHED_GETPARAM => "sched_getparam",
+        SYSCALL_SCHED_SETAFFINITY => "sched_setaffinity",
+        SYSCALL_SCHED_GETAFFINITY => "sched_getaffinity",
+        SYSCALL_SCHED_GETSCHEDULER => "sched_getscheduler",
+        SYSCALL_SCHED_SETSCHEDULER => "sched_setscheduler",
         SYSCALL_SHUTDOWN => "shutdown",
         SYSCALL_FCHMODAT => "fchmodat",
         SYSCALL_FCHMOD => "fchmod",

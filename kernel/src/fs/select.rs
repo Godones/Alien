@@ -10,7 +10,7 @@ use syscall_table::syscall_func;
 use crate::config::MAX_FD_NUM;
 use crate::fs::file::FilePollExt;
 use crate::task::{current_task, do_suspend};
-use crate::timer::TimeSpec;
+use crate::timer::{TimeFromFreq, TimeSpec};
 
 #[syscall_func(72)]
 pub fn pselect6(
@@ -47,6 +47,26 @@ pub fn pselect6(
     let nfds = min(nfds, 64);
 
     // 这里暂时不考虑 sigmask 的问题
+
+    let ori_readfds = if readfds != 0 {
+        let readfds = task.transfer_raw_ptr(readfds as *mut u64);
+        *readfds
+    } else {
+        0
+    };
+    let ori_writefds = if writefds != 0 {
+        let writefds = task.transfer_raw_ptr(writefds as *mut u64);
+        *writefds
+    } else {
+        0
+    };
+    let ori_exceptfds = if exceptfds != 0 {
+        let exceptfds = task.transfer_raw_ptr(exceptfds as *mut u64);
+        *exceptfds
+    } else {
+        0
+    };
+
     loop {
         let mut set = 0;
         // 如果设置了监视是否可读的 fd
@@ -55,17 +75,17 @@ pub fn pselect6(
             warn!(
                 "[tid:{}]pselect6: readfds = {:#b}",
                 task.get_tid(),
-                *readfds
+                ori_readfds
             );
             for i in 0..nfds {
-                if readfds.get_bit(i) {
+                if ori_readfds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
                         if fd.ready_to_read() {
                             warn!("pselect6: fd {} ready to read", i);
                             readfds.set_bit(i, true);
                             set += 1;
                         } else {
-                            // readfds.set_bit(i, false);
+                            readfds.set_bit(i, false);
                         }
                     } else {
                         return LinuxErrno::EBADF as isize;
@@ -79,17 +99,17 @@ pub fn pselect6(
             warn!(
                 "[tid:{}]pselect6: writefds = {:#b}",
                 task.get_tid(),
-                *writefds
+                ori_writefds
             );
             for i in 0..nfds {
-                if writefds.get_bit(i) {
+                if ori_writefds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
                         if fd.ready_to_write() {
                             warn!("pselect6: fd {} ready to write", i);
                             writefds.set_bit(i, true);
                             set += 1;
                         } else {
-                            // writefds.set_bit(i, false);
+                            writefds.set_bit(i, false);
                         }
                     } else {
                         return LinuxErrno::EBADF as isize;
@@ -100,15 +120,20 @@ pub fn pselect6(
         // 如果设置了监视是否异常的 fd
         if exceptfds != 0 {
             let exceptfds = task.transfer_raw_ptr(exceptfds as *mut u64);
+            warn!(
+                "[tid:{}]pselect6: exceptfds = {:#b}",
+                task.get_tid(),
+                ori_exceptfds
+            );
             for i in 0..nfds {
-                if exceptfds.get_bit(i) {
+                if ori_exceptfds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
                         if fd.in_exceptional_conditions() {
                             warn!("pselect6: fd {} in exceptional conditions", i);
                             exceptfds.set_bit(i, true);
                             set += 1;
                         } else {
-                            // exceptfds.set_bit(i, false);
+                            exceptfds.set_bit(i, false);
                         }
                     } else {
                         return LinuxErrno::EBADF as isize;
@@ -119,17 +144,28 @@ pub fn pselect6(
 
         if set > 0 {
             // 如果找到满足条件的 fd，则返回找到的 fd 数量
+            if let Some(wait_time) = wait_time {
+                let remain_time = wait_time - TimeSpec::now().to_clock();
+                let remain_time = TimeSpec::from_freq(remain_time);
+                task.access_inner()
+                    .copy_to_user(&remain_time, timeout as *mut TimeSpec);
+            }
             return set;
         }
+        // 否则暂时 block 住
+        do_suspend();
+
         if let Some(wait_time) = wait_time {
             if wait_time <= TimeSpec::now().to_clock() {
-                error!("select timeout");
+                error!(
+                    "select timeout, wait_time = {:#x}, now = {:#x}",
+                    wait_time,
+                    TimeSpec::now().to_clock()
+                );
                 return 0;
             }
         }
 
-        // 否则暂时 block 住
-        do_suspend();
         // interrupt by signal
         let task_inner = task.access_inner();
         let receiver = task_inner.signal_receivers.lock();

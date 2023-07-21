@@ -41,7 +41,7 @@ pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 // 栈大小16k
 pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 16;
 // 64KB
-pub const USER_STACK_SIZE: usize = 0x8000;
+pub const USER_STACK_SIZE: usize = 0x40000;
 
 // 进程数量/线程数量/描述符表大小限制
 pub const MAX_PROCESS_NUM: usize = 1024;
@@ -53,10 +53,8 @@ pub const MAX_INPUT_EVENT_NUM: usize = 1024;
 
 pub const MAX_SOCKET_DATA_LEN: usize = 1024 * 4;
 
-
 /// 如果 elf 的 phdr 指示 base 是 0(如 libc-test 的 libc.so)，则需要找一个非0的位置放置
 pub const ELF_BASE_RELOCATE: usize = 0x400_0000;
-
 
 pub const UTC: &[u8] = &[
     b'T', b'Z', b'i', b'f', b'2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0,

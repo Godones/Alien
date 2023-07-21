@@ -1,4 +1,3 @@
-use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
@@ -20,10 +19,11 @@ impl Parameter {
         Self { args: Vec::new() }
     }
     fn from_str(s: &str) -> Self {
-        let args = s
-            .split_whitespace()
-            .map(|arg| {
-                let mut arg = arg.to_owned();
+        let args = parse_input(s);
+        let args = args
+            .args
+            .into_iter()
+            .map(|mut arg| {
                 arg.push('\0');
                 arg
             })
@@ -39,6 +39,45 @@ impl Parameter {
         raw_points.push(0 as *const u8);
         raw_points
     }
+}
+
+#[derive(Debug)]
+struct ParsedArgs {
+    args: Vec<String>,
+}
+
+impl ParsedArgs {
+    fn new() -> Self {
+        ParsedArgs { args: Vec::new() }
+    }
+
+    fn add_arg(&mut self, arg: &str) {
+        self.args.push(arg.to_string());
+    }
+}
+
+fn parse_input(input_string: &str) -> ParsedArgs {
+    let mut parsed_args = ParsedArgs::new();
+    let mut current_arg = "".to_string();
+    let mut in_quote = false;
+
+    for c in input_string.chars() {
+        match c {
+            ' ' if !in_quote => {
+                if !current_arg.is_empty() {
+                    parsed_args.add_arg(&current_arg);
+                    current_arg = "".to_string();
+                }
+            }
+            '=' if in_quote => current_arg.push(c),
+            '"' => in_quote = !in_quote,
+            _ => current_arg.push(c),
+        }
+    }
+    if !current_arg.is_empty() {
+        parsed_args.add_arg(&current_arg);
+    }
+    parsed_args
 }
 
 #[derive(Debug)]

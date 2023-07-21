@@ -4,7 +4,7 @@
 ///
 /// 详细定义见 `https://man7.org/linux/man-pages/man2/rt_sigaction.2.html`
 /// 更准确的错误信息的内容比现在实现的要多很多，但剩下的部分根据信号不同，定义也会变得非常复杂
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct SigInfo {
     pub si_signo: i32,
