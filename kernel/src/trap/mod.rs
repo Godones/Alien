@@ -1,25 +1,26 @@
 use core::arch::{asm, global_asm};
 
 use page_table::addr::VirtAddr;
-use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
+use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 use syscall_define::signal::SignalNumber;
+use syscall_define::signal::SIGNAL_RETURN_TRAP;
 use syscall_define::time::TimerType;
 
-use crate::arch::{
-    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
-    timer_interrupt_enable,
-};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
 use crate::arch::riscv::sstatus;
+use crate::arch::{
+    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
+    timer_interrupt_enable,
+};
 use crate::config::TRAMPOLINE;
-use crate::ipc::{send_signal, signal_handler, solve_futex_wait};
+use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
-use crate::task::{current_task, current_user_token};
+use crate::task::{current_task, current_trap_frame, current_user_token};
 use crate::timer::{check_timer_queue, set_next_trigger};
 
 mod context;
@@ -110,9 +111,11 @@ impl TrapHandler for Trap {
             Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
                 trace!(
-                        "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                        self, stval, sepc
-                    );
+                    "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                    self,
+                    stval,
+                    sepc
+                );
                 let res = exception::page_exception_handler(self.clone(), stval);
                 if res.is_err() {
                     error!(
@@ -125,8 +128,18 @@ impl TrapHandler for Trap {
             }
             Trap::Exception(Exception::InstructionPageFault) => {
                 trace!(
-                        "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                        self, stval, sepc);
+                    "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                    self,
+                    stval,
+                    sepc
+                );
+                if stval == SIGNAL_RETURN_TRAP {
+                    // 当作调用了 sigreturn 一样
+                    let cx = current_trap_frame();
+                    cx.regs()[10] = signal_return() as usize;
+                    return;
+                }
+
                 let res = exception::page_exception_handler(self.clone(), stval);
                 if res.is_err() {
                     error!(

@@ -22,7 +22,7 @@ pub use control::*;
 pub use poll::*;
 pub use select::*;
 pub use stdio::*;
-use syscall_define::io::{FsStat, IoVec, UnlinkatFlags};
+use syscall_define::io::{FileStat, FsStat, IoVec, UnlinkatFlags};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
@@ -140,7 +140,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     file_mode |= FileMode::FMODE_RDWR;
     let file = vfs_open_file::<VfsProvider>(&path, flag, file_mode);
     if file.is_err() {
-        return -1;
+        return LinuxErrno::ENOENT.into();
     }
     let fd = process.add_file(KFile::new(file.unwrap()));
     warn!("openat fd: {:?}", fd);
@@ -232,17 +232,26 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
-        return -1;
+        return LinuxErrno::EBADF.into();
     }
     let file = file.unwrap();
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
+    let mut res = 0;
     buf.iter_mut().for_each(|b| {
-        let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+        let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64);
+        if r.is_err() {
+            res = LinuxErrno::EIO.into();
+            return;
+        }
+        let r = r.unwrap();
         count += r;
         offset += r;
     });
+    if res != 0 {
+        return res;
+    }
     count as isize
 }
 
@@ -356,8 +365,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let stat = stat as *mut KStat;
-    let stat = process.transfer_raw_ptr(stat);
+    // let stat = process.transfer_raw_ptr(stat);
     let attr = vfs_getattr_by_file(file.get_file());
     if attr.is_err() {
         return -1;
@@ -367,7 +375,15 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     attr.st_atime_nsec = file.access_inner().atime.tv_nsec as u64;
     attr.st_mtime_sec = file.access_inner().mtime.tv_sec as u64;
     attr.st_mtime_nsec = file.access_inner().mtime.tv_nsec as u64;
-    *stat = attr;
+
+    let mut file_stat = FileStat::default();
+    unsafe {
+        (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(attr);
+    }
+
+    process
+        .access_inner()
+        .copy_to_user(&file_stat, stat as *mut FileStat);
     0
 }
 
@@ -494,11 +510,10 @@ pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> 
     let path = path.unwrap();
     let mut buf = process.transfer_buffer(buf, size);
 
-    println!("readlink path: {}", path);
-    assert!(false, "now we can't solve link");
+    warn!("readlink path: {}", path);
     let res = vfs_readlink::<VfsProvider>(path.as_str(), buf[0]);
     if res.is_err() {
-        return -1;
+        return LinuxErrno::ENOENT.into();
     }
     let res = res.unwrap();
     res as isize
@@ -514,8 +529,6 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
         return -1;
     }
     let path = path.unwrap();
-    let stat = stat as *mut KStat;
-    let stat = process.transfer_raw_ptr(stat);
     let flag = StatFlags::from_bits(flag as u32);
     if flag.is_none() {
         return -1;
@@ -528,7 +541,15 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
         return LinuxErrno::ENOENT as isize;
     }
     let res = res.unwrap();
-    *stat = res;
+
+    let mut file_stat = FileStat::default();
+    unsafe {
+        (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(res);
+    }
+
+    process
+        .access_inner()
+        .copy_to_user(&file_stat, stat as *mut FileStat);
     0
 }
 
@@ -614,7 +635,8 @@ pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
     }
     let res = vfs_mkdir::<VfsProvider>(path.as_str(), mode);
     if res.is_err() {
-        return -1;
+        error!("mkdirat failed: {:?}", res);
+        return LinuxErrno::EEXIST.into();
     }
     0
 }

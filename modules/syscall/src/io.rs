@@ -68,6 +68,29 @@ pub struct FsStat {
     pub f_spare: [isize; 4],
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+#[repr(C)]
+pub struct FileStat {
+    pub st_dev: u64,
+    pub st_ino: u64,
+    pub st_mode: u32,
+    pub st_nlink: u32,
+    pub st_uid: u32,
+    pub st_gid: u32,
+    pub st_rdev: u64,
+    __pad: u64,
+    pub st_size: u64,
+    pub st_blksize: u32,
+    __pad2: u32,
+    pub st_blocks: u64,
+    pub st_atime_sec: u64,
+    pub st_atime_nsec: u64,
+    pub st_mtime_sec: u64,
+    pub st_mtime_nsec: u64,
+    pub st_ctime_sec: u64,
+    pub st_ctime_nsec: u64,
+    unused: u64,
+} //128
 bitflags! {
     /// ppoll 使用，表示对应在文件上等待或者发生过的事件
     pub struct PollEvents: u16 {

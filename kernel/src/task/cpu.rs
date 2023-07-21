@@ -359,15 +359,15 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
     if let Ok(resource) = PrLimitRes::try_from(resource) {
         let limit = inner.get_prlimit(resource);
         if !old_limit.is_null() {
-            let old_limit = inner.transfer_raw_ptr_mut(old_limit as *mut PrLimit);
-            *old_limit = limit
+            inner.copy_to_user(&limit, old_limit as *mut PrLimit);
         }
         match resource {
             PrLimitRes::RlimitStack => {}
             PrLimitRes::RlimitNofile => {
                 if !new_limit.is_null() {
-                    let new_limit = inner.transfer_raw_ptr(new_limit as *const PrLimit);
-                    inner.set_prlimit(resource, *new_limit);
+                    let mut limit = PrLimit::new(0, 0);
+                    inner.copy_from_user(new_limit as *const PrLimit, &mut limit);
+                    inner.set_prlimit(resource, limit);
                 }
             }
             PrLimitRes::RlimitAs => {}
@@ -379,14 +379,17 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
 fn parse_user_arg_env(args_ptr: usize, env_ptr: usize) -> (Vec<String>, Vec<String>) {
     let task = current_task().unwrap();
     let mut args = Vec::new();
-    let mut start = args_ptr as *mut usize;
-    loop {
-        let arg = task.transfer_raw_ptr(start);
-        if *arg == 0 {
-            break;
+
+    if args_ptr != 0 {
+        let mut start = args_ptr as *mut usize;
+        loop {
+            let arg = task.transfer_raw_ptr(start);
+            if *arg == 0 {
+                break;
+            }
+            args.push(*arg);
+            start = unsafe { start.add(1) };
         }
-        args.push(*arg);
-        start = unsafe { start.add(1) };
     }
     let args = args
         .into_iter()
@@ -397,14 +400,16 @@ fn parse_user_arg_env(args_ptr: usize, env_ptr: usize) -> (Vec<String>, Vec<Stri
         })
         .collect::<Vec<String>>();
     let mut envs = Vec::new();
-    let mut start = env_ptr as *mut usize;
-    loop {
-        let env = task.transfer_raw_ptr(start);
-        if *env == 0 {
-            break;
+    if env_ptr != 0 {
+        let mut start = env_ptr as *mut usize;
+        loop {
+            let env = task.transfer_raw_ptr(start);
+            if *env == 0 {
+                break;
+            }
+            envs.push(*env);
+            start = unsafe { start.add(1) };
         }
-        envs.push(*env);
-        start = unsafe { start.add(1) };
     }
     let envs = envs
         .into_iter()

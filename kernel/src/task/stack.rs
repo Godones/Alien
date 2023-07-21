@@ -1,5 +1,7 @@
-use crate::memory::{frames_alloc, FrameTracker};
 use alloc::vec::Vec;
+
+use crate::config::FRAME_BITS;
+use crate::memory::{frame_alloc_contiguous, FrameTracker};
 
 #[derive(Debug)]
 pub struct Stack {
@@ -8,11 +10,12 @@ pub struct Stack {
 
 impl Stack {
     pub fn new(pages: usize) -> Option<Stack> {
-        let frames = frames_alloc(pages);
-        match frames {
-            Some(v) => Some(Stack { frames: v }),
-            _ => None,
-        }
+        let frames = frame_alloc_contiguous(pages) as usize >> FRAME_BITS;
+        let frames = (0..pages)
+            .into_iter()
+            .map(|i| FrameTracker::new(i + frames))
+            .collect::<Vec<FrameTracker>>();
+        Some(Stack { frames })
     }
     /// get the stack top
     pub fn top(&self) -> usize {

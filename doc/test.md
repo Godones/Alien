@@ -164,6 +164,7 @@
 
 ## libctest-dyn
 
+- [x] all
 
 
 ## other
@@ -187,6 +188,12 @@
   - [ ] 
 
 - [ ] iperf
+
+- [x] cyclictest    https://zhuanlan.zhihu.com/p/336381111
+
+- [x] lmbench
+
+- [ ] libcbench
 
 
 
