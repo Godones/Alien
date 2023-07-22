@@ -154,7 +154,7 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
         }
     }
     let mask: Vec<SignalNumber> = signal_receivers.mask.into();
-    warn!("after sigprocmask: {:?}", mask);
+    trace!("after sigprocmask: {:?}", mask);
     0
 }
 

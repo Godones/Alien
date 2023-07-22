@@ -16,6 +16,8 @@ use crate::task::schedule::schedule;
 use crate::task::{current_task, do_suspend, StatisticalData, Task, TaskState, TASK_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
+const TICKS_PER_SEC_IN_KERNEL: usize = 1000;
+
 const MSEC_PER_SEC: usize = 1000;
 
 #[repr(C)]
@@ -132,6 +134,11 @@ pub fn read_timer() -> usize {
 #[inline]
 pub fn set_next_trigger() {
     crate::sbi::set_timer(read_timer() + CLOCK_FREQ / TICKS_PER_SEC);
+}
+
+#[inline]
+pub fn set_next_trigger_in_kernel() {
+    crate::sbi::set_timer(read_timer() + CLOCK_FREQ / TICKS_PER_SEC_IN_KERNEL);
 }
 
 // #[syscall_func(169)]
