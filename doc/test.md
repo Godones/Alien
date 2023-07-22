@@ -193,7 +193,7 @@
 
 - [x] lmbench
 
-- [ ] libcbench
+- [x] libc-bench
 
 
 
