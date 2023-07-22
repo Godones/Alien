@@ -393,3 +393,11 @@ http://nicephil.blinkenshell.org/my_book/ch07.html 比较细致
 - [x] 修复内核于用户程序参数传递的问题：使用`copy_to/copy_from`系列
 - [x] 在`trap`上下文保存浮点数
 - [x] 增加用户栈大小
+
+
+
+## 2023/7/22
+
+1. 添加libc-bench的支持
+
+- [ ] 

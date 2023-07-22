@@ -54,7 +54,7 @@ pub fn init_vfs() {
 
     register_filesystem(DEVFS_TYPE).unwrap();
     do_mount::<VfsProvider>("none", "/dev", "devfs", MountFlags::MNT_NO_DEV, None).unwrap();
-    do_mount::<VfsProvider>("root", "/tmp", "rootfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    // do_mount::<VfsProvider>("root", "/tmp", "rootfs", MountFlags::MNT_NO_DEV, None).unwrap();
     vfs_mknod::<VfsProvider>(
         "/dev/null",
         InodeMode::S_CHARDEV,

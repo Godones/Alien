@@ -1,9 +1,21 @@
 use bitflags::bitflags;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct IoVec {
     pub base: *mut u8,
     pub len: usize,
+}
+
+impl IoVec {
+    pub fn new(base: *mut u8, len: usize) -> Self {
+        Self { base, len }
+    }
+    pub fn empty() -> Self {
+        Self {
+            base: core::ptr::null_mut(),
+            len: 0,
+        }
+    }
 }
 
 numeric_enum_macro::numeric_enum! {
