@@ -21,7 +21,7 @@ use crate::config::TRAMPOLINE;
 use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_task, current_trap_frame, current_user_token};
-use crate::timer::{check_timer_queue, set_next_trigger};
+use crate::timer::{check_timer_queue, set_next_trigger_in_kernel};
 
 mod context;
 mod exception;
@@ -110,11 +110,11 @@ impl TrapHandler for Trap {
             }
             Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                trace!(
-                    "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                    self,
-                    stval,
-                    sepc
+                let task = current_task().unwrap();
+                let tid = task.get_tid();
+                error!(
+                    "[User][tid:{}] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                    tid, self, stval, sepc
                 );
                 let res = exception::page_exception_handler(self.clone(), stval);
                 if res.is_err() {
@@ -172,7 +172,8 @@ impl TrapHandler for Trap {
                 trace!("timer interrupt");
                 check_timer_queue();
                 solve_futex_wait();
-                set_next_trigger();
+                // set_next_trigger();
+                set_next_trigger_in_kernel();
             }
             Trap::Exception(Exception::StorePageFault) => {
                 debug!(

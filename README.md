@@ -121,6 +121,9 @@ make vf2 LOG=WARN CV1811h=y SMP=1
 - [x] busybox
 - [x] lua
 - [x] bash
+- [x] lmbench
+- [x] iozone
+- [x] cyclictest
 
 ## Project Structure
 

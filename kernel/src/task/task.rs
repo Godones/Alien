@@ -96,7 +96,7 @@ pub struct TaskInner {
     pub statistical_data: StatisticalData,
     pub timer: TaskTimer,
     pub exit_code: i32,
-    pub heap: HeapInfo,
+    pub heap: Arc<Mutex<HeapInfo>>,
     pub mmap: MMapInfo,
     /// 信号量对应的一组处理函数。
     /// 因为发送信号是通过 pid/tid 查找的，因此放在 inner 中一起调用时更容易导致死锁
@@ -265,6 +265,18 @@ pub enum TaskState {
 
 impl Task {
     pub fn terminate(self: Arc<Self>) {
+        // recycle kernel stack
+        self.kernel_stack.release();
+        //
+        if self.access_inner().thread_number != 0 {
+            let parent = self.inner.lock().parent.clone();
+            if let Some(parent) = parent {
+                let parent = parent.upgrade();
+                if let Some(parent) = parent {
+                    parent.remove_child_by_tid(self.get_tid());
+                }
+            }
+        }
         self.access_inner().state = TaskState::Terminated;
     }
 
@@ -331,10 +343,37 @@ impl Task {
         inner.children.clone()
     }
 
+    pub fn check_child(&self, pid: isize) -> Option<usize> {
+        let res = self
+            .inner
+            .lock()
+            .children
+            .iter()
+            .enumerate()
+            .find(|(_, child)| {
+                child.state() == TaskState::Terminated && (child.get_pid() == pid || pid == -1)
+            })
+            .map(|(index, _)| index);
+        res
+    }
+
     pub fn take_children(&self) -> Vec<Arc<Task>> {
         let children = self.children();
         self.access_inner().children = Vec::new();
         children
+    }
+
+    pub fn remove_child_by_tid(&self, tid: isize) -> Option<Arc<Task>> {
+        let mut inner = self.inner.lock();
+        let index = inner
+            .children
+            .iter()
+            .position(|child| child.get_tid() == tid);
+        if let Some(index) = index {
+            Some(inner.children.remove(index))
+        } else {
+            None
+        }
     }
 
     pub fn remove_child(&self, index: usize) -> Arc<Task> {
@@ -826,7 +865,7 @@ impl TaskInner {
     }
 
     pub fn heap_info(&self) -> HeapInfo {
-        self.heap.clone()
+        self.heap.lock().clone()
     }
 
     pub fn shrink_heap(_addr: usize) -> Result<usize, AlienError> {
@@ -835,13 +874,14 @@ impl TaskInner {
 
     /// extend heap
     pub fn extend_heap(&mut self, addr: usize) -> Result<usize, AlienError> {
-        self.heap.current = addr;
-        if addr < self.heap.end {
-            return Ok(self.heap.current);
+        let mut heap = self.heap.lock();
+        heap.current = addr;
+        if addr < heap.end {
+            return Ok(heap.current);
         }
-        let addition = addr - self.heap.end;
+        let addition = addr - heap.end;
         // increase heap size
-        let end = self.heap.end;
+        let end = heap.end;
         // align addition to PAGE_SIZE
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
         trace!("extend heap: {:#x} -- {:#x}", end, addition);
@@ -856,8 +896,8 @@ impl TaskInner {
             )
             .unwrap();
         let new_end = end + addition;
-        self.heap.end = new_end;
-        Ok(self.heap.current)
+        heap.end = new_end;
+        Ok(heap.current)
     }
 
     /// the len will be aligned to 4k
@@ -890,7 +930,7 @@ impl TaskInner {
         let start = align_down_4k(start);
         let v_range = if prot.contains(ProtFlags::PROT_EXEC) {
             let len = align_up_4k(len);
-            if start > self.heap.start {
+            if start > self.heap.lock().start {
                 // the mmap region is in heap
                 return Err(-1);
             }
@@ -900,7 +940,7 @@ impl TaskInner {
             start..start + len
         } else if flags.contains(MapFlags::MAP_FIXED) {
             let len = align_up_4k(len);
-            if start > self.heap.start {
+            if start > self.heap.lock().start {
                 error!("mmap fixed address conflict with heap");
                 return Err(-1);
             }
@@ -1071,7 +1111,7 @@ impl TaskInner {
     ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
         trace!("invalid page fault at {:#x}", addr);
         let is_mmap = self.mmap.get_region(addr);
-        let is_heap = self.heap.contains(addr);
+        let is_heap = self.heap.lock().contains(addr);
         if is_mmap.is_none() && !is_heap {
             error!("invalid page fault at {:#x}", addr);
             return Err(AlienError::Other);
@@ -1175,11 +1215,17 @@ impl TaskInner {
 }
 
 impl Task {
-    pub fn recycle(&self) {
+    pub fn pre_recycle(&self) {
+        // recycle trap page
+        let trap_frame_ptr = self.trap_frame_ptr() as usize;
+        self.access_inner()
+            .address_space
+            .lock()
+            .unmap_region(VirtAddr::from(trap_frame_ptr), FRAME_SIZE)
+            .unwrap();
         let mut inner = self.inner.lock();
         // delete child process
         inner.children.clear();
-        // recycle page
     }
 
     /// get the clear_child_tid
@@ -1225,7 +1271,10 @@ impl Task {
                 statistical_data: StatisticalData::new(),
                 timer: TaskTimer::default(),
                 exit_code: 0,
-                heap: HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom),
+                heap: Arc::new(Mutex::new(HeapInfo::new(
+                    elf_info.heap_bottom,
+                    elf_info.heap_bottom,
+                ))),
                 mmap: MMapInfo::new(),
                 signal_handlers: Arc::new(Mutex::new(SignalHandlers::new())),
                 signal_receivers: Arc::new(Mutex::new(SignalReceivers::new())),
@@ -1372,7 +1421,6 @@ impl Task {
             assert!(flag.contains(CloneFlags::CLONE_VM));
             // set the sp of the new process
             trap_context.regs()[2] = stack;
-            assert_eq!(trap_context.regs()[2], stack);
         }
 
         warn!("create task pid:{}, tid:{}", pid, tid.0);
@@ -1425,6 +1473,7 @@ impl Task {
         if !flag.contains(CloneFlags::CLONE_PARENT) {
             inner.children.push(task.clone());
         }
+        error!("create a task success");
         Some(task)
     }
 
@@ -1448,7 +1497,10 @@ impl Task {
         // reset the address space
         inner.address_space = Arc::new(Mutex::new(address_space));
         // reset the heap
-        inner.heap = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);
+        inner.heap = Arc::new(Mutex::new(HeapInfo::new(
+            elf_info.heap_bottom,
+            elf_info.heap_bottom,
+        )));
         // reset the mmap
         inner.mmap = MMapInfo::new();
         // set the name of the process

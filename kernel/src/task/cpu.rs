@@ -145,7 +145,14 @@ pub fn do_exit(exit_code: i32) -> isize {
         let addr = task.transfer_raw_ptr(addr as *mut i32);
         *addr = 0;
     }
-    task.recycle();
+
+    // 回收一些物理页，不然等到wait系统调用真正进行回收时，可能会出现OOM
+    // 可回收物理页包括trap页以及内核栈页
+    // 在这里还不能回收内核栈页，因为还需要用到内核栈页来执行下面的代码
+    // 所以只回收trap页
+    // 在wait系统调用中，会回收内核栈页
+    task.pre_recycle();
+
     let clear_child_tid = task.futex_wake();
     if clear_child_tid != 0 {
         let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
@@ -292,12 +299,7 @@ pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) 
         {
             return -1;
         }
-        let children = process.children();
-        let res = children.iter().enumerate().find(|(_, child)| {
-            child.state() == TaskState::Terminated && (child.get_pid() == pid || pid == -1)
-        });
-        let res = res.map(|(index, _)| index);
-        drop(children);
+        let res = process.check_child(pid);
         if let Some(index) = res {
             let child = process.remove_child(index);
             assert_eq!(

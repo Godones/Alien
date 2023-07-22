@@ -811,13 +811,14 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
-        return -1;
+        return LinuxErrno::EBADF.into();
     }
     let file = file.unwrap();
     let mut count = 0;
     for i in 0..iovcnt {
+        let mut iov = IoVec::empty();
         let ptr = unsafe { (iovec as *mut IoVec).add(i) };
-        let iov = process.transfer_raw_ptr(ptr);
+        process.access_inner().copy_from_user(ptr, &mut iov);
         let base = iov.base;
         if base as usize == 0 {
             // busybox 可能会给stdout两个io_vec，第二个是空地址
