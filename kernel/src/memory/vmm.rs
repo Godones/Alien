@@ -505,7 +505,7 @@ impl PagingIf for PageAllocator {
     fn alloc_frame() -> Option<PhysAddr> {
         frame_alloc().map(|frame| {
             let start = frame.start();
-            error!("PageAllocator alloc frame{:?} start:{:#x}", frame, start);
+            trace!("PageAllocator alloc frame{:?} start:{:#x}", frame, start);
             forget(frame);
             PhysAddr::from(start)
         })

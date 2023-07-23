@@ -315,3 +315,17 @@ pub fn signal_handler() {
         }
     }
 }
+
+#[syscall_func(133)]
+pub fn sigsuspend() -> isize {
+    loop {
+        do_suspend();
+        let task = current_task().unwrap();
+        // interrupt by signal
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            return LinuxErrno::EINTR.into();
+        }
+    }
+}

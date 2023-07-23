@@ -78,7 +78,7 @@ trace_info:
 user:
 	@cd apps && make all
 
-img:$(img) user testelf
+sdcard:$(img) user testelf
 
 run:install compile img
 	@echo qemu booot $(SMP)

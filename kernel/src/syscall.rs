@@ -17,6 +17,7 @@ pub fn register_all_syscall() {
         (208, setsockopt),
         (209, getsockopt),
         (210, shutdown),
+        (199, socket_pair),
         (2003, system_shutdown),
         (169, get_time_of_day),
         (153, times),
@@ -50,6 +51,7 @@ pub fn register_all_syscall() {
         (129, kill),
         (130, tkill),
         (139, signal_return),
+        (133, sigsuspend),
         (194, shmget),
         (196, shmat),
         (195, shmctl),
@@ -199,6 +201,7 @@ use crate::ipc::shmget;
 use crate::ipc::sigaction;
 use crate::ipc::signal_return;
 use crate::ipc::sigprocmask;
+use crate::ipc::sigsuspend;
 use crate::ipc::sigtimewait;
 use crate::ipc::sys_dup;
 use crate::ipc::sys_dup2;
@@ -221,6 +224,7 @@ use crate::net::sendto;
 use crate::net::setsockopt;
 use crate::net::shutdown;
 use crate::net::socket;
+use crate::net::socket_pair;
 use crate::sbi::system_shutdown;
 use crate::sys::getrusage;
 use crate::sys::sched_getaffinity;
