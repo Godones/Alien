@@ -1,3 +1,5 @@
+use bit_field::BitField;
+
 use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
 
 #[repr(C)]
@@ -32,6 +34,10 @@ impl TrapFrame {
             fg: [0; 2],
         }
     }
+
+    pub fn get_status(&self) -> Sstatus {
+        self.sstatus
+    }
     pub fn update_sepc(&mut self) {
         self.sepc += 4;
     }
@@ -58,6 +64,7 @@ impl TrapFrame {
         trap_handler: usize,
     ) -> Self {
         let mut sstatus = sstatus::read();
+        assert!(sstatus.0.get_bit(5)); //spie ==1
         sstatus.set_spp(SPP::User);
         let mut res = Self {
             x: [0; 32],

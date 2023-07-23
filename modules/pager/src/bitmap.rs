@@ -141,7 +141,8 @@ impl<const N: usize> PageAllocator for Bitmap<N> {
 }
 
 impl<const N: usize> PageAllocatorExt for Bitmap<N> {
-    fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize> {
+    fn alloc_pages(&mut self, pages: usize, align: usize) -> BuddyResult<usize> {
+        assert_eq!(align, 0x1000);
         self.alloc_pages_inner(pages)?;
         let res = self.current - pages + self.start;
         // init page

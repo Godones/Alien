@@ -214,7 +214,8 @@ impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
 }
 
 impl<const MAX_ORDER: usize> PageAllocatorExt for Zone<MAX_ORDER> {
-    fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize> {
+    fn alloc_pages(&mut self, pages: usize, align: usize) -> BuddyResult<usize> {
+        assert_eq!(align, 0x1000);
         let order = pages.next_power_of_two().trailing_zeros() as usize;
         self.alloc(order)
     }

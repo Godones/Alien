@@ -396,8 +396,13 @@ http://nicephil.blinkenshell.org/my_book/ch07.html 比较细致
 
 
 
-## 2023/7/22
+## 2023/7/22-7/23
 
 1. 添加libc-bench的支持
+1. 添加unixbench的支持
 
-- [ ] 
+- [x] 修复`write`系统调用返回值错误
+- [x] 添加未支持的系统调用`sigsuspend`
+- [x] 正确处理task的`timer`， 需要在发生任务切换时以及内核态和用户态切换时检查是否超时，并发送信号
+- [x] 处理时钟中断被忽略的问题 [unixbench.md](./unixbench.md)
+
