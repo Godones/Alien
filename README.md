@@ -124,6 +124,8 @@ make vf2 LOG=WARN CV1811h=y SMP=1
 - [x] lmbench
 - [x] iozone
 - [x] cyclictest
+- [x] libc-bench
+- [x] unixbench
 
 ## Project Structure
 
