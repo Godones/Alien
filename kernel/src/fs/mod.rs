@@ -267,12 +267,25 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
+    let mut res = 0;
     buf.iter_mut().for_each(|b| {
         // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
-        let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+        let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
+        if r.is_err() {
+            if r.err().unwrap().starts_with("pipe_write") {
+                res = LinuxErrno::EPIPE.into()
+            } else {
+                res = LinuxErrno::EIO.into()
+            };
+            return;
+        }
+        let r = r.unwrap();
         count += r;
         offset += r;
     });
+    if res != 0 {
+        return res;
+    }
     count as isize
 }
 

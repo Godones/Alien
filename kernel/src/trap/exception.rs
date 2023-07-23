@@ -44,7 +44,10 @@ pub fn syscall_exception_handler() {
     let result = syscall::do_syscall(parameters[0], &parameters[1..]);
 
     if result.is_none() {
-        panic!("The syscall {} is not implemented!", syscall_name);
+        panic!(
+            "The syscall [{}] {} is not implemented!",
+            parameters[0], syscall_name
+        );
     }
 
     // cx is changed during sys_exec, so we have to call it again

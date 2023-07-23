@@ -87,7 +87,7 @@ pub struct Rusage {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Ord, PartialOrd, Eq, PartialEq)]
 pub struct TimeVal {
     /// seconds
     pub tv_sec: usize,

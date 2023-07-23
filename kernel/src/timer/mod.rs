@@ -12,11 +12,10 @@ use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
-use crate::task::schedule::schedule;
-use crate::task::{current_task, do_suspend, StatisticalData, Task, TaskState, TASK_MANAGER};
+use crate::task::{current_task, do_suspend, StatisticalData, Task, TASK_MANAGER};
 
 const TICKS_PER_SEC: usize = 100;
-const TICKS_PER_SEC_IN_KERNEL: usize = 1000;
+// const TICKS_PER_SEC_IN_KERNEL: usize = 1000;
 
 const MSEC_PER_SEC: usize = 1000;
 
@@ -57,6 +56,10 @@ pub trait TimeNow {
     fn now() -> Self;
 }
 
+pub trait ToClock {
+    fn to_clock(&self) -> usize;
+}
+
 pub trait TimeFromFreq {
     fn from_freq(freq: usize) -> Self;
 }
@@ -68,6 +71,12 @@ impl TimeNow for TimeVal {
             tv_sec: time / CLOCK_FREQ,
             tv_usec: (time % CLOCK_FREQ) * 1000000 / CLOCK_FREQ,
         }
+    }
+}
+
+impl ToClock for TimeVal {
+    fn to_clock(&self) -> usize {
+        self.tv_sec * CLOCK_FREQ + self.tv_usec * CLOCK_FREQ / 1000_000
     }
 }
 
@@ -103,7 +112,7 @@ impl TimeSpec {
     }
 
     pub fn to_clock(&self) -> usize {
-        self.tv_sec * CLOCK_FREQ + self.tv_nsec * CLOCK_FREQ / 1000000000
+        self.tv_sec * CLOCK_FREQ + self.tv_nsec * CLOCK_FREQ / 1000_000_000
     }
 }
 
@@ -133,12 +142,16 @@ pub fn read_timer() -> usize {
 /// 设置下一次时钟的中断
 #[inline]
 pub fn set_next_trigger() {
-    crate::sbi::set_timer(read_timer() + CLOCK_FREQ / TICKS_PER_SEC);
+    let next = read_timer() + CLOCK_FREQ / TICKS_PER_SEC;
+    assert!(next > read_timer());
+    crate::sbi::set_timer(next);
 }
 
 #[inline]
 pub fn set_next_trigger_in_kernel() {
-    crate::sbi::set_timer(read_timer() + CLOCK_FREQ / TICKS_PER_SEC_IN_KERNEL);
+    let next = read_timer() + CLOCK_FREQ / TICKS_PER_SEC;
+    assert!(next > read_timer());
+    crate::sbi::set_timer(next);
 }
 
 // #[syscall_func(169)]
@@ -168,15 +181,25 @@ pub fn times(tms: *mut u8) -> isize {
 
 #[syscall_func(101)]
 pub fn nanosleep(req: *mut u8, _: *mut u8) -> isize {
-    let task = current_task().unwrap();
-    let req = task.transfer_raw_ptr(req as *mut TimeSpec);
-    let end_time = read_timer() + req.to_clock();
-    if read_timer() < end_time {
-        let process = current_task().unwrap();
-        process.update_state(TaskState::Sleeping);
-        push_to_timer_queue(process.clone(), end_time);
-        schedule();
+    let task = current_task().unwrap().clone();
+    let mut time = TimeSpec::new(0, 0);
+    task.access_inner()
+        .copy_from_user(req as *const TimeSpec, &mut time);
+    warn!("nanosleep: {:?}", time);
+    let end_time = read_timer() + time.to_clock();
+    loop {
+        if read_timer() >= end_time {
+            break;
+        }
+        do_suspend();
+        // interrupt by signal
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            return LinuxErrno::EINTR as isize;
+        }
     }
+
     0
 }
 
@@ -259,8 +282,8 @@ pub fn getitimer(_which: usize, current_value: usize) -> isize {
     let task = current_task().unwrap();
     let timer = &task.access_inner().timer;
     let itimer = ITimerVal {
-        it_interval: timer.timer_interval_us.into(),
-        it_value: timer.timer_remained_us.into(),
+        it_interval: timer.timer_interval.into(),
+        it_value: timer.timer_remained.into(),
     };
     task.access_inner()
         .copy_to_user(&itimer, current_value as *mut ITimerVal);
@@ -279,8 +302,8 @@ pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize 
     if old_value != 0 {
         let timer = task.access_inner().get_timer();
         let itimer = ITimerVal {
-            it_interval: timer.timer_interval_us.into(),
-            it_value: timer.timer_remained_us.into(),
+            it_interval: timer.timer_interval.into(),
+            it_value: timer.timer_remained.into(),
         };
         task.access_inner()
             .copy_to_user(&itimer, old_value as *mut ITimerVal);
@@ -289,6 +312,7 @@ pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize 
     let mut itimer = ITimerVal::default();
     task.access_inner()
         .copy_from_user(current_value as *const ITimerVal, &mut itimer);
+    error!("setitimer: itimer {:x?}", itimer);
     task.access_inner().set_timer(itimer, which);
     0
 }

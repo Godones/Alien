@@ -1,5 +1,6 @@
 use core::arch::{asm, global_asm};
 
+use bit_field::BitField;
 use page_table::addr::VirtAddr;
 use riscv::register::sstatus::SPP;
 use riscv::register::{sepc, sscratch, stval};
@@ -21,7 +22,7 @@ use crate::config::TRAMPOLINE;
 use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_task, current_trap_frame, current_user_token};
-use crate::timer::{check_timer_queue, set_next_trigger_in_kernel};
+use crate::timer::{check_timer_queue, set_next_trigger, set_next_trigger_in_kernel};
 
 mod context;
 mod exception;
@@ -41,10 +42,17 @@ extern "C" {
 /// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
+    check_timer_interrupt_pending();
     signal_handler();
-
     interrupt_disable();
     set_user_trap_entry();
+    let trap_frame = current_trap_frame();
+    let sstatues = trap_frame.get_status();
+    let enable = sstatues.0.get_bit(5);
+    let sie = sstatues.0.get_bit(1);
+    assert!(enable);
+    assert!(!sie);
+
     let trap_cx_ptr = current_task().unwrap().trap_frame_ptr();
     let user_satp = current_user_token();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
@@ -63,7 +71,7 @@ pub fn trap_return() -> ! {
 #[inline]
 fn set_user_trap_entry() {
     unsafe {
-        stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
+        stvec::write(TRAMPOLINE, TrapMode::Direct);
     }
 }
 
@@ -77,10 +85,13 @@ pub fn set_kernel_trap_entry() {
 
 /// 开启中断/异常
 pub fn init_trap_subsystem() {
+    println!("++++ setup interrupt ++++");
     set_kernel_trap_entry();
-    interrupt_enable();
     external_interrupt_enable();
     timer_interrupt_enable();
+    interrupt_enable();
+    let enable = is_interrupt_enable();
+    println!("++++ setup interrupt done, enable:{:?} ++++", enable);
 }
 
 pub trait TrapHandler {
@@ -112,7 +123,7 @@ impl TrapHandler for Trap {
             | Trap::Exception(Exception::LoadPageFault) => {
                 let task = current_task().unwrap();
                 let tid = task.get_tid();
-                error!(
+                warn!(
                     "[User][tid:{}] {:?} in application,stval:{:#x?} sepc:{:#x?}",
                     tid, self, stval, sepc
                 );
@@ -169,7 +180,6 @@ impl TrapHandler for Trap {
         let sepc = sepc::read();
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                trace!("timer interrupt");
                 check_timer_queue();
                 solve_futex_wait();
                 // set_next_trigger();
@@ -202,6 +212,20 @@ impl TrapHandler for Trap {
                 )
             }
         }
+        // check timer interrupt
+        check_timer_interrupt_pending();
+    }
+}
+
+pub fn check_timer_interrupt_pending() {
+    let sip = riscv::register::sip::read();
+    if sip.stimer() {
+        debug!("timer interrupt pending");
+        set_next_trigger();
+    }
+    let sie = riscv::register::sie::read();
+    if !sie.stimer() {
+        panic!("[check_timer_interrupt_pending] timer interrupt not enable");
     }
 }
 
@@ -228,16 +252,17 @@ pub fn user_trap_vector() {
     let cause = riscv::register::scause::read();
     let cause = cause.cause();
     cause.do_user_handle();
+    let process = current_task().unwrap();
     if cause != Trap::Interrupt(Interrupt::SupervisorTimer) {
         // update process statistics
-        let process = current_task().unwrap();
         process.access_inner().update_kernel_mode_time();
-        check_task_timer_expired();
     }
+    process.access_inner().update_timer();
+    check_task_timer_expired();
     trap_return();
 }
 
-fn check_task_timer_expired() {
+pub fn check_task_timer_expired() {
     let task = current_task().unwrap();
     let timer_expired = task.access_inner().check_timer_expired();
     let tid = task.get_tid() as usize;

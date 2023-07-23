@@ -24,7 +24,7 @@ use crate::task::context::Context;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
 use crate::task::INIT_PROCESS;
-use crate::trap::TrapFrame;
+use crate::trap::{check_task_timer_expired, TrapFrame};
 
 #[derive(Debug, Clone)]
 pub struct CPU {
@@ -173,8 +173,10 @@ pub fn exit_group(exit_code: i32) -> isize {
 
 #[syscall_func(124)]
 pub fn do_suspend() -> isize {
-    let process = current_task().unwrap();
-    process.update_state(TaskState::Ready);
+    let task = current_task().unwrap();
+    task.access_inner().update_timer();
+    check_task_timer_expired();
+    task.update_state(TaskState::Ready);
     schedule();
     0
 }
