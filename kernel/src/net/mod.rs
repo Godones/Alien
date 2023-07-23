@@ -354,6 +354,25 @@ pub fn shutdown(sockfd: usize, how: usize) -> isize {
     0
 }
 
+#[syscall_func(199)]
+pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> isize {
+    let domain = Domain::try_from(domain);
+    if domain.is_err() {
+        return LinuxErrno::EAFNOSUPPORT.into();
+    }
+    let domain = domain.unwrap();
+    let c_type = SocketType::try_from(c_type);
+    if c_type.is_err() {
+        return LinuxErrno::EBADF.into();
+    }
+    let c_type = c_type.unwrap();
+    warn!(
+        "socketpair: {:?}, {:?}, {:?}, {:?}",
+        domain, c_type, proto, sv
+    );
+    LinuxErrno::EAFNOSUPPORT.into()
+}
+
 fn common_socket_syscall(sockfd: usize) -> Result<Arc<KFile>, isize> {
     let task = current_task().unwrap();
     let socket_fd = task.get_file(sockfd);

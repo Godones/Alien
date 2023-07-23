@@ -182,6 +182,12 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             // wait for reading
             drop(inode_inner);
             do_suspend();
+            let task = current_task().unwrap();
+            let task_inner = task.access_inner();
+            let receiver = task_inner.signal_receivers.lock();
+            if receiver.have_signal() {
+                return Err("pipe_write: have signal");
+            }
         } else {
             // let min = core::cmp::min(available, user_buf.len());
             let min = core::cmp::min(available, user_buf.len() - count);

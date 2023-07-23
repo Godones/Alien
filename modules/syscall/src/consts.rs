@@ -123,6 +123,8 @@ const SYSCALL_SCHED_SETSCHEDULER: usize = 119;
 
 const SYSCALL_KILL: usize = 129;
 const SYSCALL_TKILL: usize = 130;
+const SYSCALL_SIGSUSPEND: usize = 133;
+
 const SYSCALL_SIGACTION: usize = 134;
 const SYSCALL_SIGPROCMASK: usize = 135;
 const SYSCALL_SIGTIMEDWAIT: usize = 137;
@@ -185,6 +187,7 @@ const SYSCALL_GET_TIME: usize = 1690; //you mean get time of day by 169?
 
 pub fn syscall_name(id: usize) -> &'static str {
     match id {
+        SYSCALL_SIGSUSPEND => "sigsuspend",
         SYSCALL_MADVISE => "madvise",
         SYSCALL_CLOCK_NANOSLEEP => "clock_nanosleep",
         SYSCALL_CLOCK_GETRES => "clock_getres",

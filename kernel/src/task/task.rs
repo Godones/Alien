@@ -23,6 +23,7 @@ use syscall_define::aux::{
 use syscall_define::io::MapFlags;
 use syscall_define::ipc::RobustList;
 use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
+use syscall_define::sys::TimeVal;
 use syscall_define::task::CloneFlags;
 use syscall_define::time::TimerType;
 use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
@@ -40,7 +41,7 @@ use crate::memory::{
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
-use crate::timer::{read_timer, ITimerVal};
+use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
 use crate::trap::{trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<KFile>>;
@@ -128,13 +129,13 @@ pub struct TaskTimer {
     pub timer_type: TimerType,
     /// 设置下一次触发计时器的区间
     ///
-    /// 当 timer_remained_us 归零时，如果 timer_interval_us 非零，则将其重置为 timer_interval_us 的值；
+    /// 当 timer_remained 归零时，如果 timer_interval 非零，则将其重置为 timer_interval 的值；
     /// 否则，则这个计时器不再触发
-    pub timer_interval_us: usize,
+    pub timer_interval: TimeVal,
     /// 当前计时器还剩下多少时间。
     ///
     /// 根据 timer_type 的规则不断减少，当归零时触发信号
-    pub timer_remained_us: usize,
+    pub timer_remained: usize,
 
     pub expired: bool,
 }
@@ -145,8 +146,8 @@ impl TaskTimer {
     }
     pub fn clear(&mut self) {
         self.timer_type = TimerType::NONE;
-        self.timer_interval_us = 0;
-        self.timer_remained_us = 0;
+        self.timer_interval = TimeVal::new();
+        self.timer_remained = 0;
         self.expired = false;
     }
 }
@@ -155,8 +156,8 @@ impl Default for TaskTimer {
     fn default() -> Self {
         Self {
             timer_type: TimerType::NONE,
-            timer_interval_us: 0,
-            timer_remained_us: 0,
+            timer_interval: TimeVal::new(),
+            timer_remained: 0,
             expired: false,
         }
     }
@@ -530,7 +531,7 @@ impl TaskInner {
     }
 
     pub fn load_trap_frame(&mut self) -> isize {
-        if let Some(old_trap_frame) = self.trap_cx_before_signal {
+        if let Some(old_trap_frame) = self.trap_cx_before_signal.take() {
             let trap_frame = self.trap_frame();
             // 这里假定是 sigreturn 触发的，即用户的信号处理函数 return 了(cancel_handler)
             // 也就是说信号触发时的 sp 就是现在的 sp
@@ -812,7 +813,7 @@ impl TaskInner {
     pub fn update_kernel_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_stime;
-        self.update_timer(time);
+        self.update_timer();
         self.statistical_data.tms_stime += time;
         self.statistical_data.last_utime = now;
     }
@@ -821,30 +822,34 @@ impl TaskInner {
     pub fn update_user_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_utime;
-        self.update_timer(time);
+        self.update_timer();
         self.statistical_data.tms_utime += time;
         self.statistical_data.last_stime = now;
     }
 
     pub fn set_timer(&mut self, itimer: ITimerVal, timer_type: TimerType) {
-        self.timer.timer_remained_us = itimer.it_value.into();
-        self.timer.timer_interval_us = itimer.it_interval.into();
+        self.timer.timer_remained = itimer.it_value.to_clock() + TimeVal::now().to_clock();
+        self.timer.timer_interval = itimer.it_interval;
         self.timer.timer_type = timer_type;
     }
 
-    pub fn update_timer(&mut self, delta: usize) {
-        if self.timer.timer_remained_us == 0 {
+    pub fn update_timer(&mut self) {
+        let now = read_timer();
+        if self.timer.timer_remained == 0 {
             // 等于0说明没有计时器，或者 one-shot 计时器已结束
             return;
         }
-        if self.timer.timer_remained_us > delta {
+        if self.timer.timer_remained > now {
             // 时辰未到，减少寄存器计数
-            self.timer.timer_remained_us -= delta;
             return;
         }
         // 到此说明计时器已经到时间了，更新计时器
         // 如果是 one-shot 计时器，则 timer_interval_us == 0，这样赋值也恰好是符合语义的
-        self.timer.timer_remained_us = self.timer.timer_interval_us;
+        self.timer.timer_remained = if self.timer.timer_interval == TimeVal::new() {
+            0
+        } else {
+            self.timer.timer_interval.to_clock() + now
+        };
         self.timer.expired = true;
     }
 
@@ -891,7 +896,7 @@ impl TaskInner {
                 VirtAddr::from(end),
                 addition,
                 "RWUAD".into(), // no V flag
-                true,
+                false,
                 true,
             )
             .unwrap();
@@ -1009,7 +1014,7 @@ impl TaskInner {
                 VirtAddr::from(start),
                 v_range.end - start,
                 map_flags,
-                true,
+                false,
                 true,
             )
             .unwrap();
@@ -1172,9 +1177,9 @@ impl TaskInner {
     }
     pub fn do_store_page_fault(
         &mut self,
-        addr: usize,
+        o_addr: usize,
     ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
-        let addr = align_down_4k(addr);
+        let addr = align_down_4k(o_addr);
         let (phy, flags, page_size) = self
             .address_space
             .lock()
@@ -1189,7 +1194,15 @@ impl TaskInner {
         if !flags.contains(MappingFlags::V) {
             return self.invalid_page_solver(addr);
         }
-        assert!(flags.contains(MappingFlags::RSD), "flags:{:?}", flags);
+        // if !flags.contains(MappingFlags::RSD) {
+        //     return Ok(None);
+        // }
+        assert!(
+            flags.contains(MappingFlags::RSD),
+            "addr:{:#x} flags:{:?}",
+            o_addr,
+            flags
+        );
         // decrease the reference count
         let mut flags = flags | "W".into();
         flags -= MappingFlags::RSD;
@@ -1378,6 +1391,13 @@ impl Task {
             let trap_frame = TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame);
             (trap_frame, 0)
         };
+
+        let heap = if flag.contains(CloneFlags::CLONE_VM) {
+            inner.heap.clone()
+        } else {
+            Arc::new(Mutex::new(inner.heap.lock().clone()))
+        };
+
         // 设置内核栈地址
         trap_context.update_kernel_sp(k_stack_top);
 
@@ -1442,7 +1462,7 @@ impl Task {
                 statistical_data: StatisticalData::new(),
                 timer: TaskTimer::default(),
                 exit_code: 0,
-                heap: inner.heap.clone(),
+                heap,
                 mmap: inner.mmap.clone(),
                 signal_handlers,
                 signal_receivers,
@@ -1509,7 +1529,7 @@ impl Task {
         inner.statistical_data.clear();
         // close file which contains FD_CLOEXEC flag
         // now we delete all fd
-        // inner.fd_table = ;
+        // inner.fd_table =
         // reset signal handler
         inner.signal_handlers.lock().clear();
         inner.signal_receivers.lock().clear();

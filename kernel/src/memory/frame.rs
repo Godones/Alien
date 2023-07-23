@@ -96,7 +96,7 @@ impl DerefMut for FrameTracker {
 #[no_mangle]
 pub fn alloc_frames(num: usize) -> *mut u8 {
     assert_eq!(num.count_ones(), 1);
-    let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num);
+    let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num, FRAME_SIZE);
     if start_page.is_err() {
         panic!("alloc {} frame failed", num);
     }
@@ -141,12 +141,12 @@ pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
 }
 
 pub fn frame_alloc_contiguous(count: usize) -> *mut u8 {
-    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count);
+    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count, FRAME_SIZE);
     if frame.is_err() {
         panic!("alloc {} frame failed, oom", count);
     }
     let frame = frame.unwrap();
-    error!("alloc frame {} start:{:#x}", count, frame);
+    trace!("alloc frame {} start:{:#x}", count, frame);
     for i in 0..count {
         let refs = FRAME_REF_MANAGER.lock().add_ref(frame + i);
         assert_eq!(refs, 1)
