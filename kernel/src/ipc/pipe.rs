@@ -3,15 +3,14 @@ use alloc::sync::{Arc, Weak};
 use core::intrinsics::forget;
 
 use rvfs::dentry::DirEntry;
-use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
+use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags, SeekFrom};
 use rvfs::inode::SpecialData;
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 
+use crate::config::PIPE_BUF;
 use crate::fs::file::KFile;
 use crate::task::{current_task, do_suspend};
-
-const PIPE_BUF: usize = 4096;
 
 pub struct Pipe;
 
@@ -104,6 +103,7 @@ impl Pipe {
             let mut ops = FileOps::empty();
             ops.write = pipe_write;
             ops.release = pipe_release;
+            ops.llseek = pipe_llseek;
             ops
         };
         tx_file.access_inner().f_ops_ext = {
@@ -126,6 +126,7 @@ impl Pipe {
             let mut ops = FileOps::empty();
             ops.read = pipe_read;
             ops.release = pipe_release;
+            ops.llseek = pipe_llseek;
             ops
         };
         rx_file.access_inner().f_ops_ext = {
@@ -215,7 +216,7 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
         };
         let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
         let available = buf.available_read();
-        // warn!("pipe_read: available:{}", available);
+        warn!("pipe_read: available:{}", available);
         if available == 0 {
             if !buf.is_write_wait() {
                 // if there is no process waiting for writing, we should return
@@ -242,7 +243,7 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
         }
         forget(buf); // we can't drop the buf here, because the inode still holds the pointer
     }
-    debug!("pipe_read: return count:{}", count);
+    warn!("pipe_read: return count:{}", count);
     Ok(count)
 }
 
@@ -322,4 +323,8 @@ fn pipe_read_is_hang_up(file: Arc<File>) -> bool {
 
 fn pipe_write_is_hang_up(file: Arc<File>) -> bool {
     pipe_exec(file, PipeFunc::Hangup(false))
+}
+
+fn pipe_llseek(_file: Arc<File>, _whence: SeekFrom) -> StrResult<u64> {
+    Err("ESPIPE")
 }

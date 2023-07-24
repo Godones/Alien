@@ -95,7 +95,7 @@ pub fn instruction_page_fault_exception_handler(addr: usize) -> AlienResult<()> 
     if res.is_some() {
         let (file, buf, offset) = res.unwrap();
         if file.is_some() {
-            common_read_file(file.unwrap(), buf, offset);
+            trap_common_read_file(file.unwrap(), buf, offset);
         }
     }
     Ok(())
@@ -109,7 +109,7 @@ pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     if info.is_some() {
         let (file, buf, offset) = info.unwrap();
         if file.is_some() {
-            common_read_file(file.unwrap(), buf, offset);
+            trap_common_read_file(file.unwrap(), buf, offset);
         }
     }
     Ok(())
@@ -126,13 +126,18 @@ pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     if res.is_some() {
         let (file, buf, offset) = res.unwrap();
         if file.is_some() {
-            common_read_file(file.unwrap(), buf, offset);
+            trap_common_read_file(file.unwrap(), buf, offset);
         }
     }
     Ok(())
 }
 
-fn common_read_file(file: Arc<KFile>, buf: &mut [u8], offset: u64) {
+pub fn trap_common_read_file(file: Arc<KFile>, buf: &mut [u8], offset: u64) {
+    error!(
+        "trap_common_read_file buf.len: {}, offset:{:#x}",
+        buf.len(),
+        offset
+    );
     let r = vfs_read_file::<VfsProvider>(file.get_file(), buf, offset);
     if r.is_err() {
         error!("load page fault: read file error");
