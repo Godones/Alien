@@ -78,9 +78,9 @@ trace_info:
 user:
 	@cd apps && make all
 
-sdcard:$(img) user testelf
+sdcard:$(img) testelf user
 
-run:install compile img
+run:install compile sdcard
 	@echo qemu booot $(SMP)
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
@@ -113,16 +113,16 @@ test:install compile $(img) SecondFile testelf
 	$(call boot_qemu)
 
 testelf:
-	@sudo mkdir /fat/ostest
-	@sudo cp test/* /fat/ostest -r
-	@sudo mkdir /fat/libc
+	@#sudo mkdir /fat/ostest
+	@#sudo cp test/* /fat/ostest -r
+	@#sudo mkdir /fat/libc
 	if [ -d "sdcard" ]; then \
 		sudo cp sdcard/* /fat -r; \
 		sudo cp sdcard/* /fat/bin -r;\
 	fi
-	if [ -d "tools/siglibc" ]; then \
-		sudo cp tools/siglibc/build/* /fat/libc -r; \
-	fi
+	#if [ -d "tools/siglibc" ]; then \
+#		sudo cp tools/siglibc/build/* /fat/libc -r; \
+#	fi
 	@sync
 
 dtb:
@@ -157,7 +157,6 @@ fat32:
 	@sudo cp tools/f1.txt /fat
 	@sudo mkdir /fat/folder
 	@sudo cp tools/f1.txt /fat/folder
-	@sudo mkdir /fat/bin
 	@sync
 
 
