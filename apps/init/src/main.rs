@@ -35,6 +35,7 @@ fn run_test() {
     let commands = [
         "./time-test\0",
         "./busybox_testcode.sh\0",
+        "./iozone_testcode.sh\0",
     ];
     commands.into_iter().for_each(|app| {
         let args = [app.as_ptr()];
