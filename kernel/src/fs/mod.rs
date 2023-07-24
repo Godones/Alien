@@ -19,6 +19,7 @@ use rvfs::stat::{
 use rvfs::superblock::StatFs;
 
 pub use control::*;
+use gmanager::ManagerError;
 pub use poll::*;
 pub use select::*;
 pub use stdio::*;
@@ -145,7 +146,12 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     let fd = process.add_file(KFile::new(file.unwrap()));
     warn!("openat fd: {:?}", fd);
     if fd.is_err() {
-        -1
+        let error: ManagerError = (fd.unwrap_err() as usize).into();
+        error!("[vfs] openat error: {:?}", error);
+        match error {
+            ManagerError::NoSpace => LinuxErrno::EMFILE.into(),
+            _ => LinuxErrno::ENOMEM.into(),
+        }
     } else {
         fd.unwrap() as isize
     }
@@ -239,16 +245,20 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
     let mut res = 0;
-    buf.iter_mut().for_each(|b| {
+    for b in buf.iter_mut() {
+        let pipe = file.get_file().is_pipe();
         let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64);
         if r.is_err() {
             res = LinuxErrno::EIO.into();
-            return;
+            break;
         }
         let r = r.unwrap();
         count += r;
         offset += r;
-    });
+        if pipe && r != 0 {
+            break;
+        }
+    }
     if res != 0 {
         return res;
     }
@@ -364,7 +374,10 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
     let res = vfs_llseek(file.get_file(), seek);
     warn!("sys_lseek: {:?}, res: {:?}", seek, res);
     if res.is_err() {
-        return -1;
+        if file.get_file().is_pipe() {
+            return LinuxErrno::ESPIPE.into();
+        }
+        return LinuxErrno::EINVAL.into();
     }
     res.unwrap() as isize
 }
@@ -393,7 +406,11 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     unsafe {
         (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(attr);
     }
-
+    file_stat.st_mode |= 0o755;
+    if file_stat.st_ino == 0 {
+        file_stat.st_ino = 999;
+    }
+    warn!("sys_fstat: {:?}, res: {:?}", fd, file_stat);
     process
         .access_inner()
         .copy_to_user(&file_stat, stat as *mut FileStat);

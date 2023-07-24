@@ -119,11 +119,20 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
         }
         let now = read_timer();
         if now >= target_time {
+            warn!("sigtimewait: timeout");
             break;
         }
         do_suspend();
+
+        // interrupt by signal
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            let sig = receiver.have_signal_with_number().unwrap();
+            return sig as isize;
+        }
     }
-    -1
+    LinuxErrno::EAGAIN.into()
 }
 
 #[syscall_func(135)]
