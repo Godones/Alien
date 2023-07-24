@@ -43,8 +43,8 @@ pub const USER_KERNEL_STACK_SIZE: usize = 0x2000;
 // 用户栈大小
 pub const USER_STACK_SIZE: usize = 0x50000;
 
-#[cfg(not(feature = "slab"))]
-pub const KERNEL_HEAP_SIZE: usize = 0x10_00000;// 16MB
+#[cfg(any(feature = "talloc", feature = "buddy"))]
+pub const KERNEL_HEAP_SIZE: usize = 0x10_00000; // 16MB
 
 // 进程数量/线程数量/描述符表大小限制
 pub const MAX_PROCESS_NUM: usize = 1024;
