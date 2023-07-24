@@ -19,7 +19,7 @@ VF2 ?=n
 CV1811h ?=n
 FEATURES :=
 QEMU_ARGS :=
-
+MEMORY_SIZE := 128M
 img ?=fat32
 
 
@@ -51,11 +51,11 @@ define boot_qemu
         -device virtio-blk-device,drive=x0 \
         -kernel  kernel-qemu\
         -$(QEMU_ARGS) \
-        -smp $(SMP) -m 256M \
+        -smp $(SMP) -m $(MEMORY_SIZE) \
         -serial mon:stdio
 endef
 
-all:run
+all:
 
 install:
 	@cargo install --git  https://github.com/os-module/elfinfo
