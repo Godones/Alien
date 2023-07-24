@@ -1,15 +1,17 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
+use Mstd::process::{exec, exit, fork, wait, waitpid};
 use Mstd::shutdown;
-use Mstd::process::{exec, fork, wait};
 use Mstd::thread::m_yield;
 
 #[no_mangle]
 fn main() -> isize {
     if fork() == 0 {
         // exec("/bin/shell\0", &[0 as *const u8], &[0 as *const u8]);
-        run_test("./busybox_testcode.sh\0");
+        run_test();
     } else {
         loop {
             let mut exit_code: i32 = 0;
@@ -29,7 +31,21 @@ fn main() -> isize {
 }
 
 
-fn run_test(sh: &str) {
-    let args = &[sh.as_ptr()];
-    exec(sh, args, &[0 as *const u8]);
+fn run_test() {
+    let commands = [
+        "./time-test\0",
+        "./busybox_testcode.sh\0",
+    ];
+    commands.into_iter().for_each(|app| {
+        let args = [app.as_ptr()];
+        let pid = fork();
+        if pid == 0 {
+            exec(app, &args, &[0 as *const u8]);
+            exit(0);
+        } else {
+            m_yield();
+            let mut exit_code: i32 = 0;
+            let _x = waitpid(pid as usize, &mut exit_code);
+        }
+    });
 }
