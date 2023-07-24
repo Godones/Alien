@@ -3,6 +3,7 @@ use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use alloc::{format, vec};
+use core::fmt::Debug;
 
 use bit_field::BitField;
 use lazy_static::lazy_static;
@@ -42,7 +43,7 @@ use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
@@ -420,12 +421,12 @@ impl Task {
         let file = inner.fd_table.lock().get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
-    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, ()> {
+    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, isize> {
         self.access_inner()
             .fd_table
             .lock()
             .insert(file)
-            .map_err(|_| {})
+            .map_err(|x| x as isize)
     }
     pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
         let inner = self.access_inner();
@@ -457,10 +458,59 @@ impl Task {
     }
 
     pub fn transfer_str(&self, ptr: *const u8) -> String {
+        // we need check the ptr and len before transfer indeed
+        let mut start = ptr as usize;
+        let end = start + 128; //todo! string len is unknown
+        let address_space = self.access_inner().address_space.clone();
+        while start < end {
+            let (_phy, flag, _) = address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
+            if !flag.contains(MappingFlags::V) {
+                error!("transfer_str flag: {:?}, addr:{:#x}", flag, start);
+                let res = self
+                    .access_inner()
+                    .invalid_page_solver(align_down_4k(start))
+                    .unwrap();
+                if res.is_some() {
+                    let (file, buf, offset) = res.unwrap();
+                    if file.is_some() {
+                        trap_common_read_file(file.unwrap(), buf, offset);
+                    }
+                }
+            }
+            start += FRAME_SIZE;
+        }
         self.access_inner().transfer_str(ptr)
     }
 
-    pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+    pub fn transfer_buffer<T: Debug>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+        // we need check the ptr and len before transfer indeed
+        let mut start = ptr as usize;
+        let end = start + len;
+        let address_space = self.access_inner().address_space.clone();
+        start = align_down_4k(start);
+        while start < end {
+            let (_phy, flag, _) = address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
+            if !flag.contains(MappingFlags::V) {
+                error!("transfer_buffer flag: {:?}, addr:{:#x}", flag, start);
+                let res = self
+                    .access_inner()
+                    .invalid_page_solver(align_down_4k(start))
+                    .unwrap();
+                if res.is_some() {
+                    let (file, buf, offset) = res.unwrap();
+                    if file.is_some() {
+                        trap_common_read_file(file.unwrap(), buf, offset);
+                    }
+                }
+            }
+            start += FRAME_SIZE;
+        }
         self.access_inner().transfer_buffer(ptr, len)
     }
 }
@@ -589,6 +639,7 @@ impl TaskInner {
         }
         res
     }
+
     pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
         let address_space = &self.address_space.lock();
         let mut start = ptr as usize;
@@ -758,7 +809,11 @@ impl TaskInner {
         }
     }
 
-    pub fn transfer_buffer<T>(&mut self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+    pub fn transfer_buffer<T: Debug>(
+        &mut self,
+        ptr: *const T,
+        len: usize,
+    ) -> Vec<&'static mut [T]> {
         let mut start = ptr as usize;
         let end = start + len;
         let mut v = Vec::new();
@@ -769,7 +824,7 @@ impl TaskInner {
                 .query(VirtAddr::from(start))
                 .expect(format!("transfer_buffer: {:x} failed", start).as_str());
             if !flag.contains(MappingFlags::V) {
-                self.invalid_page_solver(start).unwrap();
+                panic!("transfer_buffer: {:x} not mapped", start);
             }
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
@@ -932,7 +987,7 @@ impl TaskInner {
         // todo!
         // for dynamic link, the linker will map the elf file to the same address
         // we must satisfy this requirement
-        let start = align_down_4k(start);
+        let mut start = align_down_4k(start);
         let v_range = if prot.contains(ProtFlags::PROT_EXEC) {
             let len = align_up_4k(len);
             if start > self.heap.lock().start {
@@ -941,6 +996,9 @@ impl TaskInner {
             }
             if let Some(_region) = self.mmap.get_region(start) {
                 return Err(-1);
+            }
+            if start == 0 {
+                start = 0x1000;
             }
             start..start + len
         } else if flags.contains(MapFlags::MAP_FIXED) {
@@ -1057,7 +1115,7 @@ impl TaskInner {
             error!("start+len > region.start + region.len");
             return Err(LinuxErrno::EINVAL.into());
         }
-        region.prot = prot;
+        region.prot |= prot;
         Ok(())
     }
 
@@ -1134,6 +1192,10 @@ impl TaskInner {
             // update page table
             let mut map_flags = region.prot.into();
             map_flags |= "VAD".into();
+            error!(
+                "invalid page fault at {:#x}, flag is :{:?}",
+                addr, map_flags
+            );
             self.address_space
                 .lock()
                 .validate(VirtAddr::from(addr).align_down_4k(), map_flags)
