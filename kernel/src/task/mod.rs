@@ -1,12 +1,10 @@
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 
 use lazy_static::lazy_static;
 
 pub use cpu::*;
 pub use task::{StatisticalData, Task, TaskState};
 
-use crate::fs::vfs;
 use crate::fs::vfs::{TMP_DIR, TMP_MNT};
 use crate::task::task::FsContext;
 
@@ -19,9 +17,10 @@ mod task;
 
 lazy_static! {
     pub static ref INIT_PROCESS: Arc<Task> = {
-        let mut data = Vec::new();
-        vfs::read_all("/bin/init", &mut data);
-        let task = Task::from_elf("/bin/init", data.as_slice()).unwrap();
+        // let mut data = Vec::new();
+        // vfs::read_all("/bin/init", &mut data);
+        let data = INIT;
+        let task = Task::from_elf("/bin/init", data).unwrap();
         Arc::new(task)
     };
 }
@@ -37,3 +36,6 @@ pub fn init_process() {
     task_pool.push_back(task);
     println!("init process success");
 }
+
+
+static INIT: &[u8] = include_bytes!("../../../target/riscv64gc-unknown-none-elf/release/init");
