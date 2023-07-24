@@ -37,5 +37,4 @@ pub fn init_process() {
     println!("init process success");
 }
 
-
 static INIT: &[u8] = include_bytes!("../../../target/riscv64gc-unknown-none-elf/release/init");
