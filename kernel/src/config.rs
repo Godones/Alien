@@ -39,12 +39,14 @@ pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 
 // app内核栈大小
-pub const USER_KERNEL_STACK_SIZE: usize = 0x2000;
+pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 4;
 // 用户栈大小
 pub const USER_STACK_SIZE: usize = 0x50000;
 
 #[cfg(any(feature = "talloc", feature = "buddy"))]
 pub const KERNEL_HEAP_SIZE: usize = 0x10_00000; // 16MB
+
+pub const PIPE_BUF: usize = 4096;
 
 // 进程数量/线程数量/描述符表大小限制
 pub const MAX_PROCESS_NUM: usize = 1024;

@@ -4,7 +4,7 @@
 extern crate alloc;
 
 use Mstd::process::{exec, exit, fork, wait, waitpid};
-use Mstd::shutdown;
+use Mstd::system_shutdown;
 use Mstd::thread::m_yield;
 
 #[no_mangle]
@@ -24,7 +24,7 @@ fn main() -> isize {
             //     "[Init] Released a task, tid={}, exit_code={}",
             //     tid, exit_code,
             // );
-            shutdown();
+            system_shutdown();
         }
     }
     0
@@ -34,8 +34,10 @@ fn run_test() {
     let commands = [
         "./time-test\0",
         "./busybox_testcode.sh\0",
-        "./lua_testcode.sh\0",
         "./iozone_testcode.sh\0",
+        "./lua_testcode.sh\0",
+        "./libctest_testcode.sh\0",
+        "./cyclictest_testcode.sh\0",
     ];
     commands.into_iter().for_each(|app| {
         let args = [app.as_ptr()];
