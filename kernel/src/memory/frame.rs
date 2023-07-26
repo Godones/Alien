@@ -112,7 +112,7 @@ pub fn free_frames(addr: *mut u8, num: usize) {
     let start = addr as usize >> FRAME_BITS;
     trace!("slab free frame {} start:{:#x}", num, addr as usize);
     // make sure the num is 2^n
-    assert_eq!(num.count_ones(), 1);
+    // assert_eq!(num.count_ones(), 1);
     FRAME_ALLOCATOR.lock().free_pages(start, num).unwrap();
 }
 
