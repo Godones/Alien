@@ -55,8 +55,8 @@ pub fn syscall_exception_handler() {
 
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         warn!(
-            "[pid:{}, tid: {}] syscall: [{}] result: {:?}",
-            pid, tid, syscall_name, result
+            "[pid:{}, tid: {}] syscall: [{}] result: {:?}, tp: {:#x}",
+            pid, tid, syscall_name, result,cx.regs()[4]
         );
     }
 

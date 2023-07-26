@@ -5,16 +5,16 @@ use core::cmp::Ordering;
 use lazy_static::lazy_static;
 
 use kernel_sync::Mutex;
+use syscall_define::LinuxErrno;
 use syscall_define::sys::TimeVal;
 use syscall_define::time::{ClockId, TimerType};
-use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
 use crate::task::{current_task, do_suspend, StatisticalData, Task, TASK_MANAGER};
 
-const TICKS_PER_SEC: usize = 100;
+const TICKS_PER_SEC: usize = 1000;
 // const TICKS_PER_SEC_IN_KERNEL: usize = 1000;
 
 const MSEC_PER_SEC: usize = 1000;

@@ -95,7 +95,7 @@ impl DerefMut for FrameTracker {
 /// 这些页面需要保持连续
 #[no_mangle]
 pub fn alloc_frames(num: usize) -> *mut u8 {
-    assert_eq!(num.count_ones(), 1);
+    // assert_eq!(num.count_ones(), 1);
     let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num, FRAME_SIZE);
     if start_page.is_err() {
         panic!("alloc {} frame failed", num);

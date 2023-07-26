@@ -161,7 +161,7 @@ impl Pipe {
 }
 
 fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize> {
-    debug!("pipe_write: {:?}, mode:{:?}", user_buf.len(), file.f_mode);
+    warn!("pipe_write: {:?}, mode:{:?}", user_buf.len(), file.f_mode);
     let inode = file.f_dentry.access_inner().d_inode.clone();
     let mut count = 0;
     loop {
@@ -172,6 +172,9 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             SpecialData::PipeData(ptr) => *ptr,
             _ => panic!("pipe_write: invalid special data"),
         };
+        if ptr.is_null() {
+            panic!("pipe_write: ptr is null");
+        }
         let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
         let available = buf.available_write();
         if available == 0 {
@@ -187,18 +190,19 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             let task_inner = task.access_inner();
             let receiver = task_inner.signal_receivers.lock();
             if receiver.have_signal() {
+                error!("pipe_write: have signal");
                 return Err("pipe_write: have signal");
             }
         } else {
-            // let min = core::cmp::min(available, user_buf.len());
             let min = core::cmp::min(available, user_buf.len() - count);
+            error!("pipe_write: min:{}, count:{}", min,count);
             count += buf.write(&user_buf[count..count + min]);
             forget(buf);
             break;
         }
         forget(buf); // we can't drop the buf here, because the inode still holds the pointer
     }
-    debug!("pipe_write: count:{}", count);
+    warn!("pipe_write: count:{}", count);
     Ok(count)
 }
 
@@ -226,7 +230,7 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
             // wait for writing
             drop(inode_inner);
             do_suspend();
-
+            error!("pipe_read: suspend");
             // check signal
             let task = current_task().unwrap();
             // interrupt by signal
@@ -248,7 +252,7 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
 }
 
 fn pipe_release(file: Arc<File>) -> StrResult<()> {
-    debug!("pipe_release: file");
+    warn!("pipe_release: file");
     assert_eq!(Arc::strong_count(&file), 1);
     let inode = &file.f_dentry.access_inner().d_inode;
     assert!(inode.access_inner().special_data.is_some());
@@ -267,6 +271,7 @@ fn pipe_release(file: Arc<File>) -> StrResult<()> {
     } else {
         forget(buf)
     }
+    warn!("pipe_release: return");
     Ok(())
 }
 
