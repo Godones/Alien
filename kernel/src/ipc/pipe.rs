@@ -191,6 +191,7 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             let receiver = task_inner.signal_receivers.lock();
             if receiver.have_signal() {
                 error!("pipe_write: have signal");
+                forget(buf);
                 return Err("pipe_write: have signal");
             }
         } else {
@@ -237,6 +238,7 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
             let task_inner = task.access_inner();
             let receiver = task_inner.signal_receivers.lock();
             if receiver.have_signal() {
+                forget(buf);
                 return Err("interrupted by signal");
             }
         } else {
@@ -264,6 +266,7 @@ fn pipe_release(file: Arc<File>) -> StrResult<()> {
     };
     let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
     buf.ref_count -= 1;
+    warn!("buf.refcount :{}",buf.ref_count);
     if buf.ref_count == 0 {
         // the last pipe file is closed, we should free the buffer
         debug!("pipe_release: free buffer");
