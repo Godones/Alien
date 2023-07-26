@@ -46,7 +46,6 @@ define boot_qemu
 	qemu-system-riscv64 \
         -M virt $(1)\
         -bios $(BOOTLOADER) \
-        -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \
         -device virtio-blk-device,drive=x0 \
         -kernel  kernel-qemu\

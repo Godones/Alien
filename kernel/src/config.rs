@@ -15,7 +15,7 @@ pub const CLOCK_FREQ: usize = 0x17d7840;
 
 pub const FRAME_SIZE: usize = 0x1000;
 pub const FRAME_BITS: usize = 12;
-pub const STACK_SIZE: usize = 1024 * 64;
+pub const STACK_SIZE: usize = 1024 * 8;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
@@ -41,10 +41,10 @@ pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 // app内核栈大小
 pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 4;
 // 用户栈大小
-pub const USER_STACK_SIZE: usize = 0x50000;
+pub const USER_STACK_SIZE: usize = 0x50_000;
 
 #[cfg(any(feature = "talloc", feature = "buddy"))]
-pub const KERNEL_HEAP_SIZE: usize = 0x10_00000; // 16MB
+pub const KERNEL_HEAP_SIZE: usize = 0x26_00000; // 16MB
 
 pub const PIPE_BUF: usize = 4096;
 

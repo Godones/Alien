@@ -8,6 +8,9 @@ use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use basemachine::machine_info_from_dtb;
+use kernel::{
+    config, driver, init_machine_info, println, syscall, task, thread_local_init, timer, trap,
+};
 use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
@@ -15,9 +18,6 @@ use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
 use kernel::trap::set_kernel_trap_entry;
-use kernel::{
-    config, driver, init_machine_info, println, syscall, task, thread_local_init, timer, trap,
-};
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
@@ -45,7 +45,7 @@ extern "C" fn _start() {
         asm!("\
         mv tp, a0
         add t0, a0, 1
-        slli t0, t0, 16
+        slli t0, t0, 13
         la sp, {boot_stack}
         add sp, sp, t0
         call main
