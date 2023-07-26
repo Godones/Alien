@@ -80,7 +80,7 @@ pub fn init_vfs() {
 
 fn prepare_var() {
     vfs_mkdir::<VfsProvider>("/var", FileMode::FMODE_RDWR).unwrap();
-    do_mount::<VfsProvider>("none", "/var", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    // do_mount::<VfsProvider>("none", "/var", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
     vfs_mkdir::<VfsProvider>("/var/log", FileMode::FMODE_RDWR).unwrap();
     vfs_mkdir::<VfsProvider>("/var/tmp", FileMode::FMODE_RDWR).unwrap();
 }
@@ -186,7 +186,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
         .file_size;
     let mut offset = 0;
     while offset < size {
-        let mut tmp = vec![0; 512 as usize];
+        let mut tmp = vec![0; 512usize];
         let res = vfs_read_file::<VfsProvider>(file.clone(), &mut tmp, offset as u64).unwrap();
         offset += res;
         buf.extend_from_slice(&tmp);

@@ -1,9 +1,10 @@
+use alloc::{format, vec};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
-use alloc::{format, vec};
 use core::fmt::Debug;
+use core::ops::Range;
 
 use bit_field::BitField;
 use lazy_static::lazy_static;
@@ -11,12 +12,13 @@ use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
-use rvfs::file::File;
+use rvfs::file::{File, vfs_close_file};
 use rvfs::info::ProcessFsInfo;
 use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
 use kernel_sync::{Mutex, MutexGuard};
+use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 use syscall_define::aux::{
     AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
@@ -27,23 +29,23 @@ use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, Sign
 use syscall_define::sys::TimeVal;
 use syscall_define::task::CloneFlags;
 use syscall_define::time::TimerType;
-use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 
 use crate::config::{CPU_NUM, FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
-use crate::fs::file::KFile;
 use crate::fs::{STDIN, STDOUT};
+use crate::fs::file::KFile;
+use crate::fs::vfs::VfsProvider;
 use crate::ipc::{global_register_signals, ShmInfo};
 use crate::memory::{
-    build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
-    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
+    build_cow_address_space, build_elf_address_space, build_thread_address_space, FRAME_REF_MANAGER,
+    kernel_satp, MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack,
 };
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
-use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
-use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
+use crate::timer::{ITimerVal, read_timer, TimeNow, ToClock};
+use crate::trap::{trap_common_read_file, trap_return, TrapFrame, user_trap_vector};
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
@@ -122,6 +124,7 @@ pub struct TaskInner {
     pub cpu_affinity: usize,
     /// process's file mode creation mask
     pub unmask: usize,
+    pub stack: Range<usize>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -269,15 +272,20 @@ impl Task {
     pub fn terminate(self: Arc<Self>) {
         // recycle kernel stack
         self.kernel_stack.release();
-        //
         if self.access_inner().thread_number != 0 {
             let parent = self.inner.lock().parent.clone();
             if let Some(parent) = parent {
                 let parent = parent.upgrade();
                 if let Some(parent) = parent {
                     parent.remove_child_by_tid(self.get_tid());
+                    assert_eq!(Arc::strong_count(&self), 1);
                 }
             }
+        } else {
+            // if it is a thread, we should not remove it from parent's children
+            // if self.access_inner().children.len() == 0 {
+            //     self.access_inner().address_space.lock().release();
+            // }
         }
         self.access_inner().state = TaskState::Terminated;
     }
@@ -1175,7 +1183,10 @@ impl TaskInner {
         trace!("invalid page fault at {:#x}", addr);
         let is_mmap = self.mmap.get_region(addr);
         let is_heap = self.heap.lock().contains(addr);
-        if is_mmap.is_none() && !is_heap {
+
+        let is_stack = self.stack.contains(&addr);
+
+        if is_mmap.is_none() && !is_heap && !is_stack {
             error!("invalid page fault at {:#x}", addr);
             return Err(AlienError::Other);
         }
@@ -1186,7 +1197,7 @@ impl TaskInner {
                 .lock()
                 .validate(VirtAddr::from(addr), map_flags)
                 .unwrap();
-        } else {
+        } else if is_mmap.is_some() {
             let region = is_mmap.unwrap();
             // assert_eq!(addr % FRAME_SIZE, 0);
             // update page table
@@ -1211,6 +1222,13 @@ impl TaskInner {
             let file = &region.fd;
             let read_offset = region.offset + (addr - region.start);
             return Ok(Some((file.clone(), buf, read_offset as u64)));
+        } else {
+            error!("invalid page fault in stack");
+            let map_flags = "RWUVAD".into();
+            self.address_space
+                .lock()
+                .validate(VirtAddr::from(addr), map_flags)
+                .unwrap();
         }
         Ok(None)
     }
@@ -1301,6 +1319,20 @@ impl Task {
         let mut inner = self.inner.lock();
         // delete child process
         inner.children.clear();
+        let thread_number = inner.thread_number;
+        if thread_number == 0 {
+            let fd = inner.fd_table.lock().clear();
+            drop(inner);
+            fd.into_iter().for_each(|f| {
+                let real_file = f.get_file();
+                drop(f);
+                error!("close file ,ref count:{:#x}",Arc::strong_count(&real_file));
+                if real_file.is_pipe() {
+                    let res = vfs_close_file::<VfsProvider>(real_file);
+                    warn!("close pipe {:?}",res);
+                }
+            })
+        }
     }
 
     /// get the clear_child_tid
@@ -1322,6 +1354,7 @@ impl Task {
         let address_space = elf_info.address_space;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
+        let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let process = Task {
             tid,
             kernel_stack: k_stack,
@@ -1365,6 +1398,7 @@ impl Task {
                     affinity
                 },
                 unmask: 0o666,
+                stack: stack_info,
             }),
             send_sigchld_when_exit: false,
         };
@@ -1548,6 +1582,7 @@ impl Task {
                     affinity
                 },
                 unmask: 0o666,
+                stack: inner.stack.clone(),
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
@@ -1596,7 +1631,7 @@ impl Task {
         inner.signal_handlers.lock().clear();
         inner.signal_receivers.lock().clear();
         inner.timer.clear();
-
+        inner.stack = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let env = if env.is_empty() {
             let envp = vec![
                 "LD_LIBRARY_PATH=/",
@@ -1604,9 +1639,9 @@ impl Task {
                 "PATH=/bin:/usr/bin",
                 "UB_BINDIR=./",
             ]
-            .iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>();
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
             envp
         } else {
             env

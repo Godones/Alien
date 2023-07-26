@@ -4,14 +4,13 @@
 extern crate alloc;
 
 use Mstd::process::{exec, exit, fork, wait, waitpid};
-use Mstd::system_shutdown;
 use Mstd::thread::m_yield;
 
 #[no_mangle]
 fn main() -> isize {
     if fork() == 0 {
-        // exec("/bin/shell\0", &[0 as *const u8], &[0 as *const u8]);
-        run_test();
+        exec("/bin/shell\0", &[0 as *const u8], &[0 as *const u8]);
+        // run_test();
     } else {
         loop {
             let mut exit_code: i32 = 0;
@@ -24,20 +23,17 @@ fn main() -> isize {
             //     "[Init] Released a task, tid={}, exit_code={}",
             //     tid, exit_code,
             // );
-            system_shutdown();
         }
     }
     0
+    // run_test();
+    // system_shutdown();
 }
 
 const ENV: &[*const u8] = &[
     "SHELL=/bash\0".as_ptr(),
-    "PWD=/\0".as_ptr(),
     "LOGNAME=root\0".as_ptr(),
-    "MOTD_SHOWN=pam\0".as_ptr(),
     "HOME=/root\0".as_ptr(),
-    "LANG=C.UTF-8\0".as_ptr(),
-    "TERM=vt220\0".as_ptr(),
     "USER=root\0".as_ptr(),
     "SHLVL=0\0".as_ptr(),
     "OLDPWD=/root\0".as_ptr(),
@@ -51,9 +47,12 @@ const ENV: &[*const u8] = &[
 fn run_test() {
     let commands = [
         "./time-test\0",
-        "./busybox_testcode.sh\0",
+        "./libc-bench\0",
+        "./lmbench_testcode.sh\0",
+        "./unixbench_testcode.sh\0",
         "./lua_testcode.sh\0",
         "./libctest_testcode.sh\0",
+        "./busybox_testcode.sh\0",
         "./cyclictest_testcode.sh\0",
         "./iozone_testcode.sh\0",
     ];

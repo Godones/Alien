@@ -38,3 +38,5 @@ pub fn init_process() {
 }
 
 static INIT: &[u8] = include_bytes!("../../../target/riscv64gc-unknown-none-elf/release/init");
+
+static LIBC_BENCH2: &[u8] = include_bytes!("../../../sdcard/libc-bench2");

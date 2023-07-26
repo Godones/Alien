@@ -4,11 +4,11 @@ use alloc::vec::Vec;
 use core::mem::size_of;
 
 use kernel_sync::Mutex;
-use syscall_define::signal::{
-    SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
-    SignalReceivers, SignalUserContext, SimpleBitSet,
-};
 use syscall_define::LinuxErrno;
+use syscall_define::signal::{
+    SigAction, SigActionDefault, SigActionFlags, SigInfo, SignalNumber, SignalReceivers,
+    SignalUserContext, SigProcMaskHow, SimpleBitSet,
+};
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, do_exit, do_suspend};
@@ -144,9 +144,10 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
         let set_mut = task_inner.transfer_raw_ptr_mut(oldset as *mut usize);
         *set_mut = signal_receivers.mask.bits();
     }
+    let how = SigProcMaskHow::from(how);
+    warn!("sigprocmask: how: {:?}, set: {:x}", how, set);
     if set != 0 {
         let set = task_inner.transfer_raw_ptr(set as *const usize);
-        let how = SigProcMaskHow::from(how);
         match how {
             SigProcMaskHow::SigBlock => {
                 signal_receivers.mask += SimpleBitSet::from(*set);

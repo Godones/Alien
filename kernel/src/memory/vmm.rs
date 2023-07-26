@@ -20,9 +20,9 @@ use crate::config::{
 };
 use crate::fs::vfs;
 use crate::ipc::ShmInfo;
+use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::memory::elf::{ELFError, ELFInfo, ELFReader};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
-use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::trap::TrapFrame;
 
 lazy_static! {
@@ -276,7 +276,7 @@ pub fn build_cow_address_space(
             if flag.contains(MappingFlags::W) {
                 flags -= MappingFlags::W;
                 flags |= MappingFlags::RSD; // we use the RSD flag to indicate that this page is a cow page
-                                            // update parent's flag and clear dirty
+                // update parent's flag and clear dirty
                 p_table.modify_pte_flags(v_addr, flags, false).unwrap();
             }
             address_space.map(v_addr, phy, page_size, flags).unwrap();
@@ -422,10 +422,13 @@ pub fn build_elf_address_space(
         .map_region_no_target(
             VirtAddr::from(top - USER_STACK_SIZE),
             USER_STACK_SIZE,
-            "RWUVAD".into(),
-            true,
+            "RWUAD".into(),
             false,
+            true,
         )
+        .unwrap();
+    address_space
+        .validate(VirtAddr::from(top - FRAME_SIZE), "RWUVAD".into())
         .unwrap();
     let heap_bottom = top;
     // align to 4k
@@ -471,7 +474,7 @@ pub fn build_elf_address_space(
         warn!("elf: no phdr found, tls might not work");
         Err(ELFError::NoEntrySegment)
     }
-    .unwrap_or(0);
+        .unwrap_or(0);
     warn!(
         "entry: {:#x}, phdr:{:#x}",
         elf.header.pt2.entry_point() + bias as u64,
