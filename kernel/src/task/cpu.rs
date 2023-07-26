@@ -283,7 +283,7 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
         args.insert(0, "sh\0".to_string());
     }
     let mut data = Vec::new();
-    if path_str.contains("libc-bench") {
+    if path_str.contains("libc-bench2") {
         let res = task.exec(&path_str, LIBC_BENCH2, args, envs);
         if res.is_err() {
             return res.err().unwrap();

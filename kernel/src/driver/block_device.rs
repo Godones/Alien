@@ -67,7 +67,7 @@ impl Device for QemuBlockDevice {
                 for i in start_block..end_block {
                     let target_buf =
                         &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
-                    device.read_blocks(i, target_buf).unwrap();
+                    device.read_block(i, target_buf).unwrap();
                 }
                 let old_cache = cache_lock.push(page_id, cache);
                 if let Some((id, old_cache)) = old_cache {
@@ -76,7 +76,7 @@ impl Device for QemuBlockDevice {
                     for i in start_block..end_block {
                         let target_buf =
                             &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
-                        device.write_blocks(i, target_buf).unwrap();
+                        device.write_block(i, target_buf).unwrap();
                         self.dirty.lock().retain(|&x| x != id);
                     }
                 }
@@ -106,7 +106,7 @@ impl Device for QemuBlockDevice {
                 for i in start_block..end_block {
                     let target_buf =
                         &mut cache[(i - start_block) * 512..(i - start_block + 1) * 512];
-                    device.read_blocks(i, target_buf).unwrap();
+                    device.read_block(i, target_buf).unwrap();
                 }
                 let old_cache = cache_lock.push(page_id, cache);
                 if let Some((id, old_cache)) = old_cache {
@@ -115,7 +115,7 @@ impl Device for QemuBlockDevice {
                     for i in start_block..end_block {
                         let target_buf =
                             &old_cache[(i - start_block) * 512..(i - start_block + 1) * 512];
-                        device.write_blocks(i, target_buf).unwrap();
+                        device.write_block(i, target_buf).unwrap();
                         self.dirty.lock().retain(|&x| x != id);
                     }
                 }
