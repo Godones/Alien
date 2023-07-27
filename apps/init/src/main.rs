@@ -49,12 +49,12 @@ fn run_test() {
         "./time-test\0",
         "./libctest_testcode.sh\0",
         "./libc-bench2\0",
-        "./lmbench_testcode.sh\0",
-        "./unixbench_testcode.sh\0",
         "./lua_testcode.sh\0",
         "./busybox_testcode.sh\0",
         "./cyclictest_testcode.sh\0",
         "./iozone_testcode.sh\0",
+        "./unixbench_testcode.sh\0",
+        "./lmbench_testcode.sh\0",
     ];
     commands.into_iter().for_each(|app| {
         let args = [app.as_ptr()];
