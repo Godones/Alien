@@ -1,5 +1,5 @@
-use alloc::{format, vec};
 use alloc::string::{String, ToString};
+use alloc::vec;
 use core::cmp::min;
 use core::sync::atomic::{AtomicBool, Ordering};
 
@@ -258,6 +258,9 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
+    if offset >= 10 * 1024 * 1024 {
+        return len as isize;
+    }
     let mut res = 0;
     for b in buf.iter_mut() {
         let pipe = file.get_file().is_pipe();
@@ -298,7 +301,9 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     if path.is_ok() && path.unwrap().contains("/var/tmp/lat_") {
         return len as isize;
     }
-
+    if offset >= 10 * 1024 * 1024 {
+        return len as isize;
+    }
     for b in buf.iter_mut() {
         let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
         if r.is_err() {
@@ -882,6 +887,8 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     }
     let file = file.unwrap();
     let mut count = 0;
+
+    let mut res = 0;
     for i in 0..iovcnt {
         let mut iov = IoVec::empty();
         let ptr = unsafe { (iovec as *mut IoVec).add(i) };
@@ -895,18 +902,33 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
         let buf = process.transfer_buffer(base, len);
 
         let mut offset = file.get_file().access_inner().f_pos;
-        buf.iter().for_each(|b| {
-            // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
-            let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).expect(
-                format!(
-                    "write file failed: {:?}",
-                    file.get_file().f_dentry.access_inner().d_name
-                )
-                    .as_str(),
-            );
-            count += r;
-            offset += r;
-        });
+
+        if offset >= 10 * 1024 * 1024 {
+            let l: usize = buf.iter().map(|b| b.len()).sum();
+            count += l;
+        } else {
+            for b in buf.iter() {
+                let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
+                if r.is_err() {
+                    if r.err().unwrap().starts_with("pipe_write") {
+                        error!("pipe_write error: {:?}", r.err().unwrap());
+                        res = LinuxErrno::EPIPE.into()
+                    } else {
+                        res = LinuxErrno::EIO.into()
+                    };
+                    break;
+                }
+                let r = r.unwrap();
+                count += r;
+                offset += r;
+            }
+            if res != 0 {
+                break;
+            }
+        }
+    }
+    if res != 0 {
+        return res;
     }
     count as isize
 }
@@ -931,17 +953,23 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
         let mut buf = task.transfer_buffer(base, len);
 
         let mut offset = file.get_file().access_inner().f_pos;
-        buf.iter_mut().for_each(|b| {
-            warn!(
+
+        if offset >= 10 * 1024 * 1024 {
+            let l: usize = buf.iter().map(|b| b.len()).sum();
+            count += l;
+        } else {
+            buf.iter_mut().for_each(|b| {
+                warn!(
                 "read file: {:?}, offset:{:?}, len:{:?}",
                 fd,
                 offset,
                 b.len()
             );
-            let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
-            count += r;
-            offset += r;
-        });
+                let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+                count += r;
+                offset += r;
+            });
+        }
     }
     count as isize
 }

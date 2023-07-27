@@ -14,6 +14,7 @@ use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, vfs_close_file};
 use rvfs::info::ProcessFsInfo;
+use rvfs::link::vfs_unlink;
 use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
@@ -1335,9 +1336,16 @@ impl Task {
             drop(inner);
             fd.into_iter().for_each(|f| {
                 let real_file = f.get_file();
-                drop(f);
+                if f.is_unlink() {
+                    let path = f.unlink_path().unwrap();
+                    drop(f);
+                    warn!("unlink path :{}", path);
+                    let _ = vfs_unlink::<VfsProvider>(&path);
+                    return;
+                }
                 error!("close file ,ref count:{:#x}",Arc::strong_count(&real_file));
                 if real_file.is_pipe() {
+                    drop(f);
                     let res = vfs_close_file::<VfsProvider>(real_file);
                     warn!("close pipe {:?}",res);
                 }
