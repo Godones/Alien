@@ -1,11 +1,13 @@
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, PartialOrd, PartialEq)]
 pub enum AlienError {
     NoSpace,
     Other,
     InvalidSyscall(usize),
+    ThreadNeedWait,
+    ThreadNeedExit,
 }
 
 pub type AlienResult<T> = Result<T, AlienError>;
@@ -16,6 +18,8 @@ impl Display for AlienError {
             AlienError::NoSpace => write!(f, "No space"),
             AlienError::Other => write!(f, "Other error"),
             AlienError::InvalidSyscall(num) => write!(f, "Invalid syscall number: {}", num),
+            AlienError::ThreadNeedWait => write!(f, "ThreadNeedWait"),
+            AlienError::ThreadNeedExit => write!(f, "ThreadNeedExit")
         }
     }
 }
