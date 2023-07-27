@@ -125,6 +125,7 @@ pub struct TaskInner {
     /// process's file mode creation mask
     pub unmask: usize,
     pub stack: Range<usize>,
+    pub need_wait: u8,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -595,7 +596,7 @@ impl TaskInner {
             // 也就是说信号触发时的 sp 就是现在的 sp
             let sp = trap_frame.regs()[2];
             // 获取可能被修改的 pc
-            let phy_sp = self.transfer_raw(sp as usize);
+            let phy_sp = self.transfer_raw(sp);
 
             let pc = unsafe { (*(phy_sp as *const SignalUserContext)).get_pc() };
             *trap_frame = old_trap_frame;
@@ -1264,7 +1265,16 @@ impl TaskInner {
             .address_space
             .lock()
             .query(VirtAddr::from(addr))
-            .expect(format!("addr:{:#x}", addr).as_str());
+            .map_err(|_x| {
+                if self.need_wait < 5 {
+                    self.need_wait += 1;
+                    AlienError::ThreadNeedWait
+                } else {
+                    error!("do_store_page_fault panic :{}", o_addr);
+                    AlienError::ThreadNeedExit
+                }
+            })?;
+        // .expect(format!("addr:{:#x}", addr).as_str());
         trace!(
             "do store page fault:{:#x}, flags:{:?}, page_size:{:?}",
             addr,
@@ -1399,6 +1409,7 @@ impl Task {
                 },
                 unmask: 0o666,
                 stack: stack_info,
+                need_wait: 0,
             }),
             send_sigchld_when_exit: false,
         };
@@ -1583,6 +1594,7 @@ impl Task {
                 },
                 unmask: 0o666,
                 stack: inner.stack.clone(),
+                need_wait: 0,
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
