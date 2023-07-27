@@ -137,7 +137,7 @@ pub fn futex(
             // checkout the timeout flag
             let timeout_flag = timeout_flag.lock();
             if *timeout_flag {
-                return -1;
+                return 0;
             }
         }
         FutexOp::FutexCmpRequeuePiPrivate => {

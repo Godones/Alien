@@ -196,7 +196,7 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             }
         } else {
             let min = core::cmp::min(available, user_buf.len() - count);
-            error!("pipe_write: min:{}, count:{}", min,count);
+            error!("pipe_write: min:{}, count:{}", min, count);
             count += buf.write(&user_buf[count..count + min]);
             forget(buf);
             break;
@@ -266,7 +266,7 @@ fn pipe_release(file: Arc<File>) -> StrResult<()> {
     };
     let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
     buf.ref_count -= 1;
-    warn!("buf.refcount :{}",buf.ref_count);
+    warn!("buf.refcount :{}", buf.ref_count);
     if buf.ref_count == 0 {
         // the last pipe file is closed, we should free the buffer
         debug!("pipe_release: free buffer");

@@ -116,7 +116,12 @@ impl<T: Clone> MinimalManager<T> {
         Ok(())
     }
     pub fn clear(&mut self) -> Vec<T> {
-        let res = self.data.iter().filter(|x| x.is_some()).map(|x| x.clone().unwrap()).collect();
+        let res = self
+            .data
+            .iter()
+            .filter(|x| x.is_some())
+            .map(|x| x.clone().unwrap())
+            .collect();
         self.data.clear();
         self.usable = 0;
         res

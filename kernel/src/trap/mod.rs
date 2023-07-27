@@ -2,23 +2,23 @@ use core::arch::{asm, global_asm};
 
 use bit_field::BitField;
 use page_table::addr::VirtAddr;
-use riscv::register::{sepc, sscratch, stval};
 use riscv::register::sstatus::SPP;
+use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 pub use exception::trap_common_read_file;
-use syscall_define::signal::SIGNAL_RETURN_TRAP;
 use syscall_define::signal::SignalNumber;
+use syscall_define::signal::SIGNAL_RETURN_TRAP;
 use syscall_define::time::TimerType;
 
-use crate::arch::{
-    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
-    timer_interrupt_enable,
-};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
 use crate::arch::riscv::sstatus;
+use crate::arch::{
+    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
+    timer_interrupt_enable,
+};
 use crate::config::TRAMPOLINE;
 use crate::error::AlienError;
 use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
