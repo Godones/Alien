@@ -156,9 +156,9 @@ unsafe impl GlobalAlloc for HeapAllocator {
         } else {
             layout.size() / FRAME_SIZE + 1
         };
-        if layout.size() >= 2 * 1024 * 1024 {
+        if layout.size() >= 5 * 1024 * 1024 {
             // assert_eq!(layout.size() % FRAME_SIZE, 0);
-            error!("alloc big page: {:#x}", layout.size());
+            println!("alloc big page: {:#x}", layout.size());
             let frame = alloc_frames(need_page);
             frame
         } else {
@@ -180,18 +180,19 @@ unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
         // check TRICK_ALLOC
         let start = ptr as usize;
-        if TRICK_ALLOC.lock().find(start) {
-            return;
-        }
         let need_page = if layout.size() % FRAME_SIZE == 0 {
             layout.size() / FRAME_SIZE
         } else {
             layout.size() / FRAME_SIZE + 1
         };
-        if layout.size() >= 2 * 1024 * 1024 {
+        if layout.size() >= 5 * 1024 * 1024 {
             // assert_eq!(layout.size() % FRAME_SIZE, 0);
+            println!("free big page: {:#x}", layout.size());
             free_frames(ptr, need_page);
         } else {
+            if TRICK_ALLOC.lock().find(start) {
+                return;
+            }
             assert_eq!(ptr.is_null(), false);
             self.allocator.lock().dealloc(ptr, layout);
         }

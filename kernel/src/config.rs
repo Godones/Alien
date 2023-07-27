@@ -19,7 +19,7 @@ pub const STACK_SIZE: usize = 1024 * 8;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 4;
+pub const CPU_NUM: usize = 1;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
@@ -39,7 +39,7 @@ pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 
 // app内核栈大小
-pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 4;
+pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
 // 用户栈大小
 pub const USER_STACK_SIZE: usize = 0x50_000;
 

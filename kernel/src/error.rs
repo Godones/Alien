@@ -19,7 +19,7 @@ impl Display for AlienError {
             AlienError::Other => write!(f, "Other error"),
             AlienError::InvalidSyscall(num) => write!(f, "Invalid syscall number: {}", num),
             AlienError::ThreadNeedWait => write!(f, "ThreadNeedWait"),
-            AlienError::ThreadNeedExit => write!(f, "ThreadNeedExit")
+            AlienError::ThreadNeedExit => write!(f, "ThreadNeedExit"),
         }
     }
 }
