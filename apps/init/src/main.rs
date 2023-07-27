@@ -47,7 +47,8 @@ const ENV: &[*const u8] = &[
 fn run_test() {
     let commands = [
         "./time-test\0",
-        "./libctest_testcode.sh\0",
+        "./run-static.sh\0",
+        "./run-dynamic.sh\0",
         "./libc-bench2\0",
         "./lua_testcode.sh\0",
         "./busybox_testcode.sh\0",
