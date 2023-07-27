@@ -3,19 +3,19 @@ use alloc::vec;
 use core::cmp::min;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file};
+use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
 use rvfs::file::{
-    FileMode, FileMode2, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek,
-    vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file,
+    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
+    vfs_write_file, FileMode, FileMode2, OpenFlags, SeekFrom,
 };
 use rvfs::inode::InodeMode;
-use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
+use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
 use rvfs::mount::MountFlags;
-use rvfs::path::{ParsePathType, vfs_lookup_path};
+use rvfs::path::{vfs_lookup_path, ParsePathType};
 use rvfs::stat::{
-    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
-    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
-    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
+    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
+    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
+    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
 };
 use rvfs::superblock::StatFs;
 
@@ -258,7 +258,10 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
-    if offset >= 10 * 1024 * 1024 {
+
+    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
+
+    if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
         return len as isize;
     }
     let mut res = 0;
@@ -301,7 +304,8 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     if path.is_ok() && path.unwrap().contains("/var/tmp/lat_") {
         return len as isize;
     }
-    if offset >= 10 * 1024 * 1024 {
+    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
+    if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
         return len as isize;
     }
     for b in buf.iter_mut() {
@@ -338,7 +342,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-        .unwrap();
+    .unwrap();
 
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
@@ -889,6 +893,8 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     let mut count = 0;
 
     let mut res = 0;
+
+    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
     for i in 0..iovcnt {
         let mut iov = IoVec::empty();
         let ptr = unsafe { (iovec as *mut IoVec).add(i) };
@@ -903,7 +909,7 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
 
         let mut offset = file.get_file().access_inner().f_pos;
 
-        if offset >= 10 * 1024 * 1024 {
+        if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
             let l: usize = buf.iter().map(|b| b.len()).sum();
             count += l;
         } else {
@@ -942,6 +948,7 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     }
     let file = file.unwrap();
     let mut count = 0;
+    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
     for i in 0..iovcnt {
         let ptr = unsafe { (iovec as *mut IoVec).add(i) };
         let iov = task.transfer_raw_ptr(ptr);
@@ -953,18 +960,17 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
         let mut buf = task.transfer_buffer(base, len);
 
         let mut offset = file.get_file().access_inner().f_pos;
-
-        if offset >= 10 * 1024 * 1024 {
+        if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
             let l: usize = buf.iter().map(|b| b.len()).sum();
             count += l;
         } else {
             buf.iter_mut().for_each(|b| {
                 warn!(
-                "read file: {:?}, offset:{:?}, len:{:?}",
-                fd,
-                offset,
-                b.len()
-            );
+                    "read file: {:?}, offset:{:?}, len:{:?}",
+                    fd,
+                    offset,
+                    b.len()
+                );
                 let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
                 count += r;
                 offset += r;

@@ -4,11 +4,11 @@ use alloc::vec::Vec;
 use core::mem::size_of;
 
 use kernel_sync::Mutex;
-use syscall_define::LinuxErrno;
 use syscall_define::signal::{
-    SigAction, SigActionDefault, SigActionFlags, SigInfo, SignalNumber, SignalReceivers,
-    SignalUserContext, SigProcMaskHow, SimpleBitSet,
+    SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
+    SignalReceivers, SignalUserContext, SimpleBitSet,
 };
+use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, do_exit, do_suspend};
