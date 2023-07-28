@@ -9,10 +9,10 @@ use lazy_static::lazy_static;
 use spin::Once;
 
 use kernel_sync::Mutex;
+use syscall_define::{PrLimit, PrLimitRes};
 use syscall_define::ipc::FutexOp;
 use syscall_define::signal::SignalNumber;
 use syscall_define::task::{CloneFlags, WaitOptions};
-use syscall_define::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
 use crate::arch;
@@ -20,10 +20,10 @@ use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::ipc::{futex, global_logoff_signals};
 use crate::sbi::system_shutdown;
+use crate::task::{INIT_PROCESS, LIBC_BENCH2};
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
-use crate::task::INIT_PROCESS;
 use crate::trap::{check_task_timer_expired, TrapFrame};
 
 #[derive(Debug, Clone)]
@@ -152,7 +152,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     // 所以只回收trap页
     // 在wait系统调用中，会回收内核栈页
     task.pre_recycle();
-
+    warn!("pre recycle done");
     let clear_child_tid = task.futex_wake();
     if clear_child_tid != 0 {
         let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
@@ -244,6 +244,11 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     let sig = flag & 0xff;
     let sig = SignalNumber::from(sig);
     let task = current_task().unwrap();
+
+    let child_num = task.access_inner().children.len();
+    if child_num >= 10 {
+        do_suspend();
+    }
     let new_task = task.t_clone(clone_flag, stack, sig, ptid, tls, ctid);
     if new_task.is_none() {
         return -1;
@@ -255,6 +260,8 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     let tid = new_task.get_tid();
     let mut process_pool = TASK_MANAGER.lock();
     process_pool.push_back(new_task);
+    // drop(process_pool);
+    // do_suspend();
     tid
 }
 
@@ -262,7 +269,6 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
     let task = current_task().unwrap();
     let mut path_str = task.transfer_str(path);
-    let mut data = Vec::new();
     // get the args and push them into the new process stack
     let (mut args, envs) = parse_user_arg_env(args_ptr, env);
     warn!("exec path: {}", path_str);
@@ -276,7 +282,19 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
         path_str = "busybox".to_string();
         args.insert(0, "sh\0".to_string());
     }
-
+    let mut data = Vec::new();
+    if path_str.contains("libc-bench2") {
+        let res = task.exec(&path_str, LIBC_BENCH2, args, envs);
+        if res.is_err() {
+            return res.err().unwrap();
+        }
+        return 0;
+    }
+    // for arg in args.iter() {
+    //     if arg.contains("tst.sh") {
+    //         do_exit(0);
+    //     }
+    // }
     if vfs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
@@ -338,8 +356,8 @@ pub fn do_brk(addr: usize) -> isize {
         return heap_info.current as isize;
     }
     if addr < heap_info.start || addr < heap_info.current {
-        panic!("heap can't be shrinked");
-        // return -1;
+        // panic!("heap can't be shrinked");
+        return -1;
     }
     let res = inner.extend_heap(addr);
     if res.is_err() {

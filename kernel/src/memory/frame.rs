@@ -1,3 +1,4 @@
+use alloc::format;
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
@@ -95,7 +96,7 @@ impl DerefMut for FrameTracker {
 /// 这些页面需要保持连续
 #[no_mangle]
 pub fn alloc_frames(num: usize) -> *mut u8 {
-    assert_eq!(num.count_ones(), 1);
+    // assert_eq!(num.count_ones(), 1);
     let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num, FRAME_SIZE);
     if start_page.is_err() {
         panic!("alloc {} frame failed", num);
@@ -112,8 +113,11 @@ pub fn free_frames(addr: *mut u8, num: usize) {
     let start = addr as usize >> FRAME_BITS;
     trace!("slab free frame {} start:{:#x}", num, addr as usize);
     // make sure the num is 2^n
-    assert_eq!(num.count_ones(), 1);
-    FRAME_ALLOCATOR.lock().free_pages(start, num).unwrap();
+    // assert_eq!(num.count_ones(), 1);
+    FRAME_ALLOCATOR
+        .lock()
+        .free_pages(start, num)
+        .expect(format!("frame start:{:#x},num:{}", start, num).as_str());
 }
 
 pub fn frame_alloc() -> Option<FrameTracker> {

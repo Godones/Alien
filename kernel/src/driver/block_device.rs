@@ -29,7 +29,7 @@ impl QemuBlockDevice {
     pub fn new(device: VirtIOBlk<HalImpl, MmioTransport>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(1024 * 12).unwrap())), // 48MB cache
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(512).unwrap())), // 4MB cache
             dirty: Mutex::new(Vec::new()),
         }
     }

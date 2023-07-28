@@ -14,7 +14,7 @@ use crate::arch;
 use crate::config::CLOCK_FREQ;
 use crate::task::{current_task, do_suspend, StatisticalData, Task, TASK_MANAGER};
 
-const TICKS_PER_SEC: usize = 100;
+const TICKS_PER_SEC: usize = 10;
 // const TICKS_PER_SEC_IN_KERNEL: usize = 1000;
 
 const MSEC_PER_SEC: usize = 1000;

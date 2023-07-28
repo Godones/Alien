@@ -119,11 +119,20 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
         }
         let now = read_timer();
         if now >= target_time {
+            warn!("sigtimewait: timeout");
             break;
         }
         do_suspend();
+
+        // interrupt by signal
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            let sig = receiver.have_signal_with_number().unwrap();
+            return sig as isize;
+        }
     }
-    -1
+    LinuxErrno::EAGAIN.into()
 }
 
 #[syscall_func(135)]
@@ -135,9 +144,10 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
         let set_mut = task_inner.transfer_raw_ptr_mut(oldset as *mut usize);
         *set_mut = signal_receivers.mask.bits();
     }
+    let how = SigProcMaskHow::from(how);
+    warn!("sigprocmask: how: {:?}, set: {:x}", how, set);
     if set != 0 {
         let set = task_inner.transfer_raw_ptr(set as *const usize);
-        let how = SigProcMaskHow::from(how);
         match how {
             SigProcMaskHow::SigBlock => {
                 signal_receivers.mask += SimpleBitSet::from(*set);
