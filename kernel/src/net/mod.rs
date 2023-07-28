@@ -143,7 +143,7 @@ pub fn connect(sockfd: usize, sockaddr: usize, len: usize) -> isize {
     }
     let ip = ip.unwrap();
     warn!("connect socket: {:?}, ip: {:?}", sockfd, ip);
-    if ip.port().unwrap() == 65535 {
+    if ip.port().is_some() && ip.port().unwrap() == 65535 {
         return 0;
     }
     let socket_fd = common_socket_syscall(sockfd);
@@ -231,7 +231,7 @@ pub fn sendto(
     }
     let socket_fd = socket_fd.unwrap();
     let task = current_task().unwrap();
-    let message = task.access_inner().transfer_buffer(message, length);
+    let message = task.transfer_buffer(message, length);
     // to vec<u8>
     let message = message
         .iter()

@@ -22,6 +22,7 @@ impl Default for SigInfo {
     }
 }
 
+#[derive(Debug)]
 pub enum SigProcMaskHow {
     SigBlock = 0,
     SigUnblock = 1,

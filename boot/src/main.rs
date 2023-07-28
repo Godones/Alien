@@ -45,7 +45,7 @@ extern "C" fn _start() {
         asm!("\
         mv tp, a0
         add t0, a0, 1
-        slli t0, t0, 16
+        slli t0, t0, 13
         la sp, {boot_stack}
         add sp, sp, t0
         call main

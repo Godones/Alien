@@ -304,4 +304,4 @@ syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);
 syscall!(sys_framebuffer, SYSCALL_FRAME_BUFFER);
 syscall!(sys_framebuffer_flush, SYSCALL_FRAME_FLUSH);
 syscall!(sys_event, SYSCALL_EVENT, *mut u64, usize);
-syscall!(system_shutdown, SYSCALL_SYSTEMSHUTDOWN);
+syscall!(__system_shutdown, SYSCALL_SYSTEMSHUTDOWN);
