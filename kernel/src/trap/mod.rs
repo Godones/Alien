@@ -6,6 +6,7 @@ use riscv::register::sstatus::SPP;
 use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
+pub use exception::trap_common_read_file;
 use syscall_define::signal::SignalNumber;
 use syscall_define::signal::SIGNAL_RETURN_TRAP;
 use syscall_define::time::TimerType;
@@ -19,9 +20,10 @@ use crate::arch::{
     timer_interrupt_enable,
 };
 use crate::config::TRAMPOLINE;
+use crate::error::AlienError;
 use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
-use crate::task::{current_task, current_trap_frame, current_user_token};
+use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
 use crate::timer::{check_timer_queue, set_next_trigger, set_next_trigger_in_kernel};
 
 mod context;
@@ -133,8 +135,15 @@ impl TrapHandler for Trap {
                         "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
                         self, stval, sepc
                     );
-                    let task = current_task().unwrap();
-                    send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
+                    let err = res.err().unwrap();
+                    if err == AlienError::ThreadNeedWait {
+                        // println!("thread need wait");
+                        do_suspend();
+                    } else if err == AlienError::ThreadNeedExit {
+                        do_exit(-1);
+                    } else {
+                        send_signal(tid as usize, SignalNumber::SIGSEGV as usize)
+                    }
                 }
             }
             Trap::Exception(Exception::InstructionPageFault) => {
