@@ -422,10 +422,13 @@ pub fn build_elf_address_space(
         .map_region_no_target(
             VirtAddr::from(top - USER_STACK_SIZE),
             USER_STACK_SIZE,
-            "RWUVAD".into(),
-            true,
+            "RWUAD".into(),
             false,
+            true,
         )
+        .unwrap();
+    address_space
+        .validate(VirtAddr::from(top - FRAME_SIZE), "RWUVAD".into())
         .unwrap();
     let heap_bottom = top;
     // align to 4k

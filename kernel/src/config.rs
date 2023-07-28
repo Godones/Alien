@@ -15,11 +15,11 @@ pub const CLOCK_FREQ: usize = 0x17d7840;
 
 pub const FRAME_SIZE: usize = 0x1000;
 pub const FRAME_BITS: usize = 12;
-pub const STACK_SIZE: usize = 1024 * 64;
+pub const STACK_SIZE: usize = 1024 * 8;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 1;
+pub const CPU_NUM: usize = 4;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
@@ -38,10 +38,15 @@ pub const PROCESS_HEAP_MAX: usize = u32::MAX as usize + 1;
 pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 
-// 栈大小16k
-pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 4;
-// 64KB
-pub const USER_STACK_SIZE: usize = 0x50000;
+// app内核栈大小
+pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
+// 用户栈大小
+pub const USER_STACK_SIZE: usize = 0x50_000;
+
+#[cfg(any(feature = "talloc", feature = "buddy"))]
+pub const KERNEL_HEAP_SIZE: usize = 0x26_00000; // 16MB
+
+pub const PIPE_BUF: usize = 4096;
 
 // 进程数量/线程数量/描述符表大小限制
 pub const MAX_PROCESS_NUM: usize = 1024;
