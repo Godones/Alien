@@ -10,6 +10,9 @@ pub const CLOCK_FREQ: usize = 12500000;
 #[cfg(feature = "vf2")]
 pub const CLOCK_FREQ: usize = 4000000;
 
+#[cfg(feature = "sifive")]
+pub const CLOCK_FREQ: usize = 100_0000;
+
 #[cfg(feature = "cv1811h")]
 pub const CLOCK_FREQ: usize = 0x17d7840;
 
