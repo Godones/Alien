@@ -80,7 +80,7 @@ pub fn ioctl(fd: usize, cmd: usize, arg: usize) -> isize {
     let cmd = cmd.unwrap();
     let res = vfs_ioctl(file.get_file(), cmd as u32, arg); // now it is a fake impl
     if res.is_err() {
-        return -1;
+        return LinuxErrno::ENOTTY.into();
     }
     let res = file.ioctl(cmd as u32, arg);
     res
@@ -150,6 +150,11 @@ pub fn utimensat(fd: usize, path: *const u8, times: *const u8, _flags: usize) ->
         warn!("utimensat: {:?}", path);
         let res = vfs_set_time::<VfsProvider>(&path.unwrap(), [VfsTime::default(); 3]);
         if res.is_err() {
+            error!("utimensat: {:?}", res);
+            let res = res.err().unwrap();
+            if res.contains("file is not link or dir") {
+                return LinuxErrno::ENOTDIR.into();
+            }
             return LinuxErrno::ENOENT.into();
         }
     }

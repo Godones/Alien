@@ -3,6 +3,8 @@ use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use alloc::{format, vec};
+use core::fmt::Debug;
+use core::ops::Range;
 
 use bit_field::BitField;
 use lazy_static::lazy_static;
@@ -10,8 +12,9 @@ use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
-use rvfs::file::File;
+use rvfs::file::{vfs_close_file, File};
 use rvfs::info::ProcessFsInfo;
+use rvfs::link::vfs_unlink;
 use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
@@ -32,6 +35,7 @@ use crate::config::{CPU_NUM, FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STA
 use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::file::KFile;
+use crate::fs::vfs::VfsProvider;
 use crate::fs::{STDIN, STDOUT};
 use crate::ipc::{global_register_signals, ShmInfo};
 use crate::memory::{
@@ -42,7 +46,7 @@ use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
@@ -121,6 +125,8 @@ pub struct TaskInner {
     pub cpu_affinity: usize,
     /// process's file mode creation mask
     pub unmask: usize,
+    pub stack: Range<usize>,
+    pub need_wait: u8,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -268,15 +274,20 @@ impl Task {
     pub fn terminate(self: Arc<Self>) {
         // recycle kernel stack
         self.kernel_stack.release();
-        //
         if self.access_inner().thread_number != 0 {
             let parent = self.inner.lock().parent.clone();
             if let Some(parent) = parent {
                 let parent = parent.upgrade();
                 if let Some(parent) = parent {
                     parent.remove_child_by_tid(self.get_tid());
+                    assert_eq!(Arc::strong_count(&self), 1);
                 }
             }
+        } else {
+            // if it is a thread, we should not remove it from parent's children
+            // if self.access_inner().children.len() == 0 {
+            //     self.access_inner().address_space.lock().release();
+            // }
         }
         self.access_inner().state = TaskState::Terminated;
     }
@@ -420,12 +431,12 @@ impl Task {
         let file = inner.fd_table.lock().get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
-    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, ()> {
+    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, isize> {
         self.access_inner()
             .fd_table
             .lock()
             .insert(file)
-            .map_err(|_| {})
+            .map_err(|x| x as isize)
     }
     pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
         let inner = self.access_inner();
@@ -457,10 +468,59 @@ impl Task {
     }
 
     pub fn transfer_str(&self, ptr: *const u8) -> String {
+        // we need check the ptr and len before transfer indeed
+        let mut start = ptr as usize;
+        let end = start + 128; //todo! string len is unknown
+        let address_space = self.access_inner().address_space.clone();
+        while start < end {
+            let (_phy, flag, _) = address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
+            if !flag.contains(MappingFlags::V) {
+                error!("transfer_str flag: {:?}, addr:{:#x}", flag, start);
+                let res = self
+                    .access_inner()
+                    .invalid_page_solver(align_down_4k(start))
+                    .unwrap();
+                if res.is_some() {
+                    let (file, buf, offset) = res.unwrap();
+                    if file.is_some() {
+                        trap_common_read_file(file.unwrap(), buf, offset);
+                    }
+                }
+            }
+            start += FRAME_SIZE;
+        }
         self.access_inner().transfer_str(ptr)
     }
 
-    pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+    pub fn transfer_buffer<T: Debug>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+        // we need check the ptr and len before transfer indeed
+        let mut start = ptr as usize;
+        let end = start + len;
+        let address_space = self.access_inner().address_space.clone();
+        start = align_down_4k(start);
+        while start < end {
+            let (_phy, flag, _) = address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
+            if !flag.contains(MappingFlags::V) {
+                error!("transfer_buffer flag: {:?}, addr:{:#x}", flag, start);
+                let res = self
+                    .access_inner()
+                    .invalid_page_solver(align_down_4k(start))
+                    .unwrap();
+                if res.is_some() {
+                    let (file, buf, offset) = res.unwrap();
+                    if file.is_some() {
+                        trap_common_read_file(file.unwrap(), buf, offset);
+                    }
+                }
+            }
+            start += FRAME_SIZE;
+        }
         self.access_inner().transfer_buffer(ptr, len)
     }
 }
@@ -537,7 +597,7 @@ impl TaskInner {
             // 也就是说信号触发时的 sp 就是现在的 sp
             let sp = trap_frame.regs()[2];
             // 获取可能被修改的 pc
-            let phy_sp = self.transfer_raw(sp as usize);
+            let phy_sp = self.transfer_raw(sp);
 
             let pc = unsafe { (*(phy_sp as *const SignalUserContext)).get_pc() };
             *trap_frame = old_trap_frame;
@@ -589,6 +649,7 @@ impl TaskInner {
         }
         res
     }
+
     pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
         let address_space = &self.address_space.lock();
         let mut start = ptr as usize;
@@ -758,7 +819,11 @@ impl TaskInner {
         }
     }
 
-    pub fn transfer_buffer<T>(&mut self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+    pub fn transfer_buffer<T: Debug>(
+        &mut self,
+        ptr: *const T,
+        len: usize,
+    ) -> Vec<&'static mut [T]> {
         let mut start = ptr as usize;
         let end = start + len;
         let mut v = Vec::new();
@@ -769,7 +834,7 @@ impl TaskInner {
                 .query(VirtAddr::from(start))
                 .expect(format!("transfer_buffer: {:x} failed", start).as_str());
             if !flag.contains(MappingFlags::V) {
-                self.invalid_page_solver(start).unwrap();
+                panic!("transfer_buffer: {:x} not mapped", start);
             }
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
@@ -932,7 +997,7 @@ impl TaskInner {
         // todo!
         // for dynamic link, the linker will map the elf file to the same address
         // we must satisfy this requirement
-        let start = align_down_4k(start);
+        let mut start = align_down_4k(start);
         let v_range = if prot.contains(ProtFlags::PROT_EXEC) {
             let len = align_up_4k(len);
             if start > self.heap.lock().start {
@@ -941,6 +1006,9 @@ impl TaskInner {
             }
             if let Some(_region) = self.mmap.get_region(start) {
                 return Err(-1);
+            }
+            if start == 0 {
+                start = 0x1000;
             }
             start..start + len
         } else if flags.contains(MapFlags::MAP_FIXED) {
@@ -1057,7 +1125,7 @@ impl TaskInner {
             error!("start+len > region.start + region.len");
             return Err(LinuxErrno::EINVAL.into());
         }
-        region.prot = prot;
+        region.prot |= prot;
         Ok(())
     }
 
@@ -1117,7 +1185,10 @@ impl TaskInner {
         trace!("invalid page fault at {:#x}", addr);
         let is_mmap = self.mmap.get_region(addr);
         let is_heap = self.heap.lock().contains(addr);
-        if is_mmap.is_none() && !is_heap {
+
+        let is_stack = self.stack.contains(&addr);
+
+        if is_mmap.is_none() && !is_heap && !is_stack {
             error!("invalid page fault at {:#x}", addr);
             return Err(AlienError::Other);
         }
@@ -1128,12 +1199,16 @@ impl TaskInner {
                 .lock()
                 .validate(VirtAddr::from(addr), map_flags)
                 .unwrap();
-        } else {
+        } else if is_mmap.is_some() {
             let region = is_mmap.unwrap();
             // assert_eq!(addr % FRAME_SIZE, 0);
             // update page table
             let mut map_flags = region.prot.into();
             map_flags |= "VAD".into();
+            error!(
+                "invalid page fault at {:#x}, flag is :{:?}",
+                addr, map_flags
+            );
             self.address_space
                 .lock()
                 .validate(VirtAddr::from(addr).align_down_4k(), map_flags)
@@ -1149,6 +1224,13 @@ impl TaskInner {
             let file = &region.fd;
             let read_offset = region.offset + (addr - region.start);
             return Ok(Some((file.clone(), buf, read_offset as u64)));
+        } else {
+            error!("invalid page fault in stack");
+            let map_flags = "RWUVAD".into();
+            self.address_space
+                .lock()
+                .validate(VirtAddr::from(addr), map_flags)
+                .unwrap();
         }
         Ok(None)
     }
@@ -1184,7 +1266,16 @@ impl TaskInner {
             .address_space
             .lock()
             .query(VirtAddr::from(addr))
-            .expect(format!("addr:{:#x}", addr).as_str());
+            .map_err(|_x| {
+                if self.need_wait < 5 {
+                    self.need_wait += 1;
+                    AlienError::ThreadNeedWait
+                } else {
+                    error!("do_store_page_fault panic :{}", o_addr);
+                    AlienError::ThreadNeedExit
+                }
+            })?;
+        // .expect(format!("addr:{:#x}", addr).as_str());
         trace!(
             "do store page fault:{:#x}, flags:{:?}, page_size:{:?}",
             addr,
@@ -1239,6 +1330,27 @@ impl Task {
         let mut inner = self.inner.lock();
         // delete child process
         inner.children.clear();
+        let thread_number = inner.thread_number;
+        if thread_number == 0 {
+            let fd = inner.fd_table.lock().clear();
+            drop(inner);
+            for f in fd {
+                let real_file = f.get_file();
+                if f.is_unlink() {
+                    let path = f.unlink_path().unwrap();
+                    drop(f);
+                    warn!("unlink path :{}", path);
+                    let _ = vfs_unlink::<VfsProvider>(&path);
+                    continue;
+                }
+                error!("close file ,ref count:{:#x}", Arc::strong_count(&real_file));
+                if real_file.is_pipe() {
+                    drop(f);
+                    let res = vfs_close_file::<VfsProvider>(real_file);
+                    warn!("close pipe {:?}", res);
+                }
+            }
+        }
     }
 
     /// get the clear_child_tid
@@ -1260,6 +1372,7 @@ impl Task {
         let address_space = elf_info.address_space;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
+        let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let process = Task {
             tid,
             kernel_stack: k_stack,
@@ -1303,6 +1416,8 @@ impl Task {
                     affinity
                 },
                 unmask: 0o666,
+                stack: stack_info,
+                need_wait: 0,
             }),
             send_sigchld_when_exit: false,
         };
@@ -1486,6 +1601,8 @@ impl Task {
                     affinity
                 },
                 unmask: 0o666,
+                stack: inner.stack.clone(),
+                need_wait: 0,
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
@@ -1534,7 +1651,7 @@ impl Task {
         inner.signal_handlers.lock().clear();
         inner.signal_receivers.lock().clear();
         inner.timer.clear();
-
+        inner.stack = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let env = if env.is_empty() {
             let envp = vec![
                 "LD_LIBRARY_PATH=/",

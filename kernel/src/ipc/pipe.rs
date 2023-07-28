@@ -3,15 +3,14 @@ use alloc::sync::{Arc, Weak};
 use core::intrinsics::forget;
 
 use rvfs::dentry::DirEntry;
-use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
+use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags, SeekFrom};
 use rvfs::inode::SpecialData;
 use rvfs::mount::VfsMount;
 use rvfs::StrResult;
 
+use crate::config::PIPE_BUF;
 use crate::fs::file::KFile;
 use crate::task::{current_task, do_suspend};
-
-const PIPE_BUF: usize = 4096;
 
 pub struct Pipe;
 
@@ -104,6 +103,7 @@ impl Pipe {
             let mut ops = FileOps::empty();
             ops.write = pipe_write;
             ops.release = pipe_release;
+            ops.llseek = pipe_llseek;
             ops
         };
         tx_file.access_inner().f_ops_ext = {
@@ -126,6 +126,7 @@ impl Pipe {
             let mut ops = FileOps::empty();
             ops.read = pipe_read;
             ops.release = pipe_release;
+            ops.llseek = pipe_llseek;
             ops
         };
         rx_file.access_inner().f_ops_ext = {
@@ -160,7 +161,7 @@ impl Pipe {
 }
 
 fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize> {
-    debug!("pipe_write: {:?}, mode:{:?}", user_buf.len(), file.f_mode);
+    warn!("pipe_write: {:?}, mode:{:?}", user_buf.len(), file.f_mode);
     let inode = file.f_dentry.access_inner().d_inode.clone();
     let mut count = 0;
     loop {
@@ -171,6 +172,9 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             SpecialData::PipeData(ptr) => *ptr,
             _ => panic!("pipe_write: invalid special data"),
         };
+        if ptr.is_null() {
+            panic!("pipe_write: ptr is null");
+        }
         let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
         let available = buf.available_write();
         if available == 0 {
@@ -186,18 +190,20 @@ fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize
             let task_inner = task.access_inner();
             let receiver = task_inner.signal_receivers.lock();
             if receiver.have_signal() {
+                error!("pipe_write: have signal");
+                forget(buf);
                 return Err("pipe_write: have signal");
             }
         } else {
-            // let min = core::cmp::min(available, user_buf.len());
             let min = core::cmp::min(available, user_buf.len() - count);
+            error!("pipe_write: min:{}, count:{}", min, count);
             count += buf.write(&user_buf[count..count + min]);
             forget(buf);
             break;
         }
         forget(buf); // we can't drop the buf here, because the inode still holds the pointer
     }
-    debug!("pipe_write: count:{}", count);
+    warn!("pipe_write: count:{}", count);
     Ok(count)
 }
 
@@ -215,7 +221,7 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
         };
         let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
         let available = buf.available_read();
-        // warn!("pipe_read: available:{}", available);
+        warn!("pipe_read: available:{}", available);
         if available == 0 {
             if !buf.is_write_wait() {
                 // if there is no process waiting for writing, we should return
@@ -225,13 +231,14 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
             // wait for writing
             drop(inode_inner);
             do_suspend();
-
+            error!("pipe_read: suspend");
             // check signal
             let task = current_task().unwrap();
             // interrupt by signal
             let task_inner = task.access_inner();
             let receiver = task_inner.signal_receivers.lock();
             if receiver.have_signal() {
+                forget(buf);
                 return Err("interrupted by signal");
             }
         } else {
@@ -242,12 +249,12 @@ fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<us
         }
         forget(buf); // we can't drop the buf here, because the inode still holds the pointer
     }
-    debug!("pipe_read: return count:{}", count);
+    warn!("pipe_read: return count:{}", count);
     Ok(count)
 }
 
 fn pipe_release(file: Arc<File>) -> StrResult<()> {
-    debug!("pipe_release: file");
+    warn!("pipe_release: file");
     assert_eq!(Arc::strong_count(&file), 1);
     let inode = &file.f_dentry.access_inner().d_inode;
     assert!(inode.access_inner().special_data.is_some());
@@ -259,6 +266,7 @@ fn pipe_release(file: Arc<File>) -> StrResult<()> {
     };
     let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
     buf.ref_count -= 1;
+    warn!("buf.refcount :{}", buf.ref_count);
     if buf.ref_count == 0 {
         // the last pipe file is closed, we should free the buffer
         debug!("pipe_release: free buffer");
@@ -266,6 +274,7 @@ fn pipe_release(file: Arc<File>) -> StrResult<()> {
     } else {
         forget(buf)
     }
+    warn!("pipe_release: return");
     Ok(())
 }
 
@@ -322,4 +331,8 @@ fn pipe_read_is_hang_up(file: Arc<File>) -> bool {
 
 fn pipe_write_is_hang_up(file: Arc<File>) -> bool {
     pipe_exec(file, PipeFunc::Hangup(false))
+}
+
+fn pipe_llseek(_file: Arc<File>, _whence: SeekFrom) -> StrResult<u64> {
+    Err("ESPIPE")
 }

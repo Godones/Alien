@@ -19,7 +19,7 @@ VF2 ?=n
 CV1811h ?=n
 FEATURES :=
 QEMU_ARGS :=
-
+MEMORY_SIZE := 128M
 img ?=fat32
 
 
@@ -46,16 +46,15 @@ define boot_qemu
 	qemu-system-riscv64 \
         -M virt $(1)\
         -bios $(BOOTLOADER) \
-        -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \
         -device virtio-blk-device,drive=x0 \
         -kernel  kernel-qemu\
         -$(QEMU_ARGS) \
-        -smp $(SMP) -m 256M \
+        -smp $(SMP) -m $(MEMORY_SIZE) \
         -serial mon:stdio
 endef
 
-all:run
+all:
 
 install:
 	@cargo install --git  https://github.com/os-module/elfinfo
@@ -78,9 +77,9 @@ trace_info:
 user:
 	@cd apps && make all
 
-sdcard:$(img) user testelf
+sdcard:$(img) testelf user
 
-run:install compile img
+run:install compile sdcard
 	@echo qemu booot $(SMP)
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
@@ -109,20 +108,28 @@ cv1811h:board
 
 
 
-test:install compile $(img) SecondFile testelf
-	$(call boot_qemu)
+f_test:
+	qemu-system-riscv64 \
+		-machine virt \
+		-kernel kernel-qemu \
+		-m 128M \
+		-nographic \
+		-smp 2 \
+	    -drive file=./tools/sdcard.img,if=none,format=raw,id=x0  \
+	    -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+	    -device virtio-net-device,netdev=net -netdev user,id=net
 
 testelf:
-	@sudo mkdir /fat/ostest
-	@sudo cp test/* /fat/ostest -r
-	@sudo mkdir /fat/libc
+	@#sudo mkdir /fat/ostest
+	@#sudo cp test/* /fat/ostest -r
+	@#sudo mkdir /fat/libc
 	if [ -d "sdcard" ]; then \
 		sudo cp sdcard/* /fat -r; \
 		sudo cp sdcard/* /fat/bin -r;\
 	fi
-	if [ -d "tools/siglibc" ]; then \
-		sudo cp tools/siglibc/build/* /fat/libc -r; \
-	fi
+	#if [ -d "tools/siglibc" ]; then \
+#		sudo cp tools/siglibc/build/* /fat/libc -r; \
+#	fi
 	@sync
 
 dtb:
@@ -157,7 +164,6 @@ fat32:
 	@sudo cp tools/f1.txt /fat
 	@sudo mkdir /fat/folder
 	@sudo cp tools/f1.txt /fat/folder
-	@sudo mkdir /fat/bin
 	@sync
 
 
