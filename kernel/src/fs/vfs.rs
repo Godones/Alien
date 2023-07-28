@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::ptr::null;
 
 use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
@@ -11,7 +12,7 @@ use rvfs::file::{
     vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file, FileMode, OpenFlags,
 };
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
-use rvfs::inode::InodeMode;
+use rvfs::inode::{InodeMode, SpecialData};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
 use rvfs::ramfs::tmpfs::TMP_FS_TYPE;
@@ -74,12 +75,16 @@ pub fn init_vfs() {
     prepare_test_need();
     prepare_dev();
     prepare_var();
+
+    // let fake_sort_src = vfs_open_file::<VfsProvider>("/sort.src", OpenFlags::O_CREAT | OpenFlags::O_RDWR, FileMode::FMODE_RDWR).unwrap();
+    // vfs_write_file::<VfsProvider>(fake_sort_src.clone(), SORT_SRC, 0).unwrap();
+    // vfs_close_file::<VfsProvider>(fake_sort_src).unwrap();
     println!("vfs init done");
 }
 
 fn prepare_var() {
     vfs_mkdir::<VfsProvider>("/var", FileMode::FMODE_RDWR).unwrap();
-    do_mount::<VfsProvider>("none", "/var", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    // do_mount::<VfsProvider>("none", "/var", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
     vfs_mkdir::<VfsProvider>("/var/log", FileMode::FMODE_RDWR).unwrap();
     vfs_mkdir::<VfsProvider>("/var/tmp", FileMode::FMODE_RDWR).unwrap();
 }
@@ -103,6 +108,14 @@ fn prepare_dev() {
         FileMode::FMODE_RDWR,
     )
     .unwrap();
+
+    rtc_file
+        .f_dentry
+        .access_inner()
+        .d_inode
+        .access_inner()
+        .special_data = Some(SpecialData::CharData(null()));
+    rtc_file.access_inner().f_ops_ext.ioctl = |_, _, _| 0;
     vfs_write_file::<VfsProvider>(rtc_file, RTC_TIME.as_bytes(), 0).unwrap();
     vfs_mknod::<VfsProvider>("/dev/tty", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
 }
@@ -177,7 +190,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
         .file_size;
     let mut offset = 0;
     while offset < size {
-        let mut tmp = vec![0; 512 as usize];
+        let mut tmp = vec![0; 512usize];
         let res = vfs_read_file::<VfsProvider>(file.clone(), &mut tmp, offset as u64).unwrap();
         offset += res;
         buf.extend_from_slice(&tmp);
@@ -236,3 +249,5 @@ impl ProcessFs for VfsProvider {
         })
     }
 }
+
+// static SORT_SRC: &[u8] = include_bytes!("../../../sdcard/sort.src");

@@ -6,7 +6,7 @@ use spin::Mutex;
 use Mstd::fs::{chdir, get_cwd};
 use Mstd::process::{exec, exit, fork, waitpid};
 use Mstd::thread::m_yield;
-use Mstd::{println, shutdown};
+use Mstd::{println, system_shutdown};
 
 #[derive(Debug)]
 pub struct Parameter {
@@ -115,7 +115,7 @@ impl Executor {
                     *CURRENT_DIR.lock() = Some(cwd.to_string());
                 }
             }
-            "exit" => shutdown(),
+            "exit" => system_shutdown(),
             _ => {
                 let mut cmd = self.cmd;
                 cmd.push('\0');

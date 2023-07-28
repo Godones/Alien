@@ -12,13 +12,13 @@
 
 ### 动态链接(3days)
 
-- [ ] elf文件的处理
+- [x] elf文件的处理
   - 处理elf文件类型，并根据类型初始化相关的数据结构
 - [ ] 软链接处理 ---> use dbfs
 
 ### 系统调用(one week)
 
-- [ ] more syscall support
+- [x] more syscall support
 
 `ioctl`: https://zhuanlan.zhihu.com/p/478259733
 
