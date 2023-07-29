@@ -21,7 +21,13 @@ FEATURES :=
 QEMU_ARGS :=
 MEMORY_SIZE := 128M
 img ?=fat32
+SLAB ?=n
+TALLOC ?=y
+BUDDY ?=n
 
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
 
 ifeq ($(GUI),y)
 QEMU_ARGS += -device virtio-gpu-device \
@@ -40,7 +46,16 @@ else
 FEATURES += qemu
 endif
 
+ifeq ($(SLAB),y)
+FEATURES += slab
+else ifeq ($(TALLOC),y)
+FEATURES += talloc
+else ifeq ($(BUDDY),y)
+FEATURES += buddy
+endif
 
+
+FEATURES := $(subst $(space),$(comma),$(FEATURES))
 
 define boot_qemu
 	qemu-system-riscv64 \
@@ -64,11 +79,11 @@ build:compile
 
 
 compile:
-	@cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 	@#call trace_info
-	@cargo build --release -p boot --target riscv64gc-unknown-none-elf   --features $(FEATURES)
-	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
+	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
 
 trace_info:
@@ -97,13 +112,13 @@ board:install compile
 
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
-	@rm ./alien.bin
+	@#rm ./alien.bin
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
 
 
 cv1811h:board
 	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
-	@rm ./alien.bin
+	@#rm ./alien.bin
 	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
 
 

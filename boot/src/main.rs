@@ -2,27 +2,31 @@
 #![no_main]
 #![feature(naked_functions)]
 #![feature(asm_const)]
+#![feature(stmt_expr_attributes)]
 
 use core::arch::asm;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use cfg_if::cfg_if;
+
 use basemachine::machine_info_from_dtb;
+use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
+use kernel::arch::hart_id;
+#[cfg(not(feature = "qemu"))]
+use kernel::board;
 use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
-use kernel::trap::set_kernel_trap_entry;
-use kernel::{
-    config, driver, init_machine_info, println, syscall, task, thread_local_init, timer, trap,
-};
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
 static CPUS: AtomicUsize = AtomicUsize::new(0);
 
+#[inline]
 fn clear_bss() {
     extern "C" {
         fn sbss();
@@ -44,6 +48,9 @@ extern "C" fn _start() {
     unsafe {
         asm!("\
         mv tp, a0
+        csrw sscratch, a1
+        csrci sstatus, 0x02
+        csrw sie, zero
         add t0, a0, 1
         slli t0, t0, 13
         la sp, {boot_stack}
@@ -56,41 +63,68 @@ extern "C" fn _start() {
     }
 }
 
+#[inline]
+fn device_tree_addr() -> usize {
+    let mut res: usize;
+    unsafe {
+        asm!(
+        " csrr {}, sscratch",
+        out(reg) res,
+        )
+    }
+    res
+}
+
 /// rust_main is the entry of the kernel
 #[no_mangle]
-fn main(hart_id: usize, device_tree_addr: usize) -> ! {
-    set_kernel_trap_entry();
+extern "C" fn main(_: usize, _: usize) -> ! {
     if !STARTED.load(Ordering::Relaxed) {
+        // this will clear the kernel stack, so if we want get hartid or device_tree_addr,
+        // clear_bss will cause error using vf2
         clear_bss();
         println!("{}", config::FLAG);
+        let mut device_tree_addr = device_tree_addr();
+        #[cfg(feature = "vf2")]
+        device_tree_addr = board::FDT.as_ptr() as usize;
+        init_print();
+        println!("boot hart id: {}, device tree addr: {:#x}", hart_id(), device_tree_addr);
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
         init_machine_info(machine_info.clone());
         kernel_info(machine_info.memory.end);
-        init_print();
         init_memory_system(machine_info.memory.end, true);
         thread_local_init();
+        #[cfg(feature = "qemu")]
         driver::init_dt(device_tree_addr);
         trap::init_trap_subsystem();
         init_per_cpu();
+        cfg_if! {
+            if #[cfg(not(feature = "qemu"))]{
+                board::checkout_fs_img();
+                use kernel::driver::init_fake_disk;
+                init_fake_disk();
+            }
+        }
         init_vfs();
         syscall::register_all_syscall();
+        println!("register syscall success");
         task::init_process();
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
-        init_other_hart(hart_id);
+        init_other_hart(hart_id());
     } else {
         while !STARTED.load(Ordering::Relaxed) {
             spin_loop();
         }
         thread_local_init();
-        println!("hart {:#x} start", kernel::arch::hart_id());
+        println!("hart {:#x} start", hart_id());
         init_memory_system(0, false);
         thread_local_init();
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
     }
     timer::set_next_trigger();
+    println!("begin run task...");
     task::schedule::first_into_user();
 }
 

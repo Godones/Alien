@@ -1,8 +1,8 @@
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 
-use crate::error::{check, BuddyError};
 use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
+use crate::error::{BuddyError, check};
 
 pub struct Bitmap<const N: usize> {
     /// Current number of allocated pages
@@ -68,7 +68,7 @@ impl<const N: usize> Bitmap<N> {
         loop {
             let end = self.current + pages;
             if end > self.max && flag {
-                return Err(BuddyError::OutOfMemory);
+                return Err(BuddyError::OutOfMemory(self.max));
             }
             if end > self.max {
                 self.current = 0;
@@ -116,7 +116,7 @@ impl<const N: usize> PageAllocator for Bitmap<N> {
         let end_page = memory.end >> 12;
         self.max = end_page - start_page;
         if self.max > N * 8 {
-            return Err(BuddyError::OutOfMemory);
+            return Err(BuddyError::OutOfMemory(self.max));
         }
         self.start = start_page;
         Ok(())

@@ -5,10 +5,10 @@ pub const FLAG: &str = r"
   / ___ \  | | | | |  __/ | | | |
  /_/   \_\ |_| |_|  \___| |_| |_|
 ";
-#[cfg(not(feature = "vf2"))]
+#[cfg(feature = "qemu")]
 pub const CLOCK_FREQ: usize = 12500000;
 #[cfg(feature = "vf2")]
-pub const CLOCK_FREQ: usize = 4000000;
+pub const CLOCK_FREQ: usize = 400_0000;
 
 #[cfg(feature = "sifive")]
 pub const CLOCK_FREQ: usize = 100_0000;
@@ -22,14 +22,23 @@ pub const STACK_SIZE: usize = 1024 * 8;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 4;
+pub const CPU_NUM: usize = 1;
 
+#[cfg(feature = "qemu")]
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
     (0x2000000, 0x10000),
     (0xc00_0000, 0x21_0000), // VIRT_PLIC in virt machine
     (0x1000_0000, 0x9000),   // VIRT_UART0 with GPU  in virt machine
     (0x3000_0000, 0x1000_0000),
+];
+
+
+#[cfg(feature = "vf2")]
+pub const MMIO: &[(usize, usize)] = &[
+    (0x17040000, 0x10000), // RTC
+    (0xc000000, 0x4000000), //PLIC
+    (0x00_1000_0000, 0x10000) // UART
 ];
 
 pub const FRAME_MAX_ORDER: usize = 16;

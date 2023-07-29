@@ -1,12 +1,12 @@
 use core::cmp::min;
 
-use syscall_define::sys::{Rusage, Sysinfo, SyslogAction, TimeVal};
 use syscall_define::LinuxErrno;
+use syscall_define::sys::{Rusage, Sysinfo, SyslogAction, TimeVal};
 use syscall_table::syscall_func;
 
+use crate::MACHINE_INFO;
 use crate::task::{current_task, TASK_MANAGER};
 use crate::timer::{get_time_ms, TimeFromFreq};
-use crate::MACHINE_INFO;
 
 const LOG_BUF_LEN: usize = 4096;
 const LOG: &str = r"
@@ -51,7 +51,7 @@ pub fn sys_info(dst_info: usize) -> isize {
     // calculate the task number
     // TASKMANAGER
     let task_number = TASK_MANAGER.lock().len();
-    let memory_info = MACHINE_INFO.get().unwrap().memory.clone();
+    let memory_info = MACHINE_INFO.get().as_ref().unwrap().memory.clone();
     let info = Sysinfo {
         uptime: (get_time_ms() / 1000) as usize,
         loads: [
