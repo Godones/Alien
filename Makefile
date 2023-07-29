@@ -119,7 +119,7 @@ vf2:board
 
 cv1811h:board
 	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
-	@#rm ./alien.bin
+	@mv ./alien.bin ./os.bin
 	@rm ./kernel-qemu
 	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
 
