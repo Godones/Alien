@@ -106,6 +106,11 @@ fake_run:
 
 
 board:install compile
+	@rust-objcopy --strip-all $(KERNEL_FILE) -O binary $(OUTPUT)/testos.bin
+	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
+	@cp $(OUTPUT)/testos.bin ./alien.bin
+
+qemu:
 	@rust-objcopy --strip-all $(OUTPUT)/boot -O binary $(OUTPUT)/testos.bin
 	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
 	@cp $(OUTPUT)/testos.bin ./alien.bin
