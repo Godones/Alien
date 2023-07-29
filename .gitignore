@@ -32,4 +32,4 @@ oscomp-debian
 tools/siglibc
 tools/testsuits-for-oskernel
 tools/bash-5.1.16
-alien*
+alien-*

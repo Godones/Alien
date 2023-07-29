@@ -46,10 +46,12 @@ talc = { version = "1.0", optional = true }
 buddy_system_allocator = { version = "0.9.0", optional = true }
 
 [features]
-default = ["talloc"]
+default = []
 vf2 = []
 cv1811h = []
 sifive = []
+qemu = []
+
 slab = []
 talloc = ["talc"]
 buddy = ["buddy_system_allocator"]

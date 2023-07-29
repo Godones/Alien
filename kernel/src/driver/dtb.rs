@@ -1,32 +1,33 @@
+use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::ptr::NonNull;
 
+use fdt::Fdt;
 use fdt::node::FdtNode;
 use fdt::standard_nodes::Compatible;
-use fdt::Fdt;
 use hashbrown::HashMap;
 use lazy_static::lazy_static;
 use spin::Once;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::device::input::VirtIOInput;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::transport::{DeviceType, Transport};
+use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use kernel_sync::Mutex;
 use plic::{Mode, PLIC};
 
 use crate::arch::hart_id;
 use crate::config::{CPU_NUM, MAX_INPUT_EVENT_NUM};
-use crate::driver::gpu::{VirtIOGpuWrapper, GPU_DEVICE};
+use crate::driver::{GenericBlockDevice, pci_probe, QEMU_BLOCK_DEVICE};
+use crate::driver::DeviceBase;
+use crate::driver::gpu::{GPU_DEVICE, VirtIOGpuWrapper};
 use crate::driver::hal::HalImpl;
-use crate::driver::input::{InputDriver, INPUT_DEVICE};
+use crate::driver::input::{INPUT_DEVICE, InputDriver};
 use crate::driver::rtc::init_rtc;
 use crate::driver::uart::init_uart;
-use crate::driver::DeviceBase;
-use crate::driver::{pci_probe, QemuBlockDevice, QEMU_BLOCK_DEVICE};
 
 pub static PLIC: Once<PLIC> = Once::new();
 
@@ -36,7 +37,7 @@ lazy_static! {
 }
 
 pub fn init_dt(dtb: usize) {
-    println!("device tree @ {:#x}", dtb);
+    println!("device tree @{:#x}", dtb);
     // Safe because the pointer is a valid pointer to unaliased memory.
     let fdt = unsafe { Fdt::from_ptr(dtb as *const u8).unwrap() };
     init_plic(&fdt);
@@ -67,13 +68,13 @@ fn walk_dt(fdt: &Fdt) {
             rtc_probe(node);
         }
 
-        #[cfg(not(any(feature = "Vf2", feature = "cv1811h")))]
+        #[cfg(not(any(feature = "vf2", feature = "cv1811h")))]
         if node.name.starts_with("uart") {
             println!("probe uart device");
             uart_probe(node)
         }
 
-        #[cfg(feature = "Vf2")]
+        #[cfg(feature = "vf2")]
         if node.name.starts_with("uart") {
             // println!("probe uart device");
             // uart_probe(node)
@@ -175,7 +176,7 @@ fn virtio_blk(transport: MmioTransport) {
         VirtIOBlk::<HalImpl, MmioTransport>::new(transport).expect("failed to create blk driver");
     let size = blk.capacity();
     println!("blk device size is {}MB", size * 512 / 1024 / 1024);
-    let qemu_block_device = QemuBlockDevice::new(blk);
+    let qemu_block_device = GenericBlockDevice::new(Box::new(blk));
     QEMU_BLOCK_DEVICE.lock().push(Arc::new(qemu_block_device));
     println!("virtio-blk init finished");
 }
