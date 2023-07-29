@@ -6,12 +6,14 @@ use self::riscv::sstatus;
 pub mod riscv;
 
 pub fn hart_id() -> usize {
-    let id: usize;
+    let mut id: usize;
     unsafe {
         asm!(
         "mv {},tp", out(reg)id,
         );
     }
+    #[cfg(any(feature = "vf2", feature = "sifive"))]
+    id -= 1;
     id
 }
 

@@ -91,12 +91,13 @@ fn walk_dt(fdt: Fdt) -> MachineInfo {
             if reg.is_none() {
                 continue;
             }
+            let irq = node.property("interrupts").unwrap().value;
+            let irq = u32::from_be_bytes(irq.try_into().unwrap());
+
             let reg = reg.unwrap();
-            let val = node.interrupts().unwrap().next().unwrap();
-            // let irq = node.property("interrupts").unwrap().value;
-            // let irq = u32::from_be_bytes(irq.try_into().unwrap());
+            // let val = node.interrupts().unwrap().next().unwrap();
             let mut base = 0;
-            let irq = val as u32;
+            // let irq = val as u32;
             reg.for_each(|x| {
                 base = x.starting_address as usize;
             });

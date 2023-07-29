@@ -1,8 +1,8 @@
+use alloc::{format, vec};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
-use alloc::{format, vec};
 use core::fmt::Debug;
 use core::ops::Range;
 
@@ -12,13 +12,14 @@ use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
-use rvfs::file::{vfs_close_file, File};
+use rvfs::file::{File, vfs_close_file};
 use rvfs::info::ProcessFsInfo;
 use rvfs::link::vfs_unlink;
 use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
 use kernel_sync::{Mutex, MutexGuard};
+use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 use syscall_define::aux::{
     AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
@@ -29,24 +30,23 @@ use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, Sign
 use syscall_define::sys::TimeVal;
 use syscall_define::task::CloneFlags;
 use syscall_define::time::TimerType;
-use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 
 use crate::config::{CPU_NUM, FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
+use crate::fs::{STDIN, STDOUT};
 use crate::fs::file::KFile;
 use crate::fs::vfs::VfsProvider;
-use crate::fs::{STDIN, STDOUT};
 use crate::ipc::{global_register_signals, ShmInfo};
 use crate::memory::{
-    build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
-    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
+    build_cow_address_space, build_elf_address_space, build_thread_address_space, FRAME_REF_MANAGER,
+    kernel_satp, MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack,
 };
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
-use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
-use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
+use crate::timer::{ITimerVal, read_timer, TimeNow, ToClock};
+use crate::trap::{trap_common_read_file, trap_return, TrapFrame, user_trap_vector};
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
@@ -618,7 +618,7 @@ impl TaskInner {
             .query(VirtAddr::from(ptr))
             .unwrap();
         if !flag.contains(MappingFlags::V) {
-            error!("invalid page {:?}", flag);
+            error!("[transfer_raw] invalid page {:?}, ptr:{:#x}", flag,ptr);
             self.invalid_page_solver(ptr).unwrap();
             let (phy, flag, _) = self
                 .address_space
@@ -1225,7 +1225,7 @@ impl TaskInner {
             let read_offset = region.offset + (addr - region.start);
             return Ok(Some((file.clone(), buf, read_offset as u64)));
         } else {
-            error!("invalid page fault in stack");
+            error!("invalid page fault in stack, addr: {:#x}",addr);
             let map_flags = "RWUVAD".into();
             self.address_space
                 .lock()
@@ -1421,8 +1421,8 @@ impl Task {
             }),
             send_sigchld_when_exit: false,
         };
-        let phy_button = process.transfer_raw(elf_info.stack_top - USER_STACK_SIZE);
-        let mut user_stack = UserStack::new(phy_button + USER_STACK_SIZE, elf_info.stack_top);
+        let phy_button = process.transfer_raw(elf_info.stack_top - FRAME_SIZE);
+        let mut user_stack = UserStack::new(phy_button + FRAME_SIZE, elf_info.stack_top);
         user_stack.push(0).unwrap();
         let argc_ptr = user_stack.push(0).unwrap();
 
@@ -1435,7 +1435,9 @@ impl Task {
             user_trap_vector as usize,
         );
         trap_frame.regs()[4] = elf_info.tls; // tp --> tls
-        Some(process)
+        let res = Some(process);
+        println!("build process success");
+        res
     }
     /// fork a child
     pub fn t_clone(
@@ -1659,9 +1661,9 @@ impl Task {
                 "PATH=/bin:/usr/bin",
                 "UB_BINDIR=./",
             ]
-            .iter()
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>();
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>();
             envp
         } else {
             env

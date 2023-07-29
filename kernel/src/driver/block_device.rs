@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cmp::min;
@@ -19,14 +21,14 @@ use crate::memory::{frame_alloc, FrameTracker};
 
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 
-pub struct QemuBlockDevice {
-    pub device: Mutex<VirtIOBlk<HalImpl, MmioTransport>>,
+pub struct GenericBlockDevice {
+    pub device: Mutex<Box<dyn LowBlockDriver>>,
     cache: Mutex<LruCache<usize, FrameTracker>>,
     dirty: Mutex<Vec<usize>>,
 }
 
-impl QemuBlockDevice {
-    pub fn new(device: VirtIOBlk<HalImpl, MmioTransport>) -> Self {
+impl GenericBlockDevice {
+    pub fn new(device: Box<dyn LowBlockDriver>) -> Self {
         Self {
             device: Mutex::new(device),
             cache: Mutex::new(LruCache::new(NonZeroUsize::new(512).unwrap())), // 4MB cache
@@ -35,21 +37,21 @@ impl QemuBlockDevice {
     }
 }
 
-unsafe impl Send for QemuBlockDevice {}
+unsafe impl Send for GenericBlockDevice {}
 
-unsafe impl Sync for QemuBlockDevice {}
+unsafe impl Sync for GenericBlockDevice {}
 
 lazy_static! {
-    pub static ref QEMU_BLOCK_DEVICE: Mutex<Vec<Arc<QemuBlockDevice>>> = Mutex::new(Vec::new());
+    pub static ref QEMU_BLOCK_DEVICE: Mutex<Vec<Arc<dyn Device>>> = Mutex::new(Vec::new());
 }
 
-impl Debug for QemuBlockDevice {
+impl Debug for GenericBlockDevice {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("QemuBlockDevice").finish()
     }
 }
 
-impl Device for QemuBlockDevice {
+impl Device for GenericBlockDevice {
     fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, VfsError> {
         let mut page_id = offset / PAGE_CACHE_SIZE;
         let mut offset = offset % PAGE_CACHE_SIZE;
@@ -151,4 +153,64 @@ impl Device for QemuBlockDevice {
         // });
         // self.dirty.lock().clear();
     }
+}
+
+pub trait LowBlockDriver {
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError>;
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError>;
+    fn capacity(&self) -> usize;
+    fn flush(&mut self) {}
+}
+
+impl LowBlockDriver for VirtIOBlk<HalImpl, MmioTransport> {
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError> {
+        self.read_block(block_id, buf).map_err(|_| VfsError::DiskFsError("read block error".to_string()))
+    }
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError> {
+        self.write_block(block_id, buf).map_err(|_| VfsError::DiskFsError("write block error".to_string()))
+    }
+
+    fn capacity(&self) -> usize {
+        self.capacity() as usize
+    }
+}
+
+struct MemoryFat32Img {
+    data: &'static mut [u8],
+}
+
+impl LowBlockDriver for MemoryFat32Img {
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError> {
+        let start = block_id * 512;
+        let end = start + 512;
+        buf.copy_from_slice(&self.data[start..end]);
+        Ok(())
+    }
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError> {
+        let start = block_id * 512;
+        let end = start + 512;
+        self.data[start..end].copy_from_slice(buf);
+        Ok(())
+    }
+
+    fn capacity(&self) -> usize {
+        self.data.len() / 512
+    }
+}
+
+impl MemoryFat32Img {
+    pub fn new(data: &'static mut [u8]) -> Self {
+        Self {
+            data,
+        }
+    }
+}
+
+#[cfg(any(feature = "vf2", feature = "cv1811h"))]
+pub fn init_fake_disk() {
+    use crate::board::{img_end, img_start};
+    let data = unsafe { core::slice::from_raw_parts_mut(img_start as *mut u8, img_end as usize - img_start as usize) };
+    let device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
+    QEMU_BLOCK_DEVICE.lock().push(Arc::new(device));
+    println!("init fake disk success");
 }

@@ -103,8 +103,14 @@ struct UStdout;
 
 impl Write for UStdout {
     fn write_str(&mut self, out: &str) -> Result {
-        let uart = USER_UART.get().unwrap();
-        uart.put_bytes(out.as_bytes());
+        if UART_FLAG.load(Ordering::Relaxed) {
+            let uart = USER_UART.get().unwrap();
+            uart.put_bytes(out.as_bytes());
+        } else {
+            out.as_bytes().iter().for_each(|x| {
+                console_putchar(*x);
+            });
+        }
         Ok(())
     }
 }

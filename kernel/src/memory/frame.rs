@@ -11,8 +11,13 @@ use crate::config::{FRAME_BITS, FRAME_SIZE};
 
 use super::manager::FrameRefManager;
 
+#[cfg(feature = "vf2")]
+const FRAME_NUM: usize = 2096300 / 8;
+#[cfg(feature = "qemu")]
+const FRAME_NUM: usize = 8192;
+
 lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<8192>> = Mutex::new(Bitmap::new());
+    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<FRAME_NUM>> = Mutex::new(Bitmap::new());
 }
 
 lazy_static! {
@@ -34,6 +39,7 @@ pub fn init_frame_allocator(memory_end: usize) {
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
+    println!("set frame allocator manage {} frames", FRAME_NUM);
     FRAME_ALLOCATOR.lock().init(start..end).unwrap();
 }
 
