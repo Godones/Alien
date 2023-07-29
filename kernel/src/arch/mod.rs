@@ -5,6 +5,7 @@ use self::riscv::sstatus;
 
 pub mod riscv;
 
+#[cfg(feature = "qemu")]
 pub fn hart_id() -> usize {
     let mut id: usize;
     unsafe {
@@ -12,10 +13,21 @@ pub fn hart_id() -> usize {
         "mv {},tp", out(reg)id,
         );
     }
-    #[cfg(any(feature = "vf2", feature = "sifive"))]
+    id
+}
+
+#[cfg(any(feature = "vf2", feature = "sifive"))]
+pub fn hart_id() -> usize {
+    let mut id: usize;
+    unsafe {
+        asm!(
+        "mv {},tp", out(reg)id,
+        );
+    }
     id -= 1;
     id
 }
+
 
 pub fn is_interrupt_enable() -> bool {
     sstatus::read().sie()

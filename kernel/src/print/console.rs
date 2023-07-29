@@ -2,7 +2,6 @@ use core::fmt::{Arguments, Result, Write};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use preprint::Print;
-use spin::Lazy;
 
 use kernel_sync::Mutex;
 
@@ -58,7 +57,8 @@ macro_rules! uprintln {
 
 struct Stdout;
 
-static STDOUT: Lazy<Mutex<Stdout>> = Lazy::new(|| Mutex::new(Stdout));
+// static STDOUT: Lazy<Mutex<Stdout>> = Lazy::new(|| Mutex::new(Stdout));
+static STDOUT: Mutex<Stdout> = Mutex::new(Stdout);
 
 pub static UART_FLAG: AtomicBool = AtomicBool::new(false);
 

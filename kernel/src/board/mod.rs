@@ -1,5 +1,3 @@
-use core::arch::global_asm;
-
 #[cfg(feature = "cv1811")]
 pub use cv1811::*;
 #[cfg(feature = "vf2")]
@@ -11,7 +9,7 @@ mod vf2;
 
 // pub static FAT32_IMG: &[u8] = include_bytes!("../../../tools/sdcard.img");
 #[cfg(any(feature = "vf2", feature = "cv1811h"))]
-global_asm!(
+core::arch::global_asm!(
     r#"
     .section .data
     .global img_start
@@ -29,6 +27,7 @@ extern "C" {
     pub fn img_end();
 }
 
+#[cfg(any(feature = "vf2", feature = "cv1811h"))]
 pub fn checkout_fs_img() {
     let img_start = img_start as usize;
     let img_end = img_end as usize;
