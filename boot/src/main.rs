@@ -19,7 +19,7 @@ use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
-use kernel::sbi::hart_start;
+use kernel::sbi::{hart_start, system_shutdown};
 use kernel::task::init_per_cpu;
 
 // 多核启动标志
@@ -123,6 +123,7 @@ extern "C" fn main(_: usize, _: usize) -> ! {
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
     }
+    system_shutdown();
     timer::set_next_trigger();
     println!("begin run task...");
     task::schedule::first_into_user();
