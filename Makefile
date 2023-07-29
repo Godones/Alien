@@ -113,12 +113,14 @@ board:install compile
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
 	@#rm ./alien.bin
+	@rm ./kernel-qemu
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
 
 
 cv1811h:board
 	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
 	@#rm ./alien.bin
+	@rm ./kernel-qemu
 	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
 
 
