@@ -24,6 +24,9 @@ pub mod sstatus {
                 SPP::User
             }
         }
+        pub fn set_spie(&mut self) {
+            self.0.set_bit(5, true);
+        }
         pub fn sie(&self) -> bool {
             self.0.get_bit(1)
         }
