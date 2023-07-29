@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use spin::Lazy;
+use lazy_static::lazy_static;
 
 pub use cpu::*;
 pub use task::{StatisticalData, Task, TaskState};
@@ -15,23 +15,15 @@ pub mod schedule;
 mod stack;
 mod task;
 
-// lazy_static! {
-//     pub static ref INIT_PROCESS: Arc<Task> = {
-//         // let mut data = Vec::new();
-//         // vfs::read_all("/bin/init", &mut data);
-//         let data = INIT;
-//         let task = Task::from_elf("/bin/init", data).unwrap();
-//         Arc::new(task)
-//     };
-// }
-
-static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
-    let data = INIT;
-    let task = Task::from_elf("/bin/init", data).unwrap();
-    println!("init process: {:#x?}", task);
-    Arc::new(task)
-});
-
+lazy_static! {
+    pub static ref INIT_PROCESS: Arc<Task> = {
+        // let mut data = Vec::new();
+        // vfs::read_all("/bin/init", &mut data);
+        let data = INIT;
+        let task = Task::from_elf("/bin/init", data).unwrap();
+        Arc::new(task)
+    };
+}
 /// put init process into process pool
 pub fn init_process() {
     let mut task_pool = TASK_MANAGER.lock();

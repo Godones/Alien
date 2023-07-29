@@ -19,7 +19,7 @@ use kernel::config::{CPU_NUM, STACK_SIZE};
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
-use kernel::sbi::{hart_start, system_shutdown};
+use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
 
 // 多核启动标志
@@ -78,14 +78,17 @@ fn device_tree_addr() -> usize {
 /// rust_main is the entry of the kernel
 #[no_mangle]
 extern "C" fn main(_: usize, _: usize) -> ! {
+    clear_bss();
     if !STARTED.load(Ordering::Relaxed) {
         // this will clear the kernel stack, so if we want get hartid or device_tree_addr,
         // clear_bss will cause error using vf2
-        clear_bss();
         println!("{}", config::FLAG);
         let mut device_tree_addr = device_tree_addr();
-        #[cfg(feature = "vf2")]
-        device_tree_addr = board::FDT.as_ptr() as usize;
+        cfg_if! {
+            if #[cfg(not(feature = "qemu"))] {
+                device_tree_addr = board::FDT.as_ptr() as usize;
+            }
+        }
         init_print();
         println!("boot hart id: {}, device tree addr: {:#x}", hart_id(), device_tree_addr);
         let machine_info = machine_info_from_dtb(device_tree_addr);
@@ -95,7 +98,7 @@ extern "C" fn main(_: usize, _: usize) -> ! {
         init_memory_system(machine_info.memory.end, true);
         thread_local_init();
         #[cfg(feature = "qemu")]
-        driver::init_dt(device_tree_addr);
+        kernel::driver::init_dt(device_tree_addr);
         trap::init_trap_subsystem();
         init_per_cpu();
         cfg_if! {
@@ -123,7 +126,6 @@ extern "C" fn main(_: usize, _: usize) -> ! {
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
     }
-    system_shutdown();
     timer::set_next_trigger();
     println!("begin run task...");
     task::schedule::first_into_user();
