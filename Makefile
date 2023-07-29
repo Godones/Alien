@@ -112,7 +112,7 @@ board:install compile
 
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
-	@#rm ./alien.bin
+	@mv ./alien.bin ./os.bin
 	@rm ./kernel-qemu
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
 
