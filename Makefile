@@ -69,7 +69,7 @@ define boot_qemu
         -serial mon:stdio
 endef
 
-all:
+
 
 install:
 	@cargo install --git  https://github.com/os-module/elfinfo
@@ -112,14 +112,12 @@ board:install compile
 
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
-	@mv ./alien.bin ./os.bin
 	@rm ./kernel-qemu
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
 
 
 cv1811h:board
 	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
-	@mv ./alien.bin ./os.bin
 	@rm ./kernel-qemu
 	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
 
@@ -224,3 +222,5 @@ clean:
 
 .PHONY: all run clean fake_run
 
+all:
+	@mv alien.bin ./os.bin
