@@ -67,6 +67,7 @@ impl TrapFrame {
         sstatus.set_spie();
         assert!(sstatus.0.get_bit(5)); //spie == 1
         sstatus.set_spp(SPP::User);
+        sstatus.set_sie(false);
         let mut res = Self {
             x: [0; 32],
             sepc: entry,

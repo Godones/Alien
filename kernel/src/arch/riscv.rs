@@ -30,6 +30,9 @@ pub mod sstatus {
         pub fn sie(&self) -> bool {
             self.0.get_bit(1)
         }
+        pub fn set_sie(&mut self, value: bool) {
+            self.0.set_bit(1, value);
+        }
     }
 
     pub fn read() -> Sstatus {
