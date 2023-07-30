@@ -1,6 +1,6 @@
 use bit_field::BitField;
 
-use crate::arch::riscv::sstatus::{self, SPP, Sstatus};
+use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

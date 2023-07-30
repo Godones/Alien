@@ -32,7 +32,9 @@ impl GenericBlockDevice {
     pub fn new(device: Box<dyn LowBlockDriver>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(BLOCK_CACHE_FRAMES).unwrap())), // 4MB cache
+            cache: Mutex::new(LruCache::new(
+                NonZeroUsize::new(BLOCK_CACHE_FRAMES).unwrap(),
+            )), // 4MB cache
             dirty: Mutex::new(Vec::new()),
         }
     }
@@ -137,7 +139,7 @@ impl Device for GenericBlockDevice {
         Ok(buf.len())
     }
     fn size(&self) -> usize {
-        self.device.lock().capacity() as usize * 512
+        self.device.lock().capacity() * 512
     }
     fn flush(&self) {
         // let mut device = self.device.lock();
@@ -165,10 +167,12 @@ pub trait LowBlockDriver {
 
 impl LowBlockDriver for VirtIOBlk<HalImpl, MmioTransport> {
     fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError> {
-        self.read_block(block_id, buf).map_err(|_| VfsError::DiskFsError("read block error".to_string()))
+        self.read_block(block_id, buf)
+            .map_err(|_| VfsError::DiskFsError("read block error".to_string()))
     }
     fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError> {
-        self.write_block(block_id, buf).map_err(|_| VfsError::DiskFsError("write block error".to_string()))
+        self.write_block(block_id, buf)
+            .map_err(|_| VfsError::DiskFsError("write block error".to_string()))
     }
 
     fn capacity(&self) -> usize {
@@ -201,16 +205,16 @@ impl LowBlockDriver for MemoryFat32Img {
 
 impl MemoryFat32Img {
     pub fn new(data: &'static mut [u8]) -> Self {
-        Self {
-            data,
-        }
+        Self { data }
     }
 }
 
-#[cfg(any(feature = "vf2", feature = "cv1811h"))]
+#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "sifive"))]
 pub fn init_fake_disk() {
     use crate::board::{img_end, img_start};
-    let data = unsafe { core::slice::from_raw_parts_mut(img_start as *mut u8, img_end as usize - img_start as usize) };
+    let data = unsafe {
+        core::slice::from_raw_parts_mut(img_start as *mut u8, img_end as usize - img_start as usize)
+    };
     let device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
     QEMU_BLOCK_DEVICE.lock().push(Arc::new(device));
     println!("init fake disk success");

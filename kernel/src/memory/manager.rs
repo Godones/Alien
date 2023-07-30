@@ -30,10 +30,6 @@ impl FrameRefManager {
             let now_count = *count;
             if *count == 0 {
                 self.record.remove(&id);
-                // let start_addr = id << FRAME_BITS;
-                // unsafe {
-                //     core::ptr::write_bytes(start_addr as *mut u8, 0, FRAME_SIZE);
-                // }
                 info!("free frame:{:#x}", id);
                 FRAME_ALLOCATOR.lock().free(id, 0).unwrap();
             }
