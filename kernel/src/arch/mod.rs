@@ -16,7 +16,7 @@ pub fn hart_id() -> usize {
     id
 }
 
-#[cfg(any(feature = "vf2", feature = "sifive"))]
+#[cfg(any(feature = "vf2", feature = "hifive"))]
 pub fn hart_id() -> usize {
     let mut id: usize;
     unsafe {

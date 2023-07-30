@@ -10,7 +10,7 @@ pub const CLOCK_FREQ: usize = 12500000;
 #[cfg(feature = "vf2")]
 pub const CLOCK_FREQ: usize = 400_0000;
 
-#[cfg(feature = "sifive")]
+#[cfg(feature = "hifive")]
 pub const CLOCK_FREQ: usize = 100_0000;
 
 #[cfg(feature = "cv1811h")]
@@ -53,12 +53,12 @@ pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
 // 用户栈大小
 pub const USER_STACK_SIZE: usize = 0x50_000;
 
-#[cfg(any(feature = "vf2", feature = "sifive"))]
+#[cfg(any(feature = "vf2", feature = "hifive"))]
 pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4;
 #[cfg(feature = "qemu")]
 pub const BLOCK_CACHE_FRAMES: usize = 512;
 
-#[cfg(any(feature = "vf2", feature = "sifive"))]
+#[cfg(any(feature = "vf2", feature = "hifive"))]
 pub const HEAP_SIZE: usize = 0x40_00000;
 #[cfg(feature = "qemu")]
 pub const HEAP_SIZE: usize = 0x26_00000; // (32+6)MB
