@@ -63,6 +63,7 @@ extern "C" fn _start() {
     }
 }
 
+#[allow(unused)]
 #[inline]
 fn device_tree_addr() -> usize {
     let mut res: usize;
@@ -78,13 +79,16 @@ fn device_tree_addr() -> usize {
 /// rust_main is the entry of the kernel
 #[no_mangle]
 extern "C" fn main(_: usize, _: usize) -> ! {
+    // on visionfive2
+    // if we don't call clear_bss before load STARTED, the kernel may be freeze
     clear_bss();
     if !STARTED.load(Ordering::Relaxed) {
         println!("{}", config::FLAG);
-        let mut device_tree_addr = device_tree_addr();
         cfg_if! {
             if #[cfg(not(feature = "qemu"))] {
-                device_tree_addr = board::FDT.as_ptr() as usize;
+                let device_tree_addr = board::FDT.as_ptr() as usize;
+            }else{
+                let mut device_tree_addr = device_tree_addr();
             }
         }
         init_print();

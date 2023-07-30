@@ -5,8 +5,11 @@ pub use unmatched::*;
 #[cfg(feature = "vf2")]
 pub use vf2::*;
 
+#[cfg(feature = "cv1811")]
 mod cv1811;
+#[cfg(feature = "hifive")]
 mod unmatched;
+#[cfg(feature = "vf2")]
 mod vf2;
 
 #[cfg(any(feature = "vf2", feature = "cv1811h", feature = "hifive"))]
