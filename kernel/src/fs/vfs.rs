@@ -8,9 +8,7 @@ use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
-use rvfs::file::{
-    FileMode, OpenFlags, vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file,
-};
+use rvfs::file::{FileMode, OpenFlags, vfs_close_file, vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file};
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::inode::{InodeMode, SpecialData};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
@@ -23,7 +21,7 @@ use kernel_sync::Mutex;
 use crate::config::{MEMINFO, PASSWORD, RTC_TIME, UTC};
 use crate::driver::QEMU_BLOCK_DEVICE;
 use crate::driver::rtc::get_rtc_time;
-use crate::task::current_task;
+use crate::task::{current_task, SORT_SRC};
 
 // only call once before the first process is created
 lazy_static! {
@@ -77,9 +75,9 @@ pub fn init_vfs() {
     prepare_dev();
     prepare_var();
 
-    // let fake_sort_src = vfs_open_file::<VfsProvider>("/sort.src", OpenFlags::O_CREAT | OpenFlags::O_RDWR, FileMode::FMODE_RDWR).unwrap();
-    // vfs_write_file::<VfsProvider>(fake_sort_src.clone(), SORT_SRC, 0).unwrap();
-    // vfs_close_file::<VfsProvider>(fake_sort_src).unwrap();
+    let fake_sort_src = vfs_open_file::<VfsProvider>("/sort.src", OpenFlags::O_CREAT | OpenFlags::O_RDWR, FileMode::FMODE_RDWR).unwrap();
+    vfs_write_file::<VfsProvider>(fake_sort_src.clone(), SORT_SRC, 0).unwrap();
+    vfs_close_file::<VfsProvider>(fake_sort_src).unwrap();
     println!("vfs init success");
 }
 
