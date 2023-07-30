@@ -15,6 +15,7 @@ use virtio_drivers::transport::mmio::MmioTransport;
 
 use kernel_sync::Mutex;
 
+use crate::config::BLOCK_CACHE_FRAMES;
 use crate::config::FRAME_SIZE;
 use crate::driver::hal::HalImpl;
 use crate::memory::{frame_alloc, FrameTracker};
@@ -31,7 +32,7 @@ impl GenericBlockDevice {
     pub fn new(device: Box<dyn LowBlockDriver>) -> Self {
         Self {
             device: Mutex::new(device),
-            cache: Mutex::new(LruCache::new(NonZeroUsize::new(512).unwrap())), // 4MB cache
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(BLOCK_CACHE_FRAMES).unwrap())), // 4MB cache
             dirty: Mutex::new(Vec::new()),
         }
     }

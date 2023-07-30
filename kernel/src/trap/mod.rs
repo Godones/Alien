@@ -11,10 +11,7 @@ use syscall_define::signal::SIGNAL_RETURN_TRAP;
 use syscall_define::signal::SignalNumber;
 use syscall_define::time::TimerType;
 
-use crate::arch::{
-    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
-    timer_interrupt_enable,
-};
+use crate::arch::{external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable, timer_interrupt_enable};
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
 use crate::arch::riscv::register::stvec::TrapMode;
@@ -88,8 +85,6 @@ pub fn set_kernel_trap_entry() {
 /// 开启中断/异常
 pub fn init_trap_subsystem() {
     println!("++++ setup interrupt ++++");
-    // todo!("why set_kernel_trap_entry can't work on vf2?")
-    // #[cfg(not(feature = "vf2"))]
     set_kernel_trap_entry();
     external_interrupt_enable();
     timer_interrupt_enable();
@@ -173,6 +168,7 @@ impl TrapHandler for Trap {
                 }
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
+                trace!("[User] timer interrupt");
                 interrupt::timer_interrupt_handler();
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -191,6 +187,7 @@ impl TrapHandler for Trap {
         let sepc = sepc::read();
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
+                trace!("[kernel] timer interrupt");
                 check_timer_queue();
                 solve_futex_wait();
                 // set_next_trigger();
