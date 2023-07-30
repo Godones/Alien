@@ -1,6 +1,6 @@
 #[cfg(feature = "cv1811")]
 pub use cv1811::*;
-#[cfg(feature = "sifive")]
+#[cfg(feature = "hifive")]
 pub use unmatched::*;
 #[cfg(feature = "vf2")]
 pub use vf2::*;
@@ -9,7 +9,7 @@ mod cv1811;
 mod unmatched;
 mod vf2;
 
-#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "sifive"))]
+#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "hifive"))]
 core::arch::global_asm!(
     r#"
     .section .data
@@ -22,13 +22,13 @@ core::arch::global_asm!(
     "#
 );
 
-#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "sifive"))]
+#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "hifive"))]
 extern "C" {
     pub fn img_start();
     pub fn img_end();
 }
 
-#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "sifive"))]
+#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "hifive"))]
 pub fn checkout_fs_img() {
     let img_start = img_start as usize;
     let img_end = img_end as usize;
