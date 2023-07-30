@@ -1,8 +1,6 @@
 # Alien
 
-A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os,so
-the system is composed of a series of independent modules. At present, the system already supports user-mode programsand
-some simple functions.
+A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os, so the system is composed of a series of independent modules. At present, the system already supports user-mode programs and some simple functions.
 
 ![image-20230607222452791](assert/image-20230607222452791.png)
 
@@ -82,7 +80,13 @@ make vf2 LOG=WARN VF2=y SMP=1
 make vf2 LOG=WARN CV1811h=y SMP=1
 ```
 
-目前两块开发板都只是启动成功，但目前缺少sd卡驱动，因此不能运行程序。
+## Run Unmatched
+
+```
+make unmatched LOG= UNMATCHED=y SMP=1
+```
+
+目前cv1811h开发板可以上板启动，但是我们暂时没有处理其需要的特殊页表项。对于visionfive2和unmatched，可以启动运行测试程序。
 
 ## Doc
 

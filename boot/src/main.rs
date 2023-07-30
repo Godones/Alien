@@ -4,7 +4,6 @@
 #![feature(asm_const)]
 #![feature(stmt_expr_attributes)]
 
-use core::arch::asm;
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
@@ -14,13 +13,15 @@ use basemachine::machine_info_from_dtb;
 use kernel::arch::hart_id;
 #[cfg(not(feature = "qemu"))]
 use kernel::board;
-use kernel::config::{CPU_NUM, STACK_SIZE};
+use kernel::config::CPU_NUM;
 use kernel::fs::vfs::init_vfs;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
 use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
+
+mod entry;
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
@@ -38,47 +39,9 @@ fn clear_bss() {
     }
 }
 
-#[link_section = ".bss.stack"]
-static mut STACK: [u8; STACK_SIZE * CPU_NUM] = [0; STACK_SIZE * CPU_NUM];
-
-#[naked]
-#[no_mangle]
-#[link_section = ".text.entry"]
-extern "C" fn _start() {
-    unsafe {
-        asm!("\
-        mv tp, a0
-        csrw sscratch, a1
-        csrci sstatus, 0x02
-        csrw sie, zero
-        add t0, a0, 0
-        slli t0, t0, 16
-        la sp, {boot_stack}
-        add sp, sp, t0
-        call main
-        ",
-        boot_stack = sym STACK,
-        options(noreturn)
-        );
-    }
-}
-
-#[allow(unused)]
-#[inline]
-fn device_tree_addr() -> usize {
-    let mut res: usize;
-    unsafe {
-        asm!(
-        " csrr {}, sscratch",
-        out(reg) res,
-        )
-    }
-    res
-}
-
 /// rust_main is the entry of the kernel
 #[no_mangle]
-extern "C" fn main(_: usize, _: usize) -> ! {
+fn main(_: usize, _: usize) -> ! {
     // on visionfive2
     // if we don't call clear_bss before load STARTED, the kernel may be freeze
     clear_bss();
