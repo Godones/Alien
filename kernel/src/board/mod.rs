@@ -7,7 +7,6 @@ mod cv1811;
 mod vf2;
 
 
-// pub static FAT32_IMG: &[u8] = include_bytes!("../../../tools/sdcard.img");
 #[cfg(any(feature = "vf2", feature = "cv1811h"))]
 core::arch::global_asm!(
     r#"

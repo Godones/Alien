@@ -290,11 +290,6 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
         }
         return 0;
     }
-    // for arg in args.iter() {
-    //     if arg.contains("tst.sh") {
-    //         do_exit(0);
-    //     }
-    // }
     if vfs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {

@@ -51,8 +51,8 @@ extern "C" fn _start() {
         csrw sscratch, a1
         csrci sstatus, 0x02
         csrw sie, zero
-        add t0, a0, 1
-        slli t0, t0, 13
+        add t0, a0, 0
+        slli t0, t0, 16
         la sp, {boot_stack}
         add sp, sp, t0
         call main
@@ -80,8 +80,6 @@ fn device_tree_addr() -> usize {
 extern "C" fn main(_: usize, _: usize) -> ! {
     clear_bss();
     if !STARTED.load(Ordering::Relaxed) {
-        // this will clear the kernel stack, so if we want get hartid or device_tree_addr,
-        // clear_bss will cause error using vf2
         println!("{}", config::FLAG);
         let mut device_tree_addr = device_tree_addr();
         cfg_if! {
@@ -110,7 +108,6 @@ extern "C" fn main(_: usize, _: usize) -> ! {
         }
         init_vfs();
         syscall::register_all_syscall();
-        println!("register syscall success");
         task::init_process();
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);

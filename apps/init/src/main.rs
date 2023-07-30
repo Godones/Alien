@@ -3,8 +3,8 @@
 
 extern crate alloc;
 
+use Mstd::{println, system_shutdown};
 use Mstd::process::{exec, exit, fork, waitpid};
-use Mstd::system_shutdown;
 use Mstd::thread::m_yield;
 
 #[no_mangle]
@@ -27,6 +27,7 @@ fn main() -> isize {
     // }
     // 0
     run_test();
+    println!("!TEST FINISH!");
     system_shutdown();
 }
 
