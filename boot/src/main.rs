@@ -11,7 +11,6 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use cfg_if::cfg_if;
 
 use basemachine::machine_info_from_dtb;
-use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
 use kernel::arch::hart_id;
 #[cfg(not(feature = "qemu"))]
 use kernel::board;
@@ -21,6 +20,7 @@ use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
+use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
 
 // 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
@@ -88,7 +88,11 @@ extern "C" fn main(_: usize, _: usize) -> ! {
             }
         }
         init_print();
-        println!("boot hart id: {}, device tree addr: {:#x}", hart_id(), device_tree_addr);
+        println!(
+            "boot hart id: {}, device tree addr: {:#x}",
+            hart_id(),
+            device_tree_addr
+        );
         let machine_info = machine_info_from_dtb(device_tree_addr);
         println!("{:#x?}", machine_info);
         init_machine_info(machine_info.clone());

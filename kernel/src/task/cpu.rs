@@ -9,10 +9,10 @@ use lazy_static::lazy_static;
 use spin::Once;
 
 use kernel_sync::Mutex;
-use syscall_define::{PrLimit, PrLimitRes};
 use syscall_define::ipc::FutexOp;
 use syscall_define::signal::SignalNumber;
 use syscall_define::task::{CloneFlags, WaitOptions};
+use syscall_define::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
 use crate::arch;
@@ -20,10 +20,10 @@ use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::ipc::{futex, global_logoff_signals};
 use crate::sbi::system_shutdown;
-use crate::task::{INIT_PROCESS, LIBC_BENCH2};
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
+use crate::task::{INIT_PROCESS, LIBC_BENCH2};
 use crate::trap::{check_task_timer_expired, TrapFrame};
 
 #[derive(Debug, Clone)]

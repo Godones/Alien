@@ -1,8 +1,8 @@
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 
+use crate::error::{check, BuddyError};
 use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
-use crate::error::{BuddyError, check};
 
 pub struct Bitmap<const N: usize> {
     /// Current number of allocated pages

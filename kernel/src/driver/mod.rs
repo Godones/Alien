@@ -1,5 +1,5 @@
 pub use block_device::*;
-pub use dtb::{DEVICE_TABLE, init_dt, PLIC};
+pub use dtb::{init_dt, DEVICE_TABLE, PLIC};
 pub use input::sys_event_get;
 pub use mpci::pci_probe;
 
