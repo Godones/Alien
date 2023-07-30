@@ -54,9 +54,9 @@ fn run_test() {
         "./lua_testcode.sh\0",
         "./busybox_testcode.sh\0",
         "./cyclictest_testcode.sh\0",
-        "./unixbench_testcode.sh\0",
         "./lmbench_testcode.sh\0",
         "./iozone_testcode.sh\0",
+        "./unixbench_testcode.sh\0",
     ];
     commands.into_iter().for_each(|app| {
         let args = [app.as_ptr()];
