@@ -18,7 +18,7 @@ pub const CLOCK_FREQ: usize = 0x17d7840;
 
 pub const FRAME_SIZE: usize = 0x1000;
 pub const FRAME_BITS: usize = 12;
-pub const STACK_SIZE: usize = 1024 * 8;
+pub const STACK_SIZE: usize = 1024 * 64;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
@@ -55,8 +55,22 @@ pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
 // 用户栈大小
 pub const USER_STACK_SIZE: usize = 0x50_000;
 
+// #[cfg(any(feature = "vf2",feature = "sifive"))]
+// pub const HEAP_SIZE: usize = 0x26_00000; // 16MB
+
+#[cfg(any(feature = "vf2", feature = "sifive"))]
+pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4;
+#[cfg(feature = "qemu")]
+pub const BLOCK_CACHE_FRAMES: usize = 512;
+
+#[cfg(any(feature = "vf2", feature = "sifive"))]
+pub const HEAP_SIZE: usize = 0x40_00000;
+#[cfg(feature = "qemu")]
+pub const HEAP_SIZE: usize = 0x26_00000; // (32+6)MB
+
+
 #[cfg(any(feature = "talloc", feature = "buddy"))]
-pub const KERNEL_HEAP_SIZE: usize = 0x26_00000; // 16MB
+pub const KERNEL_HEAP_SIZE: usize = HEAP_SIZE;
 
 pub const PIPE_BUF: usize = 4096;
 

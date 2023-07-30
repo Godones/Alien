@@ -158,7 +158,7 @@ unsafe impl GlobalAlloc for HeapAllocator {
         };
         if layout.size() >= 5 * 1024 * 1024 {
             // assert_eq!(layout.size() % FRAME_SIZE, 0);
-            println!("alloc big page: {:#x}", layout.size());
+            trace!("alloc big page: {:#x}", layout.size());
             let frame = alloc_frames(need_page);
             frame
         } else {
@@ -187,7 +187,7 @@ unsafe impl GlobalAlloc for HeapAllocator {
         };
         if layout.size() >= 5 * 1024 * 1024 {
             // assert_eq!(layout.size() % FRAME_SIZE, 0);
-            println!("free big page: {:#x}", layout.size());
+            trace!("free big page: {:#x}", layout.size());
             free_frames(ptr, need_page);
         } else {
             if TRICK_ALLOC.lock().find(start) {

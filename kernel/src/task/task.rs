@@ -143,6 +143,7 @@ pub struct TaskTimer {
     /// 根据 timer_type 的规则不断减少，当归零时触发信号
     pub timer_remained: usize,
 
+    pub start: usize,
     pub expired: bool,
 }
 
@@ -164,6 +165,7 @@ impl Default for TaskTimer {
             timer_type: TimerType::NONE,
             timer_interval: TimeVal::new(),
             timer_remained: 0,
+            start: 0,
             expired: false,
         }
     }
@@ -893,19 +895,21 @@ impl TaskInner {
     }
 
     pub fn set_timer(&mut self, itimer: ITimerVal, timer_type: TimerType) {
-        self.timer.timer_remained = itimer.it_value.to_clock() + TimeVal::now().to_clock();
+        self.timer.timer_remained = itimer.it_value.to_clock();
         self.timer.timer_interval = itimer.it_interval;
         self.timer.timer_type = timer_type;
+        self.timer.start = TimeVal::now().to_clock();
     }
 
     pub fn update_timer(&mut self) {
         let now = read_timer();
+        let delta = now - self.timer.start;
         if self.timer.timer_remained == 0 {
             // 等于0说明没有计时器，或者 one-shot 计时器已结束
             return;
         }
-        if self.timer.timer_remained > now {
-            // 时辰未到，减少寄存器计数
+        if self.timer.timer_remained > delta {
+            // 时辰未到
             return;
         }
         // 到此说明计时器已经到时间了，更新计时器
@@ -913,7 +917,8 @@ impl TaskInner {
         self.timer.timer_remained = if self.timer.timer_interval == TimeVal::new() {
             0
         } else {
-            self.timer.timer_interval.to_clock() + now
+            self.timer.start = now;
+            self.timer.timer_interval.to_clock()
         };
         self.timer.expired = true;
     }
