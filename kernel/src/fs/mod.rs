@@ -1,6 +1,6 @@
 use alloc::string::{String, ToString};
 use alloc::vec;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::cmp::min;
 
 use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
 use rvfs::file::{
@@ -41,14 +41,14 @@ pub mod vfs;
 
 pub const AT_FDCWD: isize = -100isize;
 
-fn vfs_statfs2fsstat(vfs_res: StatFs) -> syscall_define::io::FsStat {
+fn vfs_statfs2fsstat(vfs_res: StatFs) -> FsStat {
     FsStat {
         f_type: vfs_res.fs_type as i64,
         f_bsize: vfs_res.block_size as i64,
-        f_blocks: vfs_res.total_blocks as u64,
-        f_bfree: vfs_res.free_blocks as u64,
+        f_blocks: vfs_res.total_blocks,
+        f_bfree: vfs_res.free_blocks,
         f_bavail: 0,
-        f_files: vfs_res.total_inodes as u64,
+        f_files: vfs_res.total_inodes,
         f_ffree: 0,
         f_fsid: [0, 1],
         f_namelen: vfs_res.name_len as isize,
@@ -113,8 +113,6 @@ pub fn sys_umount(dir: *const u8) -> isize {
     0
 }
 
-static TMP_FLAG: AtomicBool = AtomicBool::new(false);
-
 /// Reference: https://man7.org/linux/man-pages/man2/openat.2.html
 #[syscall_func(56)]
 pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize {
@@ -133,11 +131,6 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
         "open file: {:?},flag:{:?}, mode:{:?}",
         path, flag, file_mode
     );
-
-    if path.contains("/var/tmp/lat_") {
-        TMP_FLAG.store(true, Ordering::SeqCst);
-        return 999;
-    }
 
     if flag.contains(OpenFlags::O_BINARY) {
         flag |= OpenFlags::O_RDWR;
@@ -166,11 +159,6 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
 
 #[syscall_func(57)]
 pub fn sys_close(fd: usize) -> isize {
-    if fd == 999 && TMP_FLAG.load(Ordering::SeqCst) {
-        TMP_FLAG.store(false, Ordering::SeqCst);
-        return 0;
-    }
-
     let process = current_task().unwrap();
     let file = process.remove_file(fd);
     if file.is_err() {
@@ -256,12 +244,6 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
-
-    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
-
-    if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
-        return len as isize;
-    }
     let mut res = 0;
     for b in buf.iter_mut() {
         let pipe = file.get_file().is_pipe();
@@ -296,16 +278,6 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
     let mut res = 0;
-
-    let path = user_path_at(fd as isize, "", LookUpFlags::empty()).map_err(|_| -1);
-    // println!("write path: {:?}", path);
-    if path.is_ok() && path.unwrap().contains("/var/tmp/lat_") {
-        return len as isize;
-    }
-    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
-    if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
-        return len as isize;
-    }
     for b in buf.iter_mut() {
         let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
         if r.is_err() {
@@ -511,11 +483,6 @@ pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
     }
     // TODO we need make sure the file of the path is not being used
     let path = path.unwrap();
-
-    if path.contains("/var/tmp/lat_") {
-        return 0;
-    }
-
     // find the file, checkout whether it is being used
     let file = vfs_open_file::<VfsProvider>(&path, OpenFlags::empty(), FileMode::FMODE_RDWR);
     if file.is_err() {
@@ -599,23 +566,16 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
     }
     let flag = flag.unwrap();
     warn!("sys_fstateat: path: {}, flag: {:?}", path, flag);
-
-    if path.contains("/var/tmp/lat_") {
-        return LinuxErrno::ENOENT.into();
-    }
-
     let res = vfs_getattr::<VfsProvider>(path.as_str(), flag);
     warn!("sys_fstateat: res: {:?}", res);
     if res.is_err() {
         return LinuxErrno::ENOENT as isize;
     }
     let res = res.unwrap();
-
     let mut file_stat = FileStat::default();
     unsafe {
         (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(res);
     }
-
     process
         .access_inner()
         .copy_to_user(&file_stat, stat as *mut FileStat);
@@ -702,11 +662,6 @@ pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
     if flag.contains(OpenFlags::O_WRONLY) {
         mode |= FileMode::FMODE_WRITE;
     }
-
-    if path.contains("/var/tmp/lat_") {
-        return 0;
-    }
-
     let res = vfs_mkdir::<VfsProvider>(path.as_str(), mode);
     if res.is_err() {
         error!("mkdirat failed: {:?}", res);
@@ -889,10 +844,7 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     }
     let file = file.unwrap();
     let mut count = 0;
-
     let mut res = 0;
-
-    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
     for i in 0..iovcnt {
         let mut iov = IoVec::empty();
         let ptr = unsafe { (iovec as *mut IoVec).add(i) };
@@ -907,30 +859,26 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
 
         let mut offset = file.get_file().access_inner().f_pos;
 
-        if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
-            let l: usize = buf.iter().map(|b| b.len()).sum();
-            count += l;
-        } else {
-            for b in buf.iter() {
-                let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
-                if r.is_err() {
-                    if r.err().unwrap().starts_with("pipe_write") {
-                        error!("pipe_write error: {:?}", r.err().unwrap());
-                        res = LinuxErrno::EPIPE.into()
-                    } else {
-                        res = LinuxErrno::EIO.into()
-                    };
-                    break;
-                }
-                let r = r.unwrap();
-                count += r;
-                offset += r;
-            }
-            if res != 0 {
+        for b in buf.iter() {
+            let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
+            if r.is_err() {
+                if r.err().unwrap().starts_with("pipe_write") {
+                    error!("pipe_write error: {:?}", r.err().unwrap());
+                    res = LinuxErrno::EPIPE.into()
+                } else {
+                    res = LinuxErrno::EIO.into()
+                };
                 break;
             }
+            let r = r.unwrap();
+            count += r;
+            offset += r;
+        }
+        if res != 0 {
+            break;
         }
     }
+
     if res != 0 {
         return res;
     }
@@ -946,7 +894,6 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     }
     let file = file.unwrap();
     let mut count = 0;
-    let file_name = file.get_file().f_dentry.access_inner().d_name.clone();
     for i in 0..iovcnt {
         let ptr = unsafe { (iovec as *mut IoVec).add(i) };
         let iov = task.transfer_raw_ptr(ptr);
@@ -958,22 +905,17 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
         let mut buf = task.transfer_buffer(base, len);
 
         let mut offset = file.get_file().access_inner().f_pos;
-        if offset >= 10 * 1024 * 1024 && file_name.contains("dummy") {
-            let l: usize = buf.iter().map(|b| b.len()).sum();
-            count += l;
-        } else {
-            buf.iter_mut().for_each(|b| {
-                warn!(
-                    "read file: {:?}, offset:{:?}, len:{:?}",
-                    fd,
-                    offset,
-                    b.len()
-                );
-                let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
-                count += r;
-                offset += r;
-            });
-        }
+        buf.iter_mut().for_each(|b| {
+            warn!(
+                "read file: {:?}, offset:{:?}, len:{:?}",
+                fd,
+                offset,
+                b.len()
+            );
+            let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+            count += r;
+            offset += r;
+        });
     }
     count as isize
 }
