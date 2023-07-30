@@ -42,6 +42,8 @@ ifeq ($(VF2),y)
 FEATURES += vf2
 else ifeq ($(CV1811h),y)
 FEATURES += cv1811h
+else ifeq ($(UNMATCHED),y)
+FEATURES += hifive
 else
 FEATURES += qemu
 endif
@@ -94,7 +96,7 @@ user:
 
 sdcard:$(img) testelf user
 
-run:install compile sdcard
+run:sdcard install compile
 	@echo qemu booot $(SMP)
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
@@ -102,7 +104,6 @@ run:install compile sdcard
 
 fake_run:
 	$(call boot_qemu)
-
 
 
 board:install compile
@@ -126,7 +127,10 @@ cv1811h:board
 	@rm ./kernel-qemu
 	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
 
-
+unmatched:board
+	@mkimage -f ./tools/fu740.its ./alien-unmatched.itb
+	@rm ./kernel-qemu
+	@cp ./alien-unmatched.itb /home/godones/projects/tftpboot/
 
 f_test:
 	qemu-system-riscv64 \

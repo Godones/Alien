@@ -18,7 +18,7 @@ default = []
 vf2 = ["kernel/vf2"]
 cv1811h = ["kernel/cv1811h"]
 qemu = ["kernel/qemu"]
-hivife = ["kernel/hifive"]
+hifive = ["kernel/hifive"]
 
 slab = ["kernel/slab"]
 talloc = ["kernel/talloc"]

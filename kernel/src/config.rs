@@ -40,6 +40,11 @@ pub const MMIO: &[(usize, usize)] = &[
     (0x00_1000_0000, 0x10000), // UART
 ];
 
+#[cfg(feature = "hifive")]
+pub const MMIO: &[(usize, usize)] = &[
+    (0xc000000, 0x4000000), //PLIC
+];
+
 pub const FRAME_MAX_ORDER: usize = 16;
 
 // todo!(if the app linker script changed, this should be changed too)
