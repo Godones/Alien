@@ -1,16 +1,16 @@
 /*
- * U-Boot uImage source file for "maturin-FU740"
+ * U-Boot uImage source file for "alien-FU740"
  */
 
 /dts-v1/;
 
 / {
-    description = "U-Boot uImage source file for maturin-FU740";
+    description = "U-Boot uImage source file for alien-FU740";
     #address-cells = <1>;
 
     images {
         kernel {
-            description = "Linux kernel for maturin-FU740";
+            description = "Linux kernel for alien-FU740";
             data = /incbin/("../alien.bin");
             type = "kernel";
             arch = "riscv";

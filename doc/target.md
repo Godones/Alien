@@ -75,8 +75,9 @@
 - [ ] Network
     - [ ] smoltcp
 - [ ] Board
-    - [ ] VisionFive2
-    - [ ] 华山派
+    - [x] VisionFive2
+    - [x] unmatched
+    - [ ] 华山派 :页表项有特殊设置，暂时不管
 - [ ] Arch
     - [x] riscv
     - [ ] loonarch64
