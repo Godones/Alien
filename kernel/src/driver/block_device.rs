@@ -209,7 +209,7 @@ impl MemoryFat32Img {
     }
 }
 
-#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "sifive"))]
+#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "hifive"))]
 pub fn init_fake_disk() {
     use crate::board::{img_end, img_start};
     let data = unsafe {
