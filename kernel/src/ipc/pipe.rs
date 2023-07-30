@@ -298,7 +298,7 @@ fn pipe_exec(file: Arc<File>, func: PipeFunc) -> bool {
     let res = match func {
         PipeFunc::AvailableRead => {
             let av = buf.available_read();
-            error!("pipe_exec: available_read:{}", av);
+            trace!("pipe_exec: available_read:{}", av);
             av > 0
         }
         PipeFunc::AvailableWrite => buf.available_write() > 0,
@@ -325,7 +325,6 @@ fn pipe_ready_to_write(file: Arc<File>) -> bool {
 
 fn pipe_read_is_hang_up(file: Arc<File>) -> bool {
     let pipe_hang_up = pipe_exec(file, PipeFunc::Hangup(true));
-    error!("[pipe] is hangup :{}", pipe_hang_up);
     pipe_hang_up
 }
 

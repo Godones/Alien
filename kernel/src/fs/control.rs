@@ -96,10 +96,6 @@ pub fn utimensat(fd: usize, path: *const u8, times: *const u8, _flags: usize) ->
     let (atime, mtime) = if times.is_null() {
         (TimeSpec::now(), TimeSpec::now())
     } else {
-        // let atime_ref = inner.transfer_raw_ptr(times as *mut TimeSpec);
-        // let mtime_ptr = unsafe { (times as *const TimeSpec).add(1) };
-        // let mtime_ref = inner.transfer_raw_ptr(mtime_ptr as *mut TimeSpec);
-
         let mut atime = TimeSpec::new(0, 0);
         let mut mtime = TimeSpec::new(0, 0);
         inner.copy_from_user(times as *const TimeSpec, &mut atime);

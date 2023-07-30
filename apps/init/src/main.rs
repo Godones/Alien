@@ -3,9 +3,9 @@
 
 extern crate alloc;
 
-use Mstd::{println, system_shutdown};
 use Mstd::process::{exec, exit, fork, waitpid};
 use Mstd::thread::m_yield;
+use Mstd::{println, system_shutdown};
 
 #[no_mangle]
 fn main() -> isize {

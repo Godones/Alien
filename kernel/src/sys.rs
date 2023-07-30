@@ -1,12 +1,12 @@
 use core::cmp::min;
 
-use syscall_define::LinuxErrno;
 use syscall_define::sys::{Rusage, Sysinfo, SyslogAction, TimeVal};
+use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
-use crate::MACHINE_INFO;
 use crate::task::{current_task, TASK_MANAGER};
 use crate::timer::{get_time_ms, TimeFromFreq};
+use crate::MACHINE_INFO;
 
 const LOG_BUF_LEN: usize = 4096;
 const LOG: &str = r"

@@ -1,6 +1,5 @@
 use alloc::string::{String, ToString};
 use alloc::vec;
-use core::cmp::min;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
@@ -38,7 +37,6 @@ mod control;
 pub mod file;
 pub mod poll;
 pub mod select;
-pub mod tty;
 pub mod vfs;
 
 pub const AT_FDCWD: isize = -100isize;
