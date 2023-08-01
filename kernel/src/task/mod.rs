@@ -41,3 +41,4 @@ static INIT: &[u8] = include_bytes!("../../../target/riscv64gc-unknown-none-elf/
 static LIBC_BENCH2: &[u8] = include_bytes!("../../../sdcard/libc-bench2");
 // online test has no sort.src
 pub static SORT_SRC: &[u8] = include_bytes!("../../../sdcard/sort.src");
+pub static UNIXBENCH: &[u8] = include_bytes!("../../../sdcard/unixbench_testcode.sh");
