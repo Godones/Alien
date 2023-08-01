@@ -23,7 +23,7 @@ use crate::sbi::system_shutdown;
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
-use crate::task::{INIT_PROCESS, LIBC_BENCH2};
+use crate::task::INIT_PROCESS;
 use crate::trap::{check_task_timer_expired, TrapFrame};
 
 #[derive(Debug, Clone)]
@@ -283,12 +283,8 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
         args.insert(0, "sh\0".to_string());
     }
     let mut data = Vec::new();
-    if path_str.contains("libc-bench2") {
-        let res = task.exec(&path_str, LIBC_BENCH2, args, envs);
-        if res.is_err() {
-            return res.err().unwrap();
-        }
-        return 0;
+    if path_str.contains("libc-bench") {
+        path_str = path_str.replace("libc-bench", "libc-bench2");
     }
     if vfs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);

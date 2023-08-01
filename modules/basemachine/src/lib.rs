@@ -27,16 +27,24 @@ pub struct MachineInfo {
 
 impl Debug for MachineInfo {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let model = core::str::from_utf8(&self.model).unwrap();
-        f.debug_struct("MachineInfo")
-            .field("model", &model)
-            .field("smp", &self.smp)
-            .field("memory", &self.memory)
-            .field("uart", &&self.uart[..self.uart_count])
-            .field("plic", &self.plic)
-            .field("clint", &self.clint)
-            .field("rtc", &self.rtc)
-            .finish()
+        let index = self.model.iter().position(|&x| x == 0).unwrap_or(32);
+        let model = core::str::from_utf8(&self.model[..index]).unwrap();
+        write!(
+            f,
+            "This is a devicetree representation of a {} machine\n",
+            model
+        )
+        .unwrap();
+        write!(f, "SMP:    {}\n", self.smp).unwrap();
+        write!(
+            f,
+            "Memory: {:#x}..{:#x}\n",
+            self.memory.start, self.memory.end
+        )
+        .unwrap();
+        write!(f, "PLIC:   {:#x}..{:#x}\n", self.plic.start, self.plic.end).unwrap();
+        write!(f, "CLINT:  {:#x}..{:#x}", self.clint.start, self.clint.end).unwrap();
+        Ok(())
     }
 }
 
