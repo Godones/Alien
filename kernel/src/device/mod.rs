@@ -2,20 +2,20 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::sync::atomic::Ordering;
 
-pub use block::{BlockDevice, BLOCK_DEVICE};
-pub use gpu::{GpuDevice, GPU_DEVICE};
-pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
+pub use block::{BLOCK_DEVICE, BlockDevice};
+pub use gpu::{GPU_DEVICE, GpuDevice};
+pub use input::{InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE, sys_event_get};
 
 use crate::board::get_rtc_info;
+use crate::driver::GenericBlockDevice;
 use crate::driver::rtc::Rtc;
 use crate::driver::uart::Uart16550;
-use crate::driver::GenericBlockDevice;
 use crate::interrupt::register_device_to_plic;
 use crate::print::console::UART_FLAG;
 
 // pub use pci::{pci_probe,pci_read,pci_write};
-pub use self::rtc::{get_rtc_time, RtcDevice, RtcTime, RTC_DEVICE};
-pub use self::uart::{UartDevice, UART_DEVICE};
+pub use self::rtc::{get_rtc_time, RTC_DEVICE, RtcDevice, RtcTime};
+pub use self::uart::{UART_DEVICE, UartDevice};
 
 mod block;
 mod gpu;
@@ -25,11 +25,11 @@ mod rtc;
 mod uart;
 
 pub fn init_device() {
-    init_uart();
-    init_gpu();
+    // init_uart();
+    // init_gpu();
     init_keyboard_input_device();
     init_mouse_input_device();
-    init_rtc();
+    // init_rtc();
     // in qemu, we can't init block device before other virtio device now
     // todo!(fix device tree probe methods)
     init_block_device();

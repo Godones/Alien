@@ -59,7 +59,7 @@ pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
 pub const USER_STACK_SIZE: usize = 0x50_000;
 
 #[cfg(any(feature = "vf2", feature = "hifive"))]
-pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4;
+pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 #[cfg(feature = "qemu")]
 pub const BLOCK_CACHE_FRAMES: usize = 512;
 
@@ -71,7 +71,7 @@ pub const HEAP_SIZE: usize = 0x26_00000; // (32+6)MB
 #[cfg(any(feature = "talloc", feature = "buddy"))]
 pub const KERNEL_HEAP_SIZE: usize = HEAP_SIZE;
 
-pub const PIPE_BUF: usize = 4096;
+pub const PIPE_BUF: usize = 65536;
 
 // 线程数量/描述符表大小限制
 pub const MAX_THREAD_NUM: usize = 65536;

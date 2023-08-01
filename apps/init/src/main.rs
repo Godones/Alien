@@ -3,9 +3,9 @@
 
 extern crate alloc;
 
+use Mstd::{println, system_shutdown};
 use Mstd::process::{exec, exit, fork, waitpid};
 use Mstd::thread::m_yield;
-use Mstd::{println, system_shutdown};
 
 #[no_mangle]
 fn main() -> isize {
@@ -56,7 +56,7 @@ fn run_test() {
         "./cyclictest_testcode.sh\0",
         "./lmbench_testcode.sh\0",
         "./iozone_testcode.sh\0",
-        "./unixbench_testcode.sh\0",
+        "./unixbench_testcode2.sh\0",
     ];
     commands.into_iter().for_each(|app| {
         let args = [app.as_ptr()];
