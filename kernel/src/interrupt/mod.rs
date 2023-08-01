@@ -41,6 +41,7 @@ pub fn init_plic() {
             let mut privileges = [2u8;CPU_NUM];
             // core 0 don't have S mode
             privileges[0] = 1;
+            println!("PLIC context: {:?}",privileges);
             let plic = PLIC::new(addr, &privileges);
             PLIC.call_once(|| plic);
             println!("init hifive or vf2 plic success");
@@ -61,6 +62,6 @@ pub fn register_device_to_plic(irq: usize, device: Arc<dyn DeviceBase>) {
     plic.set_threshold(hard_id as u32, Mode::Machine, 1);
     plic.set_threshold(hard_id as u32, Mode::Supervisor, 0);
     plic.complete(hard_id as u32, Mode::Supervisor, irq as u32);
-    plic.enable(hard_id as u32, Mode::Supervisor, irq as u32);
     plic.set_priority(irq as u32, 1);
+    plic.enable(hard_id as u32, Mode::Supervisor, irq as u32);
 }

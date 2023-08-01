@@ -176,6 +176,7 @@ impl TrapHandler for Trap {
                 interrupt::timer_interrupt_handler();
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
+                println!("external interrupt");
                 external_interrupt_handler();
             }
             _ => {
