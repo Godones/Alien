@@ -9,8 +9,6 @@ use std::string::{String, ToString};
 use std::vec::Vec;
 use std::{format, fs};
 
-// use syscall_table::scan::scan_and_generate;
-
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/");
     let path = Path::new("src/trace/kernel_symbol.S");

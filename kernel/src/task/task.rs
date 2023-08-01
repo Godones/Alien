@@ -1441,7 +1441,6 @@ impl Task {
         );
         trap_frame.regs()[4] = elf_info.tls; // tp --> tls
         let res = Some(process);
-        println!("build process success");
         res
     }
     /// fork a child

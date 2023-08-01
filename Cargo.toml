@@ -15,6 +15,7 @@ members = [
     "modules/kernel-sync",
     "modules/virtio-input-decoder",
     "modules/input2event",
+    "modules/uart",
     "apps/cat",
     "apps/sleep",
     #    "apps/dbfs",
