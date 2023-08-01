@@ -36,7 +36,6 @@ pub fn register_all_syscall() {
         (120, sched_getscheduler),
         (119, sched_setscheduler),
         (165, getrusage),
-        (2002, sys_event_get),
         (2000, sys_framebuffer),
         (2001, sys_framebuffer_flush),
         (59, sys_pipe),
@@ -130,6 +129,7 @@ pub fn register_all_syscall() {
         (226, map_protect),
         (227, msync),
         (233, madvise),
+        (2002, sys_event_get),
     );
     SYSCALL_TABLE.call_once(|| table);
 }
@@ -137,7 +137,7 @@ pub fn do_syscall(id: usize, args: &[usize]) -> Option<isize> {
     let res = SYSCALL_TABLE.get().unwrap().do_call(id, &args);
     res
 }
-use crate::driver::sys_event_get;
+use crate::device::sys_event_get;
 use crate::fs::chmod;
 use crate::fs::chmodat;
 use crate::fs::faccessat;

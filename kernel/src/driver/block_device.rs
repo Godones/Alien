@@ -1,23 +1,24 @@
 use alloc::boxed::Box;
 use alloc::string::ToString;
-use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::num::NonZeroUsize;
+use core::ptr::NonNull;
 
-use lazy_static::lazy_static;
 use lru::LruCache;
 use rvfs::info::VfsError;
 use rvfs::superblock::Device;
 use virtio_drivers::device::blk::VirtIOBlk;
-use virtio_drivers::transport::mmio::MmioTransport;
+use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use kernel_sync::Mutex;
 
 use crate::config::BLOCK_CACHE_FRAMES;
 use crate::config::FRAME_SIZE;
+use crate::device::BlockDevice;
 use crate::driver::hal::HalImpl;
+use crate::interrupt::DeviceBase;
 use crate::memory::{frame_alloc, FrameTracker};
 
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
@@ -27,6 +28,10 @@ pub struct GenericBlockDevice {
     cache: Mutex<LruCache<usize, FrameTracker>>,
     dirty: Mutex<Vec<usize>>,
 }
+
+unsafe impl Send for GenericBlockDevice {}
+
+unsafe impl Sync for GenericBlockDevice {}
 
 impl GenericBlockDevice {
     pub fn new(device: Box<dyn LowBlockDriver>) -> Self {
@@ -40,12 +45,12 @@ impl GenericBlockDevice {
     }
 }
 
-unsafe impl Send for GenericBlockDevice {}
+impl BlockDevice for GenericBlockDevice {}
 
-unsafe impl Sync for GenericBlockDevice {}
-
-lazy_static! {
-    pub static ref QEMU_BLOCK_DEVICE: Mutex<Vec<Arc<dyn Device>>> = Mutex::new(Vec::new());
+impl DeviceBase for GenericBlockDevice {
+    fn hand_irq(&self) {
+        unimplemented!()
+    }
 }
 
 impl Debug for GenericBlockDevice {
@@ -165,22 +170,42 @@ pub trait LowBlockDriver {
     fn flush(&mut self) {}
 }
 
-impl LowBlockDriver for VirtIOBlk<HalImpl, MmioTransport> {
+pub struct VirtIOBlkWrapper {
+    device: VirtIOBlk<HalImpl, MmioTransport>,
+}
+
+impl VirtIOBlkWrapper {
+    pub fn new(addr: usize) -> Self {
+        let header = NonNull::new(addr as *mut VirtIOHeader).unwrap();
+        let transport = unsafe { MmioTransport::new(header) }.unwrap();
+        let blk = VirtIOBlk::<HalImpl, MmioTransport>::new(transport)
+            .expect("failed to create blk driver");
+        let size = blk.capacity();
+        println!("blk device size is {}MB", size * 512 / 1024 / 1024);
+        Self { device: blk }
+    }
+}
+
+impl LowBlockDriver for VirtIOBlkWrapper {
     fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError> {
-        self.read_block(block_id, buf)
-            .map_err(|_| VfsError::DiskFsError("read block error".to_string()))
+        let res = self
+            .device
+            .read_block(block_id, buf)
+            .map_err(|_| VfsError::DiskFsError("read block error".to_string()));
+        res
     }
     fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError> {
-        self.write_block(block_id, buf)
+        self.device
+            .write_block(block_id, buf)
             .map_err(|_| VfsError::DiskFsError("write block error".to_string()))
     }
 
     fn capacity(&self) -> usize {
-        self.capacity() as usize
+        self.device.capacity() as usize
     }
 }
 
-struct MemoryFat32Img {
+pub struct MemoryFat32Img {
     data: &'static mut [u8],
 }
 
@@ -207,15 +232,4 @@ impl MemoryFat32Img {
     pub fn new(data: &'static mut [u8]) -> Self {
         Self { data }
     }
-}
-
-#[cfg(any(feature = "vf2", feature = "cv1811h", feature = "hifive"))]
-pub fn init_fake_disk() {
-    use crate::board::{img_end, img_start};
-    let data = unsafe {
-        core::slice::from_raw_parts_mut(img_start as *mut u8, img_end as usize - img_start as usize)
-    };
-    let device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
-    QEMU_BLOCK_DEVICE.lock().push(Arc::new(device));
-    println!("init fake disk success");
 }

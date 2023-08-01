@@ -40,7 +40,7 @@ gmanager = { path = "../modules/gmanager" }
 kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
 syscall_define = { path = "../modules/syscall", package = "syscall" }
 basemachine = { path = "../modules/basemachine" }
-
+uart = { path = "../modules/uart" }
 
 talc = { version = "1.0", optional = true }
 buddy_system_allocator = { version = "0.9.0", optional = true }
