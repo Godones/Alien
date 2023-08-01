@@ -15,7 +15,7 @@ fn main() {
     #[cfg(not(feature = "vf2"))]
     let base_addr = 0x80200000usize;
     #[cfg(feature = "vf2")]
-    let base_addr: usize = 0x80200000;
+    let base_addr: usize = 0x40200000;
     let base_addr = format!("BASE_ADDRESS = {};", base_addr);
     let mut new_config = String::new();
     for line in ld.lines() {
