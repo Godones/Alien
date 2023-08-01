@@ -1,24 +1,25 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use core::ptr::NonNull;
 
-use hashbrown::HashMap;
-use spin::Once;
 use virtio_drivers::device::input::VirtIOInput;
-use virtio_drivers::transport::mmio::MmioTransport;
+use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use kernel_sync::Mutex;
-use syscall_table::syscall_func;
 
+use crate::device::InputDevice;
 use crate::driver::hal::HalImpl;
-use crate::driver::DeviceBase;
+use crate::interrupt::DeviceBase;
 use crate::task::schedule::schedule;
 use crate::task::{current_task, Task, TaskState};
 
-pub static mut INPUT_DEVICE: Once<HashMap<&str, Arc<InputDriver>>> = Once::new();
-
-pub struct InputDriver {
+pub struct VirtIOInputDriver {
     inner: Mutex<InputDriverInner>,
 }
+
+unsafe impl Send for VirtIOInputDriver {}
+
+unsafe impl Sync for VirtIOInputDriver {}
 
 struct InputDriverInner {
     max_events: u32,
@@ -27,9 +28,9 @@ struct InputDriverInner {
     wait_queue: VecDeque<Arc<Task>>,
 }
 
-impl InputDriver {
-    pub fn new(driver: VirtIOInput<HalImpl, MmioTransport>, max_events: u32) -> Self {
-        let driver = InputDriver {
+impl VirtIOInputDriver {
+    fn new(driver: VirtIOInput<HalImpl, MmioTransport>, max_events: u32) -> Self {
+        let driver = VirtIOInputDriver {
             inner: Mutex::new(InputDriverInner {
                 max_events,
                 driver,
@@ -40,7 +41,22 @@ impl InputDriver {
         driver
     }
 
-    pub fn read_event(&self) -> u64 {
+    pub fn from_addr(addr: usize, max_events: u32) -> Self {
+        let header = NonNull::new(addr as *mut VirtIOHeader).unwrap();
+        let transport = unsafe { MmioTransport::new(header) }.unwrap();
+        let input = VirtIOInput::<HalImpl, MmioTransport>::new(transport)
+            .expect("failed to create input driver");
+        Self::new(input, max_events)
+    }
+}
+
+impl InputDevice for VirtIOInputDriver {
+    fn is_empty(&self) -> bool {
+        let inner = self.inner.lock();
+        inner.events.is_empty()
+    }
+
+    fn read_event_with_block(&self) -> u64 {
         loop {
             let mut inner = self.inner.lock();
             if let Some(event) = inner.events.pop_front() {
@@ -54,22 +70,13 @@ impl InputDriver {
         }
     }
 
-    pub fn read_event_nonblock(&self) -> Option<u64> {
+    fn read_event_without_block(&self) -> Option<u64> {
         let mut inner = self.inner.lock();
         inner.events.pop_front()
     }
-
-    pub fn is_empty(&self) -> bool {
-        let inner = self.inner.lock();
-        inner.events.is_empty()
-    }
 }
 
-unsafe impl Send for InputDriver {}
-
-unsafe impl Sync for InputDriver {}
-
-impl DeviceBase for InputDriver {
+impl DeviceBase for VirtIOInputDriver {
     fn hand_irq(&self) {
         let mut inner = self.inner.lock();
         inner.driver.ack_interrupt();
@@ -92,41 +99,5 @@ impl DeviceBase for InputDriver {
             guard.push_back(process);
             count -= 1;
         }
-    }
-}
-
-#[syscall_func(2002)]
-pub fn sys_event_get(event_buf: *mut u64, len: usize) -> isize {
-    let process = current_task().unwrap();
-    let user_buffer = process.transfer_buffer(event_buf, len);
-    let mut count = 0;
-    for buf in user_buffer {
-        let mut index = 0;
-        let len = buf.len();
-        while index < len {
-            let event = read_event();
-            if event == 0 {
-                break;
-            }
-            buf[index] = event;
-            index += 1;
-            count += 1;
-        }
-    }
-    count
-}
-
-fn read_event() -> u64 {
-    let (keyboard, mouse) = unsafe {
-        let kb = INPUT_DEVICE.get().unwrap().get("keyboard").unwrap().clone();
-        let mouse = INPUT_DEVICE.get().unwrap().get("mouse").unwrap().clone();
-        (kb, mouse)
-    };
-    if !keyboard.is_empty() {
-        keyboard.read_event()
-    } else if !mouse.is_empty() {
-        mouse.read_event()
-    } else {
-        0
     }
 }

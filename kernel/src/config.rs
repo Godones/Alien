@@ -6,7 +6,7 @@ pub const FLAG: &str = r"
  /_/   \_\ |_| |_|  \___| |_| |_|
 ";
 #[cfg(feature = "qemu")]
-pub const CLOCK_FREQ: usize = 12500000;
+pub const CLOCK_FREQ: usize = 1250_0000;
 #[cfg(feature = "vf2")]
 pub const CLOCK_FREQ: usize = 400_0000;
 
@@ -22,7 +22,7 @@ pub const STACK_SIZE: usize = 1024 * 64;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 1;
+pub const CPU_NUM: usize = 2;
 
 #[cfg(feature = "qemu")]
 pub const MMIO: &[(usize, usize)] = &[
