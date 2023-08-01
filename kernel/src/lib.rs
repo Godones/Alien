@@ -5,6 +5,7 @@
 #![feature(atomic_from_mut)]
 #![feature(ip_in_core)]
 #![feature(stmt_expr_attributes)]
+// #![feature(trait_upcasting)]
 extern crate alloc;
 #[macro_use]
 extern crate log;
@@ -18,10 +19,12 @@ pub mod print;
 pub mod arch;
 pub mod board;
 pub mod config;
+pub mod device;
 pub mod driver;
 mod error;
 pub mod fs;
 mod gui;
+pub mod interrupt;
 pub mod ipc;
 pub mod memory;
 pub mod net;

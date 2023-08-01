@@ -22,8 +22,7 @@ use rvfs::superblock::{register_filesystem, DataOps, Device};
 use kernel_sync::Mutex;
 
 use crate::config::{MEMINFO, PASSWORD, RTC_TIME, UTC};
-use crate::driver::rtc::get_rtc_time;
-use crate::driver::QEMU_BLOCK_DEVICE;
+use crate::device::{get_rtc_time, BLOCK_DEVICE};
 use crate::task::{current_task, SORT_SRC};
 
 // only call once before the first process is created
@@ -46,11 +45,16 @@ pub fn init_vfs() {
     *TMP_DIR.lock() = root_mnt.root.clone();
     // mount fat fs
     register_filesystem(FAT).expect("register fat fs failed");
-    let img_device = QEMU_BLOCK_DEVICE.lock()[0].clone();
+    let img_device = BLOCK_DEVICE.get().unwrap().clone();
+
+    let mut buf = [0u8; 512];
+    img_device.read(&mut buf, 100 * 512).unwrap();
+
     let data = Box::new(Fat32Data::new(img_device));
     let mnt = do_mount::<VfsProvider>("fat", "/", "fat", MountFlags::empty(), Some(data)).unwrap();
     *TMP_MNT.lock() = mnt.clone();
     *TMP_DIR.lock() = mnt.root.clone();
+    println!("mount fat fs success");
     vfs_mkdir::<VfsProvider>("/dev", FileMode::FMODE_RDWR).unwrap();
     vfs_mkdir::<VfsProvider>("/tmp", FileMode::FMODE_RDWR).unwrap();
 

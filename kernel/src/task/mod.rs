@@ -28,7 +28,6 @@ lazy_static! {
 pub fn init_process() {
     let mut task_pool = TASK_MANAGER.lock();
     let task = INIT_PROCESS.clone();
-    println!("clone init process success");
     let dir = TMP_DIR.lock().clone();
     let mnt = TMP_MNT.lock().clone();
     task.access_inner().fs_info =

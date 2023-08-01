@@ -13,8 +13,11 @@ use basemachine::machine_info_from_dtb;
 use kernel::arch::hart_id;
 #[cfg(not(feature = "qemu"))]
 use kernel::board;
+use kernel::board::init_dtb;
 use kernel::config::CPU_NUM;
+use kernel::device::init_device;
 use kernel::fs::vfs::init_vfs;
+use kernel::interrupt::init_plic;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
@@ -51,7 +54,8 @@ fn main(_: usize, _: usize) -> ! {
             if #[cfg(not(feature = "qemu"))] {
                 let device_tree_addr = board::FDT.as_ptr() as usize;
             }else{
-                let mut device_tree_addr = device_tree_addr();
+                use crate::entry::device_tree_addr;
+                let device_tree_addr = device_tree_addr();
             }
         }
         init_print();
@@ -66,17 +70,14 @@ fn main(_: usize, _: usize) -> ! {
         kernel_info(machine_info.memory.end);
         init_memory_system(machine_info.memory.end, true);
         thread_local_init();
-        #[cfg(feature = "qemu")]
-        kernel::driver::init_dt(device_tree_addr);
+        // init device tree
+        init_dtb(Some(device_tree_addr));
+        // init plic associate board
+        init_plic();
+        // init all device
+        init_device();
         trap::init_trap_subsystem();
         init_per_cpu();
-        cfg_if! {
-            if #[cfg(not(feature = "qemu"))]{
-                board::checkout_fs_img();
-                use kernel::driver::init_fake_disk;
-                init_fake_disk();
-            }
-        }
         init_vfs();
         syscall::register_all_syscall();
         task::init_process();
@@ -93,6 +94,9 @@ fn main(_: usize, _: usize) -> ! {
         thread_local_init();
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
+        loop {
+            spin_loop();
+        }
     }
     timer::set_next_trigger();
     println!("begin run task...");
@@ -100,7 +104,14 @@ fn main(_: usize, _: usize) -> ! {
 }
 
 fn init_other_hart(hart_id: usize) {
-    for i in 0..CPU_NUM {
+    cfg_if! {
+        if #[cfg(any(feature="vf2",feature = "hifive"))]{
+            let start_hart = 1;
+        }else {
+            let start_hart = 0;
+        }
+    }
+    for i in start_hart..CPU_NUM {
         extern "C" {
             fn _start();
         }
@@ -114,7 +125,14 @@ fn init_other_hart(hart_id: usize) {
 }
 
 fn wait_all_cpu_start() {
-    while CPUS.load(Ordering::Acquire) < CPU_NUM {
+    cfg_if! {
+        if #[cfg(any(feature="vf2",feature = "hifive"))]{
+            let cpu_num = CPU_NUM - 1;
+        }else {
+            let cpu_num = CPU_NUM;
+        }
+    }
+    while CPUS.load(Ordering::Acquire) < cpu_num {
         spin_loop()
     }
     println!("all cpu start");

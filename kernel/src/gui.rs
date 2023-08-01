@@ -2,7 +2,7 @@ use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 
 use syscall_table::syscall_func;
 
-use crate::driver::gpu::GPU_DEVICE;
+use crate::device::GPU_DEVICE;
 use crate::task::current_task;
 
 const FB_VADDR: usize = 0x1000_0000;
