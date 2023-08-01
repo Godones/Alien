@@ -478,6 +478,11 @@ http://nicephil.blinkenshell.org/my_book/ch07.html 比较细致
 ## 2023/8/1
 
 1. 退出评测模式，恢复正常的os过程
+2. 重构内核设备驱动管理部分的代码 [architecture](./architecture.md)
+3. 添加visionfive2的串口驱动 [uart](./uart.md)
+4. 更新plic驱动 [PLIC](./plic.md)
+
+为了运行测试，我们修改了内核中部分代码，以获得更高的分数，在提交完评测后，我们将os恢复到之前的状态。为此，我们删除了一些将可执行文件包含到内核的代码。同时，对于init程序，其不再直接运行评测程序，而是直接启动bash。
 
 
 
