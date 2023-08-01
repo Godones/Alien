@@ -44,7 +44,7 @@ impl<const W: usize> LowUartDriver for Uart8250Raw<W> {
     }
 }
 
-pub struct Uart16550 {
+pub struct Uart {
     inner: Mutex<(Box<dyn LowUartDriver>, UartInner)>,
 }
 
@@ -53,7 +53,7 @@ struct UartInner {
     wait_queue: VecDeque<Arc<Task>>,
 }
 
-impl Uart16550 {
+impl Uart {
     pub fn new(uart_raw: Box<dyn LowUartDriver>) -> Self {
         let mut uart_raw = uart_raw;
         uart_raw._init();
@@ -61,13 +61,13 @@ impl Uart16550 {
             rx_buf: VecDeque::new(),
             wait_queue: VecDeque::new(),
         };
-        Uart16550 {
+        Uart {
             inner: Mutex::new((uart_raw, inner)),
         }
     }
 }
 
-impl UartDevice for Uart16550 {
+impl UartDevice for Uart {
     fn put(&self, c: u8) {
         let mut inner = self.inner.lock();
         inner.0._put(c);
@@ -105,7 +105,7 @@ impl UartDevice for Uart16550 {
     }
 }
 
-impl DeviceBase for Uart16550 {
+impl DeviceBase for Uart {
     fn hand_irq(&self) {
         let mut inner = self.inner.lock();
         loop {

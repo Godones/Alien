@@ -9,7 +9,7 @@ OBJCOPY     := rust-objcopy --binary-architecture=riscv64
 BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
-IMG := tools/fs.img
+IMG := tools/sdcard.img
 SMP ?= 4
 GUI ?=n
 #IMG1 := tools/fs1.img
@@ -178,9 +178,8 @@ fat32:
 		rm $(IMG); \
 		touch $(IMG); \
 	fi
-	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=256
-	@sudo chmod 777 $(IMG)
-	@sudo mkfs.fat -F 32 $(IMG)
+	@dd if=/dev/zero of=$(IMG) bs=1M count=64
+	@mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
 		sudo umount /fat; \
 	fi
