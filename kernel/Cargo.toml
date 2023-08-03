@@ -45,7 +45,7 @@ basemachine = { path = "../modules/basemachine" }
 #syscall-table = {path = "../modules/syscall-table",features = ["std"]}
 
 [dependencies.smoltcp]
-version = "0.10.0"
+version = "0.9.1"
 default-features = false
 features = [
   "alloc", "log",   # no std
