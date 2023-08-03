@@ -1,10 +1,187 @@
 # NetWork
 
-## linux的socket编程
+### Todo List
+
++ [ ] 封装Interface的poll方法，使其易于调用
++ [ ] 实现各系统调用
+    + [x] socket
+    + [ ] udp: bind+send+recieve
+    + [ ] tcp
+        + [ ] sever:  bind + listen + accept + recv + send
+        + [ ] client:  connect + recv + send
+    + [ ] close
+    + [ ] shutdown
++ [ ] 重构目前的IpAddr，使用smoltcp中已有的结构
+
++ [ ] 支持DNS
 
 
 
-## 与socket相关的系统调用
+## 相关设计
+
+### 启动网络功能
+
+在启动时附带上`NET=y`(例如`make run LOG=WARN img=fat32 SMP=1 GUI=n NET=y`)即可启动网络功能
+
+### 启动虚拟网卡
+当启动时附带上`NET=y`时，会在Qemu的参数中加入`netdev user,id=net -device virtio-net-device,netdev=net`启动虚拟网卡
+```makefile
+ifeq ($(NET),y)
+QEMU_ARGS += -netdev user,id=net \
+			 -device virtio-net-device,netdev=net
+endif
+```
+
+### 初始化网卡设备和接口
+```rust
+/// driver/dtb.rs
+fn virtio_device(transport: MmioTransport, addr: usize, irq: usize) {
+    match transport.device_type() {
+        // ...
+        DeviceType::Network => virto_net(transport),
+        // ...
+    }
+}
+
+fn virto_net(transport: MmioTransport){
+    let net = VirtIONet::<HalImpl, MmioTransport, NET_QUEUE_SIZE>::new(transport, NET_BUFFER_LEN)
+        .expect("failed to create net driver");
+    println!("MAC address: {:02x?}", net.mac_address());
+    NET_DEVICE.call_once(|| VirtIONetWrapper::new(net));
+    println!("virtio-net init finished");
+    /// ...
+    
+}
+
+```
+
+使用`virtio`中的`VirtIONet`初始化网卡设备`NET_DEVICE`。此时需要将`VirtIONet`包装成`VirtIONetWrapper`，一方面为了满足多线程共享，另一方面要为`VirtIONetWrapper`实现`smoltcp`中的`Device`特征，以便使用`VirtIONetWrapper`初始化`smoltcp`上一层的`Interface`(`Interface`结构体是网络接口的抽象表示，它提供了与该接口相关的功能和操作)。其中对于`Interface`结构主要使用的方法为poll()，它的作用包括：
++ 检查接口是否有待发送的数据包，如果有，则将这些数据包发送到网络。
++ 检查接口是否接收到新的数据包，如果有，则将这些数据包传递给网络栈进行处理。
++ 处理接口的定时器事件，例如重新发送未确认的数据包、更新路由表等。
++ 处理接口的其他网络事件，例如连接建立、连接关闭等。
+
+在socket每次需要发送或接收数据包前，都需要调用poll()，之后将对其进行封装，方便socket调用。
+
+
+
+### smoltcp中的相关socket结构
+
+`smoltcp`是一个用于嵌入式系统的轻量级TCP/IP协议栈。它提供了一组简单易用的API来实现网络通信功能。
+
+#### SocketSet
+
+ 用于管理套接字（socket）的集合，提供方便的方式来创建、配置和管理多个套接字。通过`Interface`结构，可以配置和管理网络接口的地址、路由表，发送和接收IP数据包，以及处理邻居设备的信息。它是`smoltcp`库中用于网络通信的重要组件之一。
+
+`SocketSet`结构的一些重要字段和方法：
+
+- `sockets: &'a mut [Option<Socket<'b>>]`：表示套接字的集合，以`Option<Socket>`的形式存储在数组中。
+- `timestamp: Instant`：表示当前时间戳，用于套接字的超时处理。
+- `storage: &'b mut [u8]`：表示套接字的存储空间，用于存储套接字的状态和数据。
+
+`SocketSet`结构提供了一些方法来管理套接字集合，包括：
+
+- `new(sockets: &'a mut [Option<Socket<'b>>], storage: &'b mut [u8]) -> SocketSet<'a, 'b>`：创建一个新的`SocketSet`对象，指定套接字集合和存储空间。
+- `get::<T>(&mut self, handle: SocketHandle) -> Option<&mut T>`：根据套接字句柄获取指定类型的套接字的可变引用。
+- `get::<T>(&self, handle: SocketHandle) -> Option<&T>`：根据套接字句柄获取指定类型的套接字的不可变引用。
+- `add<S: SocketLike>(&mut self, socket: S) -> Result<SocketHandle, S>`：向套接字集合中添加一个新的套接字，并返回套接字句柄。
+- `remove(&mut self, handle: SocketHandle) -> Option<Socket<'b>>`：从套接字集合中移除指定句柄的套接字，并返回移除的套接字。
+- `poll(&mut self, device: &mut dyn Device, timestamp: Instant) -> Result<(), Error>`：轮询套接字集合，处理待发送和接收的数据，并更新套接字的状态。
+
+后面将其封装成`SocketSetWrapper`，并提供快速创建TCP、UDP套接字并将其放入集合中的接口。
+
+
+
+#### TcpSocket
+
+用于表示TCP套接字。
+
+`TcpSocket`结构体包含了以下字段：
+
+- `state`：表示TCP套接字的状态，可以是`Closed`、`Listen`、`SynSent`、`SynReceived`、`Established`、`FinWait1`、`FinWait2`、`Closing`、`TimeWait`、`CloseWait`或`LastAck`。
+- `local_endpoint`：表示本地端点，即本地IP地址和端口号。
+- `remote_endpoint`：表示远程端点，即远程IP地址和端口号。
+- `receive_queue`：表示接收数据的队列，存储接收到的数据段。
+- `send_queue`：表示发送数据的队列，存储待发送的数据段。
+- `send_unacked`：表示已发送但未收到确认的数据段。
+- `send_next`：表示下一个要发送的数据段的序号。
+- `send_wnd`：表示发送窗口大小，即还可以发送多少字节的数据。
+- `receive_next`：表示下一个期望接收的数据段的序号。
+- `receive_wnd`：表示接收窗口大小，即还可以接收多少字节的数据。
+
+`TcpSocket`结构体还提供了一些方法，例如`connect`、`listen`、`accept`、`send`、`receive`等，用于实现TCP连接的建立、数据的发送和接收等操作。
+
+
+
+#### UdpSocket
+
+用于表示UDP套接字
+
+下面是`UdpSocket`结构的一些重要字段和方法：
+
+- `header: UdpHeader`：表示UDP头部的信息，包括源端口和目标端口。
+- `endpoint: Option<SocketAddr>`：表示UDP套接字的端点，即源IP地址和源端口。
+- `rx_buffer: [u8; UDP_RX_BUFFER_SIZE]`：UDP接收缓冲区，用于存储接收到的UDP数据。
+- `tx_buffer: [u8; UDP_TX_BUFFER_SIZE]`：UDP发送缓冲区，用于存储待发送的UDP数据。
+
+`UdpSocket`结构提供了一些方法来创建和管理UDP连接，包括：
+
+- `new() -> UdpSocket<'a>`：创建一个新的`UdpSocket`对象。
+- `bind(&mut self, endpoint: SocketAddr) -> Result<(), Error>`：将UDP套接字绑定到指定的端点，即指定源IP地址和源端口。
+- `send(&mut self, dst: SocketAddr, payload: &[u8]) -> Result<(), Error>`：向指定的目标端点发送UDP数据。
+- `receive(&mut self) -> Result<(SocketAddr, &[u8]), Error>`：接收UDP数据，并返回数据的源端点和有效负载。
+- `can_send(&self) -> bool`：检查UDP套接字是否可以发送数据。
+- `can_receive(&self) -> bool`：检查UDP套接字是否可以接收数据。
+
+通过`UdpSocket`结构，可以创建一个UDP套接字，并使用`bind`方法将其绑定到指定的端点。然后，使用`send`方法向指定的目标端点发送UDP数据，使用`receive`方法接收UDP数据。还可以使用`can_send`和`can_receive`方法来检查套接字是否可以发送和接收数据。`UdpSocket`提供了一种简单而灵活的方式来创建和管理UDP连接，以进行无连接的、不可靠的数据传输。
+
+
+
+
+
+#### Alien中使用的SocketData结构
+
+在Alien中，我们使用SocketData结构来记录Socket的相关信息，其定义如下：
+
+```rust
+pub struct SocketData {
+    /// 用于在SocketSet中找到smoltcp下的socket套接字
+    pub handler: Option<SocketHandle>,
+    /// socket 通信域  
+    pub domain: Domain,
+    /// 连接类型
+    pub s_type: SocketType,
+    /// 具体的通信协议
+    pub protocol: usize,
+    /// 连接的远端服务器的信息
+    pub peer_addr: IpAddr,
+    /// 本地的信息
+    pub local_addr: IpAddr,
+    pub listening: bool,
+    pub is_server: bool,
+}
+```
+
+相关方法：
+
++ `is_tcp()`: 通过`s_type`属性判断该套接字是否为TCP Socket
++ `is_ucp()`: 通过`s_type`属性判断该套接字是否为UDP Socket
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### alien提供的系统调用
 
 ``` rust
 pub fn sys_socket(domain: usize, socket_type: usize, protocol:usize) -> isize;
@@ -184,7 +361,7 @@ fn sys_recv(socket: usize, buffer: *const usize, length: usize, flags:usize) -> 
 
 
 
-## 参考资料
+#### 参考资料
 
 [socket.h](https://pubs.opengroup.org/onlinepubs/7908799/xns/syssocket.h.html)
 
@@ -197,3 +374,5 @@ fn sys_recv(socket: usize, buffer: *const usize, length: usize, flags:usize) -> 
 [组件化OS--aceros的改进：支持和优化lwip网络协议栈](http://hub.fgit.ml/Centaurus99/arceos-lwip/blob/main/reports/final.md)
 
 [详解：VirtIO Networking 虚拟网络设备实现架构](https://www.sdnlab.com/26199.html)
+
+[[smoltcp - Rust - Docs.rs](https://docs.rs/smoltcp/)]
