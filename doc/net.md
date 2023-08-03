@@ -3,9 +3,11 @@
 ### Todo List
 
 + [ ] 封装Interface的poll方法，使其易于调用
+    + [ ] 完善DeviceWrapper和InterfaceWrapper结构
 + [ ] 实现各系统调用
-    + [x] socket
-    + [ ] udp: bind+send+recieve
+    + [x] socket::new
+    + [ ] udp: bind + send + recieve
+    + [ ] ListenTable 结构
     + [ ] tcp
         + [ ] sever:  bind + listen + accept + recv + send
         + [ ] client:  connect + recv + send
@@ -139,7 +141,7 @@ fn virto_net(transport: MmioTransport){
 
 
 
-#### Alien中使用的SocketData结构
+### Alien中使用的SocketData结构
 
 在Alien中，我们使用SocketData结构来记录Socket的相关信息，其定义如下：
 
@@ -167,11 +169,7 @@ pub struct SocketData {
 + `is_tcp()`: 通过`s_type`属性判断该套接字是否为TCP Socket
 + `is_ucp()`: 通过`s_type`属性判断该套接字是否为UDP Socket
 
-
-
-
-
-
+在相关调用中需要先判断套接字类型，然后对不同的类型采用不同的实现。
 
 
 
