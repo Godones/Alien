@@ -28,7 +28,7 @@ use crate::driver::rtc::init_rtc;
 use crate::driver::uart::init_uart;
 use crate::driver::DeviceBase;
 use crate::driver::{pci_probe, QemuBlockDevice, QEMU_BLOCK_DEVICE};
-use crate::driver::net::{VirtIONetWrapper, NetInterfaceWrapper, NET_DEVICE, NET_INTERFACE, NET_QUEUE_SIZE, NET_BUFFER_LEN};
+use crate::driver::net::{VirtIONetDeviceWrapper, NetInterfaceWrapper, NET_DEVICE, NET_INTERFACE, NET_QUEUE_SIZE, NET_BUFFER_LEN};
 
 pub static PLIC: Once<PLIC> = Once::new();
 
@@ -222,7 +222,7 @@ fn virto_net(transport: MmioTransport){
     let net = VirtIONet::<HalImpl, MmioTransport, NET_QUEUE_SIZE>::new(transport, NET_BUFFER_LEN)
         .expect("failed to create net driver");
     println!("MAC address: {:02x?}", net.mac_address());
-    NET_DEVICE.call_once(|| VirtIONetWrapper::new(net));
+    NET_DEVICE.call_once(|| VirtIONetDeviceWrapper::new(net));
     println!("virtio-net init finished");
 
     // initial interface 
