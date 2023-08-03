@@ -119,3 +119,13 @@ pub fn socket_addr_resolution(family_user_addr: *const u16, len: usize) -> Resul
         }
     }
 }
+
+
+pub fn split_u32_to_u8s(num: u32) -> [u8; 4] {
+    let byte1 = (num >> 24) as u8;
+    let byte2 = (num >> 16) as u8;
+    let byte3 = (num >> 8) as u8;
+    let byte4 = num as u8;
+
+    [byte1, byte2, byte3, byte4]
+}
