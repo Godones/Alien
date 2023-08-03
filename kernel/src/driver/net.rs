@@ -13,7 +13,7 @@ use lazy_static::lazy_static;
 use smoltcp::phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken, };
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv4Address, };
 use smoltcp::time::Instant;
-use smoltcp::iface::{Config,Interface};
+use smoltcp::iface::{Config, Interface, SocketSet,};
 
 
 pub const NET_BUFFER_LEN: usize = 2048;
@@ -25,24 +25,27 @@ const GATEWAY: &str = "10.0.2.2"; // QEMU user networking gateway
 type VirtIONetDevice = VirtIONet<HalImpl, MmioTransport, NET_QUEUE_SIZE>;
 
 
-pub struct VirtIONetWrapper {
+pub struct VirtIONetDeviceWrapper {
     inner: Arc<Mutex<VirtIONetDevice>>,
 }
 
 pub struct NetInterfaceWrapper {
+    ether_addr: Option<EthernetAddress>,
+    dev: Arc<VirtIONetDeviceWrapper>,
     inner: Arc<Mutex<Interface>>,
+
 }
 
 lazy_static!(
-    pub static ref NET_DEVICE: Once<VirtIONetWrapper> = Once::new();
+    pub static ref NET_DEVICE: Once<VirtIONetDeviceWrapper> = Once::new();
     pub static ref NET_INTERFACE: Once<NetInterfaceWrapper> = Once::new();
 );
 
 
 
-impl VirtIONetWrapper {
+impl VirtIONetDeviceWrapper {
     pub fn new(dev: VirtIONetDevice) -> Self {
-        VirtIONetWrapper {
+        VirtIONetDeviceWrapper {
             inner: Arc::new(Mutex::new(dev)),
         }
     }
@@ -51,13 +54,31 @@ impl VirtIONetWrapper {
         EthernetAddress(self.inner.lock().mac_address())
     }
 
+    pub fn poll<F>(&mut self, f: F)
+    where
+        F: Fn(&[u8]),
+    {
+        let mut dev = self.inner.lock();
+        while  dev.can_recv() {
+            match dev.receive() {
+                Ok(buf) => {
+                    f(buf.packet());
+                }
+                Err(Error::NotReady) => break, // TODO: better method to avoid error type conversion
+                Err(err) => {
+                    warn!("receive failed: {:?}", err);
+                    break;
+                }
+            }
+        }
+    }
 }
 
-unsafe impl Sync for VirtIONetWrapper {}
+unsafe impl Sync for VirtIONetDeviceWrapper {}
 
-unsafe impl Send for VirtIONetWrapper {}
+unsafe impl Send for VirtIONetDeviceWrapper {}
 
-impl Device for VirtIONetWrapper {
+impl Device for VirtIONetDeviceWrapper {
     type RxToken<'a> = VirtioRxToken where Self: 'a;
     type TxToken<'a> = VirtioTxToken where Self: 'a;
 
@@ -124,7 +145,7 @@ impl NetInterfaceWrapper {
     pub fn new() -> Self {
         let mut config = Config::new();
         let dev = NET_DEVICE.get().expect("NETDEVICE not initialized");
-        let mut dev = VirtIONetWrapper{
+        let mut dev = VirtIONetDeviceWrapper{
             inner: dev.inner.clone(),
         };
         config.random_seed = 0x2333;
@@ -145,27 +166,30 @@ impl NetInterfaceWrapper {
             .unwrap();
 
         NetInterfaceWrapper {
-            inner: Arc::new(Mutex::new(iface))
+            ether_addr: Some(dev.mac_address()),
+            inner: Arc::new(Mutex::new(iface)),
+            dev: Arc::new(dev),
         }
     }
 
+    pub fn ethernet_address(&self) -> Option<EthernetAddress> {
+        self.ether_addr
+    }
 
-    // pub fn poll(&self, sockets: &Mutex<SocketSet>) {
-    //     let mut config = Config::new();
-    //     let dev = NET_DEVICE.get().expect("NETDEVICE not initialized");
-    //     let mut dev = VirtIONetWrapper{
-    //         inner: dev.inner.clone(),
-    //     };
-    //     dev.poll(|buf| {
-    //         snoop_tcp_packet(buf).ok(); // preprocess TCP packets
-    //     });
 
-    //     let timestamp =
-    //         Instant::from_micros_const((current_time_nanos() / NANOS_PER_MICROS) as i64);
-    //     let mut iface = self.iface.lock();
-    //     let mut sockets = sockets.lock();
-    //     iface.poll(timestamp, dev.deref_mut(), &mut sockets);
-    // }
+    pub fn poll(&self, sockets: &Mutex<SocketSet>) {
+        let mut dev = self.dev.inner.lock();
+
+        // dev.poll(|buf| {
+        //     snoop_tcp_packet(buf).ok(); // preprocess TCP packets
+        // });
+
+        // let timestamp =
+        //     Instant::from_micros_const((current_time_nanos() / NANOS_PER_MICROS) as i64);
+        // let mut iface = self.iface.lock();
+        // let mut sockets = sockets.lock();
+        // iface.poll(timestamp, dev.deref_mut(), &mut sockets);
+    }
 }
 
 // fn snoop_tcp_packet(buf: &[u8]) -> Result<(), smoltcp::wire::Error> {
