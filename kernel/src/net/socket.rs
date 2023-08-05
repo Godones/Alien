@@ -7,17 +7,17 @@ use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
 use rvfs::mount::VfsMount;
-use rvfs::StrResult;
 use rvfs::superblock::{DataOps, Device};
+use rvfs::StrResult;
 use smoltcp::iface::{SocketHandle, SocketSet};
 use smoltcp::socket::{self, AnySocket};
 use smoltcp::wire::{IpAddress, IpEndpoint};
 
 use kernel_sync::Mutex;
+use syscall_define::net::{Domain, SocketType, LOCAL_LOOPBACK_ADDR};
 use syscall_define::LinuxErrno;
-use syscall_define::net::{Domain, LOCAL_LOOPBACK_ADDR, SocketType};
 
-use crate::net::addr::{IpV4Addr, split_u32_to_u8s};
+use crate::net::addr::{split_u32_to_u8s, IpV4Addr};
 use crate::net::port::*;
 
 use super::addr::IpAddr;
@@ -33,7 +33,6 @@ const UDP_RX_BUF_LEN: usize = 4096;
 const UDP_TX_BUF_LEN: usize = 4096;
 
 pub struct SocketSetWrapper<'a>(Mutex<SocketSet<'a>>);
-
 
 impl<'a> SocketSetWrapper<'a> {
     fn new() -> Self {
@@ -69,8 +68,8 @@ impl<'a> SocketSetWrapper<'a> {
     }
 
     pub fn with_socket<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
-        where
-            F: FnOnce(&T) -> R,
+    where
+        F: FnOnce(&T) -> R,
     {
         let set = self.0.lock();
         let socket = set.get(handle);
@@ -78,8 +77,8 @@ impl<'a> SocketSetWrapper<'a> {
     }
 
     pub fn with_socket_mut<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
-        where
-            F: FnOnce(&mut T) -> R,
+    where
+        F: FnOnce(&mut T) -> R,
     {
         let mut set = self.0.lock();
         let socket = set.get_mut(handle);
@@ -96,7 +95,6 @@ impl<'a> SocketSetWrapper<'a> {
         debug!("socket {}: destroyed", handle);
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct SocketData {
@@ -143,9 +141,7 @@ impl SocketData {
                 let new_udp_socket = SocketSetWrapper::new_udp_socket();
                 Some(SOCKET_SET.add(new_udp_socket))
             }
-            _ => {
-                None
-            }
+            _ => None,
         };
         let socket = Box::new(Self {
             handler,
@@ -252,9 +248,15 @@ impl SocketData {
 
                         if self.is_udp() {
                             let mut sockets = SOCKET_SET.0.lock();
-                            let socket = sockets.get_mut::<socket::udp::Socket>(self.handler.unwrap());
+                            let socket =
+                                sockets.get_mut::<socket::udp::Socket>(self.handler.unwrap());
                             let ip_values = split_u32_to_u8s(ip);
-                            let ip_address = IpAddress::v4(ip_values[0], ip_values[1], ip_values[2], ip_values[3]);
+                            let ip_address = IpAddress::v4(
+                                ip_values[0],
+                                ip_values[1],
+                                ip_values[2],
+                                ip_values[3],
+                            );
                             let endpoint = IpEndpoint {
                                 addr: ip_address,
                                 port,
@@ -403,7 +405,6 @@ impl Drop for SocketData {
         }
     }
 }
-
 
 fn socket_file_release(file: Arc<File>) -> StrResult<()> {
     error!("socket file release");

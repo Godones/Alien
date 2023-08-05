@@ -16,9 +16,7 @@ impl<const QS: usize, const BL: usize> VirtIONetDeviceWrapper<QS, BL> {
         let transport = unsafe { MmioTransport::new(header) }.unwrap();
         let net = VirtIONet::<HalImpl, MmioTransport, QS>::new(transport, BL)
             .expect("failed to create net driver");
-        Self {
-            net
-        }
+        Self { net }
     }
 }
 
