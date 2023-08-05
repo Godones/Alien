@@ -74,7 +74,6 @@ pub fn get_block_device_info() -> Option<(usize, usize)> {
     None
 }
 
-
 pub fn get_net_device_info() -> Option<(usize, usize)> {
     None
 }

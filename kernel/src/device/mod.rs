@@ -2,28 +2,28 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::sync::atomic::Ordering;
 
-pub use block::{BLOCK_DEVICE, BlockDevice};
-pub use gpu::{GPU_DEVICE, GpuDevice};
-pub use input::{InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE, sys_event_get};
+pub use block::{BlockDevice, BLOCK_DEVICE};
+pub use gpu::{GpuDevice, GPU_DEVICE};
+pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 
 use crate::board::get_rtc_info;
-use crate::driver::GenericBlockDevice;
 use crate::driver::rtc::Rtc;
 use crate::driver::uart::Uart;
+use crate::driver::GenericBlockDevice;
 use crate::interrupt::register_device_to_plic;
 use crate::print::console::UART_FLAG;
 
 // pub use pci::{pci_probe,pci_read,pci_write};
-pub use self::rtc::{get_rtc_time, RTC_DEVICE, RtcDevice, RtcTime};
-pub use self::uart::{UART_DEVICE, UartDevice};
+pub use self::rtc::{get_rtc_time, RtcDevice, RtcTime, RTC_DEVICE};
+pub use self::uart::{UartDevice, UART_DEVICE};
 
 mod block;
 mod gpu;
 mod input;
+mod net;
 mod pci;
 mod rtc;
 mod uart;
-mod net;
 
 pub fn init_device() {
     init_uart();
@@ -187,7 +187,6 @@ fn init_mouse_input_device() {
         println!("init mouse input device success");
     }
 }
-
 
 fn init_net() {
     let res = crate::board::get_net_device_info();
