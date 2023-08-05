@@ -1,23 +1,104 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use alloc::vec;
+use alloc::vec::Vec;
 
+use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
 use rvfs::mount::VfsMount;
 use rvfs::superblock::{DataOps, Device};
 use rvfs::StrResult;
+use smoltcp::iface::{SocketHandle, SocketSet};
+use smoltcp::socket::{self, AnySocket};
+use smoltcp::wire::{IpAddress, IpEndpoint};
 
+use kernel_sync::Mutex;
 use syscall_define::net::{Domain, SocketType, LOCAL_LOOPBACK_ADDR};
 use syscall_define::LinuxErrno;
 
-use crate::net::addr::IpV4Addr;
+use crate::net::addr::{split_u32_to_u8s, IpV4Addr};
 use crate::net::port::*;
 
 use super::addr::IpAddr;
 use super::ShutdownFlag;
 
+lazy_static! {
+    pub static ref SOCKET_SET: SocketSetWrapper<'static> = SocketSetWrapper::new();
+}
+
+const TCP_RX_BUF_LEN: usize = 4096;
+const TCP_TX_BUF_LEN: usize = 4096;
+const UDP_RX_BUF_LEN: usize = 4096;
+const UDP_TX_BUF_LEN: usize = 4096;
+
+pub struct SocketSetWrapper<'a>(Mutex<SocketSet<'a>>);
+
+impl<'a> SocketSetWrapper<'a> {
+    fn new() -> Self {
+        Self(Mutex::new(SocketSet::new(Vec::new())))
+    }
+
+    pub fn new_tcp_socket() -> socket::tcp::Socket<'a> {
+        let tcp_rx_buffer = socket::tcp::SocketBuffer::new(vec![0; TCP_RX_BUF_LEN]);
+        let tcp_tx_buffer = socket::tcp::SocketBuffer::new(vec![0; TCP_TX_BUF_LEN]);
+        socket::tcp::Socket::new(tcp_rx_buffer, tcp_tx_buffer)
+    }
+
+    pub fn new_udp_socket() -> socket::udp::Socket<'a> {
+        let udp_rx_buffer = socket::udp::PacketBuffer::new(
+            vec![socket::udp::PacketMetadata::EMPTY; 8],
+            vec![0; UDP_RX_BUF_LEN],
+        );
+        let udp_tx_buffer = socket::udp::PacketBuffer::new(
+            vec![socket::udp::PacketMetadata::EMPTY; 8],
+            vec![0; UDP_TX_BUF_LEN],
+        );
+        socket::udp::Socket::new(udp_rx_buffer, udp_tx_buffer)
+    }
+
+    // pub fn new_dns_socket() -> socket::dns::Socket<'a> {
+    //     socket::dns::Socket::new(&[DNS_SEVER], Vec::new())
+    // }
+
+    pub fn add<T: AnySocket<'a>>(&self, socket: T) -> SocketHandle {
+        let handle = self.0.lock().add(socket);
+        debug!("socket {}: created", handle);
+        handle
+    }
+
+    pub fn with_socket<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        let set = self.0.lock();
+        let socket = set.get(handle);
+        f(socket)
+    }
+
+    pub fn with_socket_mut<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        let mut set = self.0.lock();
+        let socket = set.get_mut(handle);
+        f(socket)
+    }
+
+    // pub fn poll_interfaces(&self) {
+    //     let interface = NET_INTERFACE.get().expect("NETDEVICE not initialized");
+    //     interface.poll(&self.0);
+    // }
+
+    pub fn remove(&self, handle: SocketHandle) {
+        self.0.lock().remove(handle);
+        debug!("socket {}: destroyed", handle);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SocketData {
+    pub handler: Option<SocketHandle>,
     /// socket 通信域  
     pub domain: Domain,
     /// 连接类型
@@ -48,7 +129,22 @@ impl SocketData {
         if new_port.is_none() {
             panic!("alloc ephemeral port failed");
         }
+
+        let handler = match s_type {
+            SocketType::SOCK_STREAM => {
+                // TCP
+                let new_tcp_socket = SocketSetWrapper::new_tcp_socket();
+                Some(SOCKET_SET.add(new_tcp_socket))
+            }
+            SocketType::SOCK_DGRAM => {
+                // UDP
+                let new_udp_socket = SocketSetWrapper::new_udp_socket();
+                Some(SOCKET_SET.add(new_udp_socket))
+            }
+            _ => None,
+        };
         let socket = Box::new(Self {
+            handler,
             domain,
             s_type,
             protocol,
@@ -101,6 +197,21 @@ impl SocketData {
     pub fn socket_type(&self) -> SocketType {
         self.s_type
     }
+
+    pub fn is_tcp(&self) -> bool {
+        match self.s_type {
+            SocketType::SOCK_STREAM => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_udp(&self) -> bool {
+        match self.s_type {
+            SocketType::SOCK_DGRAM => true,
+            _ => false,
+        }
+    }
+
     pub fn from_ptr(ptr: *const u8) -> &'static mut Self {
         unsafe { &mut *(ptr as *mut Self) }
     }
@@ -134,6 +245,28 @@ impl SocketData {
                         insert_port2ip(port, IpAddr::Ipv4(ip, port));
                         // we only need reset ip
                         self.local_addr = IpAddr::Ipv4(ip, port);
+
+                        if self.is_udp() {
+                            let mut sockets = SOCKET_SET.0.lock();
+                            let socket =
+                                sockets.get_mut::<socket::udp::Socket>(self.handler.unwrap());
+                            let ip_values = split_u32_to_u8s(ip);
+                            let ip_address = IpAddress::v4(
+                                ip_values[0],
+                                ip_values[1],
+                                ip_values[2],
+                                ip_values[3],
+                            );
+                            let endpoint = IpEndpoint {
+                                addr: ip_address,
+                                port,
+                            };
+                            return match socket.bind(endpoint) {
+                                Ok(_) => Ok(()),
+                                Err(_) => Err(LinuxErrno::EINVAL),
+                            };
+                        }
+
                         Ok(())
                     }
                     _ => Err(LinuxErrno::EINVAL),
@@ -150,7 +283,7 @@ impl SocketData {
     }
 
     pub fn accept(&self, buf: &mut [u8]) -> Option<(usize, IpAddr)> {
-        assert!(self.is_server);
+        assert!(self.is_server || self.listening);
         let res = read_from_port_with_port_map(self.local_addr.port().unwrap(), buf).map(
             |(r, src_port)| {
                 let ipaddr = find_ip_by_port(src_port).unwrap();
@@ -261,6 +394,14 @@ impl SocketData {
                 }
             }
             ShutdownFlag::SHUTRDWR => {}
+        }
+    }
+}
+
+impl Drop for SocketData {
+    fn drop(&mut self) {
+        if let Some(handler) = self.handler {
+            SOCKET_SET.remove(handler);
         }
     }
 }
