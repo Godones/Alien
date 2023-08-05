@@ -6,6 +6,7 @@ use crate::ipc::send_signal;
 use crate::task::context::switch;
 use crate::task::cpu::{current_cpu, TASK_MANAGER};
 use crate::task::task::TaskState;
+use crate::trap::check_timer_interrupt_pending;
 
 #[no_mangle]
 pub fn first_into_user() -> ! {
@@ -63,6 +64,7 @@ pub fn first_into_user() -> ! {
 }
 
 pub fn schedule() {
+    check_timer_interrupt_pending();
     let cpu = current_cpu();
     let task = cpu.task.clone().unwrap();
     let cpu_context = cpu.get_context_raw_ptr();

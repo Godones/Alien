@@ -1,3 +1,4 @@
+use alloc::format;
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
@@ -10,8 +11,16 @@ use crate::config::{FRAME_BITS, FRAME_SIZE};
 
 use super::manager::FrameRefManager;
 
+//TODO!(need to be modified)
+#[cfg(feature = "vf2")]
+const FRAME_NUM: usize = 2096300 / 8;
+#[cfg(feature = "qemu")]
+const FRAME_NUM: usize = 8192;
+#[cfg(feature = "hifive")]
+const FRAME_NUM: usize = 2096300 / 8 * 2;
+
 lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<8192>> = Mutex::new(Bitmap::new());
+    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<FRAME_NUM>> = Mutex::new(Bitmap::new());
 }
 
 lazy_static! {
@@ -33,6 +42,7 @@ pub fn init_frame_allocator(memory_end: usize) {
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
+    println!("set frame allocator manage {} frames", FRAME_NUM);
     FRAME_ALLOCATOR.lock().init(start..end).unwrap();
 }
 
@@ -95,10 +105,10 @@ impl DerefMut for FrameTracker {
 /// 这些页面需要保持连续
 #[no_mangle]
 pub fn alloc_frames(num: usize) -> *mut u8 {
-    assert_eq!(num.count_ones(), 1);
-    let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num);
+    // assert_eq!(num.count_ones(), 1);
+    let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num, FRAME_SIZE);
     if start_page.is_err() {
-        panic!("alloc frame failed");
+        panic!("alloc {} frame failed", num);
     }
     let start_page = start_page.unwrap();
     let start_addr = start_page << FRAME_BITS;
@@ -112,8 +122,11 @@ pub fn free_frames(addr: *mut u8, num: usize) {
     let start = addr as usize >> FRAME_BITS;
     trace!("slab free frame {} start:{:#x}", num, addr as usize);
     // make sure the num is 2^n
-    assert_eq!(num.count_ones(), 1);
-    FRAME_ALLOCATOR.lock().free_pages(start, num).unwrap();
+    // assert_eq!(num.count_ones(), 1);
+    FRAME_ALLOCATOR
+        .lock()
+        .free_pages(start, num)
+        .expect(format!("frame start:{:#x},num:{}", start, num).as_str());
 }
 
 pub fn frame_alloc() -> Option<FrameTracker> {
@@ -141,7 +154,12 @@ pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
 }
 
 pub fn frame_alloc_contiguous(count: usize) -> *mut u8 {
-    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count).unwrap();
+    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count, FRAME_SIZE);
+    if frame.is_err() {
+        panic!("alloc {} frame failed, oom", count);
+    }
+    let frame = frame.unwrap();
+    trace!("alloc frame {} start:{:#x}", count, frame);
     for i in 0..count {
         let refs = FRAME_REF_MANAGER.lock().add_ref(frame + i);
         assert_eq!(refs, 1)

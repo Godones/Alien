@@ -1,5 +1,5 @@
 use alloc::string::{String, ToString};
-use alloc::{format, vec};
+use alloc::vec;
 use core::cmp::min;
 
 use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
@@ -19,10 +19,11 @@ use rvfs::stat::{
 use rvfs::superblock::StatFs;
 
 pub use control::*;
+use gmanager::ManagerError;
 pub use poll::*;
 pub use select::*;
 pub use stdio::*;
-use syscall_define::io::{FsStat, IoVec, UnlinkatFlags};
+use syscall_define::io::{FileStat, FsStat, IoVec, UnlinkatFlags};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
@@ -36,19 +37,18 @@ mod control;
 pub mod file;
 pub mod poll;
 pub mod select;
-pub mod tty;
 pub mod vfs;
 
 pub const AT_FDCWD: isize = -100isize;
 
-fn vfs_statfs2fsstat(vfs_res: StatFs) -> syscall_define::io::FsStat {
+fn vfs_statfs2fsstat(vfs_res: StatFs) -> FsStat {
     FsStat {
         f_type: vfs_res.fs_type as i64,
         f_bsize: vfs_res.block_size as i64,
-        f_blocks: vfs_res.total_blocks as u64,
-        f_bfree: vfs_res.free_blocks as u64,
+        f_blocks: vfs_res.total_blocks,
+        f_bfree: vfs_res.free_blocks,
         f_bavail: 0,
-        f_files: vfs_res.total_inodes as u64,
+        f_files: vfs_res.total_inodes,
         f_ffree: 0,
         f_fsid: [0, 1],
         f_namelen: vfs_res.name_len as isize,
@@ -131,6 +131,7 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
         "open file: {:?},flag:{:?}, mode:{:?}",
         path, flag, file_mode
     );
+
     if flag.contains(OpenFlags::O_BINARY) {
         flag |= OpenFlags::O_RDWR;
     }
@@ -140,12 +141,17 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     file_mode |= FileMode::FMODE_RDWR;
     let file = vfs_open_file::<VfsProvider>(&path, flag, file_mode);
     if file.is_err() {
-        return -1;
+        return LinuxErrno::ENOENT.into();
     }
     let fd = process.add_file(KFile::new(file.unwrap()));
     warn!("openat fd: {:?}", fd);
     if fd.is_err() {
-        -1
+        let error: ManagerError = (fd.unwrap_err() as usize).into();
+        error!("[vfs] openat error: {:?}", error);
+        match error {
+            ManagerError::NoSpace => LinuxErrno::EMFILE.into(),
+            _ => LinuxErrno::ENOMEM.into(),
+        }
     } else {
         fd.unwrap() as isize
     }
@@ -232,17 +238,30 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
-        return -1;
+        return LinuxErrno::EBADF.into();
     }
     let file = file.unwrap();
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
-    buf.iter_mut().for_each(|b| {
-        let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+    let mut res = 0;
+    for b in buf.iter_mut() {
+        let pipe = file.get_file().is_pipe();
+        let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64);
+        if r.is_err() {
+            res = LinuxErrno::EIO.into();
+            break;
+        }
+        let r = r.unwrap();
         count += r;
         offset += r;
-    });
+        if pipe && r != 0 {
+            break;
+        }
+    }
+    if res != 0 {
+        return res;
+    }
     count as isize
 }
 
@@ -258,12 +277,26 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
-    buf.iter_mut().for_each(|b| {
-        // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
-        let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
+    let mut res = 0;
+    for b in buf.iter_mut() {
+        let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
+        if r.is_err() {
+            if r.err().unwrap().starts_with("pipe_write") {
+                error!("pipe_write error: {:?}", r.err().unwrap());
+                res = LinuxErrno::EPIPE.into()
+            } else {
+                res = LinuxErrno::EIO.into()
+            };
+            break;
+        }
+        let r = r.unwrap();
         count += r;
         offset += r;
-    });
+    }
+
+    if res != 0 {
+        return res;
+    }
     count as isize
 }
 
@@ -342,7 +375,10 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
     let res = vfs_llseek(file.get_file(), seek);
     warn!("sys_lseek: {:?}, res: {:?}", seek, res);
     if res.is_err() {
-        return -1;
+        if file.get_file().is_pipe() {
+            return LinuxErrno::ESPIPE.into();
+        }
+        return LinuxErrno::EINVAL.into();
     }
     res.unwrap() as isize
 }
@@ -356,8 +392,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
         return -1;
     }
     let file = file.unwrap();
-    let stat = stat as *mut KStat;
-    let stat = process.transfer_raw_ptr(stat);
+    // let stat = process.transfer_raw_ptr(stat);
     let attr = vfs_getattr_by_file(file.get_file());
     if attr.is_err() {
         return -1;
@@ -367,7 +402,19 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     attr.st_atime_nsec = file.access_inner().atime.tv_nsec as u64;
     attr.st_mtime_sec = file.access_inner().mtime.tv_sec as u64;
     attr.st_mtime_nsec = file.access_inner().mtime.tv_nsec as u64;
-    *stat = attr;
+
+    let mut file_stat = FileStat::default();
+    unsafe {
+        (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(attr);
+    }
+    file_stat.st_mode |= 0o755;
+    if file_stat.st_ino == 0 {
+        file_stat.st_ino = 999;
+    }
+    warn!("sys_fstat: {:?}, res: {:?}", fd, file_stat);
+    process
+        .access_inner()
+        .copy_to_user(&file_stat, stat as *mut FileStat);
     0
 }
 
@@ -494,11 +541,10 @@ pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> 
     let path = path.unwrap();
     let mut buf = process.transfer_buffer(buf, size);
 
-    println!("readlink path: {}", path);
-    assert!(false, "now we can't solve link");
+    warn!("readlink path: {}", path);
     let res = vfs_readlink::<VfsProvider>(path.as_str(), buf[0]);
     if res.is_err() {
-        return -1;
+        return LinuxErrno::ENOENT.into();
     }
     let res = res.unwrap();
     res as isize
@@ -514,8 +560,6 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
         return -1;
     }
     let path = path.unwrap();
-    let stat = stat as *mut KStat;
-    let stat = process.transfer_raw_ptr(stat);
     let flag = StatFlags::from_bits(flag as u32);
     if flag.is_none() {
         return -1;
@@ -528,7 +572,13 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
         return LinuxErrno::ENOENT as isize;
     }
     let res = res.unwrap();
-    *stat = res;
+    let mut file_stat = FileStat::default();
+    unsafe {
+        (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(res);
+    }
+    process
+        .access_inner()
+        .copy_to_user(&file_stat, stat as *mut FileStat);
     0
 }
 
@@ -614,7 +664,8 @@ pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
     }
     let res = vfs_mkdir::<VfsProvider>(path.as_str(), mode);
     if res.is_err() {
-        return -1;
+        error!("mkdirat failed: {:?}", res);
+        return LinuxErrno::EEXIST.into();
     }
     0
 }
@@ -789,13 +840,15 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
-        return -1;
+        return LinuxErrno::EBADF.into();
     }
     let file = file.unwrap();
     let mut count = 0;
+    let mut res = 0;
     for i in 0..iovcnt {
+        let mut iov = IoVec::empty();
         let ptr = unsafe { (iovec as *mut IoVec).add(i) };
-        let iov = process.transfer_raw_ptr(ptr);
+        process.access_inner().copy_from_user(ptr, &mut iov);
         let base = iov.base;
         if base as usize == 0 {
             // busybox 可能会给stdout两个io_vec，第二个是空地址
@@ -805,18 +858,29 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
         let buf = process.transfer_buffer(base, len);
 
         let mut offset = file.get_file().access_inner().f_pos;
-        buf.iter().for_each(|b| {
-            // warn!("write file: {:?}, offset:{:?}, len:{:?}", fd, offset, b.len());
-            let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).expect(
-                format!(
-                    "write file failed: {:?}",
-                    file.get_file().f_dentry.access_inner().d_name
-                )
-                .as_str(),
-            );
+
+        for b in buf.iter() {
+            let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64);
+            if r.is_err() {
+                if r.err().unwrap().starts_with("pipe_write") {
+                    error!("pipe_write error: {:?}", r.err().unwrap());
+                    res = LinuxErrno::EPIPE.into()
+                } else {
+                    res = LinuxErrno::EIO.into()
+                };
+                break;
+            }
+            let r = r.unwrap();
             count += r;
             offset += r;
-        });
+        }
+        if res != 0 {
+            break;
+        }
+    }
+
+    if res != 0 {
+        return res;
     }
     count as isize
 }

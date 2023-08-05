@@ -59,20 +59,15 @@ pub fn sigaction(sig: usize, action: usize, old_action: usize) -> isize {
     let signal_handler = task_inner.signal_handlers.clone();
     let mut signal_handler = signal_handler.lock();
     if !old_action.is_null() {
-        let ptr = task_inner.transfer_raw(old_action as usize);
-        signal_handler.get_action(sig, ptr as *mut SigAction);
+        let mut tmp = SigAction::empty();
+        signal_handler.get_action(sig, &mut tmp);
+        task_inner.copy_to_user(&tmp, old_action);
     }
     if !action.is_null() {
-        let action = task_inner.transfer_raw(action as usize);
-        unsafe {
-            warn!(
-                "sig {:?} action is {:?}",
-                signum,
-                &*(action as *const SigAction)
-            );
-        }
-
-        signal_handler.set_action(sig, action as *const SigAction);
+        let mut tmp_action = SigAction::empty();
+        task_inner.copy_from_user(action, &mut tmp_action);
+        warn!("sig {:?} action is {:?}", signum, tmp_action);
+        signal_handler.set_action(sig, &tmp_action);
     }
     0
 }
@@ -88,23 +83,28 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
     let mut flag = false;
     let mut target_time = 0;
 
+    let task = current_task().unwrap().clone();
+    let mut time_spec = TimeSpec::new(0, 0);
+    task.access_inner()
+        .copy_from_user(time as *const TimeSpec, &mut time_spec);
     loop {
-        let task = current_task().unwrap();
-        let task_inner = task.access_inner();
+        let mut task_inner = task.access_inner();
         let mut signal_receivers = task_inner.signal_receivers.lock();
         for i in 1..64 {
             if set & (1 << i) != 0 {
                 if signal_receivers.check_signal(i) {
                     if info != 0 {
-                        let info = task_inner.transfer_raw_ptr_mut(info as *mut SigInfo);
-                        info.si_signo = i as i32;
-                        info.si_code = 0;
+                        let mut tmp_info = SigInfo::default();
+                        tmp_info.si_signo = i as i32;
+                        tmp_info.si_code = 0;
+                        drop(signal_receivers);
+                        task_inner.copy_to_user(&tmp_info, info as *mut SigInfo);
                     }
                     return i as isize;
                 }
             }
         }
-        let time_spec = task_inner.transfer_raw_ptr(time as *const TimeSpec);
+
         // wait time
         if time_spec.tv_sec == 0 && time_spec.tv_nsec == 0 {
             return -1;
@@ -119,11 +119,20 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
         }
         let now = read_timer();
         if now >= target_time {
+            warn!("sigtimewait: timeout");
             break;
         }
         do_suspend();
+
+        // interrupt by signal
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            let sig = receiver.have_signal_with_number().unwrap();
+            return sig as isize;
+        }
     }
-    -1
+    LinuxErrno::EAGAIN.into()
 }
 
 #[syscall_func(135)]
@@ -135,9 +144,10 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
         let set_mut = task_inner.transfer_raw_ptr_mut(oldset as *mut usize);
         *set_mut = signal_receivers.mask.bits();
     }
+    let how = SigProcMaskHow::from(how);
+    warn!("sigprocmask: how: {:?}, set: {:x}", how, set);
     if set != 0 {
         let set = task_inner.transfer_raw_ptr(set as *const usize);
-        let how = SigProcMaskHow::from(how);
         match how {
             SigProcMaskHow::SigBlock => {
                 signal_receivers.mask += SimpleBitSet::from(*set);
@@ -154,7 +164,7 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
         }
     }
     let mask: Vec<SignalNumber> = signal_receivers.mask.into();
-    warn!("after sigprocmask: {:?}", mask);
+    trace!("after sigprocmask: {:?}", mask);
     0
 }
 
@@ -173,9 +183,11 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
 #[syscall_func(129)]
 pub fn kill(pid: usize, sig: usize) -> isize {
     warn!("kill pid {}, signal id {:?}", pid, SignalNumber::from(sig));
-    if pid > 0 && sig > 0 {
+    if pid > 0 {
         //println!("kill pid {}, signal id {}", pid, signal_id);
-        send_signal(pid, sig);
+        if sig > 0 {
+            send_signal(pid, sig);
+        }
         0
     } else if pid == 0 {
         LinuxErrno::ESRCH as isize
@@ -310,6 +322,20 @@ pub fn signal_handler() {
                     }
                 }
             }
+        }
+    }
+}
+
+#[syscall_func(133)]
+pub fn sigsuspend() -> isize {
+    loop {
+        do_suspend();
+        let task = current_task().unwrap();
+        // interrupt by signal
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            return LinuxErrno::EINTR.into();
         }
     }
 }

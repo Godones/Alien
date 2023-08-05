@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::ptr::null;
 
 use fat32_vfs::fstype::FAT;
 use lazy_static::lazy_static;
@@ -11,7 +12,7 @@ use rvfs::file::{
     vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file, FileMode, OpenFlags,
 };
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
-use rvfs::inode::InodeMode;
+use rvfs::inode::{InodeMode, SpecialData};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
 use rvfs::ramfs::tmpfs::TMP_FS_TYPE;
@@ -20,8 +21,7 @@ use rvfs::superblock::{register_filesystem, DataOps, Device};
 use kernel_sync::Mutex;
 
 use crate::config::{MEMINFO, PASSWORD, RTC_TIME, UTC};
-use crate::driver::rtc::get_rtc_time;
-use crate::driver::QEMU_BLOCK_DEVICE;
+use crate::device::{get_rtc_time, BLOCK_DEVICE};
 use crate::task::current_task;
 
 // only call once before the first process is created
@@ -44,16 +44,22 @@ pub fn init_vfs() {
     *TMP_DIR.lock() = root_mnt.root.clone();
     // mount fat fs
     register_filesystem(FAT).expect("register fat fs failed");
-    let img_device = QEMU_BLOCK_DEVICE.lock()[0].clone();
+    let img_device = BLOCK_DEVICE.get().unwrap().clone();
+
+    let mut buf = [0u8; 512];
+    img_device.read(&mut buf, 100 * 512).unwrap();
+
     let data = Box::new(Fat32Data::new(img_device));
     let mnt = do_mount::<VfsProvider>("fat", "/", "fat", MountFlags::empty(), Some(data)).unwrap();
     *TMP_MNT.lock() = mnt.clone();
     *TMP_DIR.lock() = mnt.root.clone();
+    println!("mount fat fs success");
     vfs_mkdir::<VfsProvider>("/dev", FileMode::FMODE_RDWR).unwrap();
     vfs_mkdir::<VfsProvider>("/tmp", FileMode::FMODE_RDWR).unwrap();
 
     register_filesystem(DEVFS_TYPE).unwrap();
     do_mount::<VfsProvider>("none", "/dev", "devfs", MountFlags::MNT_NO_DEV, None).unwrap();
+    #[cfg(any(feature = "vf2", feature = "hifive"))]
     do_mount::<VfsProvider>("root", "/tmp", "rootfs", MountFlags::MNT_NO_DEV, None).unwrap();
     vfs_mknod::<VfsProvider>(
         "/dev/null",
@@ -73,7 +79,33 @@ pub fn init_vfs() {
     prepare_etc();
     prepare_test_need();
     prepare_dev();
-    println!("vfs init done");
+    prepare_var();
+
+    // let fake_sort_src = vfs_open_file::<VfsProvider>(
+    //     "/sort.src",
+    //     OpenFlags::O_CREAT | OpenFlags::O_RDWR,
+    //     FileMode::FMODE_RDWR,
+    // )
+    //     .unwrap();
+    // vfs_write_file::<VfsProvider>(fake_sort_src.clone(), SORT_SRC, 0).unwrap();
+    // vfs_close_file::<VfsProvider>(fake_sort_src).unwrap();
+
+    // let unixbench2 = vfs_open_file::<VfsProvider>(
+    //     "/unixbench_testcode2.sh",
+    //     OpenFlags::O_CREAT | OpenFlags::O_RDWR,
+    //     FileMode::FMODE_RDWR,
+    // ).unwrap();
+    // vfs_write_file::<VfsProvider>(unixbench2.clone(), UNIXBENCH, 0).unwrap();
+    // vfs_close_file::<VfsProvider>(unixbench2).unwrap();
+    println!("vfs init success");
+}
+
+fn prepare_var() {
+    vfs_mkdir::<VfsProvider>("/var", FileMode::FMODE_RDWR).unwrap();
+    vfs_mkdir::<VfsProvider>("/var/log", FileMode::FMODE_RDWR).unwrap();
+    vfs_mkdir::<VfsProvider>("/var/tmp", FileMode::FMODE_RDWR).unwrap();
+    #[cfg(any(feature = "vf2", feature = "hifive"))]
+    do_mount::<VfsProvider>("none", "/var/tmp", "tmpfs", MountFlags::MNT_NO_DEV, None).unwrap();
 }
 
 fn prepare_root() {
@@ -95,6 +127,14 @@ fn prepare_dev() {
         FileMode::FMODE_RDWR,
     )
     .unwrap();
+
+    rtc_file
+        .f_dentry
+        .access_inner()
+        .d_inode
+        .access_inner()
+        .special_data = Some(SpecialData::CharData(null()));
+    rtc_file.access_inner().f_ops_ext.ioctl = |_, _, _| 0;
     vfs_write_file::<VfsProvider>(rtc_file, RTC_TIME.as_bytes(), 0).unwrap();
     vfs_mknod::<VfsProvider>("/dev/tty", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
 }
@@ -169,7 +209,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
         .file_size;
     let mut offset = 0;
     while offset < size {
-        let mut tmp = vec![0; 512 as usize];
+        let mut tmp = vec![0; 512usize];
         let res = vfs_read_file::<VfsProvider>(file.clone(), &mut tmp, offset as u64).unwrap();
         offset += res;
         buf.extend_from_slice(&tmp);

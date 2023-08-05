@@ -14,7 +14,7 @@ use crate::task::current_task;
 use crate::timer::TimeSpec;
 
 #[syscall_func(25)]
-pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
+pub fn fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
     let file = task.get_file(fd);
     if file.is_none() {
@@ -64,9 +64,8 @@ pub fn sys_fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
     0
 }
 
-// TODO! ioctl
 #[syscall_func(29)]
-pub fn sys_ioctl(fd: usize, cmd: usize, arg: usize) -> isize {
+pub fn ioctl(fd: usize, cmd: usize, arg: usize) -> isize {
     let process = current_task().unwrap();
     let file = process.get_file(fd);
     if file.is_none() {
@@ -81,26 +80,29 @@ pub fn sys_ioctl(fd: usize, cmd: usize, arg: usize) -> isize {
     let cmd = cmd.unwrap();
     let res = vfs_ioctl(file.get_file(), cmd as u32, arg); // now it is a fake impl
     if res.is_err() {
-        return -1;
+        return LinuxErrno::ENOTTY.into();
     }
     let res = file.ioctl(cmd as u32, arg);
     res
 }
 
 #[syscall_func(88)]
-pub fn sys_utimensat(fd: usize, path: *const u8, times: *const u8, _flags: usize) -> isize {
+pub fn utimensat(fd: usize, path: *const u8, times: *const u8, _flags: usize) -> isize {
     if fd as isize != AT_FDCWD && (fd as isize) < 0 {
         return 0;
     }
     let task = current_task().unwrap();
-    let inner = task.access_inner();
+    let mut inner = task.access_inner();
     let (atime, mtime) = if times.is_null() {
         (TimeSpec::now(), TimeSpec::now())
     } else {
-        let atime_ref = inner.transfer_raw_ptr(times as *mut TimeSpec);
-        let mtime_ptr = unsafe { (times as *const TimeSpec).add(1) };
-        let mtime_ref = inner.transfer_raw_ptr(mtime_ptr as *mut TimeSpec);
-        (*atime_ref, *mtime_ref)
+        let mut atime = TimeSpec::new(0, 0);
+        let mut mtime = TimeSpec::new(0, 0);
+        inner.copy_from_user(times as *const TimeSpec, &mut atime);
+        unsafe {
+            inner.copy_from_user((times as *const TimeSpec).add(1), &mut mtime);
+        }
+        (atime, mtime)
     };
     drop(inner);
     warn!(
@@ -139,12 +141,17 @@ pub fn sys_utimensat(fd: usize, path: *const u8, times: *const u8, _flags: usize
         let path = task.transfer_str(path);
         let path = user_path_at(fd as isize, &path, LookUpFlags::empty()).map_err(|_| -1);
         if path.is_err() {
-            return -1;
+            return LinuxErrno::EINVAL as isize;
         }
         warn!("utimensat: {:?}", path);
         let res = vfs_set_time::<VfsProvider>(&path.unwrap(), [VfsTime::default(); 3]);
         if res.is_err() {
-            return -1;
+            error!("utimensat: {:?}", res);
+            let res = res.err().unwrap();
+            if res.contains("file is not link or dir") {
+                return LinuxErrno::ENOTDIR.into();
+            }
+            return LinuxErrno::ENOENT.into();
         }
     }
     0
@@ -180,4 +187,12 @@ pub fn chmod(_fd: usize, _mode: usize) -> isize {
 #[syscall_func(53)]
 pub fn chmodat() -> isize {
     0
+}
+
+#[syscall_func(166)]
+pub fn unmask(unmask: usize) -> isize {
+    let task = current_task().unwrap();
+    let old_unmask = task.access_inner().unmask;
+    task.access_inner().unmask = unmask;
+    old_unmask as isize
 }

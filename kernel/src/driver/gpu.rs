@@ -1,26 +1,16 @@
-use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::any::Any;
+use core::ptr::NonNull;
 
 use embedded_graphics_core::pixelcolor::Rgb888;
-use spin::Once;
 use tinybmp::Bmp;
 use virtio_drivers::device::gpu::VirtIOGpu;
-use virtio_drivers::transport::mmio::MmioTransport;
+use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use kernel_sync::Mutex;
 
+use crate::device::GpuDevice;
 use crate::driver::hal::HalImpl;
-
-pub trait GpuDevice: Send + Sync + Any {
-    fn update_cursor(&self);
-    fn get_framebuffer(&self) -> &mut [u8];
-    fn flush(&self);
-}
-
-lazy_static::lazy_static!(
-    pub static ref GPU_DEVICE: Once<Arc<dyn GpuDevice>> = Once::new();
-);
+use crate::interrupt::DeviceBase;
 
 pub struct VirtIOGpuWrapper {
     gpu: Mutex<VirtIOGpu<HalImpl, MmioTransport>>,
@@ -34,7 +24,10 @@ unsafe impl Send for VirtIOGpuWrapper {}
 static BMP_DATA: &[u8] = include_bytes!("../../../assert/mouse.bmp");
 
 impl VirtIOGpuWrapper {
-    pub fn new(mut gpu: VirtIOGpu<HalImpl, MmioTransport>) -> Self {
+    pub fn new(addr: usize) -> Self {
+        let header = NonNull::new(addr as *mut VirtIOHeader).unwrap();
+        let mmio = unsafe { MmioTransport::new(header) }.unwrap();
+        let mut gpu = VirtIOGpu::new(mmio).unwrap();
         unsafe {
             let fbuffer = gpu.setup_framebuffer().unwrap();
             let len = fbuffer.len();
@@ -59,6 +52,12 @@ impl VirtIOGpuWrapper {
                 fb,
             }
         }
+    }
+}
+
+impl DeviceBase for VirtIOGpuWrapper {
+    fn hand_irq(&self) {
+        todo!()
     }
 }
 
