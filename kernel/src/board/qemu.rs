@@ -58,6 +58,11 @@ pub fn get_block_device_info() -> Option<(usize, usize)> {
     find_virtio_device(&fdt, DeviceType::Block, None)
 }
 
+pub fn get_net_device_info() -> Option<(usize, usize)> {
+    let fdt = DTB.get().unwrap();
+    find_virtio_device(&fdt, DeviceType::Network, None)
+}
+
 fn find_virtio_device(
     fdt: &Fdt,
     device_type: DeviceType,

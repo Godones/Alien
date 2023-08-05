@@ -16,6 +16,7 @@ members = [
     "modules/virtio-input-decoder",
     "modules/input2event",
     "modules/uart",
+    "modules/simple-net",
     "apps/cat",
     "apps/sleep",
     #    "apps/dbfs",
