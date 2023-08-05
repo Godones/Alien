@@ -9,7 +9,7 @@ OBJCOPY     := rust-objcopy --binary-architecture=riscv64
 BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
-IMG := tools/fs.img
+IMG := tools/sdcard.img
 SMP ?= 4
 GUI ?=n
 NET ?=n
@@ -20,9 +20,15 @@ VF2 ?=n
 CV1811h ?=n
 FEATURES :=
 QEMU_ARGS :=
-
+MEMORY_SIZE := 128M
 img ?=fat32
+SLAB ?=n
+TALLOC ?=y
+BUDDY ?=n
 
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
 
 ifeq ($(GUI),y)
 QEMU_ARGS += -device virtio-gpu-device \
@@ -37,10 +43,19 @@ ifeq ($(VF2),y)
 FEATURES += vf2
 else ifeq ($(CV1811h),y)
 FEATURES += cv1811h
+else ifeq ($(UNMATCHED),y)
+FEATURES += hifive
 else
 FEATURES += qemu
 endif
 
+ifeq ($(SLAB),y)
+FEATURES += slab
+else ifeq ($(TALLOC),y)
+FEATURES += talloc
+else ifeq ($(BUDDY),y)
+FEATURES += buddy
+endif
 
 ifeq ($(NET),y)
 QEMU_ARGS += -netdev user,id=net \
@@ -48,20 +63,21 @@ QEMU_ARGS += -netdev user,id=net \
 endif
 
 
+FEATURES := $(subst $(space),$(comma),$(FEATURES))
+
 define boot_qemu
 	qemu-system-riscv64 \
         -M virt $(1)\
         -bios $(BOOTLOADER) \
-        -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \
         -device virtio-blk-device,drive=x0 \
         -kernel  kernel-qemu\
         -$(QEMU_ARGS) \
-        -smp $(SMP) -m 256M \
+        -smp $(SMP) -m $(MEMORY_SIZE) \
         -serial mon:stdio
 endef
 
-all:run
+
 
 install:
 	@cargo install --git  https://github.com/os-module/elfinfo
@@ -71,11 +87,11 @@ build:compile
 
 
 compile:
-	@cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 	@#call trace_info
-	@cargo build --release -p boot --target riscv64gc-unknown-none-elf   --features $(FEATURES)
-	@$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
+	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
 
 trace_info:
@@ -84,9 +100,9 @@ trace_info:
 user:
 	@cd apps && make all
 
-img:$(img) user testelf
+sdcard:$(img) testelf user
 
-run:install compile img
+run:sdcard install compile
 	@echo qemu booot $(SMP)
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
@@ -96,39 +112,54 @@ fake_run:
 	$(call boot_qemu)
 
 
-
 board:install compile
+	@rust-objcopy --strip-all $(KERNEL_FILE) -O binary $(OUTPUT)/testos.bin
+	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
+	@cp $(OUTPUT)/testos.bin ./alien.bin
+
+qemu:
 	@rust-objcopy --strip-all $(OUTPUT)/boot -O binary $(OUTPUT)/testos.bin
 	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
 	@cp $(OUTPUT)/testos.bin ./alien.bin
 
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
-	@rm ./alien.bin
+	@rm ./kernel-qemu
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
 
 
 cv1811h:board
 	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
-	@rm ./alien.bin
+	@rm ./kernel-qemu
 	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
 
+unmatched:board
+	@mkimage -f ./tools/fu740.its ./alien-unmatched.itb
+	@rm ./kernel-qemu
+	@cp ./alien-unmatched.itb /home/godones/projects/tftpboot/
 
-
-test:install compile $(img) SecondFile testelf
-	$(call boot_qemu)
+f_test:
+	qemu-system-riscv64 \
+		-machine virt \
+		-kernel kernel-qemu \
+		-m 128M \
+		-nographic \
+		-smp 2 \
+	    -drive file=./tools/sdcard.img,if=none,format=raw,id=x0  \
+	    -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+	    -device virtio-net-device,netdev=net -netdev user,id=net
 
 testelf:
-	@sudo mkdir /fat/ostest
-	@sudo cp test/* /fat/ostest -r
-	@sudo mkdir /fat/libc
+	@#sudo mkdir /fat/ostest
+	@#sudo cp test/* /fat/ostest -r
+	@#sudo mkdir /fat/libc
 	if [ -d "sdcard" ]; then \
 		sudo cp sdcard/* /fat -r; \
 		sudo cp sdcard/* /fat/bin -r;\
 	fi
-	if [ -d "tools/siglibc" ]; then \
-		sudo cp tools/siglibc/build/* /fat/libc -r; \
-	fi
+	#if [ -d "tools/siglibc" ]; then \
+#		sudo cp tools/siglibc/build/* /fat/libc -r; \
+#	fi
 	@sync
 
 dtb:
@@ -153,9 +184,8 @@ fat32:
 		rm $(IMG); \
 		touch $(IMG); \
 	fi
-	@sudo dd if=/dev/zero of=$(IMG) bs=1M count=256
-	@sudo chmod 777 $(IMG)
-	@sudo mkfs.fat -F 32 $(IMG)
+	@dd if=/dev/zero of=$(IMG) bs=1M count=64
+	@mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
 		sudo umount /fat; \
 	fi
@@ -163,7 +193,6 @@ fat32:
 	@sudo cp tools/f1.txt /fat
 	@sudo mkdir /fat/folder
 	@sudo cp tools/f1.txt /fat/folder
-	@sudo mkdir /fat/bin
 	@sync
 
 
@@ -207,3 +236,5 @@ clean:
 
 .PHONY: all run clean fake_run
 
+all:
+	@mv alien.bin ./os.bin

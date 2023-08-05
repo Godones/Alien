@@ -1,35 +1,41 @@
 use alloc::collections::BTreeMap;
-use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
+use alloc::{format, vec};
+use core::fmt::Debug;
+use core::ops::Range;
 
+use bit_field::BitField;
 use lazy_static::lazy_static;
-use page_table::addr::{align_down_4k, VirtAddr};
+use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use rvfs::dentry::DirEntry;
-use rvfs::file::File;
+use rvfs::file::{vfs_close_file, File};
 use rvfs::info::ProcessFsInfo;
+use rvfs::link::vfs_unlink;
 use rvfs::mount::VfsMount;
 
 use gmanager::MinimalManager;
 use kernel_sync::{Mutex, MutexGuard};
 use syscall_define::aux::{
-    AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
+    AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
 };
 use syscall_define::io::MapFlags;
 use syscall_define::ipc::RobustList;
 use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
+use syscall_define::sys::TimeVal;
 use syscall_define::task::CloneFlags;
 use syscall_define::time::TimerType;
 use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
 
-use crate::config::{FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use crate::config::{CPU_NUM, FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use crate::error::{AlienError, AlienResult};
 use crate::fs::file::KFile;
+use crate::fs::vfs::VfsProvider;
 use crate::fs::{STDIN, STDOUT};
 use crate::ipc::{global_register_signals, ShmInfo};
 use crate::memory::{
@@ -39,8 +45,8 @@ use crate::memory::{
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
-use crate::timer::{read_timer, ITimerVal};
-use crate::trap::{trap_return, user_trap_vector, TrapFrame};
+use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
+use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
@@ -95,7 +101,7 @@ pub struct TaskInner {
     pub statistical_data: StatisticalData,
     pub timer: TaskTimer,
     pub exit_code: i32,
-    pub heap: HeapInfo,
+    pub heap: Arc<Mutex<HeapInfo>>,
     pub mmap: MMapInfo,
     /// 信号量对应的一组处理函数。
     /// 因为发送信号是通过 pid/tid 查找的，因此放在 inner 中一起调用时更容易导致死锁
@@ -116,6 +122,11 @@ pub struct TaskInner {
     pub signal_set_siginfo: bool,
     pub robust: RobustList,
     pub shm: BTreeMap<usize, ShmInfo>,
+    pub cpu_affinity: usize,
+    /// process's file mode creation mask
+    pub unmask: usize,
+    pub stack: Range<usize>,
+    pub need_wait: u8,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -124,23 +135,37 @@ pub struct TaskTimer {
     pub timer_type: TimerType,
     /// 设置下一次触发计时器的区间
     ///
-    /// 当 timer_remained_us 归零时，如果 timer_interval_us 非零，则将其重置为 timer_interval_us 的值；
+    /// 当 timer_remained 归零时，如果 timer_interval 非零，则将其重置为 timer_interval 的值；
     /// 否则，则这个计时器不再触发
-    pub timer_interval_us: usize,
+    pub timer_interval: TimeVal,
     /// 当前计时器还剩下多少时间。
     ///
     /// 根据 timer_type 的规则不断减少，当归零时触发信号
-    pub timer_remained_us: usize,
+    pub timer_remained: usize,
 
+    pub start: usize,
     pub expired: bool,
+}
+
+impl TaskTimer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn clear(&mut self) {
+        self.timer_type = TimerType::NONE;
+        self.timer_interval = TimeVal::new();
+        self.timer_remained = 0;
+        self.expired = false;
+    }
 }
 
 impl Default for TaskTimer {
     fn default() -> Self {
         Self {
             timer_type: TimerType::NONE,
-            timer_interval_us: 0,
-            timer_remained_us: 0,
+            timer_interval: TimeVal::new(),
+            timer_remained: 0,
+            start: 0,
             expired: false,
         }
     }
@@ -249,6 +274,23 @@ pub enum TaskState {
 
 impl Task {
     pub fn terminate(self: Arc<Self>) {
+        // recycle kernel stack
+        self.kernel_stack.release();
+        if self.access_inner().thread_number != 0 {
+            let parent = self.inner.lock().parent.clone();
+            if let Some(parent) = parent {
+                let parent = parent.upgrade();
+                if let Some(parent) = parent {
+                    parent.remove_child_by_tid(self.get_tid());
+                    assert_eq!(Arc::strong_count(&self), 1);
+                }
+            }
+        } else {
+            // if it is a thread, we should not remove it from parent's children
+            // if self.access_inner().children.len() == 0 {
+            //     self.access_inner().address_space.lock().release();
+            // }
+        }
         self.access_inner().state = TaskState::Terminated;
     }
 
@@ -315,10 +357,37 @@ impl Task {
         inner.children.clone()
     }
 
+    pub fn check_child(&self, pid: isize) -> Option<usize> {
+        let res = self
+            .inner
+            .lock()
+            .children
+            .iter()
+            .enumerate()
+            .find(|(_, child)| {
+                child.state() == TaskState::Terminated && (child.get_pid() == pid || pid == -1)
+            })
+            .map(|(index, _)| index);
+        res
+    }
+
     pub fn take_children(&self) -> Vec<Arc<Task>> {
         let children = self.children();
         self.access_inner().children = Vec::new();
         children
+    }
+
+    pub fn remove_child_by_tid(&self, tid: isize) -> Option<Arc<Task>> {
+        let mut inner = self.inner.lock();
+        let index = inner
+            .children
+            .iter()
+            .position(|child| child.get_tid() == tid);
+        if let Some(index) = index {
+            Some(inner.children.remove(index))
+        } else {
+            None
+        }
     }
 
     pub fn remove_child(&self, index: usize) -> Arc<Task> {
@@ -364,12 +433,12 @@ impl Task {
         let file = inner.fd_table.lock().get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
-    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, ()> {
+    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, isize> {
         self.access_inner()
             .fd_table
             .lock()
             .insert(file)
-            .map_err(|_| {})
+            .map_err(|x| x as isize)
     }
     pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
         let inner = self.access_inner();
@@ -401,10 +470,59 @@ impl Task {
     }
 
     pub fn transfer_str(&self, ptr: *const u8) -> String {
+        // we need check the ptr and len before transfer indeed
+        let mut start = ptr as usize;
+        let end = start + 128; //todo! string len is unknown
+        let address_space = self.access_inner().address_space.clone();
+        while start < end {
+            let (_phy, flag, _) = address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
+            if !flag.contains(MappingFlags::V) {
+                error!("transfer_str flag: {:?}, addr:{:#x}", flag, start);
+                let res = self
+                    .access_inner()
+                    .invalid_page_solver(align_down_4k(start))
+                    .unwrap();
+                if res.is_some() {
+                    let (file, buf, offset) = res.unwrap();
+                    if file.is_some() {
+                        trap_common_read_file(file.unwrap(), buf, offset);
+                    }
+                }
+            }
+            start += FRAME_SIZE;
+        }
         self.access_inner().transfer_str(ptr)
     }
 
-    pub fn transfer_buffer<T>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+    pub fn transfer_buffer<T: Debug>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+        // we need check the ptr and len before transfer indeed
+        let mut start = ptr as usize;
+        let end = start + len;
+        let address_space = self.access_inner().address_space.clone();
+        start = align_down_4k(start);
+        while start < end {
+            let (_phy, flag, _) = address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
+            if !flag.contains(MappingFlags::V) {
+                error!("transfer_buffer flag: {:?}, addr:{:#x}", flag, start);
+                let res = self
+                    .access_inner()
+                    .invalid_page_solver(align_down_4k(start))
+                    .unwrap();
+                if res.is_some() {
+                    let (file, buf, offset) = res.unwrap();
+                    if file.is_some() {
+                        trap_common_read_file(file.unwrap(), buf, offset);
+                    }
+                }
+            }
+            start += FRAME_SIZE;
+        }
         self.access_inner().transfer_buffer(ptr, len)
     }
 }
@@ -475,13 +593,13 @@ impl TaskInner {
     }
 
     pub fn load_trap_frame(&mut self) -> isize {
-        if let Some(old_trap_frame) = self.trap_cx_before_signal {
+        if let Some(old_trap_frame) = self.trap_cx_before_signal.take() {
             let trap_frame = self.trap_frame();
             // 这里假定是 sigreturn 触发的，即用户的信号处理函数 return 了(cancel_handler)
             // 也就是说信号触发时的 sp 就是现在的 sp
             let sp = trap_frame.regs()[2];
             // 获取可能被修改的 pc
-            let phy_sp = self.transfer_raw(sp as usize);
+            let phy_sp = self.transfer_raw(sp);
 
             let pc = unsafe { (*(phy_sp as *const SignalUserContext)).get_pc() };
             *trap_frame = old_trap_frame;
@@ -502,7 +620,7 @@ impl TaskInner {
             .query(VirtAddr::from(ptr))
             .unwrap();
         if !flag.contains(MappingFlags::V) {
-            error!("invalid page {:?}", flag);
+            error!("[transfer_raw] invalid page {:?}, ptr:{:#x}", flag, ptr);
             self.invalid_page_solver(ptr).unwrap();
             let (phy, flag, _) = self
                 .address_space
@@ -533,6 +651,7 @@ impl TaskInner {
         }
         res
     }
+
     pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
         let address_space = &self.address_space.lock();
         let mut start = ptr as usize;
@@ -702,7 +821,11 @@ impl TaskInner {
         }
     }
 
-    pub fn transfer_buffer<T>(&mut self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+    pub fn transfer_buffer<T: Debug>(
+        &mut self,
+        ptr: *const T,
+        len: usize,
+    ) -> Vec<&'static mut [T]> {
         let mut start = ptr as usize;
         let end = start + len;
         let mut v = Vec::new();
@@ -713,7 +836,7 @@ impl TaskInner {
                 .query(VirtAddr::from(start))
                 .expect(format!("transfer_buffer: {:x} failed", start).as_str());
             if !flag.contains(MappingFlags::V) {
-                self.invalid_page_solver(start).unwrap();
+                panic!("transfer_buffer: {:x} not mapped", start);
             }
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
@@ -757,7 +880,7 @@ impl TaskInner {
     pub fn update_kernel_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_stime;
-        self.update_timer(time);
+        self.update_timer();
         self.statistical_data.tms_stime += time;
         self.statistical_data.last_utime = now;
     }
@@ -766,30 +889,37 @@ impl TaskInner {
     pub fn update_user_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_utime;
-        self.update_timer(time);
+        self.update_timer();
         self.statistical_data.tms_utime += time;
         self.statistical_data.last_stime = now;
     }
 
     pub fn set_timer(&mut self, itimer: ITimerVal, timer_type: TimerType) {
-        self.timer.timer_remained_us = itimer.it_value.into();
-        self.timer.timer_interval_us = itimer.it_interval.into();
+        self.timer.timer_remained = itimer.it_value.to_clock();
+        self.timer.timer_interval = itimer.it_interval;
         self.timer.timer_type = timer_type;
+        self.timer.start = TimeVal::now().to_clock();
     }
 
-    pub fn update_timer(&mut self, delta: usize) {
-        if self.timer.timer_remained_us == 0 {
+    pub fn update_timer(&mut self) {
+        let now = read_timer();
+        let delta = now - self.timer.start;
+        if self.timer.timer_remained == 0 {
             // 等于0说明没有计时器，或者 one-shot 计时器已结束
             return;
         }
-        if self.timer.timer_remained_us > delta {
-            // 时辰未到，减少寄存器计数
-            self.timer.timer_remained_us -= delta;
+        if self.timer.timer_remained > delta {
+            // 时辰未到
             return;
         }
         // 到此说明计时器已经到时间了，更新计时器
         // 如果是 one-shot 计时器，则 timer_interval_us == 0，这样赋值也恰好是符合语义的
-        self.timer.timer_remained_us = self.timer.timer_interval_us;
+        self.timer.timer_remained = if self.timer.timer_interval == TimeVal::new() {
+            0
+        } else {
+            self.timer.start = now;
+            self.timer.timer_interval.to_clock()
+        };
         self.timer.expired = true;
     }
 
@@ -810,7 +940,7 @@ impl TaskInner {
     }
 
     pub fn heap_info(&self) -> HeapInfo {
-        self.heap.clone()
+        self.heap.lock().clone()
     }
 
     pub fn shrink_heap(_addr: usize) -> Result<usize, AlienError> {
@@ -819,28 +949,30 @@ impl TaskInner {
 
     /// extend heap
     pub fn extend_heap(&mut self, addr: usize) -> Result<usize, AlienError> {
-        self.heap.current = addr;
-        if addr < self.heap.end {
-            return Ok(self.heap.current);
+        let mut heap = self.heap.lock();
+        heap.current = addr;
+        if addr < heap.end {
+            return Ok(heap.current);
         }
-        let addition = addr - self.heap.end;
+        let addition = addr - heap.end;
         // increase heap size
-        let end = self.heap.end;
+        let end = heap.end;
         // align addition to PAGE_SIZE
         let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+        trace!("extend heap: {:#x} -- {:#x}", end, addition);
         self.address_space
             .lock()
             .map_region_no_target(
                 VirtAddr::from(end),
                 addition,
                 "RWUAD".into(), // no V flag
-                true,
+                false,
                 true,
             )
             .unwrap();
         let new_end = end + addition;
-        self.heap.end = new_end;
-        Ok(self.heap.current)
+        heap.end = new_end;
+        Ok(heap.current)
     }
 
     /// the len will be aligned to 4k
@@ -863,11 +995,78 @@ impl TaskInner {
         } else {
             let file = self.fd_table.lock().get(fd).map_err(|_| -1isize)?;
             if file.is_none() {
-                return Err(-1);
+                return Err(LinuxErrno::EBADF.into());
             }
             file
         };
-        let v_range = self.mmap.alloc(len);
+        // todo!
+        // for dynamic link, the linker will map the elf file to the same address
+        // we must satisfy this requirement
+        let mut start = align_down_4k(start);
+        let v_range = if prot.contains(ProtFlags::PROT_EXEC) {
+            let len = align_up_4k(len);
+            if start > self.heap.lock().start {
+                // the mmap region is in heap
+                return Err(-1);
+            }
+            if let Some(_region) = self.mmap.get_region(start) {
+                return Err(-1);
+            }
+            if start == 0 {
+                start = 0x1000;
+            }
+            start..start + len
+        } else if flags.contains(MapFlags::MAP_FIXED) {
+            let len = align_up_4k(len);
+            if start > self.heap.lock().start {
+                error!("mmap fixed address conflict with heap");
+                return Err(-1);
+            }
+            // check if the region is already mapped
+            if let Some(region) = self.mmap.get_region(start) {
+                // split the region
+                let (left, mut right) = region.split(start);
+                // delete the old region
+                self.mmap.remove_region(region.start);
+                // add the left region
+                self.mmap.add_region(left);
+                if start + len < right.start + right.map_len {
+                    // slice the right region
+                    trace!(
+                        "again slice the right region:{:#x?}, len:{:#x}",
+                        right.start,
+                        right.len
+                    );
+                    let (mut left, right) = right.split(start + len);
+                    // add the right region
+                    self.mmap.add_region(right);
+                    // update prot and flags
+                    left.set_prot(prot);
+                    left.set_flags(flags);
+                    left.offset = offset;
+                    left.fd = fd;
+                    self.mmap.add_region(left);
+                } else {
+                    trace!(
+                        "directly add the right region:{:#x?}, len:{:#x}",
+                        right.start,
+                        right.len
+                    );
+                    // update prot and flags
+                    right.set_prot(prot);
+                    right.set_flags(flags);
+                    right.offset = offset;
+                    right.fd = fd;
+                    self.mmap.add_region(right);
+                }
+                return Ok(start);
+            }
+            start..start + len
+        } else {
+            let v_range = self.mmap.alloc(len);
+            v_range
+        };
+
         let region = MMapRegion::new(
             v_range.start,
             len,
@@ -888,17 +1087,10 @@ impl TaskInner {
                 VirtAddr::from(start),
                 v_range.end - start,
                 map_flags,
-                true,
+                false,
                 true,
             )
             .unwrap();
-        // todo! huge page
-        trace!(
-            "add mmap region: {:#x}-{:#x}, flag:{:?}",
-            start,
-            v_range.end,
-            map_flags
-        );
         Ok(start)
     }
 
@@ -906,12 +1098,12 @@ impl TaskInner {
         // check whether the start is in mmap
         let x = self.mmap.get_region(start);
         if x.is_none() {
-            return Err(-1);
+            return Err(LinuxErrno::EINVAL.into());
         }
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
         let region = x.unwrap();
         if region.start != start || len != region.len {
-            return Err(-1);
+            return Err(LinuxErrno::EINVAL.into());
         }
         self.address_space
             .lock()
@@ -925,26 +1117,48 @@ impl TaskInner {
         // check whether the start is in mmap
         let x = self.mmap.get_region_mut(start);
         if x.is_none() {
-            return Err(-1);
+            let res = self.address_space.lock().query(VirtAddr::from(start));
+            return if res.is_err() {
+                Err(LinuxErrno::EINVAL as isize)
+            } else {
+                Ok(())
+            };
         }
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
         let region = x.unwrap();
         if start + len > region.start + region.len {
             error!("start+len > region.start + region.len");
-            return Err(-1);
+            return Err(LinuxErrno::EINVAL.into());
         }
-        region.prot = prot;
+        region.prot |= prot;
         Ok(())
     }
 
     pub fn do_load_page_fault(
         &mut self,
         addr: usize,
-    ) -> Result<(Option<Arc<KFile>>, &'static mut [u8], u64), isize> {
+    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
         // check whether the addr is in mmap
+        let addr = align_down_4k(addr);
+        let (_phy, flags, page_size) = self
+            .address_space
+            .lock()
+            .query(VirtAddr::from(addr))
+            .expect(format!("addr:{:#x}", addr).as_str());
+        trace!(
+            "do load page fault:{:#x}, flags:{:?}, page_size:{:?}",
+            addr,
+            flags,
+            page_size
+        );
+        if !flags.contains(MappingFlags::V) {
+            return self.invalid_page_solver(addr);
+        }
+        assert!(!flags.contains(MappingFlags::RSD));
+
         let x = self.mmap.get_region(addr);
         if x.is_none() {
-            return Err(-1);
+            return Err(AlienError::Other);
         }
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
         let region = x.unwrap();
@@ -966,7 +1180,7 @@ impl TaskInner {
         let file = &region.fd;
 
         let read_offset = region.offset + (addr - region.start);
-        Ok((file.clone(), buf, read_offset as u64))
+        Ok(Some((file.clone(), buf, read_offset as u64)))
     }
 
     fn invalid_page_solver(
@@ -975,8 +1189,11 @@ impl TaskInner {
     ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
         trace!("invalid page fault at {:#x}", addr);
         let is_mmap = self.mmap.get_region(addr);
-        let is_heap = self.heap.contains(addr);
-        if is_mmap.is_none() && !is_heap {
+        let is_heap = self.heap.lock().contains(addr);
+
+        let is_stack = self.stack.contains(&addr);
+
+        if is_mmap.is_none() && !is_heap && !is_stack {
             error!("invalid page fault at {:#x}", addr);
             return Err(AlienError::Other);
         }
@@ -987,12 +1204,16 @@ impl TaskInner {
                 .lock()
                 .validate(VirtAddr::from(addr), map_flags)
                 .unwrap();
-        } else {
+        } else if is_mmap.is_some() {
             let region = is_mmap.unwrap();
             // assert_eq!(addr % FRAME_SIZE, 0);
             // update page table
             let mut map_flags = region.prot.into();
             map_flags |= "VAD".into();
+            error!(
+                "invalid page fault at {:#x}, flag is :{:?}",
+                addr, map_flags
+            );
             self.address_space
                 .lock()
                 .validate(VirtAddr::from(addr).align_down_4k(), map_flags)
@@ -1008,20 +1229,28 @@ impl TaskInner {
             let file = &region.fd;
             let read_offset = region.offset + (addr - region.start);
             return Ok(Some((file.clone(), buf, read_offset as u64)));
+        } else {
+            error!("invalid page fault in stack, addr: {:#x}", addr);
+            let map_flags = "RWUVAD".into();
+            self.address_space
+                .lock()
+                .validate(VirtAddr::from(addr), map_flags)
+                .unwrap();
         }
         Ok(None)
     }
 
-    pub fn do_store_page_fault(
+    pub fn do_instruction_page_fault(
         &mut self,
         addr: usize,
     ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
         let addr = align_down_4k(addr);
-        let (phy, flags, page_size) = self
+        let (_phy, flags, page_size) = self
             .address_space
             .lock()
             .query(VirtAddr::from(addr))
-            .expect(format!("addr:{:#x}", addr).as_str());
+            .map_err(|_| AlienError::Other)?;
+        //
         trace!(
             "do store page fault:{:#x}, flags:{:?}, page_size:{:?}",
             addr,
@@ -1031,7 +1260,45 @@ impl TaskInner {
         if !flags.contains(MappingFlags::V) {
             return self.invalid_page_solver(addr);
         }
-        assert!(flags.contains(MappingFlags::RSD), "flags:{:?}", flags);
+        panic!("instruction page fault");
+    }
+    pub fn do_store_page_fault(
+        &mut self,
+        o_addr: usize,
+    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
+        let addr = align_down_4k(o_addr);
+        let (phy, flags, page_size) = self
+            .address_space
+            .lock()
+            .query(VirtAddr::from(addr))
+            .map_err(|_x| {
+                if self.need_wait < 5 {
+                    self.need_wait += 1;
+                    AlienError::ThreadNeedWait
+                } else {
+                    error!("do_store_page_fault panic :{}", o_addr);
+                    AlienError::ThreadNeedExit
+                }
+            })?;
+        // .expect(format!("addr:{:#x}", addr).as_str());
+        trace!(
+            "do store page fault:{:#x}, flags:{:?}, page_size:{:?}",
+            addr,
+            flags,
+            page_size
+        );
+        if !flags.contains(MappingFlags::V) {
+            return self.invalid_page_solver(addr);
+        }
+        // if !flags.contains(MappingFlags::RSD) {
+        //     return Ok(None);
+        // }
+        assert!(
+            flags.contains(MappingFlags::RSD),
+            "addr:{:#x} flags:{:?}",
+            o_addr,
+            flags
+        );
         // decrease the reference count
         let mut flags = flags | "W".into();
         flags -= MappingFlags::RSD;
@@ -1057,11 +1324,38 @@ impl TaskInner {
 }
 
 impl Task {
-    pub fn recycle(&self) {
+    pub fn pre_recycle(&self) {
+        // recycle trap page
+        let trap_frame_ptr = self.trap_frame_ptr() as usize;
+        self.access_inner()
+            .address_space
+            .lock()
+            .unmap_region(VirtAddr::from(trap_frame_ptr), FRAME_SIZE)
+            .unwrap();
         let mut inner = self.inner.lock();
         // delete child process
         inner.children.clear();
-        // recycle page
+        let thread_number = inner.thread_number;
+        if thread_number == 0 {
+            let fd = inner.fd_table.lock().clear();
+            drop(inner);
+            for f in fd {
+                let real_file = f.get_file();
+                if f.is_unlink() {
+                    let path = f.unlink_path().unwrap();
+                    drop(f);
+                    warn!("unlink path :{}", path);
+                    let _ = vfs_unlink::<VfsProvider>(&path);
+                    continue;
+                }
+                error!("close file ,ref count:{:#x}", Arc::strong_count(&real_file));
+                if real_file.is_pipe() {
+                    drop(f);
+                    let res = vfs_close_file::<VfsProvider>(real_file);
+                    warn!("close pipe {:?}", res);
+                }
+            }
+        }
     }
 
     /// get the clear_child_tid
@@ -1074,7 +1368,8 @@ impl Task {
         let tid = TidHandle::new()?;
         let pid = tid.0;
         // 创建进程地址空间
-        let elf_info = build_elf_address_space(elf);
+        let mut args = vec![];
+        let elf_info = build_elf_address_space(elf, &mut args, "/bin/initproc");
         if elf_info.is_err() {
             return None;
         }
@@ -1082,6 +1377,7 @@ impl Task {
         let address_space = elf_info.address_space;
         let k_stack = Stack::new(1)?;
         let k_stack_top = k_stack.top();
+        let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let process = Task {
             tid,
             kernel_stack: k_stack,
@@ -1106,7 +1402,10 @@ impl Task {
                 statistical_data: StatisticalData::new(),
                 timer: TaskTimer::default(),
                 exit_code: 0,
-                heap: HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom),
+                heap: Arc::new(Mutex::new(HeapInfo::new(
+                    elf_info.heap_bottom,
+                    elf_info.heap_bottom,
+                ))),
                 mmap: MMapInfo::new(),
                 signal_handlers: Arc::new(Mutex::new(SignalHandlers::new())),
                 signal_receivers: Arc::new(Mutex::new(SignalReceivers::new())),
@@ -1116,11 +1415,19 @@ impl Task {
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
                 shm: BTreeMap::new(),
+                cpu_affinity: {
+                    let mut affinity = 0;
+                    affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
+                    affinity
+                },
+                unmask: 0o666,
+                stack: stack_info,
+                need_wait: 0,
             }),
             send_sigchld_when_exit: false,
         };
-        let phy_button = process.transfer_raw(elf_info.stack_top - USER_STACK_SIZE);
-        let mut user_stack = UserStack::new(phy_button + USER_STACK_SIZE, elf_info.stack_top);
+        let phy_button = process.transfer_raw(elf_info.stack_top - FRAME_SIZE);
+        let mut user_stack = UserStack::new(phy_button + FRAME_SIZE, elf_info.stack_top);
         user_stack.push(0).unwrap();
         let argc_ptr = user_stack.push(0).unwrap();
 
@@ -1132,7 +1439,9 @@ impl Task {
             process.kernel_stack.top(),
             user_trap_vector as usize,
         );
-        Some(process)
+        trap_frame.regs()[4] = elf_info.tls; // tp --> tls
+        let res = Some(process);
+        res
     }
     /// fork a child
     pub fn t_clone(
@@ -1203,6 +1512,13 @@ impl Task {
             let trap_frame = TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame);
             (trap_frame, 0)
         };
+
+        let heap = if flag.contains(CloneFlags::CLONE_VM) {
+            inner.heap.clone()
+        } else {
+            Arc::new(Mutex::new(inner.heap.lock().clone()))
+        };
+
         // 设置内核栈地址
         trap_context.update_kernel_sp(k_stack_top);
 
@@ -1246,7 +1562,6 @@ impl Task {
             assert!(flag.contains(CloneFlags::CLONE_VM));
             // set the sp of the new process
             trap_context.regs()[2] = stack;
-            assert_eq!(trap_context.regs()[2], stack);
         }
 
         warn!("create task pid:{}, tid:{}", pid, tid.0);
@@ -1268,7 +1583,7 @@ impl Task {
                 statistical_data: StatisticalData::new(),
                 timer: TaskTimer::default(),
                 exit_code: 0,
-                heap: inner.heap.clone(),
+                heap,
                 mmap: inner.mmap.clone(),
                 signal_handlers,
                 signal_receivers,
@@ -1286,6 +1601,14 @@ impl Task {
                 signal_set_siginfo: false,
                 robust: RobustList::default(),
                 shm: inner.shm.clone(),
+                cpu_affinity: {
+                    let mut affinity = 0;
+                    affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
+                    affinity
+                },
+                unmask: 0o666,
+                stack: inner.stack.clone(),
+                need_wait: 0,
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
@@ -1293,6 +1616,7 @@ impl Task {
         if !flag.contains(CloneFlags::CLONE_PARENT) {
             inner.children.push(task.clone());
         }
+        error!("create a task success");
         Some(task)
     }
 
@@ -1303,32 +1627,51 @@ impl Task {
         args: Vec<String>,
         env: Vec<String>,
     ) -> Result<(), isize> {
-        let elf_info = build_elf_address_space(elf_data);
+        let mut args = args;
+        let elf_info = build_elf_address_space(elf_data, &mut args, name);
         if elf_info.is_err() {
             return Err(-1);
         }
         let elf_info = elf_info.unwrap();
         let mut inner = self.inner.lock();
         assert_eq!(inner.thread_number, 0);
+        let name = elf_info.name;
         let address_space = elf_info.address_space;
         // reset the address space
         inner.address_space = Arc::new(Mutex::new(address_space));
         // reset the heap
-        inner.heap = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);
+        inner.heap = Arc::new(Mutex::new(HeapInfo::new(
+            elf_info.heap_bottom,
+            elf_info.heap_bottom,
+        )));
         // reset the mmap
         inner.mmap = MMapInfo::new();
         // set the name of the process
         inner.name = name.to_string();
         // reset time record
         inner.statistical_data.clear();
-        // todo!
         // close file which contains FD_CLOEXEC flag
         // now we delete all fd
-        // inner.fd_table = ;
+        // inner.fd_table =
         // reset signal handler
         inner.signal_handlers.lock().clear();
         inner.signal_receivers.lock().clear();
-
+        inner.timer.clear();
+        inner.stack = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
+        let env = if env.is_empty() {
+            let envp = vec![
+                "LD_LIBRARY_PATH=/",
+                "PS1=\x1b[1m\x1b[32mAlien\x1b[0m:\x1b[1m\x1b[34m\\w\x1b[0m\\$ \0",
+                "PATH=/bin:/usr/bin",
+                "UB_BINDIR=./",
+            ]
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
+            envp
+        } else {
+            env
+        };
         // we need make sure the args and env size is less than 4KB
         let phy_button = inner.transfer_raw(elf_info.stack_top - FRAME_SIZE);
         let mut user_stack = UserStack::new(phy_button + FRAME_SIZE, elf_info.stack_top);
@@ -1336,6 +1679,7 @@ impl Task {
         // we have push '\0' into the env string,so we don't need to push it again
         let envv = env
             .iter()
+            .rev()
             .map(|env| user_stack.push_str(env).unwrap())
             .collect::<Vec<usize>>();
         // push the args to the top of stack of the process
@@ -1353,7 +1697,7 @@ impl Task {
         // push aux
         let platform = user_stack.push_str("riscv").unwrap();
 
-        let ex_path = user_stack.push_str(name).unwrap();
+        let ex_path = user_stack.push_str(&name).unwrap();
         user_stack.push(0).unwrap();
         user_stack.push(platform).unwrap();
         user_stack.push(AT_PLATFORM).unwrap();
@@ -1363,6 +1707,9 @@ impl Task {
         user_stack.push(AT_PHNUM).unwrap();
         user_stack.push(FRAME_SIZE).unwrap();
         user_stack.push(AT_PAGESZ).unwrap();
+
+        user_stack.push(elf_info.bias).unwrap();
+        user_stack.push(AT_BASE).unwrap();
         user_stack.push(elf_info.entry).unwrap();
         user_stack.push(AT_ENTRY).unwrap();
         user_stack.push(elf_info.ph_entry_size).unwrap();
@@ -1383,7 +1730,7 @@ impl Task {
         user_stack.push(AT_RANDOM).unwrap();
 
         user_stack.push(0).unwrap();
-        // psuh the env addr to the top of stack of the process
+        // push the env addr to the top of stack of the process
         envv.iter().for_each(|env| {
             user_stack.push(*env).unwrap();
         });
@@ -1410,6 +1757,7 @@ impl Task {
             self.kernel_stack.top(),
             user_trap_vector as usize,
         );
+        trap_frame.regs()[4] = elf_info.tls; // tp --> tls
         Ok(())
     }
 }
