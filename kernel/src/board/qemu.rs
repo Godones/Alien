@@ -1,11 +1,11 @@
 use core::ptr::NonNull;
 
-use fdt::Fdt;
 use fdt::node::FdtNode;
 use fdt::standard_nodes::Compatible;
+use fdt::Fdt;
 use spin::Once;
-use virtio_drivers::transport::{DeviceType, Transport};
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use virtio_drivers::transport::{DeviceType, Transport};
 
 use crate::board::common::{get_device_info, get_device_info_from_node};
 
@@ -58,12 +58,10 @@ pub fn get_block_device_info() -> Option<(usize, usize)> {
     find_virtio_device(&fdt, DeviceType::Block, None)
 }
 
-
 pub fn get_net_device_info() -> Option<(usize, usize)> {
     let fdt = DTB.get().unwrap();
     find_virtio_device(&fdt, DeviceType::Network, None)
 }
-
 
 fn find_virtio_device(
     fdt: &Fdt,
