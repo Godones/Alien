@@ -5,7 +5,9 @@
 //! 目前的模型中，不采用 ipi 实时发送信号，而是由被目标线程在 trap 时处理。因此需要开启**时钟中断**来保证信号能实际送到
 use alloc::vec::Vec;
 
-pub use action::{SigAction, SigActionDefault, SigActionFlags, SIG_DFL, SIG_IGN};
+pub use action::{
+    SigAction, SigActionDefault, SigActionFlags, SIGNAL_RETURN_TRAP, SIG_DFL, SIG_IGN,
+};
 pub use number::SignalNumber;
 pub use siginfo::{SigInfo, SigProcMaskHow};
 pub use ucontext::SignalUserContext;
@@ -104,6 +106,10 @@ impl SignalReceivers {
 
     pub fn have_signal(&self) -> bool {
         self.sig_received.find_first_one(self.mask).is_some()
+    }
+
+    pub fn have_signal_with_number(&self) -> Option<usize> {
+        self.sig_received.find_first_one(self.mask)
     }
 
     pub fn check_signal(&mut self, signum: usize) -> bool {

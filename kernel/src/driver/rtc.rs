@@ -1,24 +1,20 @@
-use alloc::sync::Arc;
+pub use rtc::Rtc;
 
-use rtc::{Rtc, RtcTime};
-use spin::once::Once;
+use crate::device::RtcDevice;
+use crate::interrupt::DeviceBase;
 
-use crate::driver::DeviceBase;
-
-static RTC: Once<Arc<Rtc>> = Once::new();
-
-pub fn init_rtc(base_addr: usize, irq: u32) -> Arc<dyn DeviceBase> {
-    info!("Init rtc, base_addr:{:#x},irq:{}", base_addr, irq);
-    let rtc = Rtc::new(base_addr, irq);
-    let rtc = Arc::new(rtc);
-    RTC.call_once(|| rtc.clone());
-    let current_time = rtc.read_time();
-    println!("init rtc success, current time: {:?}", current_time);
-    rtc
-}
-
-pub fn get_rtc_time() -> Option<RtcTime> {
-    RTC.get().map(|rtc| rtc.read_time())
+impl RtcDevice for Rtc {
+    fn read_time(&self) -> crate::device::RtcTime {
+        let time = self.read_time();
+        crate::device::RtcTime {
+            year: time.year,
+            month: time.month,
+            day: time.day,
+            hour: time.hour,
+            minute: time.minute,
+            second: time.second,
+        }
+    }
 }
 
 impl DeviceBase for Rtc {

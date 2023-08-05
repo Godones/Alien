@@ -12,13 +12,13 @@
 
 ### 动态链接(3days)
 
-- [ ] elf文件的处理
+- [x] elf文件的处理
   - 处理elf文件类型，并根据类型初始化相关的数据结构
 - [ ] 软链接处理 ---> use dbfs
 
 ### 系统调用(one week)
 
-- [ ] more syscall support
+- [x] more syscall support
 
 `ioctl`: https://zhuanlan.zhihu.com/p/478259733
 
@@ -31,3 +31,5 @@
 `futex`:https://man7.org/linux/man-pages/man2/futex.2.html   http://linuxperf.com/?p=23
 
 `shmget`：https://blog.csdn.net/tjcwt2011/article/details/123919503
+
+`sigsuspend`：https://www.cnblogs.com/nufangrensheng/p/3516427.html

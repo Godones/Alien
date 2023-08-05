@@ -145,17 +145,17 @@
 - [x] wcstol
 
 ```
-./final/runtest.exe -w entry-static.exe pthread_cancel
-./final/runtest.exe -w entry-static.exe pthread_cancel_points
-./final/runtest.exe -w entry-static.exe pthread_cond
-./final/runtest.exe -w entry-static.exe pthread_tsd
-./final/runtest.exe -w entry-static.exe pthread_robust_detach
-./final/runtest.exe -w entry-static.exe pthread_cancel_sem_wait
-./final/runtest.exe -w entry-static.exe pthread_cond_smasher
-./final/runtest.exe -w entry-static.exe pthread_condattr_setclock
-./final/runtest.exe -w entry-static.exe pthread_exit_cancel
-./final/runtest.exe -w entry-static.exe pthread_once_deadlock
-./final/runtest.exe -w entry-static.exe pthread_rwlock_ebusy
+./runtest.exe -w entry-static.exe pthread_cancel
+./runtest.exe -w entry-static.exe pthread_cancel_points
+./runtest.exe -w entry-static.exe pthread_cond
+./runtest.exe -w entry-static.exe pthread_tsd
+./runtest.exe -w entry-static.exe pthread_robust_detach
+./runtest.exe -w entry-static.exe pthread_cancel_sem_wait
+./runtest.exe -w entry-static.exe pthread_cond_smasher
+./runtest.exe -w entry-static.exe pthread_condattr_setclock
+./runtest.exe -w entry-static.exe pthread_exit_cancel
+./runtest.exe -w entry-static.exe pthread_once_deadlock
+./runtest.exe -w entry-static.exe pthread_rwlock_ebusy
 ```
 
 
@@ -164,6 +164,7 @@
 
 ## libctest-dyn
 
+- [x] all
 
 
 ## other
@@ -181,12 +182,18 @@
   - [x] ./iozone -t 4 -i 6 -i 7 -r 1k -s 1m
   - [x] ./iozone -t 4 -i 9 -i 10 -r 1k -s 1m
   - [x] ./iozone -t 4 -i 11 -i 12 -r 1k -s 1m
-- [ ] unixbench
+- [x] unixbench  https://www.cnblogs.com/xulan0922/p/11447988.html
 - [ ] netperf
   - [x] ./busybox sh netperf_testcode2.sh
   - [ ] 
 
 - [ ] iperf
+
+- [x] cyclictest    https://zhuanlan.zhihu.com/p/336381111
+
+- [x] lmbench
+
+- [x] libc-bench
 
 
 

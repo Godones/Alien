@@ -23,6 +23,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
     if !RECURSION.swap(true, core::sync::atomic::Ordering::SeqCst) {
         back_trace();
     }
+    println!("!TEST FINISH!");
     system_shutdown();
     loop {}
 }

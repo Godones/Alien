@@ -37,7 +37,7 @@ pub trait PageAllocatorExt {
     /// allocate pages
     /// # Params
     /// * `pages` - the number of pages, it may not be 2^order
-    fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize>;
+    fn alloc_pages(&mut self, pages: usize, align: usize) -> BuddyResult<usize>;
     /// free pages
     /// # Params
     /// * `page` - the start page

@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 use core::arch::asm;
 
 use crate::process::exit;
-use crate::syscall::{sys_shutdown, system_shutdown};
+use crate::syscall::__system_shutdown;
 
 pub mod common;
 pub mod fs;
@@ -74,7 +74,7 @@ fn main(argc: usize, argv: Vec<String>) -> i32 {
     panic!("Cannot find main!");
 }
 
-pub fn shutdown() -> ! {
-    system_shutdown();
+pub fn system_shutdown() -> ! {
+    __system_shutdown();
     panic!("Shutdown failed!");
 }

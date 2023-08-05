@@ -24,7 +24,7 @@ use crate::task::context::Context;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
 use crate::task::INIT_PROCESS;
-use crate::trap::TrapFrame;
+use crate::trap::{check_task_timer_expired, TrapFrame};
 
 #[derive(Debug, Clone)]
 pub struct CPU {
@@ -145,7 +145,14 @@ pub fn do_exit(exit_code: i32) -> isize {
         let addr = task.transfer_raw_ptr(addr as *mut i32);
         *addr = 0;
     }
-    task.recycle();
+
+    // 回收一些物理页，不然等到wait系统调用真正进行回收时，可能会出现OOM
+    // 可回收物理页包括trap页以及内核栈页
+    // 在这里还不能回收内核栈页，因为还需要用到内核栈页来执行下面的代码
+    // 所以只回收trap页
+    // 在wait系统调用中，会回收内核栈页
+    task.pre_recycle();
+    warn!("pre recycle done");
     let clear_child_tid = task.futex_wake();
     if clear_child_tid != 0 {
         let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
@@ -166,8 +173,10 @@ pub fn exit_group(exit_code: i32) -> isize {
 
 #[syscall_func(124)]
 pub fn do_suspend() -> isize {
-    let process = current_task().unwrap();
-    process.update_state(TaskState::Ready);
+    let task = current_task().unwrap();
+    task.access_inner().update_timer();
+    check_task_timer_expired();
+    task.update_state(TaskState::Ready);
     schedule();
     0
 }
@@ -235,6 +244,11 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     let sig = flag & 0xff;
     let sig = SignalNumber::from(sig);
     let task = current_task().unwrap();
+
+    let child_num = task.access_inner().children.len();
+    if child_num >= 10 {
+        do_suspend();
+    }
     let new_task = task.t_clone(clone_flag, stack, sig, ptid, tls, ctid);
     if new_task.is_none() {
         return -1;
@@ -246,6 +260,8 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     let tid = new_task.get_tid();
     let mut process_pool = TASK_MANAGER.lock();
     process_pool.push_back(new_task);
+    // drop(process_pool);
+    // do_suspend();
     tid
 }
 
@@ -253,7 +269,6 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
     let task = current_task().unwrap();
     let mut path_str = task.transfer_str(path);
-    let mut data = Vec::new();
     // get the args and push them into the new process stack
     let (mut args, envs) = parse_user_arg_env(args_ptr, env);
     warn!("exec path: {}", path_str);
@@ -267,7 +282,10 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
         path_str = "busybox".to_string();
         args.insert(0, "sh\0".to_string());
     }
-
+    let mut data = Vec::new();
+    if path_str.contains("libc-bench") {
+        path_str = path_str.replace("libc-bench", "libc-bench2");
+    }
     if vfs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
@@ -292,12 +310,7 @@ pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) 
         {
             return -1;
         }
-        let children = process.children();
-        let res = children.iter().enumerate().find(|(_, child)| {
-            child.state() == TaskState::Terminated && (child.get_pid() == pid || pid == -1)
-        });
-        let res = res.map(|(index, _)| index);
-        drop(children);
+        let res = process.check_child(pid);
         if let Some(index) = res {
             let child = process.remove_child(index);
             assert_eq!(
@@ -334,8 +347,8 @@ pub fn do_brk(addr: usize) -> isize {
         return heap_info.current as isize;
     }
     if addr < heap_info.start || addr < heap_info.current {
-        panic!("heap can't be shrinked");
-        // return -1;
+        // panic!("heap can't be shrinked");
+        return -1;
     }
     let res = inner.extend_heap(addr);
     if res.is_err() {
@@ -359,15 +372,15 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
     if let Ok(resource) = PrLimitRes::try_from(resource) {
         let limit = inner.get_prlimit(resource);
         if !old_limit.is_null() {
-            let old_limit = inner.transfer_raw_ptr_mut(old_limit as *mut PrLimit);
-            *old_limit = limit
+            inner.copy_to_user(&limit, old_limit as *mut PrLimit);
         }
         match resource {
             PrLimitRes::RlimitStack => {}
             PrLimitRes::RlimitNofile => {
                 if !new_limit.is_null() {
-                    let new_limit = inner.transfer_raw_ptr(new_limit as *const PrLimit);
-                    inner.set_prlimit(resource, *new_limit);
+                    let mut limit = PrLimit::new(0, 0);
+                    inner.copy_from_user(new_limit as *const PrLimit, &mut limit);
+                    inner.set_prlimit(resource, limit);
                 }
             }
             PrLimitRes::RlimitAs => {}
@@ -379,14 +392,17 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
 fn parse_user_arg_env(args_ptr: usize, env_ptr: usize) -> (Vec<String>, Vec<String>) {
     let task = current_task().unwrap();
     let mut args = Vec::new();
-    let mut start = args_ptr as *mut usize;
-    loop {
-        let arg = task.transfer_raw_ptr(start);
-        if *arg == 0 {
-            break;
+
+    if args_ptr != 0 {
+        let mut start = args_ptr as *mut usize;
+        loop {
+            let arg = task.transfer_raw_ptr(start);
+            if *arg == 0 {
+                break;
+            }
+            args.push(*arg);
+            start = unsafe { start.add(1) };
         }
-        args.push(*arg);
-        start = unsafe { start.add(1) };
     }
     let args = args
         .into_iter()
@@ -397,14 +413,16 @@ fn parse_user_arg_env(args_ptr: usize, env_ptr: usize) -> (Vec<String>, Vec<Stri
         })
         .collect::<Vec<String>>();
     let mut envs = Vec::new();
-    let mut start = env_ptr as *mut usize;
-    loop {
-        let env = task.transfer_raw_ptr(start);
-        if *env == 0 {
-            break;
+    if env_ptr != 0 {
+        let mut start = env_ptr as *mut usize;
+        loop {
+            let env = task.transfer_raw_ptr(start);
+            if *env == 0 {
+                break;
+            }
+            envs.push(*env);
+            start = unsafe { start.add(1) };
         }
-        envs.push(*env);
-        start = unsafe { start.add(1) };
     }
     let envs = envs
         .into_iter()

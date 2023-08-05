@@ -1,8 +1,6 @@
 # Alien
 
-A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os,so
-the system is composed of a series of independent modules. At present, the system already supports user-mode programsand
-some simple functions.
+A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os, so the system is composed of a series of independent modules. At present, the system already supports user-mode programs and some simple functions.
 
 ![image-20230607222452791](assert/image-20230607222452791.png)
 
@@ -38,7 +36,7 @@ some simple functions.
 
 `plic`: riscv plic driver
 
-`uart`: uart driver, it supports interrupt
+`uart`: uart driver(8250/16550), it supports interrupt
 
 Other modules are not listed here, you can find them in the cargo.toml file.
 
@@ -73,16 +71,33 @@ make run LOG=WARN img=fat32 SMP=1 GUI=y
 ### Run VisionFive2
 
 ```
-make vf2 LOG=WARN VF2=y SMP=1
+make sdcard img=fat32 
+// 制作fat32
+make vf2 LOG=WARN VF2=y SMP=2
+// 生成testos.bin
+// 这里smp=2 表示的是单核启动，对于u74-mc处理器，0号核不会被启动，从1号开始。
 ```
 
 ### Run cv1811h
 
 ```
-make vf2 LOG=WARN CV1811h=y SMP=1
+make sdcard img=fat32 
+// 制作fat32
+make vf2 LOG=WARN CV1811h=y SMP=1 
+// 等待修复
 ```
 
-目前两块开发板都只是启动成功，但目前缺少sd卡驱动，因此不能运行程序。
+## Run Unmatched
+
+```
+make sdcard img=fat32 
+// 制作fat32
+make unmatched LOG= UNMATCHED=y SMP=2
+// 生成testos.bin
+// 这里smp=2 表示的是单核启动，对于u74-mc处理器，0号核不会被启动，从1号开始。
+```
+
+目前cv1811h开发板可以上板启动，但是我们暂时没有处理其需要的特殊页表项。对于visionfive2和unmatched，可以启动并运行bash。
 
 ## Doc
 
@@ -97,6 +112,8 @@ make vf2 LOG=WARN CV1811h=y SMP=1
 [dbfs](https://github.com/Godones/dbfs2)
 
 [物理页帧分配器](./modules/pager/README.md)
+
+[more](./doc)
 
 ## Feature
 
@@ -121,6 +138,13 @@ make vf2 LOG=WARN CV1811h=y SMP=1
 - [x] busybox
 - [x] lua
 - [x] bash
+- [x] lmbench
+- [x] iozone
+- [x] cyclictest
+- [x] libc-bench
+- [x] unixbench
+- [ ] netperf
+- [ ] iperf
 
 ## Project Structure
 
@@ -174,6 +198,4 @@ make vf2 LOG=WARN CV1811h=y SMP=1
 - rCoreTutorial-v3 http://rcore-os.cn/rCore-Tutorial-Book-v3/chapter0/index.html
 - Maturin https://gitlab.eduxiji.net/scPointer/maturin
 - Redox https://gitlab.redox-os.org/redox-os/
-
-
 

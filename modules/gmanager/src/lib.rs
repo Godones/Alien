@@ -115,13 +115,35 @@ impl<T: Clone> MinimalManager<T> {
         }
         Ok(())
     }
+    pub fn clear(&mut self) -> Vec<T> {
+        let res = self
+            .data
+            .iter()
+            .filter(|x| x.is_some())
+            .map(|x| x.clone().unwrap())
+            .collect();
+        self.data.clear();
+        self.usable = 0;
+        res
+    }
 }
 
 #[derive(Debug)]
 pub enum ManagerError {
-    NoSpace,
-    NotExist,
-    IndexOver,
+    NoSpace = 0,
+    NotExist = 1,
+    IndexOver = 2,
+}
+
+impl From<usize> for ManagerError {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => ManagerError::NoSpace,
+            1 => ManagerError::NotExist,
+            2 => ManagerError::IndexOver,
+            _ => panic!("Unknown error code"),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -2,11 +2,10 @@ use core::fmt::{Arguments, Result, Write};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use preprint::Print;
-use spin::Lazy;
 
 use kernel_sync::Mutex;
 
-use crate::driver::uart::{CharDevice, USER_UART};
+use crate::device::UART_DEVICE;
 use crate::sbi::console_putchar;
 
 #[macro_export]
@@ -58,7 +57,7 @@ macro_rules! uprintln {
 
 struct Stdout;
 
-static STDOUT: Lazy<Mutex<Stdout>> = Lazy::new(|| Mutex::new(Stdout));
+static STDOUT: Mutex<Stdout> = Mutex::new(Stdout);
 
 pub static UART_FLAG: AtomicBool = AtomicBool::new(false);
 
@@ -66,30 +65,29 @@ pub static UART_FLAG: AtomicBool = AtomicBool::new(false);
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
         if UART_FLAG.load(Ordering::Relaxed) {
-            let uart = USER_UART.get().unwrap();
+            let uart = UART_DEVICE.get().unwrap();
             uart.put_bytes(s.as_bytes());
         } else {
             s.as_bytes().iter().for_each(|x| {
                 console_putchar(*x);
             });
         }
-
         Ok(())
     }
 }
 
 pub fn get_char() -> Option<u8> {
-    let uart = USER_UART.get().unwrap();
+    let uart = UART_DEVICE.get().unwrap();
     uart.get()
 }
 
 pub fn check_have_char() -> bool {
-    let uart = USER_UART.get().unwrap();
+    let uart = UART_DEVICE.get().unwrap();
     uart.have_data_to_get()
 }
 
 pub fn check_have_space() -> bool {
-    let uart = USER_UART.get().unwrap();
+    let uart = UART_DEVICE.get().unwrap();
     uart.have_space_to_put()
 }
 
@@ -103,8 +101,14 @@ struct UStdout;
 
 impl Write for UStdout {
     fn write_str(&mut self, out: &str) -> Result {
-        let uart = USER_UART.get().unwrap();
-        uart.put_bytes(out.as_bytes());
+        if UART_FLAG.load(Ordering::Relaxed) {
+            let uart = UART_DEVICE.get().unwrap();
+            uart.put_bytes(out.as_bytes());
+        } else {
+            out.as_bytes().iter().for_each(|x| {
+                console_putchar(*x);
+            });
+        }
         Ok(())
     }
 }
