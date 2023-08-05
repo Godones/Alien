@@ -8,7 +8,7 @@ use crate::fs::file::FilePollExt;
 use crate::task::{current_task, do_suspend};
 use crate::timer::TimeSpec;
 
-///# Reference:https://man7.org/linux/man-pages/man2/ppoll.2.html
+/// Reference:https://man7.org/linux/man-pages/man2/ppoll.2.html
 #[syscall_func(73)]
 pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, mask: usize) -> isize {
     assert_eq!(time, 0);

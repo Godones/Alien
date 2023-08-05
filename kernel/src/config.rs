@@ -5,10 +5,13 @@ pub const FLAG: &str = r"
   / ___ \  | | | | |  __/ | | | |
  /_/   \_\ |_| |_|  \___| |_| |_|
 ";
-#[cfg(not(feature = "vf2"))]
-pub const CLOCK_FREQ: usize = 12500000;
+#[cfg(feature = "qemu")]
+pub const CLOCK_FREQ: usize = 1250_0000;
 #[cfg(feature = "vf2")]
-pub const CLOCK_FREQ: usize = 4000000;
+pub const CLOCK_FREQ: usize = 400_0000;
+
+#[cfg(feature = "hifive")]
+pub const CLOCK_FREQ: usize = 100_0000;
 
 #[cfg(feature = "cv1811h")]
 pub const CLOCK_FREQ: usize = 0x17d7840;
@@ -19,8 +22,9 @@ pub const STACK_SIZE: usize = 1024 * 64;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 4;
+pub const CPU_NUM: usize = 1;
 
+#[cfg(feature = "qemu")]
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
     (0x2000000, 0x10000),
@@ -29,22 +33,47 @@ pub const MMIO: &[(usize, usize)] = &[
     (0x3000_0000, 0x1000_0000),
 ];
 
+#[cfg(feature = "vf2")]
+pub const MMIO: &[(usize, usize)] = &[
+    (0x17040000, 0x10000),     // RTC
+    (0xc000000, 0x4000000),    //PLIC
+    (0x00_1000_0000, 0x10000), // UART
+];
+
+#[cfg(feature = "hifive")]
+pub const MMIO: &[(usize, usize)] = &[
+    (0xc000000, 0x4000000), //PLIC
+];
+
 pub const FRAME_MAX_ORDER: usize = 16;
 
 // todo!(if the app linker script changed, this should be changed too)
 pub const PROCESS_HEAP_MAX: usize = u32::MAX as usize + 1;
-// 2^32 4GB
 // 跳板页定义
 pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 
-// 栈大小16k
-pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 16;
-// 64KB
-pub const USER_STACK_SIZE: usize = 0x8000;
+// app内核栈大小
+pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
+// 用户栈大小
+pub const USER_STACK_SIZE: usize = 0x50_000;
 
-// 进程数量/线程数量/描述符表大小限制
-pub const MAX_PROCESS_NUM: usize = 1024;
+#[cfg(any(feature = "vf2", feature = "hifive"))]
+pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
+#[cfg(feature = "qemu")]
+pub const BLOCK_CACHE_FRAMES: usize = 1024 * 2;
+
+#[cfg(any(feature = "vf2", feature = "hifive"))]
+pub const HEAP_SIZE: usize = 0x40_00000;
+#[cfg(feature = "qemu")]
+pub const HEAP_SIZE: usize = 0x26_00000; // (32+6)MB
+
+#[cfg(any(feature = "talloc", feature = "buddy"))]
+pub const KERNEL_HEAP_SIZE: usize = HEAP_SIZE;
+
+pub const PIPE_BUF: usize = 65536;
+
+// 线程数量/描述符表大小限制
 pub const MAX_THREAD_NUM: usize = 65536;
 pub const MAX_SUB_PROCESS_NUM: usize = 1024;
 pub const MAX_FD_NUM: usize = 4096;
@@ -52,6 +81,9 @@ pub const MAX_FD_NUM: usize = 4096;
 pub const MAX_INPUT_EVENT_NUM: usize = 1024;
 
 pub const MAX_SOCKET_DATA_LEN: usize = 1024 * 4;
+
+/// 如果 elf 的 phdr 指示 base 是 0(如 libc-test 的 libc.so)，则需要找一个非0的位置放置
+pub const ELF_BASE_RELOCATE: usize = 0x400_0000;
 
 pub const UTC: &[u8] = &[
     b'T', b'Z', b'i', b'f', b'2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x1, 0, 0,

@@ -185,8 +185,6 @@ pub fn shmctl(shmid: usize, cmd: usize, _buf: usize) -> isize {
             }
             let shm = shm.unwrap();
             shm.delete();
-            // shm.dec_ref();
-
             let task = current_task().unwrap();
             let task_inner = task.access_inner();
             let have_detach = task_inner.shm.get(&shmid).clone();

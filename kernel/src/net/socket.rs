@@ -1,27 +1,24 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use alloc::vec;
-use kernel_sync::Mutex;
+use alloc::vec::Vec;
 
-
+use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
 use rvfs::mount::VfsMount;
-use rvfs::superblock::{DataOps, Device};
 use rvfs::StrResult;
-
+use rvfs::superblock::{DataOps, Device};
 use smoltcp::iface::{SocketHandle, SocketSet};
-use smoltcp::socket::{self, AnySocket, };
+use smoltcp::socket::{self, AnySocket};
 use smoltcp::wire::{IpAddress, IpEndpoint};
 
-use syscall_define::net::{Domain, SocketType, LOCAL_LOOPBACK_ADDR};
+use kernel_sync::Mutex;
 use syscall_define::LinuxErrno;
+use syscall_define::net::{Domain, LOCAL_LOOPBACK_ADDR, SocketType};
 
-use lazy_static::lazy_static;
 use crate::net::addr::{IpV4Addr, split_u32_to_u8s};
 use crate::net::port::*;
-use crate::driver::net::{NET_INTERFACE, };
 
 use super::addr::IpAddr;
 use super::ShutdownFlag;
@@ -72,8 +69,8 @@ impl<'a> SocketSetWrapper<'a> {
     }
 
     pub fn with_socket<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
-    where
-        F: FnOnce(&T) -> R,
+        where
+            F: FnOnce(&T) -> R,
     {
         let set = self.0.lock();
         let socket = set.get(handle);
@@ -81,8 +78,8 @@ impl<'a> SocketSetWrapper<'a> {
     }
 
     pub fn with_socket_mut<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
-    where
-        F: FnOnce(&mut T) -> R,
+        where
+            F: FnOnce(&mut T) -> R,
     {
         let mut set = self.0.lock();
         let socket = set.get_mut(handle);
@@ -134,22 +131,21 @@ impl SocketData {
         if new_port.is_none() {
             panic!("alloc ephemeral port failed");
         }
-        
+
         let handler = match s_type {
             SocketType::SOCK_STREAM => {
                 // TCP
                 let new_tcp_socket = SocketSetWrapper::new_tcp_socket();
                 Some(SOCKET_SET.add(new_tcp_socket))
-            },
+            }
             SocketType::SOCK_DGRAM => {
                 // UDP
                 let new_udp_socket = SocketSetWrapper::new_udp_socket();
                 Some(SOCKET_SET.add(new_udp_socket))
-            },
+            }
             _ => {
                 None
-            },
-
+            }
         };
         let socket = Box::new(Self {
             handler,
@@ -208,14 +204,14 @@ impl SocketData {
 
     pub fn is_tcp(&self) -> bool {
         match self.s_type {
-            SocketType::SOCK_STREAM => true, 
+            SocketType::SOCK_STREAM => true,
             _ => false,
         }
     }
 
     pub fn is_udp(&self) -> bool {
         match self.s_type {
-            SocketType::SOCK_DGRAM => true, 
+            SocketType::SOCK_DGRAM => true,
             _ => false,
         }
     }
@@ -263,14 +259,13 @@ impl SocketData {
                                 addr: ip_address,
                                 port,
                             };
-                            return match socket.bind(endpoint){
+                            return match socket.bind(endpoint) {
                                 Ok(_) => Ok(()),
                                 Err(_) => Err(LinuxErrno::EINVAL),
-                            }
+                            };
                         }
-                        
+
                         Ok(())
-                        
                     }
                     _ => Err(LinuxErrno::EINVAL),
                 }

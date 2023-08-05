@@ -97,7 +97,7 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
     fn alloc_inner(&mut self, order: usize) -> BuddyResult<()> {
         let order = order + 1;
         if order >= MAX_ORDER {
-            return Err(BuddyError::OutOfMemory);
+            return Err(BuddyError::OutOfMemory(1 << MAX_ORDER));
         }
         trace!(
             "alloc_inner:{}, free_pages:{}",
@@ -214,7 +214,8 @@ impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
 }
 
 impl<const MAX_ORDER: usize> PageAllocatorExt for Zone<MAX_ORDER> {
-    fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize> {
+    fn alloc_pages(&mut self, pages: usize, align: usize) -> BuddyResult<usize> {
+        assert_eq!(align, 0x1000);
         let order = pages.next_power_of_two().trailing_zeros() as usize;
         self.alloc(order)
     }

@@ -1,0 +1,22 @@
+[package]
+name = "simple-net"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "de1c3b130e507702f13d142b9bee55670a4a2858" }
+kernel-sync = { path = "../kernel-sync", package = "lock" }
+spin = "0.9.8"
+log = "0.4.17"
+
+[dependencies.smoltcp]
+version = "0.9.1"
+default-features = false
+features = [
+    "alloc", "log", # no std
+    "medium-ethernet",
+    "proto-ipv4",
+    "socket-raw", "socket-icmp", "socket-udp", "socket-tcp",
+]

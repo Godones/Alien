@@ -5,7 +5,7 @@ use crate::BuddyResult;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BuddyError {
-    OutOfMemory,
+    OutOfMemory(usize),
     OrderTooLarge,
     PageOutOfRange,
     MemoryStartNotAligned,
@@ -17,7 +17,7 @@ pub enum BuddyError {
 impl Display for BuddyError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            BuddyError::OutOfMemory => write!(f, "Out of memory"),
+            BuddyError::OutOfMemory(x) => write!(f, "{} Out of memory", x),
             BuddyError::OrderTooLarge => write!(f, "Order too large"),
             BuddyError::PageOutOfRange => write!(f, "Page out of range"),
             BuddyError::MemoryStartNotAligned => write!(f, "Memory start not aligned"),

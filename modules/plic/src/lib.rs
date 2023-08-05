@@ -1,4 +1,5 @@
 #![cfg_attr(not(test), no_std)]
+
 use core::num::NonZeroU32;
 
 const PRIORITY_OFFSET: usize = 0;
@@ -8,6 +9,7 @@ const THRESHOLD_OFFSET: usize = 0x20_0000;
 const CLAIM_COMPLETE_OFFSET: usize = 0x20_0004;
 
 const HART_NUM: usize = 32;
+
 #[derive(Debug)]
 pub struct PLIC {
     base_addr: usize,
@@ -41,21 +43,27 @@ impl PLIC {
 
     pub fn enable(&self, hart: u32, mode: Mode, irq: u32) {
         let contexts = self.check(hart, mode, irq);
-        let addr = (self.base_addr + ENABLE_OFFSET + contexts * 0x80) as *mut u32;
-        write(addr, read(addr) | (1 << irq));
+        let index = (irq / 32) as usize;
+        let bit = (irq % 32) as usize;
+        let addr = (self.base_addr + ENABLE_OFFSET + contexts * 0x80) + index * 4;
+        let addr = addr as *mut u32;
+        write(addr, read(addr) | (1 << bit));
     }
 
     pub fn disable(&self, hart: u32, mode: Mode, irq: u32) {
         let contexts = self.check(hart, mode, irq);
-        let addr = (self.base_addr + ENABLE_OFFSET + contexts * 0x80) as *mut u32;
-        write(addr, read(addr) & !(1 << irq));
+        let index = (irq / 32) as usize;
+        let bit = (irq % 32) as usize;
+        let addr = (self.base_addr + ENABLE_OFFSET + contexts * 0x80) + index * 4;
+        let addr = addr as *mut u32;
+        write(addr, read(addr) & !(1 << bit));
     }
     /// check if the interrupt is pending
     pub fn pending(&self, irq: u32) -> bool {
         assert!(irq < 1024);
         let addr = (self.base_addr + PENDING_OFFSET) as *mut u32;
-        let index = irq / 32;
-        let bit = irq % 32;
+        let index = (irq / 32) as usize;
+        let bit = (irq % 32) as usize;
         let val = unsafe { addr.add(index as usize).read_volatile() };
         return (val & (1 << bit)) != 0;
     }
