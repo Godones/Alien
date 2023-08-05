@@ -12,6 +12,7 @@ KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/sdcard.img
 SMP ?= 4
 GUI ?=n
+NET ?=n
 #IMG1 := tools/fs1.img
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
@@ -54,6 +55,11 @@ else ifeq ($(TALLOC),y)
 FEATURES += talloc
 else ifeq ($(BUDDY),y)
 FEATURES += buddy
+endif
+
+ifeq ($(NET),y)
+QEMU_ARGS += -netdev user,id=net \
+			 -device virtio-net-device,netdev=net
 endif
 
 
