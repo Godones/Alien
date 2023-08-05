@@ -20,6 +20,7 @@ pub use self::uart::{UartDevice, UART_DEVICE};
 mod block;
 mod gpu;
 mod input;
+mod net;
 mod pci;
 mod rtc;
 mod uart;
@@ -30,6 +31,7 @@ pub fn init_device() {
     init_keyboard_input_device();
     init_mouse_input_device();
     init_rtc();
+    init_net();
     // in qemu, we can't init block device before other virtio device now
     // todo!(fix device tree probe methods)
     init_block_device();
@@ -183,5 +185,24 @@ fn init_mouse_input_device() {
         input::init_mouse_input_device(input_device.clone());
         let _ = register_device_to_plic(irq, input_device);
         println!("init mouse input device success");
+    }
+}
+
+fn init_net() {
+    let res = crate::board::get_net_device_info();
+    if res.is_none() {
+        println!("There is no net device");
+        return;
+    }
+    let (base_addr, irq) = res.unwrap();
+    println!("Init net device, base_addr:{:#x},irq:{}", base_addr, irq);
+    #[cfg(feature = "qemu")]
+    {
+        // use crate::driver::net::VirtIONetWrapper;
+        // let net_device = VirtIONetWrapper::new(base_addr);
+        // let net_device = Arc::new(net_device);
+        // net::init_net_device(net_device.clone());
+        // let _ = register_device_to_plic(irq, net_device);
+        println!("init net device success");
     }
 }
