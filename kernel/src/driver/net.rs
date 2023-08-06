@@ -1,4 +1,3 @@
-use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
 
 use virtio_drivers::device::net::VirtIONet;
@@ -6,30 +5,25 @@ use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use crate::driver::hal::HalImpl;
 
-pub struct VirtIONetDeviceWrapper<const QS: usize, const BL: usize> {
-    net: VirtIONet<HalImpl, MmioTransport, QS>,
+pub const NET_BUFFER_LEN: usize = 65536 / 2;
+pub const NET_QUEUE_SIZE: usize = 64;
+
+type VirtIONetDevice = VirtIONet<HalImpl, MmioTransport, NET_QUEUE_SIZE>;
+
+pub struct VirtIONetDeviceWrapper {
+    net: Option<VirtIONetDevice>,
 }
 
-impl<const QS: usize, const BL: usize> VirtIONetDeviceWrapper<QS, BL> {
+impl VirtIONetDeviceWrapper {
     pub fn from_addr(addr: usize) -> Self {
         let header = NonNull::new(addr as *mut VirtIOHeader).unwrap();
         let transport = unsafe { MmioTransport::new(header) }.unwrap();
-        let net = VirtIONet::<HalImpl, MmioTransport, QS>::new(transport, BL)
-            .expect("failed to create net driver");
-        Self { net }
+        let net =
+            VirtIONet::<HalImpl, MmioTransport, NET_QUEUE_SIZE>::new(transport, NET_BUFFER_LEN)
+                .expect("failed to create net driver");
+        Self { net: Some(net) }
     }
-}
-
-impl<const QS: usize, const BL: usize> Deref for VirtIONetDeviceWrapper<QS, BL> {
-    type Target = VirtIONet<HalImpl, MmioTransport, QS>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.net
-    }
-}
-
-impl<const QS: usize, const BL: usize> DerefMut for VirtIONetDeviceWrapper<QS, BL> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.net
+    pub fn take(&mut self) -> Option<VirtIONetDevice> {
+        self.net.take()
     }
 }

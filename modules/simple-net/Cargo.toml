@@ -10,13 +10,14 @@ virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "de
 kernel-sync = { path = "../kernel-sync", package = "lock" }
 spin = "0.9.8"
 log = "0.4.17"
-
+preprint = "0.1.0"
 [dependencies.smoltcp]
-version = "0.9.1"
+git = "https://github.com/rcore-os/smoltcp.git"
+rev = "2ade274"
 default-features = false
 features = [
     "alloc", "log", # no std
     "medium-ethernet",
     "proto-ipv4",
-    "socket-raw", "socket-icmp", "socket-udp", "socket-tcp",
+    "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns",
 ]
