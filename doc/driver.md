@@ -62,6 +62,14 @@ let plic = PLIC::new(addr, &privileges);
 
 串口是与机器相关的，因此不同的机器串口的配置不同，一般来说，串口的各个寄存器位宽都是1,但是在vf2上，位宽为4,但是读出来的数据仍然按照1个字节处理。
 
+
+
+## SDCard
+
+
+
+
+
 ## Ref
 
 plic：https://tinylab.org/riscv-irq-analysis-part2-interrupt-handling-plic/

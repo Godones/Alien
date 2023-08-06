@@ -1,13 +1,22 @@
-use alloc::sync::Arc;
-
-use spin::Once;
+use simple_net::{KernelNetFunc, NetInstant};
 
 use crate::interrupt::DeviceBase;
+use crate::task::do_suspend;
+use crate::timer::TimeSpec;
 
 pub trait NetDevice: DeviceBase {}
 
-pub static NET_DEVICE: Once<Arc<dyn NetDevice>> = Once::new();
+#[derive(Debug, Default)]
+pub struct NetNeedFunc;
 
-pub fn init_net_device(net: Arc<dyn NetDevice>) {
-    NET_DEVICE.call_once(|| net);
+impl KernelNetFunc for NetNeedFunc {
+    fn now(&self) -> NetInstant {
+        let time_spec = TimeSpec::now();
+        NetInstant {
+            micros: time_spec.tv_sec as i64 * 1000_000 + time_spec.tv_nsec as i64 / 1000,
+        }
+    }
+    fn yield_now(&self) {
+        do_suspend();
+    }
 }

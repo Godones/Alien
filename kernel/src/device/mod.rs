@@ -7,6 +7,7 @@ pub use gpu::{GpuDevice, GPU_DEVICE};
 pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 
 use crate::board::get_rtc_info;
+use crate::device::net::NetNeedFunc;
 use crate::driver::rtc::Rtc;
 use crate::driver::uart::Uart;
 use crate::driver::GenericBlockDevice;
@@ -198,11 +199,12 @@ fn init_net() {
     println!("Init net device, base_addr:{:#x},irq:{}", base_addr, irq);
     #[cfg(feature = "qemu")]
     {
-        // use crate::driver::net::VirtIONetWrapper;
-        // let net_device = VirtIONetWrapper::new(base_addr);
-        // let net_device = Arc::new(net_device);
-        // net::init_net_device(net_device.clone());
+        use crate::driver::net::VirtIONetDeviceWrapper;
+        let mut net_device = VirtIONetDeviceWrapper::from_addr(base_addr);
         // let _ = register_device_to_plic(irq, net_device);
+        let net_device = net_device.take().unwrap();
+        // use default ip and gateway for qemu
+        simple_net::init_net(net_device, Arc::new(NetNeedFunc), None, None, true);
         println!("init net device success");
     }
 }

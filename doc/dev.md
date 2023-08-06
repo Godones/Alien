@@ -497,3 +497,11 @@ starfive
 unmatched
 
 ![image-20230802103500400](assert/image-20230802103500400.png)
+
+
+
+## 2023/8/2-8/4
+
+1. 整理代码
+2. 添加visionfive2的sdcard驱动支持
+
