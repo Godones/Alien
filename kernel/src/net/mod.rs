@@ -1,20 +1,16 @@
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
-use core::cmp::min;
-
-use rvfs::file::OpenFlags;
 
 use syscall_define::net::{Domain, ShutdownFlag, SocketType, SOCKET_TYPE_MASK};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::file::{FileSocketExt, KFile};
-use crate::net::addr::{socket_addr_resolution, IpAddr, IpV4Addr};
-use crate::net::port::{check_connect_map, delete_connect_map, mark_connect_map};
+use crate::net::addr::{socket_addr_resolution, RawIpV4Addr};
 use crate::net::socket::SocketData;
-use crate::task::{current_task, do_suspend};
-use crate::timer::TimeSpec;
+use crate::task::current_task;
+use crate::{error_unwrap, option_unwrap};
 
 pub mod addr;
 pub mod port;
@@ -23,201 +19,136 @@ pub mod socket;
 #[syscall_func(198)]
 pub fn socket(domain: usize, s_type: usize, protocol: usize) -> isize {
     let domain = Domain::try_from(domain);
-    if domain.is_err() {
-        return LinuxErrno::EAFNOSUPPORT.into();
-    }
+    error_unwrap!(domain, LinuxErrno::EAFNOSUPPORT.into());
     let socket_type = SocketType::try_from(s_type & SOCKET_TYPE_MASK as usize);
-    if socket_type.is_err() {
-        return LinuxErrno::EBADF.into();
-    }
+    error_unwrap!(socket_type, LinuxErrno::EBADF.into());
     let task = current_task().unwrap();
-    let socket_type = socket_type.unwrap();
-    let socket = SocketData::new(domain.unwrap(), socket_type, protocol);
+    let socket = SocketData::new(domain, socket_type, protocol);
     warn!("socket domain: {:?}, type: {:?}", domain, socket_type);
     let file = KFile::new(socket);
-
     if s_type & SocketType::SOCK_NONBLOCK as usize != 0 {
         file.set_nonblock();
+        let socket = file.get_socketdata();
+        socket.set_socket_nonblock(true);
+        warn!("socket with nonblock");
     }
     if s_type & SocketType::SOCK_CLOEXEC as usize != 0 {
         file.set_close_on_exec();
     }
-
-    if let Ok(fd) = task.add_file(file) {
-        fd as isize
-    } else {
-        LinuxErrno::EMFILE as isize
-    }
+    let fd = task.add_file(file);
+    error_unwrap!(fd, LinuxErrno::EMFILE.into());
+    fd as isize
 }
 
 #[syscall_func(200)]
-pub fn bind(sockfd: usize, sockaddr: usize, len: usize) -> isize {
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
-    }
-    let socket_fd = socket_fd.unwrap();
-    let ip = socket_addr_resolution(sockaddr as *const u16, len);
-    if ip.is_err() {
-        return ip.err().unwrap();
-    }
-    let ip = ip.unwrap();
-    warn!("bind: {:?}", ip);
-    let socket = socket_fd.get_socketdata_mut();
-    match socket.bind(ip) {
+pub fn bind(socketfd: usize, sockaddr: usize, len: usize) -> isize {
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket_addr = socket_addr_resolution(sockaddr, len);
+    error_unwrap!(socket_addr, socket_addr.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    let local_addr = socket.local_addr();
+    warn!("{:?} bind to {:?}", local_addr, socket_addr);
+    match socket.bind(socket_addr) {
         Ok(()) => 0,
         Err(e) => e.into(),
     }
 }
 
 #[syscall_func(201)]
-pub fn listening(sockfd: usize, backlog: usize) -> isize {
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
+pub fn listening(socketfd: usize, backlog: usize) -> isize {
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    warn!("socket {:?} listening", socket.local_addr());
+    match socket.listening(backlog) {
+        Ok(_) => 0,
+        Err(e) => e.into(),
     }
-    let socket_fd = socket_fd.unwrap();
-    let socket = socket_fd.get_socketdata_mut();
-    socket.listening(backlog);
-    0
 }
 
 #[syscall_func(202)]
-pub fn accept(sockfd: usize, sockaddr: usize, addr_len: usize) -> isize {
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
-    }
-    let socket_fd = socket_fd.unwrap();
-    let socket = socket_fd.get_socketdata_mut();
-    loop {
-        let mut buf = [0u8; 16]; //first connect query
-        let accept = socket.accept(&mut buf);
-        if accept.is_none() {
-            return LinuxErrno::EINVAL.into();
-        }
-        let (r, src_ip) = accept.unwrap();
-        if r == 0 {
-            warn!("accept socket: {:?}, no connect data", sockfd);
-            // no data, we need wait according to
-            let flag = socket_fd.get_file().access_inner().flags;
-            if flag.contains(OpenFlags::O_NONBLOCK) {
-                return LinuxErrno::EAGAIN.into();
+pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> isize {
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    match socket.accept() {
+        Ok(file) => {
+            let file = KFile::new(file);
+            // get peer addr
+            if socket_addr != 0 {
+                let socket = file.get_socketdata();
+                let peer_addr = socket.peer_addr().unwrap();
+                let raw_ip_addr = RawIpV4Addr::from(peer_addr);
+                let task = current_task().unwrap();
+                let addr_len_ref = task
+                    .access_inner()
+                    .transfer_raw_ptr_mut(addr_len as *mut u32);
+                *addr_len_ref = core::mem::size_of::<RawIpV4Addr>() as u32;
+                task.access_inner()
+                    .copy_to_user(&raw_ip_addr, socket_addr as *mut RawIpV4Addr);
             }
-            do_suspend();
-        } else {
-            warn!("There is {:?} invoke connect", src_ip);
             let task = current_task().unwrap();
-            assert_eq!(r, core::mem::size_of::<IpV4Addr>());
-            // set the remote ip
-            socket.peer_addr = src_ip.clone();
-            let be_src_ip = src_ip.to_be_ipv4().unwrap();
-            task.access_inner()
-                .copy_to_user(&be_src_ip, sockaddr as *mut IpV4Addr);
-            let addr_len = task
-                .access_inner()
-                .transfer_raw_ptr_mut(addr_len as *mut u32);
-            *addr_len = core::mem::size_of::<IpV4Addr>() as u32;
-
-            // mark the connect true
-            mark_connect_map(socket.local_addr.clone(), src_ip);
-
-            // make new fd
-            let mut new_socket = socket.clone();
-            new_socket.listening = false;
-            let new_file = SocketData::new_with_data(new_socket);
-            let new_fd = task.add_file(KFile::new(new_file));
-            if new_fd.is_err() {
-                return LinuxErrno::EMFILE.into();
-            }
-            return new_fd.unwrap() as isize;
-        }
-    }
-}
-
-#[syscall_func(203)]
-pub fn connect(sockfd: usize, sockaddr: usize, len: usize) -> isize {
-    let ip = socket_addr_resolution(sockaddr as *const u16, len);
-    if ip.is_err() {
-        return ip.err().unwrap();
-    }
-    let ip = ip.unwrap();
-    warn!("connect socket: {:?}, ip: {:?}", sockfd, ip);
-    if ip.port().is_some() && ip.port().unwrap() == 65535 {
-        return 0;
-    }
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
-    }
-    let socket_fd = socket_fd.unwrap();
-    let socket = socket_fd.get_socketdata_mut();
-    match socket.connect(ip.clone()) {
-        Ok(_) => {
-            let open_flag = socket_fd.get_file().access_inner().flags;
-            if open_flag.contains(OpenFlags::O_NONBLOCK) {
-                LinuxErrno::EINPROGRESS.into()
-            } else {
-                let res = connect_check(socket.peer_addr.clone(), socket.local_addr.clone());
-                if res.is_ok() {
-                    warn!(
-                        "{:?} connect {:?} success",
-                        socket.local_addr, socket.peer_addr
-                    );
-                    0
-                } else {
-                    res.err().unwrap().into()
-                }
-            }
+            let fd = task.add_file(file);
+            error_unwrap!(fd, LinuxErrno::EMFILE.into());
+            fd as isize
         }
         Err(e) => e.into(),
     }
 }
 
-fn connect_check(server_ip: IpAddr, client_ip: IpAddr) -> Result<(), LinuxErrno> {
-    warn!("connect_check: {:?}, {:?}", server_ip, client_ip);
-    let wait_time = TimeSpec::now().to_clock() + TimeSpec::new(5, 0).to_clock();
-    loop {
-        let is_connected = check_connect_map(server_ip.clone(), client_ip.clone());
-        if is_connected {
-            delete_connect_map(server_ip.clone(), client_ip.clone());
-            return Ok(());
-        }
-        // wait for 5s
-        if TimeSpec::now().to_clock() > wait_time {
-            return Err(LinuxErrno::EINPROGRESS);
-        }
-        do_suspend();
-        // check signal
-        // interrupt by signal
-        let task = current_task().unwrap();
-        let task_inner = task.access_inner();
-        let receiver = task_inner.signal_receivers.lock();
-        if receiver.have_signal() {
-            return Err(LinuxErrno::EINTR);
-        }
+#[syscall_func(203)]
+pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> isize {
+    let socket_addr = socket_addr_resolution(socket_addr, len);
+    error_unwrap!(socket_addr, socket_addr.err().unwrap());
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    let local_addr = socket.local_addr();
+    warn!("{:?} connect to ip: {:?}", local_addr, socket_addr);
+    match socket.connect(socket_addr) {
+        Ok(_) => 0,
+        Err(e) => e.into(),
     }
 }
 
 #[syscall_func(204)]
-pub fn getsockname(sockfd: usize, sockaddr: usize, _len: usize) -> isize {
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
-    }
-    let socket_fd = socket_fd.unwrap();
-    let socket = socket_fd.get_socketdata_mut();
-    let socket_addr = socket.to_be_ipv4_addr();
-    warn!("getsockname: {:?}", socket_addr);
+pub fn getsockname(socketfd: usize, socket_addr: usize, len: usize) -> isize {
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    let local_addr = socket.local_addr();
+    option_unwrap!(local_addr, LinuxErrno::EINVAL.into());
+    warn!("getsockname: {:?}", local_addr);
+    let raw_ip_addr = RawIpV4Addr::from(local_addr);
     let task = current_task().unwrap();
     task.access_inner()
-        .copy_to_user(&socket_addr, sockaddr as *mut IpV4Addr);
+        .copy_to_user(&raw_ip_addr, socket_addr as *mut RawIpV4Addr);
+    let len_ref = task.access_inner().transfer_raw_ptr_mut(len as *mut u32);
+    *len_ref = core::mem::size_of::<RawIpV4Addr>() as u32;
+    0
+}
+
+#[syscall_func(205)]
+pub fn get_peer_name(socketfd: usize, sockaddr: usize, len: usize) -> isize {
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    let socket_addr = socket.peer_addr();
+    option_unwrap!(socket_addr, LinuxErrno::EINVAL.into());
+    warn!("get_peer_name: {:?}", socket_addr);
+    let raw_ip_addr = RawIpV4Addr::from(socket_addr);
+    let task = current_task().unwrap();
+    task.access_inner()
+        .copy_to_user(&raw_ip_addr, sockaddr as *mut RawIpV4Addr);
+    let len_ref = task.access_inner().transfer_raw_ptr_mut(len as *mut u32);
+    *len_ref = core::mem::size_of::<RawIpV4Addr>() as u32;
     0
 }
 
 #[syscall_func(206)]
 pub fn sendto(
-    sockfd: usize,
+    socketfd: usize,
     message: *const u8,
     length: usize,
     flags: usize,
@@ -225,106 +156,80 @@ pub fn sendto(
     dest_len: usize,
 ) -> isize {
     assert_eq!(flags, 0);
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
-    }
-    let socket_fd = socket_fd.unwrap();
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
     let task = current_task().unwrap();
     let message = task.transfer_buffer(message, length);
     // to vec<u8>
+    // todo!(don't need)
     let message = message
         .iter()
         .map(|buf| buf.to_vec())
         .flatten()
         .collect::<Vec<u8>>();
-    let socket = socket_fd.get_socketdata_mut();
-
-    let socket_type = socket.socket_type();
-    let dest_addr = match socket_type {
+    let socket = socket_fd.get_socketdata();
+    match socket.socket_type() {
         SocketType::SOCK_STREAM | SocketType::SOCK_SEQPACKET => {
             if dest_addr != 0 {
                 return LinuxErrno::EISCONN.into();
             }
-            None
         }
         _ => {
-            let dest_addr = socket_addr_resolution(dest_addr as *const u16, dest_len);
-            if dest_addr.is_err() {
-                return dest_addr.err().unwrap();
-            }
-            Some(dest_addr.unwrap())
+            return LinuxErrno::EOPNOTSUPP.into();
         }
+    }
+    let socket_addr = if dest_addr != 0 {
+        let res = socket_addr_resolution(dest_addr, dest_len);
+        error_unwrap!(res, res.err().unwrap());
+        Some(res)
+    } else {
+        None
     };
     warn!(
-        "{:?} sendto: dest: {:?}, message: {:?}",
-        socket.local_addr,
-        dest_addr,
+        "sendto: {:?}, local_addr: {:?}, message len: {}",
+        socket_addr,
+        socket.local_addr(),
         message.len()
     );
-    if let Some(w) = socket.send_to(message.as_slice(), flags, dest_addr) {
-        w as isize
-    } else {
-        LinuxErrno::EINVAL.into()
-    }
+    let send = socket.send_to(message.as_slice(), flags, socket_addr);
+    error_unwrap!(send, send.err().unwrap().into());
+    send as isize
 }
 
 #[syscall_func(207)]
 pub fn recvfrom(
-    sockfd: usize,
+    socketfd: usize,
     buffer: *mut u8,
     length: usize,
     flags: usize,
     src_addr: usize,
     addr_len: usize,
 ) -> isize {
-    warn!(
-        "recvfrom: {:?}, {:p}, {:?}, {:?}, {:#x}, {:?}",
-        sockfd, buffer, length, flags, src_addr, addr_len
-    );
     assert_eq!(flags, 0);
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
-    }
-    let socket_fd = socket_fd.unwrap();
-    let socket = socket_fd.get_socketdata_mut();
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    warn!(
+        "recvfrom: {:?}, local_addr: {:?}",
+        socket.peer_addr(),
+        socket.local_addr()
+    );
     let mut tmp_buffer = vec![0u8; length];
-    loop {
-        let task = current_task().unwrap();
-        let res = socket.recvfrom(tmp_buffer.as_mut_slice(), flags);
-        if res.is_some() {
-            let (r, src_ip) = res.unwrap();
-            let min_r = min(r, length);
-            warn!("recvfrom r: {:?}, src_ip: {:?}", r, src_ip);
-            task.access_inner()
-                .copy_to_user_buffer(tmp_buffer.as_ptr(), buffer, min_r);
-            if src_addr != 0 {
-                let be_src_ip = src_ip.to_be_ipv4().unwrap();
-                task.access_inner()
-                    .copy_to_user(&be_src_ip, src_addr as *mut IpV4Addr);
-            }
-            if addr_len != 0 {
-                let addr_len = task
-                    .access_inner()
-                    .transfer_raw_ptr_mut(addr_len as *mut u32);
-                *addr_len = core::mem::size_of::<IpV4Addr>() as u32;
-            }
-            return min_r as isize;
-        } else {
-            let flag = socket_fd.get_file().access_inner().flags;
-            if flag.contains(OpenFlags::O_NONBLOCK) {
-                return LinuxErrno::EAGAIN.into();
-            }
-            warn!(
-                "[tid:{}] {:?} recvfrom: suspend",
-                task.get_tid(),
-                socket.local_addr
-            );
-            do_suspend();
-            // todo! handler signal
-        };
+    let recv_info = socket.recvfrom(tmp_buffer.as_mut_slice(), flags);
+    error_unwrap!(recv_info, recv_info.err().unwrap().into());
+    let task = current_task().unwrap();
+    task.access_inner()
+        .copy_to_user_buffer(tmp_buffer.as_ptr(), buffer, recv_info.0);
+    if src_addr != 0 {
+        let raw_ip_addr = RawIpV4Addr::from(recv_info.1);
+        task.access_inner()
+            .copy_to_user(&raw_ip_addr, src_addr as *mut RawIpV4Addr);
+        let addr_len_ref = task
+            .access_inner()
+            .transfer_raw_ptr_mut(addr_len as *mut u32);
+        *addr_len_ref = core::mem::size_of::<RawIpV4Addr>() as u32;
     }
+    recv_info.0 as isize
 }
 
 #[syscall_func(208)]
@@ -338,59 +243,40 @@ pub fn getsockopt() -> isize {
 }
 
 #[syscall_func(210)]
-pub fn shutdown(sockfd: usize, how: usize) -> isize {
-    let sdflag = ShutdownFlag::try_from(how);
-    if sdflag.is_err() {
-        return LinuxErrno::EBADF.into();
+pub fn shutdown(socketfd: usize, how: usize) -> isize {
+    let flag = ShutdownFlag::try_from(how);
+    error_unwrap!(flag, LinuxErrno::EBADF.into());
+    let socket_fd = common_socket_syscall(socketfd);
+    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket = socket_fd.get_socketdata();
+    warn!(
+        "shutdown: {:?}, local_addr: {:?}",
+        flag,
+        socket.local_addr()
+    );
+    match socket.shutdown(flag) {
+        Ok(_) => 0,
+        Err(e) => e.into(),
     }
-    let sdflag = sdflag.unwrap();
-    let socket_fd = common_socket_syscall(sockfd);
-    if socket_fd.is_err() {
-        return socket_fd.err().unwrap();
-    }
-    let socket_fd = socket_fd.unwrap();
-    let socket = socket_fd.get_socketdata_mut();
-    socket.shutdown(sdflag);
-    0
 }
 
 #[syscall_func(199)]
 pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> isize {
     let domain = Domain::try_from(domain);
-    if domain.is_err() {
-        return LinuxErrno::EAFNOSUPPORT.into();
-    }
-    let domain = domain.unwrap();
+    error_unwrap!(domain, LinuxErrno::EINVAL.into());
     let c_type = SocketType::try_from(c_type);
-    if c_type.is_err() {
-        return LinuxErrno::EBADF.into();
-    }
-    let c_type = c_type.unwrap();
+    error_unwrap!(c_type, LinuxErrno::EINVAL.into());
     warn!(
         "socketpair: {:?}, {:?}, {:?}, {:?}",
         domain, c_type, proto, sv
     );
-    LinuxErrno::EAFNOSUPPORT.into()
+    panic!("socketpair");
+    // LinuxErrno::EAFNOSUPPORT.into()
 }
 
 fn common_socket_syscall(sockfd: usize) -> Result<Arc<KFile>, isize> {
     let task = current_task().unwrap();
     let socket_fd = task.get_file(sockfd);
-    if socket_fd.is_none() {
-        return Err(LinuxErrno::EBADF.into());
-    }
-    let socket_fd = socket_fd.unwrap();
+    option_unwrap!(socket_fd, Err(LinuxErrno::EBADF.into()));
     Ok(socket_fd)
-}
-
-#[derive(Debug, PartialEq)]
-pub enum SocketWrtype {
-    /// socket的发送和接收信息的功能都被关闭，正处于等待关闭状态
-    CLOSE = 0,
-    /// socket只能接收消息，发送消息的功能被关闭
-    RdOnly = 1,
-    /// socket只能发送消息，接收消息的功能被关闭
-    WrOnly = 2,
-    /// socket发送和接收信息的功能都正常开启
-    RDWR = 3,
 }

@@ -2,8 +2,8 @@
 
 ### Todo List
 
-+ [ ] 封装Interface的poll方法，使其易于调用
-    + [ ] 完善DeviceWrapper和InterfaceWrapper结构
++ [x] 封装Interface的poll方法，使其易于调用
+    + [x] 完善DeviceWrapper和InterfaceWrapper结构
 + [ ] 实现各系统调用
     + [x] socket::new
     + [ ] udp: bind + send + recieve
