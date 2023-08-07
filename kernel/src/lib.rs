@@ -5,7 +5,7 @@
 #![feature(atomic_from_mut)]
 #![feature(ip_in_core)]
 #![feature(stmt_expr_attributes)]
-// #![feature(trait_upcasting)]
+#![feature(addr_parse_ascii)]
 extern crate alloc;
 #[macro_use]
 extern crate log;

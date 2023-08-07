@@ -16,7 +16,7 @@ use virtio_drivers::device::net::VirtIONet;
 use virtio_drivers::transport::Transport;
 use virtio_drivers::Hal;
 
-use crate::common::QEMU_IP;
+use crate::common::{QEMU_GATEWAY, QEMU_IP};
 use crate::device::VirtIONetDeviceWrapper;
 use crate::interface::{NetInterface, NetInterfaceWrapper, SocketSetWrapper};
 use crate::listen_table::ListenTable;
@@ -26,9 +26,9 @@ pub mod common;
 mod device;
 mod interface;
 mod listen_table;
-mod tcp;
-mod udp;
-mod unix;
+pub mod tcp;
+pub mod udp;
+pub mod unix;
 
 pub static NET_INTERFACE: Once<Box<dyn NetInterface>> = Once::new();
 pub static SOCKET_SET: Lazy<SocketSetWrapper> = Lazy::new(|| SocketSetWrapper::new());
@@ -59,14 +59,12 @@ pub fn init_net<H: Hal + 'static, T: Transport + 'static, const QS: usize>(
 ) {
     let mac_addr = EthernetAddress::from_bytes(device.mac_address().as_slice());
     let mut device = VirtIONetDeviceWrapper::new(device, kernel_func.clone());
-
     if test {
         device.bench_transmit_bandwidth();
     }
-
     let iface = NetInterfaceWrapper::new(device, kernel_func.clone());
     let ip = ip.unwrap_or(QEMU_IP.parse().expect("invalid IP address"));
-    let gate_way = gate_way.unwrap_or(QEMU_IP.parse().expect("invalid gateway IP address"));
+    let gate_way = gate_way.unwrap_or(QEMU_GATEWAY.parse().expect("invalid gateway IP address"));
     iface.setup_ip_addr(ip, 24);
     iface.setup_gateway(gate_way);
     KERNEL_NET_FUNC.call_once(|| kernel_func);

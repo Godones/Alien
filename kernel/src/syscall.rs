@@ -12,6 +12,7 @@ pub fn register_all_syscall() {
         (202, accept),
         (203, connect),
         (204, getsockname),
+        (205, get_peer_name),
         (206, sendto),
         (207, recvfrom),
         (208, setsockopt),
@@ -216,6 +217,7 @@ use crate::memory::msync;
 use crate::net::accept;
 use crate::net::bind;
 use crate::net::connect;
+use crate::net::get_peer_name;
 use crate::net::getsockname;
 use crate::net::getsockopt;
 use crate::net::listening;

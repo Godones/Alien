@@ -165,8 +165,7 @@ impl ListenTable {
 
 fn is_connected(handle: SocketHandle) -> bool {
     SOCKET_SET.with_socket::<tcp::Socket, _, _>(handle, |socket| {
-        // !matches!(socket.state(), State::Listen | State::SynReceived)
-        socket.state() == State::Listen || socket.state() == State::SynReceived
+        !(socket.state() == State::Listen || socket.state() == State::SynReceived)
     })
 }
 
