@@ -204,7 +204,10 @@ fn init_net() {
         // let _ = register_device_to_plic(irq, net_device);
         let net_device = net_device.take().unwrap();
         // use default ip and gateway for qemu
-        simple_net::init_net(net_device, Arc::new(NetNeedFunc), None, None, true);
+        simple_net::init_net(net_device, Arc::new(NetNeedFunc), None, None, false);
         println!("init net device success");
+        println!("test echo-server");
+        #[cfg(feature = "net_test")]
+        net::nettest::accept_loop();
     }
 }

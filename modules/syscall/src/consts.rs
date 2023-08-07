@@ -41,6 +41,7 @@ numeric_enum!(
         ENOSYS = -38,
         ELOOP = -40,
         EADDRINUSE = -98,
+        EOPNOTSUPP = -94,
         EPFNOSUPPORT = -96,
         /// 不支持的地址
         EAFNOSUPPORT = -97,
