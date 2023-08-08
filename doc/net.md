@@ -263,7 +263,7 @@ fn sys_listen(socket: usize, backlog: usize) -> SysResult;
 // address: 要么为空，要么指明连接的客户端相关信息（sockaddr结构）的保存地址
 // address_len: 保存连接的客户端相关信息长度的地址。
 // 返回: 执行成功则返回新的套接字的文件描述符，否则返回错误信息
-fn sys_accept(socket: usize, address: *const usize, address_len: *usize) -> SysResult;
+fn sys_accept(socket: usize, address: *mut usize, address_len: *usize) -> SysResult;
 
 
 
