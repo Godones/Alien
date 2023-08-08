@@ -35,6 +35,7 @@ members = [
     "apps/run_test",
     "apps/guitest",
     "apps/slint",
+    "apps/socket_test",
     "apps/tests",
     "apps/memory-game",
 ]
