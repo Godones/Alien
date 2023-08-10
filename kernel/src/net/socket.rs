@@ -16,6 +16,8 @@ use syscall_define::LinuxErrno;
 
 use crate::net::addr::SocketAddrExt;
 use crate::net::port::neterror2linux;
+use crate::net::unix::UnixSocket;
+use crate::task::do_suspend;
 
 use super::ShutdownFlag;
 
@@ -33,6 +35,7 @@ pub struct SocketData {
 pub enum Socket {
     Tcp(TcpSocket),
     Udp(UdpSocket),
+    Unix(UnixSocket),
     None,
 }
 
@@ -47,6 +50,9 @@ impl Debug for Socket {
             }
             Socket::None => {
                 write!(f, "None")
+            }
+            Socket::Unix(_) => {
+                write!(f, "Unix")
             }
         }
     }
@@ -65,16 +71,22 @@ impl SocketData {
     pub fn from_ptr(ptr: *const u8) -> &'static mut Self {
         unsafe { &mut *(ptr as *mut Self) }
     }
-    pub fn new(domain: Domain, s_type: SocketType, protocol: usize) -> Arc<File> {
+    pub fn new(
+        domain: Domain,
+        s_type: SocketType,
+        protocol: usize,
+    ) -> Result<Arc<File>, LinuxErrno> {
         let raw_socket = match domain {
             Domain::AF_UNIX => {
-                panic!("AF_UNIX is not supported")
+                error!("AF_UNIX is not supported");
+                Socket::Unix(UnixSocket::new())
             }
             Domain::AF_INET => match s_type {
                 SocketType::SOCK_STREAM => Socket::Tcp(TcpSocket::new()),
                 SocketType::SOCK_DGRAM => Socket::Udp(UdpSocket::new()),
                 _ => {
-                    panic!("unsupported socket type: {:?}", s_type)
+                    error!("unsupported socket type: {:?}", s_type);
+                    return Err(LinuxErrno::EPROTONOSUPPORT);
                 }
             },
         };
@@ -89,6 +101,8 @@ impl SocketData {
         let socket_data = Box::new(socket_data);
         let mut file_ops = FileOps::empty();
         file_ops.release = socket_file_release;
+        file_ops.write = socket_file_write;
+        file_ops.read = socket_file_read;
         let file = File::new(
             Arc::new(DirEntry::empty()),
             Arc::new(VfsMount::empty()),
@@ -103,7 +117,7 @@ impl SocketData {
             file_ext_ops
         };
         file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket_data);
-        Arc::new(file)
+        Ok(Arc::new(file))
     }
 
     fn new_connected(&self, tcp_socket: TcpSocket) -> Arc<File> {
@@ -116,6 +130,8 @@ impl SocketData {
         let socket_data = Box::new(socket_data);
         let mut file_ops = FileOps::empty();
         file_ops.release = socket_file_release;
+        file_ops.write = socket_file_write;
+        file_ops.read = socket_file_read;
         let file = File::new(
             Arc::new(DirEntry::empty()),
             Arc::new(VfsMount::empty()),
@@ -206,6 +222,7 @@ impl SocketData {
             Socket::Udp(udp) => {
                 udp.connect(ip.get_socketaddr()).map_err(neterror2linux)?;
             }
+            Socket::Unix(unix) => unix.connect(ip.get_local_path())?,
             _ => {
                 panic!("bind is not supported")
             }
@@ -246,9 +263,9 @@ impl SocketData {
                 Ok((recv, peer_addr))
             }
             Socket::Udp(udp) => {
-                let recv = udp.recv(message).map_err(neterror2linux)?;
-                let peer_addr = udp.peer_addr().map_err(neterror2linux)?;
-                Ok((recv, peer_addr))
+                let recv = udp.recv_from(message).map_err(neterror2linux)?;
+                // let peer_addr = udp.peer_addr().map_err(neterror2linux)?;
+                Ok((recv.0, recv.1))
             }
             _ => {
                 panic!("bind is not supported")
@@ -284,9 +301,7 @@ impl SocketData {
                     None
                 }
             }
-            _ => {
-                panic!("bind is not supported")
-            }
+            _ => None,
         }
     }
 
@@ -318,6 +333,7 @@ impl SocketData {
         match &self.socket {
             Socket::Tcp(tcp) => {
                 let res = tcp.poll();
+                warn!("Tcp ready_read: {:?}", res);
                 if let Ok(res) = res {
                     res.readable
                 } else {
@@ -326,6 +342,7 @@ impl SocketData {
             }
             Socket::Udp(udp) => {
                 let res = udp.poll();
+                warn!("Udp ready_read: {:?}", res);
                 if let Ok(res) = res {
                     res.readable
                 } else {
@@ -377,6 +394,7 @@ fn socket_ready_to_read(file: Arc<File>) -> bool {
     let inode_inner = dentry_inner.d_inode.access_inner();
     let data = inode_inner.data.as_ref().unwrap();
     let socket = SocketData::from_ptr(data.data());
+    simple_net::poll_interfaces();
     socket.ready_read()
 }
 
@@ -385,5 +403,29 @@ fn socket_ready_to_write(file: Arc<File>) -> bool {
     let inode_inner = dentry_inner.d_inode.access_inner();
     let data = inode_inner.data.as_ref().unwrap();
     let socket = SocketData::from_ptr(data.data());
+    simple_net::poll_interfaces();
     socket.ready_write()
+}
+
+fn socket_file_write(file: Arc<File>, buf: &[u8], _offset: u64) -> StrResult<usize> {
+    let dentry_inner = file.f_dentry.access_inner();
+    let inode_inner = dentry_inner.d_inode.access_inner();
+    let data = inode_inner.data.as_ref().unwrap();
+    let socket = SocketData::from_ptr(data.data());
+    warn!("socket_file_write: {:?}", buf.len());
+    let res = socket.send_to(buf, 0, None).map_err(|_| "Net Error");
+    do_suspend();
+    res
+}
+
+fn socket_file_read(file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
+    let dentry_inner = file.f_dentry.access_inner();
+    let inode_inner = dentry_inner.d_inode.access_inner();
+    let data = inode_inner.data.as_ref().unwrap();
+    let socket = SocketData::from_ptr(data.data());
+    warn!("socket_file_read: {:?}", buf.len());
+    socket
+        .recvfrom(buf, 0)
+        .map(|x| x.0)
+        .map_err(|_| "Net Error")
 }

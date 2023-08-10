@@ -8,6 +8,9 @@ pub const UDP_RX_BUF_LEN: usize = 64 * 1024;
 pub const UDP_TX_BUF_LEN: usize = 64 * 1024;
 pub const LISTEN_QUEUE_SIZE: usize = 512;
 pub const STANDARD_MTU: usize = 1500;
+pub const SOCKET_RECV_BUFFER_SIZE: usize = 64 * 1024;
+pub const SOCKET_SEND_BUFFER_SIZE: usize = 64 * 1024;
+pub const MAX_SEGMENT_SIZE: usize = 1460;
 
 pub type NetResult<T> = Result<T, NetError>;
 
@@ -22,6 +25,7 @@ pub enum NetError {
     AlreadyExists,
     ConnectionRefused,
     ConnectionReset,
+    Interrupted,
 }
 
 /// Struct for poll result.
