@@ -9,11 +9,11 @@ use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
 
 use kernel_sync::Mutex;
 
-use crate::common::{NetError, NetPollState, NetResult};
 use crate::{KERNEL_NET_FUNC, LISTENING_TABLE, NET_INTERFACE};
+use crate::common::{NetError, NetPollState, NetResult};
 
+use super::{SOCKET_SET, SocketSetWrapper};
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
-use super::{SocketSetWrapper, SOCKET_SET};
 
 // State transitions:
 // CLOSED -(connect)-> BUSY -> CONNECTING -> CONNECTED -(shutdown)-> BUSY -> CLOSED
@@ -79,7 +79,7 @@ impl TcpSocket {
     #[inline]
     pub fn local_addr(&self) -> NetResult<SocketAddr> {
         match self.get_state() {
-            STATE_CONNECTED | STATE_LISTENING => {
+            STATE_CONNECTED | STATE_CLOSED | STATE_LISTENING => {
                 Ok(into_core_sockaddr(unsafe { self.local_addr.get().read() }))
             }
             _ => Err(NetError::NotConnected),
@@ -160,10 +160,10 @@ impl TcpSocket {
             }
             Ok(())
         })
-        .unwrap_or_else(|_| {
-            warn!("socket connect() failed: already connected");
-            Err(NetError::AlreadyExists)
-        })?; // EISCONN
+            .unwrap_or_else(|e| {
+                warn!("socket connect() failed: already connected,state :{}", e);
+                Err(NetError::AlreadyExists)
+            })?; // EISCONN
 
         // Here our state must be `CONNECTING`, and only one thread can run here.
         if self.is_nonblocking() {
@@ -207,10 +207,10 @@ impl TcpSocket {
             }
             Ok(())
         })
-        .unwrap_or_else(|_| {
-            warn!("socket bind() failed: already bound");
-            Err(NetError::InvalidInput)
-        })
+            .unwrap_or_else(|_| {
+                warn!("socket bind() failed: already bound");
+                Err(NetError::InvalidInput)
+            })
     }
 
     /// Starts listening on the bound address and port.
@@ -227,7 +227,7 @@ impl TcpSocket {
             debug!("TCP socket listening on {}", bound_endpoint);
             Ok(())
         })
-        .unwrap_or(Ok(())) // ignore simultaneous `listen`s.
+            .unwrap_or(Ok(())) // ignore simultaneous `listen`s.
     }
 
     /// Accepts a new connection.
@@ -266,7 +266,7 @@ impl TcpSocket {
             SOCKET_SET.poll_interfaces();
             Ok(())
         })
-        .unwrap_or(Ok(()))?;
+            .unwrap_or(Ok(()))?;
 
         // listener
         self.update_state(STATE_LISTENING, STATE_CLOSED, || {
@@ -278,7 +278,7 @@ impl TcpSocket {
             SOCKET_SET.poll_interfaces();
             Ok(())
         })
-        .unwrap_or(Ok(()))?;
+            .unwrap_or(Ok(()))?;
 
         // ignore for other states
         Ok(())
@@ -389,8 +389,8 @@ impl TcpSocket {
     /// It returns `Ok` if the current state is `expect`, otherwise it returns
     /// the current state in `Err`.
     fn update_state<F, T>(&self, expect: u8, new: u8, f: F) -> Result<NetResult<T>, u8>
-    where
-        F: FnOnce() -> NetResult<T>,
+        where
+            F: FnOnce() -> NetResult<T>,
     {
         match self
             .state
@@ -499,8 +499,8 @@ impl TcpSocket {
     /// immediately. Otherwise, it may call the function multiple times if it
     /// returns [`Err(WouldBlock)`](AxError::WouldBlock).
     fn block_on<F, T>(&self, mut f: F) -> NetResult<T>
-    where
-        F: FnMut() -> NetResult<T>,
+        where
+            F: FnMut() -> NetResult<T>,
     {
         if self.is_nonblocking() {
             f()

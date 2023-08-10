@@ -10,7 +10,7 @@ use spin::RwLock;
 use kernel_sync::Mutex;
 
 use crate::common::{NetError, NetPollState, NetResult};
-use crate::{KERNEL_NET_FUNC, UDP_PORT_REUSE};
+use crate::KERNEL_NET_FUNC;
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
 use super::{SocketSetWrapper, SOCKET_SET};
@@ -253,7 +253,9 @@ impl UdpSocket {
     fn send_impl(&self, buf: &[u8], remote_endpoint: IpEndpoint) -> NetResult<usize> {
         if self.local_addr.read().is_none() {
             warn!("UDP socket {}: send() failed: not bound", self.handle);
-            return Err(NetError::NotConnected);
+            // bound self to a random port
+            self.bind(into_core_sockaddr(UNSPECIFIED_ENDPOINT))?;
+            // return Err(NetError::NotConnected);
         }
 
         self.block_on(|| {
@@ -335,10 +337,6 @@ impl UdpSocket {
 impl Drop for UdpSocket {
     fn drop(&mut self) {
         // delete reuse port
-        UDP_PORT_REUSE
-            .lock()
-            .remove(&self.local_addr.read().unwrap().port);
-
         self.shutdown().ok();
         SOCKET_SET.remove(self.handle);
     }
