@@ -143,8 +143,8 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] cyclictest
 - [x] libc-bench
 - [x] unixbench
-- [ ] netperf
-- [ ] iperf
+- [x] netperf
+- [x] iperf
 
 ## Project Structure
 
