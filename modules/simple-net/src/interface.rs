@@ -14,6 +14,7 @@ use kernel_sync::Mutex;
 
 use crate::common::{TCP_RX_BUF_LEN, TCP_TX_BUF_LEN, UDP_RX_BUF_LEN, UDP_TX_BUF_LEN};
 use crate::device::VirtIONetDeviceWrapper;
+use crate::loopdevice::LoopbackDev;
 use crate::{KernelNetFunc, NET_INTERFACE};
 
 pub trait NetInterface: Send + Sync {
@@ -138,5 +139,61 @@ impl<'a> SocketSetWrapper<'a> {
     pub fn remove(&self, handle: SocketHandle) {
         self.0.lock().remove(handle);
         debug!("socket {}: destroyed", handle);
+    }
+}
+
+pub struct NetInterfaceWrapperLoop {
+    dev: Mutex<LoopbackDev>,
+    interface: Mutex<Interface>,
+    timer: Arc<dyn KernelNetFunc>,
+}
+
+impl NetInterfaceWrapperLoop {
+    pub fn new(dev: LoopbackDev, timer: Arc<dyn KernelNetFunc>) -> Self {
+        let mut config = Config::new(HardwareAddress::Ip);
+        config.random_seed = 0x9898998;
+        let mut dev = dev;
+        let time = timer.now().into();
+        let interface = Interface::new(config, &mut dev, time);
+        Self {
+            dev: Mutex::new(dev),
+            interface: Mutex::new(interface),
+            timer,
+        }
+    }
+}
+
+impl NetInterface for NetInterfaceWrapperLoop {
+    fn ethernet_address(&self) -> EthernetAddress {
+        let ether_addr = self.dev.lock().mac_address();
+        EthernetAddress::from_bytes(ether_addr.as_slice())
+    }
+
+    fn setup_ip_addr(&self, ip: IpAddress, prefix_len: u8) {
+        let mut interface = self.interface.lock();
+        interface.update_ip_addrs(|ips| {
+            ips.push(IpCidr::new(IpAddress::v4(127, 0, 0, 1), 8))
+                .unwrap();
+        })
+    }
+
+    fn setup_gateway(&self, gateway: IpAddress) {
+        let mut interface = self.interface.lock();
+        match gateway {
+            IpAddress::Ipv4(v4) => interface.routes_mut().add_default_ipv4_route(v4).unwrap(),
+            _ => None,
+        };
+    }
+
+    fn poll(&self, sockets: &Mutex<SocketSet>) {
+        let mut dev = self.dev.lock();
+        let mut interface = self.interface.lock();
+        let mut sockets = sockets.lock();
+        let timestamp = self.timer.now();
+        interface.poll(timestamp.into(), dev.deref_mut(), &mut sockets);
+    }
+
+    fn raw_interface(&self) -> &Mutex<Interface> {
+        &self.interface
     }
 }

@@ -12,5 +12,6 @@ pub fn neterror2linux(error: NetError) -> LinuxErrno {
         NetError::AlreadyExists => LinuxErrno::EEXIST,
         NetError::ConnectionRefused => LinuxErrno::ECONNREFUSED,
         NetError::ConnectionReset => LinuxErrno::ECONNRESET,
+        NetError::Interrupted => LinuxErrno::EINTR,
     }
 }

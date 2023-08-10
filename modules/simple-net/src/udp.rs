@@ -1,7 +1,7 @@
 use core::net::SocketAddr;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use log::{debug, warn};
+use log::{debug, error, warn};
 use smoltcp::iface::SocketHandle;
 use smoltcp::socket::udp::{self, BindError, SendError};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
@@ -10,7 +10,7 @@ use spin::RwLock;
 use kernel_sync::Mutex;
 
 use crate::common::{NetError, NetPollState, NetResult};
-use crate::KERNEL_NET_FUNC;
+use crate::{KERNEL_NET_FUNC, UDP_PORT_REUSE};
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
 use super::{SocketSetWrapper, SOCKET_SET};
@@ -34,6 +34,15 @@ impl UdpSocket {
             local_addr: RwLock::new(None),
             peer_addr: RwLock::new(None),
             nonblock: AtomicBool::new(false),
+        }
+    }
+
+    pub fn reuse(&self, handle: SocketHandle) -> Self {
+        Self {
+            handle,
+            local_addr: RwLock::new(self.local_addr.read().clone()),
+            peer_addr: RwLock::new(self.peer_addr.read().clone()),
+            nonblock: AtomicBool::new(self.nonblock.load(Ordering::Acquire)),
         }
     }
 
@@ -75,7 +84,7 @@ impl UdpSocket {
     ///
     /// It's must be called before [`send_to`](Self::send_to) and
     /// [`recv_from`](Self::recv_from).
-    pub fn bind(&self, mut local_addr: SocketAddr) -> NetResult<()> {
+    pub fn bind(&self, mut local_addr: SocketAddr) -> NetResult<Option<UdpSocket>> {
         let mut self_local_addr = self.local_addr.write();
 
         if local_addr.port() == 0 {
@@ -91,6 +100,21 @@ impl UdpSocket {
             addr: (!is_unspecified(local_endpoint.addr)).then_some(local_endpoint.addr),
             port: local_endpoint.port,
         };
+
+        *self_local_addr = Some(local_endpoint);
+        drop(self_local_addr);
+
+        // let mut udp_reuse = UDP_PORT_REUSE.lock();
+        // // check if port is in reuse queue
+        // if udp_reuse.contains_key(&local_addr.port()) {
+        //     warn!("UDP socket {}: port {} already in use", self.handle, local_addr.port());
+        //     // reset self handle to reuse handle
+        //     let reuse_handle = udp_reuse.get(&local_addr.port()).unwrap();
+        //     let reuse = self.reuse(*reuse_handle);
+        //     // it share a  socket handle with reuse socket
+        //     return Ok(Some(reuse));
+        // }
+
         SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(self.handle, |socket| {
             socket.bind(endpoint).or_else(|e| match e {
                 BindError::InvalidState => {
@@ -104,9 +128,11 @@ impl UdpSocket {
             })
         })?;
 
-        *self_local_addr = Some(local_endpoint);
+        // insert to reuse queue
+        // udp_reuse.insert(local_endpoint.port, self.handle);
+
         debug!("UDP socket {}: bound on {}", self.handle, endpoint);
-        Ok(())
+        Ok(None)
     }
 
     /// Sends data on the socket to the given address. On success, returns the
@@ -124,9 +150,10 @@ impl UdpSocket {
     pub fn recv_from(&self, buf: &mut [u8]) -> NetResult<(usize, SocketAddr)> {
         self.recv_impl(|socket| match socket.recv_slice(buf) {
             Ok((len, meta)) => Ok((len, into_core_sockaddr(meta.endpoint))),
-            Err(_) => {
-                warn!("UDP socket {}: recv_from() failed", self.handle);
-                Err(NetError::BadState)
+            Err(e) => {
+                error!("UDP socket {}: recv_from() failed", self.handle);
+                // Err(NetError::BadState)
+                Err(NetError::WouldBlock)
             }
         })
     }
@@ -242,6 +269,9 @@ impl UdpSocket {
                             }
                         })?;
                     Ok(buf.len())
+                } else if !socket.is_open() {
+                    error!("UDP socket {}: send() failed: not connected", self.handle);
+                    Err(NetError::NotConnected)
                 } else {
                     // tx buffer is full
                     Err(NetError::WouldBlock)
@@ -255,7 +285,7 @@ impl UdpSocket {
         F: FnMut(&mut udp::Socket) -> NetResult<T>,
     {
         if self.local_addr.read().is_none() {
-            warn!("UDP socket {}: recv() failed: not bound", self.handle);
+            error!("UDP socket {}: recv() failed: not bound", self.handle);
             return Err(NetError::NotConnected);
         }
 
@@ -264,7 +294,11 @@ impl UdpSocket {
                 if socket.can_recv() {
                     // data available
                     op(socket)
+                } else if !socket.is_open() {
+                    error!("UDP socket {}: recv() failed: not connected", self.handle);
+                    Err(NetError::NotConnected)
                 } else {
+                    error!("UDP socket {}: recv() failed: no data", socket.endpoint());
                     // no more data
                     Err(NetError::WouldBlock)
                 }
@@ -285,7 +319,11 @@ impl UdpSocket {
                     Ok(t) => return Ok(t),
                     Err(NetError::WouldBlock) => {
                         let kernel_func = KERNEL_NET_FUNC.get().unwrap();
-                        kernel_func.yield_now();
+                        let has_signal = kernel_func.yield_now();
+                        if !has_signal {
+                            continue;
+                        }
+                        return Err(NetError::Interrupted);
                     }
                     Err(e) => return Err(e),
                 }
@@ -296,6 +334,11 @@ impl UdpSocket {
 
 impl Drop for UdpSocket {
     fn drop(&mut self) {
+        // delete reuse port
+        UDP_PORT_REUSE
+            .lock()
+            .remove(&self.local_addr.read().unwrap().port);
+
         self.shutdown().ok();
         SOCKET_SET.remove(self.handle);
     }
