@@ -33,6 +33,15 @@ impl SocketAddrExt {
             SocketAddrExt::SocketAddr(addr) => *addr,
         }
     }
+
+    pub fn get_local_path(&self) -> String {
+        match self {
+            SocketAddrExt::LocalPath(path) => path.clone(),
+            SocketAddrExt::SocketAddr(_) => {
+                panic!("Can't get local path from socketaddr")
+            }
+        }
+    }
 }
 
 impl From<SocketAddr> for RawIpV4Addr {
@@ -46,7 +55,7 @@ impl From<SocketAddr> for RawIpV4Addr {
             }
         };
         let ip = ip.octets();
-        let ip = u32::from_be_bytes(ip);
+        let ip = u32::from_le_bytes(ip);
         Self {
             family: Domain::AF_INET as u16,
             port: port.to_be(),
@@ -69,7 +78,8 @@ pub fn socket_addr_resolution(family_user_addr: usize, len: usize) -> Result<Soc
             let mut ip_addr = RawIpV4Addr::default();
             task.access_inner()
                 .copy_from_user(family_user_addr as *const RawIpV4Addr, &mut ip_addr);
-            let ipv4_addr = IpAddr::V4(Ipv4Addr::from(ip_addr.addr));
+            let ip = u32::from_be_bytes(ip_addr.addr.to_le_bytes());
+            let ipv4_addr = IpAddr::V4(Ipv4Addr::from(ip));
             let port = u16::from_be(ip_addr.port);
             Ok(SocketAddrExt::SocketAddr(SocketAddr::new(
                 ipv4_addr.into(),

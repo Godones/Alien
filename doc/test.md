@@ -183,10 +183,8 @@
   - [x] ./iozone -t 4 -i 9 -i 10 -r 1k -s 1m
   - [x] ./iozone -t 4 -i 11 -i 12 -r 1k -s 1m
 - [x] unixbench  https://www.cnblogs.com/xulan0922/p/11447988.html
-- [ ] netperf
-  - [x] ./busybox sh netperf_testcode2.sh
-  - [ ] 
-
+- [x] netperf    https://www.jianshu.com/p/42e0fa6bf79c
+  
 - [ ] iperf
 
 - [x] cyclictest    https://zhuanlan.zhihu.com/p/336381111

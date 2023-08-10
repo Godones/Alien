@@ -152,7 +152,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     // 所以只回收trap页
     // 在wait系统调用中，会回收内核栈页
     task.pre_recycle();
-    warn!("pre recycle done");
+    info!("pre recycle done");
     let clear_child_tid = task.futex_wake();
     if clear_child_tid != 0 {
         let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
@@ -188,6 +188,11 @@ pub fn set_pgid() -> isize {
 
 #[syscall_func(155)]
 pub fn git_pgid() -> isize {
+    0
+}
+
+#[syscall_func(157)]
+pub fn set_sid() -> isize {
     0
 }
 
