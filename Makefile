@@ -12,6 +12,7 @@ KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/sdcard.img
 SMP ?= 4
 GUI ?=n
+NET ?=y
 #IMG1 := tools/fs1.img
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
@@ -19,7 +20,7 @@ VF2 ?=n
 CV1811h ?=n
 FEATURES :=
 QEMU_ARGS :=
-MEMORY_SIZE := 128M
+MEMORY_SIZE := 1024M
 img ?=fat32
 SLAB ?=n
 TALLOC ?=y
@@ -54,6 +55,11 @@ else ifeq ($(TALLOC),y)
 FEATURES += talloc
 else ifeq ($(BUDDY),y)
 FEATURES += buddy
+endif
+
+ifeq ($(NET),y)
+QEMU_ARGS += -device virtio-net-device,netdev=net0 \
+			 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
 endif
 
 

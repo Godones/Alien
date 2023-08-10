@@ -70,8 +70,8 @@
         - [x] 简易显示程序
         - [x] 键盘、鼠标事件(需要更好的支持)
         - [ ] shell
-- [ ] Network
-    - [ ] smoltcp
+- [x] Network
+    - [x] smoltcp
 - [ ] Board
     - [x] VisionFive2
     - [x] unmatched

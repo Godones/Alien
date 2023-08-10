@@ -25,3 +25,27 @@ impl Display for AlienError {
 }
 
 impl Error for AlienError {}
+
+/// Return the target if the value is an error.
+/// Unwrap the value if the value is not an error.
+#[macro_export]
+macro_rules! error_unwrap {
+    ($value:ident,$target:expr) => {
+        if $value.is_err() {
+            return $target;
+        }
+        let $value = $value.unwrap();
+    };
+}
+
+/// Return the target if the value is None.
+/// Unwrap the value if the value is not None.
+#[macro_export]
+macro_rules! option_unwrap {
+    ($value:ident,$target:expr) => {
+        if $value.is_none() {
+            return $target;
+        }
+        let $value = $value.unwrap();
+    };
+}

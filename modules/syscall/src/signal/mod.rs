@@ -109,7 +109,10 @@ impl SignalReceivers {
     }
 
     pub fn have_signal_with_number(&self) -> Option<usize> {
-        self.sig_received.find_first_one(self.mask)
+        // self.sig_received.find_first_one(self.mask)
+        self.sig_received
+            .find_first_one_without_mask()
+            .map(|n| n + 1)
     }
 
     pub fn check_signal(&mut self, signum: usize) -> bool {
@@ -133,6 +136,15 @@ impl SimpleBitSet {
     /// 寻找不在mask中的最小的 1 的位置，如果有，返回其位置，如没有则返回 None。
     pub fn find_first_one(&self, mask: SimpleBitSet) -> Option<usize> {
         let ans = (self.0 & !mask.0).trailing_zeros() as usize;
+        if ans == 64 {
+            None
+        } else {
+            Some(ans)
+        }
+    }
+
+    pub fn find_first_one_without_mask(&self) -> Option<usize> {
+        let ans = self.0.trailing_zeros() as usize;
         if ans == 64 {
             None
         } else {

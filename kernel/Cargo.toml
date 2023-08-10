@@ -29,7 +29,7 @@ rvfs = { git = "https://github.com/Godones/rvfs.git" }
 #rvfs = { path = "../../os-module/rvfs" }
 fat32-vfs = { git = "https://github.com/Godones/fat32-vfs.git" }
 #fat32-vfs = { path = "../../os-module/fat32-vfs" }
-
+visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git", optional = true }
 trace_lib = { git = "https://github.com/os-module/rtrace" }
 preprint = "0.1.0"
 rslab = { version = "0.2.1" }
@@ -45,12 +45,26 @@ uart = { path = "../modules/uart" }
 talc = { version = "1.0", optional = true }
 buddy_system_allocator = { version = "0.9.0", optional = true }
 
+simple-net = { path = "../modules/simple-net", optional = true }
+
+[dependencies.smoltcp]
+git = "https://github.com/rcore-os/smoltcp.git"
+rev = "2ade274"
+default-features = false
+features = [
+    "alloc", "log", # no std
+    "medium-ethernet",
+    "proto-ipv4",
+    "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns",
+]
+
 [features]
 default = []
-vf2 = []
+vf2 = ["visionfive2-sd"]
 cv1811h = []
 hifive = []
-qemu = []
+qemu = ["simple-net", ]
+net_test = []
 
 slab = []
 talloc = ["talc"]

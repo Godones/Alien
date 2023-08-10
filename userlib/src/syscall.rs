@@ -46,8 +46,17 @@ syscall_id!(SYSCALL_EXEC, 221);
 syscall_id!(SYSCALL_WAITPID, 260);
 
 syscall_id!(SYSCALL_SOCKET, 198);
+syscall_id!(SYSCALL_SOCKET_PAIR, 199);
+syscall_id!(SYSCALL_BIND, 200);
+syscall_id!(SYSCALL_LISTEN, 201);
+syscall_id!(SYSCALL_ACCEPT, 202);
+syscall_id!(SYSCALL_CONNECT, 203);
+syscall_id!(SYSCALL_GET_SOCKNAME, 204);
+syscall_id!(SYSCALL_GET_PEERNAME, 205);
 syscall_id!(SYSCALL_SENDTO, 206);
 syscall_id!(SYSCALL_RECVFROM, 207);
+syscall_id!(SYSCALL_SET_SOCKOPT, 208);
+syscall_id!(SYSCALL_GET_SOCKOPT, 209);
 syscall_id!(SYSCALL_SHUTDOWN, 210);
 
 syscall_id!(SYSCALL_OPENAT, 56);
@@ -109,14 +118,42 @@ syscall!(
 );
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
 
+// net
 syscall!(sys_socket, SYSCALL_SOCKET, usize, usize, usize);
+syscall!(
+    sys_socket_pair,
+    SYSCALL_SOCKET_PAIR,
+    usize,
+    usize,
+    usize,
+    *const usize
+);
+syscall!(sys_bind, SYSCALL_BIND, usize, *const usize, usize);
+syscall!(sys_listen, SYSCALL_LISTEN, usize, usize);
+syscall!(sys_accept, SYSCALL_ACCEPT, usize, *const usize, *mut usize);
+syscall!(sys_connect, SYSCALL_CONNECT, usize, *const usize, usize);
+syscall!(
+    sys_getsockname,
+    SYSCALL_GET_SOCKNAME,
+    usize,
+    *mut usize,
+    *mut usize
+);
+syscall!(
+    sys_getpeername,
+    SYSCALL_GET_PEERNAME,
+    usize,
+    *mut usize,
+    *mut usize
+);
+
 syscall!(
     sys_sendto,
     SYSCALL_SENDTO,
     usize,
     *const u8,
     usize,
-    i32,
+    usize,
     *const usize,
     usize
 );
@@ -126,10 +163,12 @@ syscall!(
     usize,
     *mut u8,
     usize,
-    i32,
+    usize,
     *mut usize,
-    *mut u32
+    *mut usize
 );
+syscall!(sys_setsockopt, SYSCALL_SET_SOCKOPT);
+syscall!(sys_getsockopt, SYSCALL_GET_SOCKOPT);
 syscall!(sys_shutdown, SYSCALL_SHUTDOWN, usize, usize);
 
 syscall!(sys_list, SYSCALL_LIST, *const u8);

@@ -10,7 +10,7 @@ use syscall_table::syscall_func;
 use crate::config::MAX_FD_NUM;
 use crate::fs::file::FilePollExt;
 use crate::task::{current_task, do_suspend};
-use crate::timer::{TimeFromFreq, TimeSpec};
+use crate::timer::TimeSpec;
 
 #[syscall_func(72)]
 pub fn pselect6(
@@ -36,12 +36,15 @@ pub fn pselect6(
         error!("pselect6: sigmask = {} ---> {:?}, ", *mask, mask_num);
     }
 
-    let wait_time = if timeout != 0 {
+    let (wait_time, time_spec) = if timeout != 0 {
         let time_spec = task.transfer_raw_ptr(timeout as *mut TimeSpec);
-        Some(time_spec.to_clock() + TimeSpec::now().to_clock())
+        warn!("pselect6: timeout = {:#x} ---> {:?}", timeout, time_spec);
+        (
+            Some(time_spec.to_clock() + TimeSpec::now().to_clock()),
+            Some(time_spec.clone()),
+        )
     } else {
-        // wait forever
-        None
+        (Some(usize::MAX), None)
     };
     // assert!(nfds <= 64);
     let nfds = min(nfds, 64);
@@ -67,6 +70,9 @@ pub fn pselect6(
         0
     };
 
+    // at iperf test, if readfds hav one fd is ok, but writefds is empty,
+    // it still return 1 and cause recursion error
+    do_suspend();
     loop {
         let mut set = 0;
         // 如果设置了监视是否可读的 fd
@@ -143,15 +149,19 @@ pub fn pselect6(
         }
 
         if set > 0 {
+            // let readfds = task.transfer_raw_ptr(readfds as *mut u64);
+            // error!("pselect6: readfds = {:#b}", *readfds);
             // 如果找到满足条件的 fd，则返回找到的 fd 数量
-            if let Some(wait_time) = wait_time {
-                let remain_time = wait_time - TimeSpec::now().to_clock();
-                let remain_time = TimeSpec::from_freq(remain_time);
-                task.access_inner()
-                    .copy_to_user(&remain_time, timeout as *mut TimeSpec);
-            }
             return set;
         }
+
+        if let Some(time_spec) = time_spec {
+            if time_spec.tv_sec == 0 && time_spec.tv_nsec == 0 {
+                // 不阻塞
+                return 0;
+            }
+        }
+
         // 否则暂时 block 住
         do_suspend();
 
@@ -169,8 +179,9 @@ pub fn pselect6(
         // interrupt by signal
         let task_inner = task.access_inner();
         let receiver = task_inner.signal_receivers.lock();
-        if receiver.have_signal() {
-            return LinuxErrno::EINTR.into();
+        let res = receiver.have_signal_with_number();
+        if res.is_some() && res.unwrap() == SignalNumber::SIGKILL as usize {
+            return LinuxErrno::EINTR as isize;
         }
     }
 }

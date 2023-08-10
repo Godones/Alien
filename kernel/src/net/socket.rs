@@ -1,5 +1,7 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use core::fmt::{Debug, Formatter};
+use core::net::SocketAddr;
 
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
@@ -7,16 +9,19 @@ use rvfs::mount::VfsMount;
 use rvfs::superblock::{DataOps, Device};
 use rvfs::StrResult;
 
-use syscall_define::net::{Domain, SocketType, LOCAL_LOOPBACK_ADDR};
+use simple_net::tcp::TcpSocket;
+use simple_net::udp::UdpSocket;
+use syscall_define::net::{Domain, SocketType};
 use syscall_define::LinuxErrno;
 
-use crate::net::addr::IpV4Addr;
-use crate::net::port::*;
+use crate::net::addr::SocketAddrExt;
+use crate::net::port::neterror2linux;
+use crate::net::unix::UnixSocket;
+use crate::task::do_suspend;
 
-use super::addr::IpAddr;
 use super::ShutdownFlag;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SocketData {
     /// socket 通信域  
     pub domain: Domain,
@@ -24,12 +29,33 @@ pub struct SocketData {
     pub s_type: SocketType,
     /// 具体的通信协议
     pub protocol: usize,
-    /// 连接的远端服务器的信息
-    pub peer_addr: IpAddr,
-    /// 本地的信息
-    pub local_addr: IpAddr,
-    pub listening: bool,
-    pub is_server: bool,
+    pub socket: Socket,
+}
+
+pub enum Socket {
+    Tcp(TcpSocket),
+    Udp(UdpSocket),
+    Unix(UnixSocket),
+    None,
+}
+
+impl Debug for Socket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Socket::Tcp(_) => {
+                write!(f, "Tcp")
+            }
+            Socket::Udp(_) => {
+                write!(f, "Udp")
+            }
+            Socket::None => {
+                write!(f, "None")
+            }
+            Socket::Unix(_) => {
+                write!(f, "Unix")
+            }
+        }
+    }
 }
 
 impl DataOps for SocketData {
@@ -42,225 +68,313 @@ impl DataOps for SocketData {
 }
 
 impl SocketData {
-    pub fn new(domain: Domain, s_type: SocketType, protocol: usize) -> Arc<File> {
-        // we need alloc a ephemeral
-        let new_port = alloc_ephemeral_port();
-        if new_port.is_none() {
-            panic!("alloc ephemeral port failed");
-        }
-        let socket = Box::new(Self {
-            domain,
-            s_type,
-            protocol,
-            peer_addr: IpAddr::Empty,
-            local_addr: IpAddr::Ipv4(0, new_port.unwrap()),
-            listening: false,
-            is_server: false,
-        });
-
-        let mut file_ops = FileOps::empty();
-        file_ops.release = socket_file_release;
-        let file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_RDWR,
-            FileMode::FMODE_RDWR,
-            file_ops,
-        );
-        file.access_inner().f_ops_ext = {
-            let mut file_ext_ops = FileExtOps::empty();
-            file_ext_ops.is_ready_read = socket_ready_to_read;
-            file_ext_ops.is_ready_write = socket_ready_to_write;
-            file_ext_ops
-        };
-        // insert port2ip
-        insert_port2ip(new_port.unwrap(), socket.local_addr.clone());
-        file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket);
-        Arc::new(file)
-    }
-    pub fn new_with_data(data: SocketData) -> Arc<File> {
-        let mut file_ops = FileOps::empty();
-        file_ops.release = socket_file_release;
-        let file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_RDWR,
-            FileMode::FMODE_RDWR,
-            file_ops,
-        );
-        file.access_inner().f_ops_ext = {
-            let mut file_ext_ops = FileExtOps::empty();
-            file_ext_ops.is_ready_read = socket_ready_to_read;
-            file_ext_ops.is_ready_write = socket_ready_to_write;
-            file_ext_ops
-        };
-        file.f_dentry.access_inner().d_inode.access_inner().data = Some(Box::new(data));
-        Arc::new(file)
-    }
-
-    pub fn socket_type(&self) -> SocketType {
-        self.s_type
-    }
     pub fn from_ptr(ptr: *const u8) -> &'static mut Self {
         unsafe { &mut *(ptr as *mut Self) }
     }
-
-    pub fn to_be_ipv4_addr(&self) -> IpV4Addr {
-        match self.local_addr {
-            IpAddr::Ipv4(ip, port) => IpV4Addr {
-                family: Domain::AF_INET as u16,
-                port: port.to_be(),
-                addr: ip.to_be(),
-                zero: [0; 8],
-            },
-            _ => panic!("not ipv4 addr"),
-        }
-    }
-    pub fn bind(&mut self, ip: IpAddr) -> Result<(), LinuxErrno> {
-        match self.domain {
-            Domain::AF_INET => {
-                match ip {
-                    IpAddr::Ipv4(mut ip, mut port) => {
-                        let old_port = self.local_addr.port().unwrap();
-                        if port == 0 {
-                            port = old_port;
-                        } else if port != old_port {
-                            delete_port2ip(old_port);
-                        }
-                        if ip == 0 {
-                            // ip = 127.0.0,1
-                            ip = LOCAL_LOOPBACK_ADDR
-                        }
-                        insert_port2ip(port, IpAddr::Ipv4(ip, port));
-                        // we only need reset ip
-                        self.local_addr = IpAddr::Ipv4(ip, port);
-                        Ok(())
-                    }
-                    _ => Err(LinuxErrno::EINVAL),
-                }
+    pub fn new(
+        domain: Domain,
+        s_type: SocketType,
+        protocol: usize,
+    ) -> Result<Arc<File>, LinuxErrno> {
+        let raw_socket = match domain {
+            Domain::AF_UNIX => {
+                error!("AF_UNIX is not supported");
+                Socket::Unix(UnixSocket::new())
             }
-            Domain::AF_UNIX => match ip {
-                IpAddr::LocalPath(path) => {
-                    self.local_addr = IpAddr::LocalPath(path);
-                    Ok(())
+            Domain::AF_INET => match s_type {
+                SocketType::SOCK_STREAM => Socket::Tcp(TcpSocket::new()),
+                SocketType::SOCK_DGRAM => Socket::Udp(UdpSocket::new()),
+                _ => {
+                    error!("unsupported socket type: {:?}", s_type);
+                    return Err(LinuxErrno::EPROTONOSUPPORT);
                 }
-                _ => Err(LinuxErrno::EINVAL),
             },
-        }
-    }
+        };
 
-    pub fn accept(&self, buf: &mut [u8]) -> Option<(usize, IpAddr)> {
-        assert!(self.is_server);
-        let res = read_from_port_with_port_map(self.local_addr.port().unwrap(), buf).map(
-            |(r, src_port)| {
-                let ipaddr = find_ip_by_port(src_port).unwrap();
-                (r, ipaddr)
-            },
+        let socket_data = Self {
+            domain,
+            s_type,
+            protocol,
+            socket: raw_socket,
+        };
+
+        let socket_data = Box::new(socket_data);
+        let mut file_ops = FileOps::empty();
+        file_ops.release = socket_file_release;
+        file_ops.write = socket_file_write;
+        file_ops.read = socket_file_read;
+        let file = File::new(
+            Arc::new(DirEntry::empty()),
+            Arc::new(VfsMount::empty()),
+            OpenFlags::O_RDWR,
+            FileMode::FMODE_RDWR,
+            file_ops,
         );
-        res
+        file.access_inner().f_ops_ext = {
+            let mut file_ext_ops = FileExtOps::empty();
+            file_ext_ops.is_ready_read = socket_ready_to_read;
+            file_ext_ops.is_ready_write = socket_ready_to_write;
+            file_ext_ops
+        };
+        file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket_data);
+        Ok(Arc::new(file))
     }
 
-    pub fn listening(&mut self, _bakc_log: usize) {
-        self.listening = true;
-        self.is_server = true;
+    fn new_connected(&self, tcp_socket: TcpSocket) -> Arc<File> {
+        let socket_data = Self {
+            domain: self.domain,
+            s_type: self.s_type,
+            protocol: self.protocol,
+            socket: Socket::Tcp(tcp_socket),
+        };
+        let socket_data = Box::new(socket_data);
+        let mut file_ops = FileOps::empty();
+        file_ops.release = socket_file_release;
+        file_ops.write = socket_file_write;
+        file_ops.read = socket_file_read;
+        let file = File::new(
+            Arc::new(DirEntry::empty()),
+            Arc::new(VfsMount::empty()),
+            OpenFlags::O_RDWR,
+            FileMode::FMODE_RDWR,
+            file_ops,
+        );
+        file.access_inner().f_ops_ext = {
+            let mut file_ext_ops = FileExtOps::empty();
+            file_ext_ops.is_ready_read = socket_ready_to_read;
+            file_ext_ops.is_ready_write = socket_ready_to_write;
+            file_ext_ops
+        };
+        file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket_data);
+        Arc::new(file)
+    }
+    pub fn socket_type(&self) -> SocketType {
+        self.s_type
     }
 
-    pub fn connect(&mut self, ip: IpAddr) -> Result<(), LinuxErrno> {
-        match self.domain {
-            Domain::AF_INET => {
-                match ip {
-                    IpAddr::Ipv4(ip, port) => {
-                        self.peer_addr = IpAddr::Ipv4(ip, port);
-                        // send self ip to peer
-                        let be_ip = self.local_addr.to_be_ipv4().unwrap();
-                        let be_ip = be_ip.to_bytes();
-                        create_connect_map(self.peer_addr.clone(), self.local_addr.clone());
-                        write_to_port_with_port_map(self.local_addr.port().unwrap(), port, &be_ip);
-                        warn!("[connect] send self ip to peer, first hand");
-                        Ok(())
-                    }
-                    _ => Err(LinuxErrno::EINVAL),
-                }
+    pub fn set_socket_nonblock(&self, blocking: bool) {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                tcp.set_nonblocking(blocking);
             }
-            Domain::AF_UNIX => match ip {
-                IpAddr::LocalPath(path) => {
-                    if check_socket_file_exist(&path) {
-                        self.peer_addr = IpAddr::LocalPath(path);
-                        Ok(())
-                    } else {
-                        Err(LinuxErrno::ENOENT)
-                    }
-                }
-                _ => Err(LinuxErrno::EINVAL),
-            },
+            Socket::Udp(udp) => {
+                udp.set_nonblocking(blocking);
+            }
+            _ => {
+                panic!("set_socket_nonblock is not supported")
+            }
         }
+    }
+
+    pub fn is_tcp(&self) -> bool {
+        match self.s_type {
+            SocketType::SOCK_STREAM => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_udp(&self) -> bool {
+        match self.s_type {
+            SocketType::SOCK_DGRAM => true,
+            _ => false,
+        }
+    }
+
+    pub fn bind(&self, socket_addr: SocketAddrExt) -> Result<(), LinuxErrno> {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                tcp.bind(socket_addr.get_socketaddr())
+                    .map_err(neterror2linux)?;
+            }
+            Socket::Udp(udp) => {
+                udp.bind(socket_addr.get_socketaddr())
+                    .map_err(neterror2linux)?;
+            }
+            _ => {
+                panic!("bind is not supported")
+            }
+        }
+        Ok(())
+    }
+
+    pub fn accept(&self) -> Result<Arc<File>, LinuxErrno> {
+        match &self.socket {
+            Socket::Tcp(tcp) => tcp
+                .accept()
+                .map(|socket| Ok(self.new_connected(socket)))
+                .map_err(neterror2linux)?,
+            _ => Err(LinuxErrno::EOPNOTSUPP),
+        }
+    }
+
+    pub fn listening(&self, _back_log: usize) -> Result<(), LinuxErrno> {
+        match &self.socket {
+            Socket::Tcp(tcp) => tcp.listen().map_err(neterror2linux),
+            _ => Err(LinuxErrno::EOPNOTSUPP),
+        }
+    }
+
+    pub fn connect(&self, ip: SocketAddrExt) -> Result<(), LinuxErrno> {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                tcp.connect(ip.get_socketaddr()).map_err(neterror2linux)?;
+            }
+            Socket::Udp(udp) => {
+                udp.connect(ip.get_socketaddr()).map_err(neterror2linux)?;
+            }
+            Socket::Unix(unix) => unix.connect(ip.get_local_path())?,
+            _ => {
+                panic!("bind is not supported")
+            }
+        }
+        Ok(())
     }
     pub fn send_to(
         &self,
         message: &[u8],
         _flags: usize,
-        dest_addr: Option<IpAddr>,
-    ) -> Option<usize> {
-        let dest_addr = if dest_addr.is_none() {
-            self.peer_addr.clone()
-        } else {
-            dest_addr.unwrap()
-        };
-        match dest_addr {
-            IpAddr::Ipv4(ip, port) => {
-                assert!(ip == 0 || ip == LOCAL_LOOPBACK_ADDR);
-                if self.is_server {
-                    write_to_port_with_port_map(self.local_addr.port().unwrap(), port, message)
+        dest_addr: Option<SocketAddrExt>,
+    ) -> Result<usize, LinuxErrno> {
+        match &self.socket {
+            Socket::Tcp(tcp) => tcp.send(message).map_err(neterror2linux),
+            Socket::Udp(udp) => {
+                if let Some(dest_addr) = dest_addr {
+                    udp.send_to(message, dest_addr.get_socketaddr())
+                        .map_err(neterror2linux)
                 } else {
-                    write_to_port_with_s_c_map(self.local_addr.port().unwrap(), port, message)
+                    udp.send(message).map_err(neterror2linux)
+                }
+            }
+            _ => {
+                panic!("bind is not supported")
+            }
+        }
+    }
+
+    pub fn recvfrom(
+        &self,
+        message: &mut [u8],
+        _flags: usize,
+    ) -> Result<(usize, SocketAddr), LinuxErrno> {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                let recv = tcp.recv(message).map_err(neterror2linux)?;
+                let peer_addr = tcp.peer_addr().map_err(neterror2linux)?;
+                Ok((recv, peer_addr))
+            }
+            Socket::Udp(udp) => {
+                let recv = udp.recv_from(message).map_err(neterror2linux)?;
+                // let peer_addr = udp.peer_addr().map_err(neterror2linux)?;
+                Ok((recv.0, recv.1))
+            }
+            _ => {
+                panic!("bind is not supported")
+            }
+        }
+    }
+
+    pub fn shutdown(&self, _sdflag: ShutdownFlag) -> Result<(), LinuxErrno> {
+        match &self.socket {
+            Socket::Tcp(tcp) => tcp.shutdown().map_err(neterror2linux),
+            Socket::Udp(udp) => udp.shutdown().map_err(neterror2linux),
+            _ => {
+                panic!("bind is not supported")
+            }
+        }
+    }
+
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                let local_addr = tcp.local_addr();
+                if let Ok(addr) = local_addr {
+                    Some(addr)
+                } else {
+                    None
+                }
+            }
+            Socket::Udp(udp) => {
+                let local_addr = udp.local_addr();
+                if let Ok(addr) = local_addr {
+                    Some(addr)
+                } else {
+                    None
                 }
             }
             _ => None,
         }
     }
 
-    pub fn recvfrom(&self, message: &mut [u8], _flags: usize) -> Option<(usize, IpAddr)> {
-        let port = self.local_addr.port().unwrap();
-        if self.is_server {
-            read_from_port_with_s_c_map(port, message).map(|(r, src_port)| {
-                let ipaddr = find_ip_by_port(src_port).unwrap();
-                (r, ipaddr)
-            })
-        } else {
-            let res = if self.peer_addr.is_valid() {
-                read_from_port_with_port_map(port, message).map(|(r, src_port)| {
-                    let ipaddr = find_ip_by_port(src_port).unwrap();
-                    (r, ipaddr)
-                })
-            } else {
-                read_from_port_with_s_c_map(port, message).map(|(r, src_port)| {
-                    let ipaddr = find_ip_by_port(src_port).unwrap();
-                    (r, ipaddr)
-                })
-            };
-            res
+    pub fn peer_addr(&self) -> Option<SocketAddr> {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                let peer_addr = tcp.peer_addr();
+                if let Ok(addr) = peer_addr {
+                    Some(addr)
+                } else {
+                    None
+                }
+            }
+            Socket::Udp(udp) => {
+                let peer_addr = udp.peer_addr();
+                if let Ok(addr) = peer_addr {
+                    Some(addr)
+                } else {
+                    None
+                }
+            }
+            _ => {
+                panic!("bind is not supported")
+            }
         }
     }
 
-    pub fn shutdown(&self, sdflag: ShutdownFlag) {
-        match sdflag {
-            ShutdownFlag::SHUTRD => {}
-            ShutdownFlag::SHUTWR => {
-                if self.is_server {
-                    write_to_port_with_port_map(
-                        self.local_addr.port().unwrap(),
-                        self.peer_addr.port().unwrap(),
-                        &[],
-                    );
+    pub fn ready_read(&self) -> bool {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                let res = tcp.poll();
+                warn!("Tcp ready_read: {:?}", res);
+                if let Ok(res) = res {
+                    res.readable
                 } else {
-                    write_to_port_with_s_c_map(
-                        self.local_addr.port().unwrap(),
-                        self.peer_addr.port().unwrap(),
-                        &[],
-                    );
+                    false
                 }
             }
-            ShutdownFlag::SHUTRDWR => {}
+            Socket::Udp(udp) => {
+                let res = udp.poll();
+                warn!("Udp ready_read: {:?}", res);
+                if let Ok(res) = res {
+                    res.readable
+                } else {
+                    false
+                }
+            }
+            _ => {
+                panic!("bind is not supported")
+            }
+        }
+    }
+    pub fn ready_write(&self) -> bool {
+        match &self.socket {
+            Socket::Tcp(tcp) => {
+                let res = tcp.poll();
+                if let Ok(res) = res {
+                    res.writable
+                } else {
+                    false
+                }
+            }
+            Socket::Udp(udp) => {
+                let res = udp.poll();
+                if let Ok(res) = res {
+                    res.writable
+                } else {
+                    false
+                }
+            }
+            _ => {
+                panic!("bind is not supported")
+            }
         }
     }
 }
@@ -271,15 +385,7 @@ fn socket_file_release(file: Arc<File>) -> StrResult<()> {
     let inode_inner = dentry_inner.d_inode.access_inner();
     let data = inode_inner.data.as_ref().unwrap();
     let data = SocketData::from_ptr(data.data());
-    let port = data.local_addr.port().unwrap();
-    delete_port_with_port_map(port);
-    if !data.is_server {
-        // delete_port_with_s_c_map(port);
-    } else {
-        warn!("server socket release, we send a empty message to peer");
-        write_to_port_with_port_map(port, data.peer_addr.port().unwrap(), &[]);
-    }
-    // delete_port2ip(port);
+    data.socket = Socket::None;
     Ok(())
 }
 
@@ -287,32 +393,39 @@ fn socket_ready_to_read(file: Arc<File>) -> bool {
     let dentry_inner = file.f_dentry.access_inner();
     let inode_inner = dentry_inner.d_inode.access_inner();
     let data = inode_inner.data.as_ref().unwrap();
-    let data = SocketData::from_ptr(data.data());
-    let port = data.local_addr.port().unwrap();
-    if data.is_server {
-        if data.listening {
-            check_port_have_data_with_port_map(port)
-        } else {
-            check_port_have_data_with_s_c_map(port)
-        }
-    } else {
-        check_port_have_data_with_port_map(port)
-    }
+    let socket = SocketData::from_ptr(data.data());
+    simple_net::poll_interfaces();
+    socket.ready_read()
 }
 
 fn socket_ready_to_write(file: Arc<File>) -> bool {
     let dentry_inner = file.f_dentry.access_inner();
     let inode_inner = dentry_inner.d_inode.access_inner();
     let data = inode_inner.data.as_ref().unwrap();
-    let data = SocketData::from_ptr(data.data());
-    let port = data.peer_addr.port().unwrap();
-    if data.is_server {
-        if data.listening {
-            panic!("server socket should not be ready to write");
-        } else {
-            check_port_can_write_with_port_map(port)
-        }
-    } else {
-        check_port_can_write_with_s_c_map(port)
-    }
+    let socket = SocketData::from_ptr(data.data());
+    simple_net::poll_interfaces();
+    socket.ready_write()
+}
+
+fn socket_file_write(file: Arc<File>, buf: &[u8], _offset: u64) -> StrResult<usize> {
+    let dentry_inner = file.f_dentry.access_inner();
+    let inode_inner = dentry_inner.d_inode.access_inner();
+    let data = inode_inner.data.as_ref().unwrap();
+    let socket = SocketData::from_ptr(data.data());
+    warn!("socket_file_write: {:?}", buf.len());
+    let res = socket.send_to(buf, 0, None).map_err(|_| "Net Error");
+    do_suspend();
+    res
+}
+
+fn socket_file_read(file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
+    let dentry_inner = file.f_dentry.access_inner();
+    let inode_inner = dentry_inner.d_inode.access_inner();
+    let data = inode_inner.data.as_ref().unwrap();
+    let socket = SocketData::from_ptr(data.data());
+    warn!("socket_file_read: {:?}", buf.len());
+    socket
+        .recvfrom(buf, 0)
+        .map(|x| x.0)
+        .map_err(|_| "Net Error")
 }

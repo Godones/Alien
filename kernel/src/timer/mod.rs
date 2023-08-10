@@ -208,7 +208,7 @@ pub fn clock_get_time(clock_id: usize, tp: *mut u8) -> isize {
     let id = ClockId::from_raw(clock_id).unwrap();
     let task = current_task().unwrap();
     match id {
-        ClockId::Monotonic | ClockId::Realtime => {
+        ClockId::Monotonic | ClockId::Realtime | ClockId::ProcessCputimeId => {
             let time = TimeSpec::now();
             task.access_inner().copy_to_user(&time, tp as *mut TimeSpec)
         }
