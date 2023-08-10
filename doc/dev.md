@@ -484,5 +484,88 @@ http://nicephil.blinkenshell.org/my_book/ch07.html 比较细致
 
 为了运行测试，我们修改了内核中部分代码，以获得更高的分数，在提交完评测后，我们将os恢复到之前的状态。为此，我们删除了一些将可执行文件包含到内核的代码。同时，对于init程序，其不再直接运行评测程序，而是直接启动bash。
 
+qemu
 
+![image-20230802103358459](assert/image-20230802103358459.png)
+
+starfive
+
+![image-20230802103441877](assert/image-20230802103441877.png)
+
+
+
+unmatched
+
+![image-20230802103500400](assert/image-20230802103500400.png)
+
+
+
+## 2023/8/2-8/4
+
+1. 整理代码
+2. 添加visionfive2的sdcard驱动支持
+
+
+
+## 2023/8/5-8/19
+
+1. 添加网络支持
+
+```
+[tid 3] TCP 
+[tid 3] socket 3 bind to 127.0.0.1:12865
+[tid 3] listening :: pselect
+
+[tid 4] TCP 3   ---- 127.0.0.1:49152
+[tid 4] socket 3 bind to 0.0.0.0:0
+[tid 4] connect 127.0.0.1:12865
+[tid 4] UDP 4
+[4] socket 4 bind to 0.0.0.0:0
+[4] getname 4 0.0.0.0:38181    ---- 0.0.0.0:49157
+[4] socket 3 send to 127.0.0.1:12865  656bytes
+[4] pselect 3 wait 
+[4] recv from 127.0.0.1"12865 865bytes
+[4] setitimer 1s
+[4] socket 4 send to 1000bytes
+.
+.
+.
+.
+[4] socket 4 send to 0 ....3
+[4] close 4
+[4] pselect 3 wait
+[4] recv from 127.0.0.1:12865 656bytes
+[4] shutdowm 3
+[4] pselect 3 wait
+[4] recv from 127.0.0.1:12865 0
+[4] exit
+
+
+[tid 3] accept 127.0.0.1:37947 -> new socket 4    127.0.0.1:49152
+[tid 3] clone --> [tid 5]
+[tid 3] close 4
+[tid 3] listening :: pselect
+
+
+[5] have socket 4 to connect with [tid 4]
+[5] close socket 3
+[5] pselect 4 wait
+[5] recv from [tid 4] socket 3  656byte
+[5] UDP 6
+[5] bind to 0.0.0.0:0    
+[5] getname 6 0.0.0.0:44004 ----0.0.0.0:49159
+[5] socket 4 send to [tid 4] 656bytes
+[5] setitimer 5s
+[5] recv from 6 1000
+.
+.
+.
+[5] recv from 6 0
+[5] close 6
+[5] send to 6 fail ...3
+[5] send to 4 [tid 4] 656 bytes
+[5] pselect 4 wait
+[5] recv from 4 0
+....
+```
 

@@ -61,7 +61,7 @@ pub const USER_STACK_SIZE: usize = 0x50_000;
 #[cfg(any(feature = "vf2", feature = "hifive"))]
 pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 #[cfg(feature = "qemu")]
-pub const BLOCK_CACHE_FRAMES: usize = 1024 * 2;
+pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 
 #[cfg(any(feature = "vf2", feature = "hifive"))]
 pub const HEAP_SIZE: usize = 0x40_00000;

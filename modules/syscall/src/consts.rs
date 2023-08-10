@@ -41,6 +41,9 @@ numeric_enum!(
         ENOSYS = -38,
         ELOOP = -40,
         EADDRINUSE = -98,
+        /// 协议不被支持 Protocol not supported.
+        EPROTONOSUPPORT = -92,
+        EOPNOTSUPP = -94,
         EPFNOSUPPORT = -96,
         /// 不支持的地址
         EAFNOSUPPORT = -97,
@@ -53,6 +56,7 @@ numeric_enum!(
         ENOBUFS = -105,
         EISCONN = -106,
         ENOTCONN = -107,
+        /// 操作正在处理 Operation in progress.
         EINPROGRESS = -115,
         /// 拒绝连接
         ECONNREFUSED = -111,
@@ -132,6 +136,7 @@ const SYSCALL_SIGRETURN: usize = 139;
 const SYSCALL_TIMES: usize = 153;
 const SYSCALL_SETPGID: usize = 154;
 const SYSCALL_GETPGID: usize = 155;
+const SYSCALL_SETSID: usize = 157;
 const SYSCALL_UNAME: usize = 160;
 const SYSCALL_GETRUSAGE: usize = 165;
 const SYSCALL_UMASK: usize = 166;
@@ -187,6 +192,7 @@ const SYSCALL_GET_TIME: usize = 1690; //you mean get time of day by 169?
 
 pub fn syscall_name(id: usize) -> &'static str {
     match id {
+        SYSCALL_SETSID => "setsid",
         SYSCALL_SIGSUSPEND => "sigsuspend",
         SYSCALL_MADVISE => "madvise",
         SYSCALL_CLOCK_NANOSLEEP => "clock_nanosleep",

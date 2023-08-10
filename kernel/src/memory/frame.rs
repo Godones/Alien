@@ -15,7 +15,7 @@ use super::manager::FrameRefManager;
 #[cfg(feature = "vf2")]
 const FRAME_NUM: usize = 2096300 / 8;
 #[cfg(feature = "qemu")]
-const FRAME_NUM: usize = 8192;
+const FRAME_NUM: usize = 251722 / 8;
 #[cfg(feature = "hifive")]
 const FRAME_NUM: usize = 2096300 / 8 * 2;
 
