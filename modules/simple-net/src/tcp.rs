@@ -2,7 +2,7 @@ use core::cell::UnsafeCell;
 use core::net::SocketAddr;
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-use log::{debug, warn};
+use log::{debug, error, warn};
 use smoltcp::iface::SocketHandle;
 use smoltcp::socket::tcp::{self, ConnectError, State};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
@@ -246,7 +246,7 @@ impl TcpSocket {
         let local_port = unsafe { self.local_addr.get().read().port };
         self.block_on(|| {
             let (handle, (local_addr, peer_addr)) = LISTENING_TABLE.accept(local_port)?;
-            debug!("TCP socket accepted a new connection {}", peer_addr);
+            error!("TCP socket accepted a new connection {}", peer_addr);
             Ok(TcpSocket::new_connected(handle, local_addr, peer_addr))
         })
     }
@@ -355,9 +355,10 @@ impl TcpSocket {
 
     /// Whether the socket is readable or writable.
     pub fn poll(&self) -> NetResult<NetPollState> {
+        warn!("socket state: {:?}", self.get_state());
         match self.get_state() {
             STATE_CONNECTING => self.poll_connect(),
-            STATE_CONNECTED => self.poll_stream(),
+            STATE_CONNECTED | STATE_CLOSED => self.poll_stream(),
             STATE_LISTENING => self.poll_listener(),
             _ => Ok(NetPollState {
                 readable: false,
@@ -449,7 +450,7 @@ impl TcpSocket {
                 State::Established => {
                     self.set_state(STATE_CONNECTED);
                     // connected
-                    debug!(
+                    warn!(
                         "TCP socket {}: connected to {}",
                         handle,
                         socket.remote_endpoint().unwrap(),
@@ -465,6 +466,7 @@ impl TcpSocket {
                     true
                 }
             });
+        warn!("poll_connect: writable = {}", writable);
         Ok(NetPollState {
             readable: false,
             writable,
@@ -509,7 +511,11 @@ impl TcpSocket {
                     Ok(t) => return Ok(t),
                     Err(NetError::WouldBlock) => {
                         let kernel_func = KERNEL_NET_FUNC.get().unwrap();
-                        kernel_func.yield_now();
+                        let has_signal = kernel_func.yield_now();
+                        if !has_signal {
+                            continue;
+                        }
+                        return Err(NetError::Interrupted);
                     }
                     Err(e) => return Err(e),
                 }

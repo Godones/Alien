@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::cell::RefCell;
 use core::ops::{Deref, DerefMut};
 
-use log::debug;
+use log::error;
 use preprint::pprintln;
 use smoltcp::iface::SocketSet;
 use smoltcp::phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken};
@@ -12,7 +12,7 @@ use virtio_drivers::transport::Transport;
 use virtio_drivers::{Error, Hal};
 
 use crate::common::STANDARD_MTU;
-use crate::{KernelNetFunc, LISTENING_TABLE};
+use crate::{snoop_tcp_packet, KernelNetFunc};
 
 pub struct VirtIONetDeviceWrapper<H: Hal, T: Transport, const QS: usize> {
     inner: RefCell<VirtIONet<H, T, QS>>,
@@ -95,11 +95,7 @@ impl<H: Hal, T: Transport, const QS: usize> RxToken for VirtioRxToken<'_, H, T, 
         F: FnOnce(&mut [u8]) -> R,
     {
         let mut rx_buf = self.1;
-        debug!(
-            "RECV {} bytes: {:02X?}",
-            rx_buf.packet_len(),
-            rx_buf.packet()
-        );
+        error!("RECV {} bytes", rx_buf.packet_len(),);
         let result = f(rx_buf.packet_mut());
         self.0.borrow_mut().recycle_rx_buffer(rx_buf).unwrap();
         result
@@ -117,29 +113,10 @@ impl<H: Hal, T: Transport, const QS: usize> TxToken for VirtioTxToken<'_, H, T, 
         let mut dev = self.0.borrow_mut();
         let mut tx_buf = dev.new_tx_buffer(len);
         let result = f(tx_buf.packet_mut());
-        debug!("SEND {} bytes: {:02X?}", len, tx_buf.packet());
+        error!("SEND {} bytes", tx_buf.packet_len());
         dev.send(tx_buf).unwrap();
         result
     }
-}
-
-fn snoop_tcp_packet(buf: &[u8], sockets: &mut SocketSet<'_>) -> Result<(), smoltcp::wire::Error> {
-    use smoltcp::wire::{EthernetFrame, IpProtocol, Ipv4Packet, TcpPacket};
-
-    let ether_frame = EthernetFrame::new_checked(buf)?;
-    let ipv4_packet = Ipv4Packet::new_checked(ether_frame.payload())?;
-
-    if ipv4_packet.next_header() == IpProtocol::Tcp {
-        let tcp_packet = TcpPacket::new_checked(ipv4_packet.payload())?;
-        let src_addr = (ipv4_packet.src_addr(), tcp_packet.src_port()).into();
-        let dst_addr = (ipv4_packet.dst_addr(), tcp_packet.dst_port()).into();
-        let is_first = tcp_packet.syn() && !tcp_packet.ack();
-        if is_first {
-            // create a socket for the first incoming TCP packet, as the later accept() returns.
-            LISTENING_TABLE.incoming_tcp_packet(src_addr, dst_addr, sockets);
-        }
-    }
-    Ok(())
 }
 
 const GB: usize = 1000 * MB;

@@ -60,6 +60,7 @@ pub fn register_all_syscall() {
         (124, do_suspend),
         (154, set_pgid),
         (155, git_pgid),
+        (157, set_sid),
         (172, get_pid),
         (173, get_ppid),
         (174, getuid),
@@ -254,6 +255,7 @@ use crate::task::getuid;
 use crate::task::git_pgid;
 use crate::task::prlimit64;
 use crate::task::set_pgid;
+use crate::task::set_sid;
 use crate::task::set_tid_address;
 use crate::task::wait4;
 use crate::timer::clock_get_time;

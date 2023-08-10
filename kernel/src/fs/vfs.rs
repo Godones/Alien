@@ -137,6 +137,13 @@ fn prepare_dev() {
     rtc_file.access_inner().f_ops_ext.ioctl = |_, _, _| 0;
     vfs_write_file::<VfsProvider>(rtc_file, RTC_TIME.as_bytes(), 0).unwrap();
     vfs_mknod::<VfsProvider>("/dev/tty", InodeMode::S_CHARDEV, FileMode::FMODE_RDWR, 0).unwrap();
+    vfs_mknod::<VfsProvider>(
+        "/dev/urandom",
+        InodeMode::S_CHARDEV,
+        FileMode::FMODE_RDWR,
+        999,
+    )
+    .unwrap();
 }
 
 fn prepare_test_need() {

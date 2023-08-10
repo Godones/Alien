@@ -1348,7 +1348,7 @@ impl Task {
                     let _ = vfs_unlink::<VfsProvider>(&path);
                     continue;
                 }
-                error!("close file ,ref count:{:#x}", Arc::strong_count(&real_file));
+                info!("close file ,ref count:{:#x}", Arc::strong_count(&real_file));
                 if real_file.is_pipe() {
                     drop(f);
                     let res = vfs_close_file::<VfsProvider>(real_file);

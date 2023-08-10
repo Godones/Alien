@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, collections::VecDeque};
 use core::ops::{Deref, DerefMut};
 
-use log::{debug, warn};
+use log::{debug, error, warn};
 use smoltcp::iface::{SocketHandle, SocketSet};
 use smoltcp::socket::tcp::{self, State};
 use smoltcp::wire::{IpAddress, IpEndpoint, IpListenEndpoint};
@@ -165,6 +165,7 @@ impl ListenTable {
 
 fn is_connected(handle: SocketHandle) -> bool {
     SOCKET_SET.with_socket::<tcp::Socket, _, _>(handle, |socket| {
+        error!("[is_connected] socket state: {:?}", socket.state());
         !(socket.state() == State::Listen || socket.state() == State::SynReceived)
     })
 }

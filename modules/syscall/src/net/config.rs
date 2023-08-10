@@ -57,3 +57,39 @@ numeric_enum! {
 }
 
 pub const LOCAL_LOOPBACK_ADDR: u32 = 0x7f000001;
+
+numeric_enum! {
+    #[repr(usize)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub enum SocketLevel {
+        Ip = 0,
+        Socket = 1,
+        Tcp = 6,
+    }
+}
+
+numeric_enum! {
+    #[repr(usize)]
+    #[allow(non_camel_case_types)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub enum SocketOption {
+        SOL_REUSEADDR = 2,
+        SOL_DONTROUTE = 5,
+        SOL_SNDBUF = 7,
+        SOL_RCVBUF = 8,
+        SOL_KEEPALIVE = 9,
+        SOL_RCVTIMEO = 20,
+    }
+}
+
+numeric_enum! {
+    #[repr(usize)]
+    #[allow(non_camel_case_types)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+    pub enum TcpSocketOption {
+        TCP_NODELAY = 1, // disable nagle algorithm and flush
+        TCP_MAXSEG = 2,
+        TCP_INFO = 11,
+        TCP_CONGESTION = 13,
+    }
+}

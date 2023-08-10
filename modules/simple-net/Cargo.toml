@@ -18,6 +18,7 @@ default-features = false
 features = [
     "alloc", "log", # no std
     "medium-ethernet",
+    "medium-ip",
     "proto-ipv4",
     "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns",
 ]
