@@ -56,6 +56,7 @@ numeric_enum!(
         ENOBUFS = -105,
         EISCONN = -106,
         ENOTCONN = -107,
+        /// 操作正在处理 Operation in progress.
         EINPROGRESS = -115,
         /// 拒绝连接
         ECONNREFUSED = -111,

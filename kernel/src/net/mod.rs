@@ -133,6 +133,9 @@ pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> isize {
                 if retry == 0 {
                     return e.into();
                 }
+                if e == LinuxErrno::EAGAIN {
+                    return LinuxErrno::EINPROGRESS.into();
+                }
                 retry -= 1;
                 do_suspend();
             }
