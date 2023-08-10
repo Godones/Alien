@@ -118,15 +118,34 @@ syscall!(
 );
 syscall!(sys_waitpid, SYSCALL_WAITPID, isize, *mut i32);
 
-// net 
+// net
 syscall!(sys_socket, SYSCALL_SOCKET, usize, usize, usize);
-syscall!(sys_socket_pair, SYSCALL_SOCKET_PAIR, usize, usize, usize, *const usize);
+syscall!(
+    sys_socket_pair,
+    SYSCALL_SOCKET_PAIR,
+    usize,
+    usize,
+    usize,
+    *const usize
+);
 syscall!(sys_bind, SYSCALL_BIND, usize, *const usize, usize);
 syscall!(sys_listen, SYSCALL_LISTEN, usize, usize);
-syscall!(sys_accept, SYSCALL_ACCEPT, usize, *const usize, * mut usize);
-syscall!(sys_connect, SYSCALL_CONNECT, usize,  *const usize, usize);
-syscall!(sys_getsockname, SYSCALL_GET_SOCKNAME, usize, *mut usize, *mut usize);
-syscall!(sys_getpeername, SYSCALL_GET_PEERNAME, usize, *mut usize, *mut usize);
+syscall!(sys_accept, SYSCALL_ACCEPT, usize, *const usize, *mut usize);
+syscall!(sys_connect, SYSCALL_CONNECT, usize, *const usize, usize);
+syscall!(
+    sys_getsockname,
+    SYSCALL_GET_SOCKNAME,
+    usize,
+    *mut usize,
+    *mut usize
+);
+syscall!(
+    sys_getpeername,
+    SYSCALL_GET_PEERNAME,
+    usize,
+    *mut usize,
+    *mut usize
+);
 
 syscall!(
     sys_sendto,

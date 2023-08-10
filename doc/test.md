@@ -185,7 +185,21 @@
 - [x] unixbench  https://www.cnblogs.com/xulan0922/p/11447988.html
 - [x] netperf    https://www.jianshu.com/p/42e0fa6bf79c
   
-- [ ] iperf
+- [x] iperf https://wangchujiang.com/linux-command/c/iperf.html
+
+  ```
+  run_iperf "BASIC_UDP" "-u -b 1000G"
+  run_iperf "BASIC_TCP" ""
+  
+  #parallel test
+  #run_iperf "PARALLEL_UDP" "-u -P 5 -b 1000G"
+  #run_iperf "PARALLEL_TCP" "-P 5"
+  
+  #reverse test (server sends, client recieves)
+  run_iperf "REVERSE_UDP" "-u -R -b 1000G"
+  run_iperf "REVERSE_TCP" "-R"
+  
+  ```
 
 - [x] cyclictest    https://zhuanlan.zhihu.com/p/336381111
 
