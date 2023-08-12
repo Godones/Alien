@@ -249,13 +249,21 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
         let pipe = file.get_file().is_pipe();
         let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64);
         if r.is_err() {
-            res = LinuxErrno::EIO.into();
+            if r.err().unwrap() == "Try Again" {
+                res = LinuxErrno::EAGAIN.into();
+            } else {
+                res = LinuxErrno::EIO.into();
+            }
             break;
         }
         let r = r.unwrap();
         count += r;
         offset += r;
+        // TODO! fix
         if pipe && r != 0 {
+            break;
+        }
+        if r != b.len() {
             break;
         }
     }

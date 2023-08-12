@@ -1,3 +1,5 @@
+use alloc::string::{String, ToString};
+
 use numeric_enum_macro::numeric_enum;
 
 numeric_enum!(
@@ -64,6 +66,66 @@ numeric_enum!(
         ETMP = -255,
     }
 );
+
+impl ToString for LinuxErrno {
+    fn to_string(&self) -> String {
+        match self {
+            LinuxErrno::EPERM => "Operation not permitted".to_string(),
+            LinuxErrno::ENOENT => "No such file or directory".to_string(),
+            LinuxErrno::ESRCH => "No such process".to_string(),
+            LinuxErrno::EINTR => "Interrupted system call".to_string(),
+            LinuxErrno::EIO => "I/O error".to_string(),
+            LinuxErrno::ENXIO => "No such device or address".to_string(),
+            LinuxErrno::E2BIG => "Argument list too long".to_string(),
+            LinuxErrno::ENOEXEC => "Exec format error".to_string(),
+            LinuxErrno::EBADF => "Bad file number".to_string(),
+            LinuxErrno::ECHILD => "No child processes".to_string(),
+            LinuxErrno::EAGAIN => "Try again".to_string(),
+            LinuxErrno::ENOMEM => "Out of memory".to_string(),
+            LinuxErrno::EACCES => "Permission denied".to_string(),
+            LinuxErrno::EFAULT => "Bad address".to_string(),
+            LinuxErrno::ENOTBLK => "Block device required".to_string(),
+            LinuxErrno::EBUSY => "Device or resource busy".to_string(),
+            LinuxErrno::EEXIST => "File exists".to_string(),
+            LinuxErrno::EXDEV => "Cross-device link".to_string(),
+            LinuxErrno::ENODEV => "No such device".to_string(),
+            LinuxErrno::ENOTDIR => "Not a directory".to_string(),
+            LinuxErrno::EISDIR => "Is a directory".to_string(),
+            LinuxErrno::EINVAL => "Invalid argument".to_string(),
+            LinuxErrno::ENFILE => "File table overflow".to_string(),
+            LinuxErrno::EMFILE => "Too many open files".to_string(),
+            LinuxErrno::ENOTTY => "Not a typewriter".to_string(),
+            LinuxErrno::ETXTBSY => "Text file busy".to_string(),
+            LinuxErrno::EFBIG => "File too large".to_string(),
+            LinuxErrno::ENOSPC => "No space left on device".to_string(),
+            LinuxErrno::ESPIPE => "Illegal seek".to_string(),
+            LinuxErrno::EROFS => "Read-only file system".to_string(),
+            LinuxErrno::EMLINK => "Too many links".to_string(),
+            LinuxErrno::EPIPE => "Broken pipe".to_string(),
+            LinuxErrno::EDOM => "Math argument out of domain of func".to_string(),
+            LinuxErrno::ERANGE => "Math result not representable".to_string(),
+            LinuxErrno::ENOSYS => "Function not implemented".to_string(),
+            LinuxErrno::ELOOP => "Too many symbolic links encountered".to_string(),
+            LinuxErrno::EADDRINUSE => "Address already in use".to_string(),
+            LinuxErrno::EPROTONOSUPPORT => "Protocol not supported".to_string(),
+            LinuxErrno::EOPNOTSUPP => "Operation not supported on transport endpoint".to_string(),
+            LinuxErrno::EPFNOSUPPORT => "Protocol family not supported".to_string(),
+            LinuxErrno::EAFNOSUPPORT => "Address family not supported by protocol".to_string(),
+            LinuxErrno::EADDRNOTAVAIL => "Cannot assign requested address".to_string(),
+            LinuxErrno::ENETDOWN => "Network is down".to_string(),
+            LinuxErrno::ENETUNREACH => "Network is unreachable".to_string(),
+            LinuxErrno::ENETRESET => "Network dropped connection because of reset".to_string(),
+            LinuxErrno::ECONNABORTED => "Software caused connection abort".to_string(),
+            LinuxErrno::ECONNRESET => "Connection reset by peer".to_string(),
+            LinuxErrno::ENOBUFS => "No buffer space available".to_string(),
+            LinuxErrno::EISCONN => "Transport endpoint is already connected".to_string(),
+            LinuxErrno::ENOTCONN => "Transport endpoint is not connected".to_string(),
+            LinuxErrno::EINPROGRESS => "Connection already in progress".to_string(),
+            LinuxErrno::ECONNREFUSED => "Connection refused".to_string(),
+            _ => "Unknown error".to_string(),
+        }
+    }
+}
 
 const SYSCALL_GETCWD: usize = 17;
 const SYSCALL_DUP: usize = 23;

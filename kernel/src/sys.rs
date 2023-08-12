@@ -1,12 +1,12 @@
 use core::cmp::min;
 
-use syscall_define::sys::{Rusage, Sysinfo, SyslogAction, TimeVal};
+use syscall_define::sys::{Rusage, RusageFlag, Sysinfo, SyslogAction, TimeVal};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, TASK_MANAGER};
 use crate::timer::{get_time_ms, TimeFromFreq};
-use crate::MACHINE_INFO;
+use crate::{error_unwrap, MACHINE_INFO};
 
 const LOG_BUF_LEN: usize = 4096;
 const LOG: &str = r"
@@ -117,11 +117,10 @@ pub fn sched_setscheduler(_pid: usize, _policy: usize, _param: usize) -> isize {
 }
 
 #[syscall_func(165)]
-pub fn getrusage(who: usize, usage: usize) -> isize {
-    warn!("getrusage: who: {}, usage: {}", who, usage);
-    if who != 0 {
-        panic!("[sys_getrusage] parameter 'who' is not RUSAGE_SELF.");
-    }
+pub fn getrusage(who: isize, usage: usize) -> isize {
+    let who = RusageFlag::try_from(who);
+    error_unwrap!(who, LinuxErrno::EINVAL as isize);
+    warn!("getrusage: who: {:?}, usage: {}", who, usage);
     let task = current_task().unwrap();
     let static_info = task.access_inner().statistical_data().clone();
     let mut task_usage = Rusage::new();

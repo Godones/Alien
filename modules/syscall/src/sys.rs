@@ -143,3 +143,17 @@ impl Rusage {
         }
     }
 }
+
+numeric_enum! {
+    #[repr(isize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum RusageFlag {
+        /// Returns the resource usage of the calling process
+        RusageSelf = 0,
+        /// Returns the resource usage of all children of the calling process that have
+        /// terminated and been waited for
+        RusageChildren = -1,
+        /// Returns the resource usage of the calling thread
+        RusageThread = 1,
+    }
+}
