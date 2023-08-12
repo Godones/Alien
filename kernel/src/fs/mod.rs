@@ -575,7 +575,6 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
     let flag = flag.unwrap();
     warn!("sys_fstateat: path: {}, flag: {:?}", path, flag);
     let res = vfs_getattr::<VfsProvider>(path.as_str(), flag);
-    warn!("sys_fstateat: res: {:?}", res);
     if res.is_err() {
         return LinuxErrno::ENOENT as isize;
     }
@@ -584,6 +583,11 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
     unsafe {
         (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(res);
     }
+    file_stat.st_mode |= 0o755;
+    if file_stat.st_ino == 0 {
+        file_stat.st_ino = 999;
+    }
+    warn!("sys_fstateat: res: {:?}", file_stat);
     process
         .access_inner()
         .copy_to_user(&file_stat, stat as *mut FileStat);
