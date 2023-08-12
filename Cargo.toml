@@ -38,6 +38,7 @@ members = [
     "apps/socket_test",
     "apps/tests",
     "apps/memory-game",
+    "apps/print",
 ]
 
 

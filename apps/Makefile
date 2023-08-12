@@ -28,7 +28,8 @@ BUILD_CRATES := \
 	cat \
 	run_test \
 	tests \
-	sleep\
-	socket_test
+	sleep \
+	socket_test \
+	print
 #	slint \
 #	memory-game\

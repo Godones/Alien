@@ -7,7 +7,7 @@ use syscall_define::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, TeletypeComm
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
-use crate::fs::file::FileIoctlExt;
+use crate::fs::file::{FileIoctlExt, FileSocketExt};
 use crate::fs::vfs::VfsProvider;
 use crate::fs::{user_path_at, AT_FDCWD};
 use crate::task::current_task;
@@ -55,7 +55,17 @@ pub fn fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
                 "fcntl: F_SETFL :{:?}",
                 OpenFlags::from_bits_truncate(arg as u32)
             );
-            file.get_file().access_inner().flags = OpenFlags::from_bits_truncate(arg as u32);
+            let flag = OpenFlags::from_bits_truncate(arg as u32);
+            let real_file = file.get_file();
+            real_file.access_inner().flags = flag;
+            if real_file.is_socket() {
+                let socket = file.get_socketdata();
+                if flag.contains(OpenFlags::O_NONBLOCK) {
+                    socket.set_socket_nonblock(true);
+                } else {
+                    socket.set_socket_nonblock(false);
+                }
+            }
         }
         _ => {
             return LinuxErrno::EINVAL as isize;

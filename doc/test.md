@@ -170,9 +170,11 @@
 ## other
 
 - [x] busybox
+
 - [x] lua
+
 - [x] time-test
-- [x] bash
+
 - [x] iozone
   - [x] ./iozone -a -r 1k -s 4m
   - [x] ./iozone -t 4 -i 0 -i 1 -r 1k -s 1m
@@ -182,7 +184,9 @@
   - [x] ./iozone -t 4 -i 6 -i 7 -r 1k -s 1m
   - [x] ./iozone -t 4 -i 9 -i 10 -r 1k -s 1m
   - [x] ./iozone -t 4 -i 11 -i 12 -r 1k -s 1m
+  
 - [x] unixbench  https://www.cnblogs.com/xulan0922/p/11447988.html
+
 - [x] netperf    https://www.jianshu.com/p/42e0fa6bf79c
   
 - [x] iperf https://wangchujiang.com/linux-command/c/iperf.html
@@ -206,6 +210,10 @@
 - [x] lmbench
 
 - [x] libc-bench
+
+- [x] bash
+
+- [x] redis
 
 
 

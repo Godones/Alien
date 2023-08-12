@@ -137,7 +137,6 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] libc-test
 - [x] busybox
 - [x] lua
-- [x] bash
 - [x] lmbench
 - [x] iozone
 - [x] cyclictest
@@ -145,6 +144,8 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] unixbench
 - [x] netperf
 - [x] iperf
+- [x] bash
+- [x] redis
 
 ## Project Structure
 
