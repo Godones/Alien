@@ -21,39 +21,30 @@ pub fn init_dtb(dtb: Option<usize>) {
 }
 
 /// Get the base address and irq number of the uart device from the device tree.
-///
-/// Return:
-/// (base addr, irq)
-pub fn get_rtc_info() -> Option<(usize, usize)> {
-    let fdt = DTB.get().unwrap();
-    get_device_info(fdt, "rtc")
+pub fn probe_devices_from_dtb() {
+    if let Some(rtc) = probe_rtc() {
+        BOARD_DEVICES.lock().insert(DeviceType::Rtc, rtc);
+    }
+    if let Some(uart) = probe_uart() {
+        BOARD_DEVICES.lock().insert(DeviceType::Uart, uart);
+    }
 }
 
 /// Get the base address and irq number of the uart device from the device tree.
-///
-/// Return:
-/// (base addr, irq)
-pub fn get_uart_info() -> Option<(usize, usize)> {
+pub fn probe_rtc() -> Option<DeviceInfo> {
     let fdt = DTB.get().unwrap();
-    get_device_info(fdt, "serial0")
+    let res = get_device_info(fdt, "rtc");
+    if res.is_none() {
+        return None;
+    }
+    let (base_addr, irq) = res.unwrap();
+    Some(DeviceInfo::new(base_addr, irq))
 }
 
-pub fn get_gpu_info() -> Option<(usize, usize)> {
-    None
-}
-
-pub fn get_keyboard_info() -> Option<(usize, usize)> {
-    None
-}
-
-pub fn get_mouse_info() -> Option<(usize, usize)> {
-    None
-}
-
-pub fn get_block_device_info() -> Option<(usize, usize)> {
-    None
-}
-
-pub fn get_net_device_info() -> Option<(usize, usize)> {
+pub fn probe_uart() -> Option<DeviceInfo> {
+    let fdt = DTB.get().unwrap();
+    if let Some((base_addr, irq)) = get_device_info(fdt, "serial") {
+        return Some(DeviceInfo::new(base_addr, irq));
+    }
     None
 }
