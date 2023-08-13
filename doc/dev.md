@@ -579,3 +579,7 @@ unmatched
 - [x] `getrusage` 允许更多情况
 - [x] `mmap`系统调用可能会操作堆区，因为目前对mmap区域和堆区域是分开管理，后续需要将两者统一抽象，一起管理，目前的做法是特殊判断一下
 - [x] `fcntl`的实现不完整，redis会在socket连接时设置nonblock，开始接收数据后修改为block，这里处理了flag中不包含nonblock的情况。
+
+3. 添加`sqlite3`支持
+
+- [ ] 

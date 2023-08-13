@@ -132,7 +132,7 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] signal
 - [ ] ....
 
-## App
+## App/Test
 
 - [x] libc-test
 - [x] busybox
@@ -146,6 +146,7 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] iperf
 - [x] bash
 - [x] redis
+- [x] sqlite3
 
 ## Project Structure
 

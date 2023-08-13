@@ -2,19 +2,19 @@ use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cmp::min;
 
-use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
+use rvfs::dentry::{LookUpFlags, vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file};
 use rvfs::file::{
-    vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
-    vfs_write_file, FileMode, FileMode2, OpenFlags, SeekFrom,
+    FileMode, FileMode2, OpenFlags, SeekFrom, vfs_close_file, vfs_llseek,
+    vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir, vfs_write_file,
 };
 use rvfs::inode::InodeMode;
-use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
+use rvfs::link::{LinkFlags, vfs_link, vfs_readlink, vfs_symlink, vfs_unlink};
 use rvfs::mount::MountFlags;
-use rvfs::path::{vfs_lookup_path, ParsePathType};
+use rvfs::path::{ParsePathType, vfs_lookup_path};
 use rvfs::stat::{
-    vfs_getattr, vfs_getattr_by_file, vfs_getxattr, vfs_getxattr_by_file, vfs_listxattr,
-    vfs_listxattr_by_file, vfs_removexattr, vfs_removexattr_by_file, vfs_setxattr,
-    vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
+    KStat, StatFlags, vfs_getattr, vfs_getattr_by_file, vfs_getxattr,
+    vfs_getxattr_by_file, vfs_listxattr, vfs_listxattr_by_file, vfs_removexattr,
+    vfs_removexattr_by_file, vfs_setxattr, vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file,
 };
 use rvfs::superblock::StatFs;
 
@@ -121,6 +121,9 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     let mut file_mode = FileMode::from(file_mode);
     let mut flag = OpenFlags::from_bits(flag as u32).unwrap();
     let process = current_task().unwrap();
+    if path == 0 {
+        return LinuxErrno::EFAULT.into();
+    }
     let path = process.transfer_str(path as *const u8);
     let path = user_path_at(dirfd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
@@ -320,7 +323,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-    .unwrap();
+        .unwrap();
 
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
