@@ -27,7 +27,7 @@ BUILD_CRATES := \
 	tests \
 	sleep \
 	socket_test \
-	print \
-	slint \
-	memory-game \
-	guitest
+	print 
+#	slint \
+#	memory-game \
+#	guitest

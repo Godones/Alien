@@ -32,7 +32,7 @@ fn main() {
 }
 
 pub fn rewrite_config() {
-    let cpus = option_env!("SMP").unwrap_or("4");
+    let cpus = option_env!("SMP").unwrap_or("1");
     let cpus = cpus.parse::<usize>().unwrap();
     let config_file = Path::new("src/config.rs");
     let config = fs::read_to_string(config_file).unwrap();
