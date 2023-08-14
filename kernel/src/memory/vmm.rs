@@ -394,7 +394,7 @@ pub fn build_elf_address_space(
             let mut data =
                 &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
             let map_info = address_space
-                .map_region_no_target(vaddr, len, permission, true, false)
+                .map_region_no_target(vaddr, len, permission, false, false)
                 .unwrap();
             // copy data
             let mut page_offset = start_addr & (FRAME_SIZE - 1);
