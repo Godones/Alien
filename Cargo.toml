@@ -20,6 +20,8 @@ members = [
     "apps/slint-helper",
     "apps/cat",
     "apps/sleep",
+    "apps/todo",
+    "apps/printdemo",
     #    "apps/dbfs",
     "apps/init",
     "apps/ls",
