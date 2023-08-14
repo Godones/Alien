@@ -17,6 +17,7 @@ members = [
     "modules/input2event",
     "modules/uart",
     "modules/simple-net",
+    "apps/slint-helper",
     "apps/cat",
     "apps/sleep",
     #    "apps/dbfs",
