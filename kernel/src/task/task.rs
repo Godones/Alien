@@ -989,6 +989,12 @@ impl TaskInner {
         if start == 0 && flags.contains(MapFlags::MAP_FIXED) {
             return Err(LinuxErrno::EINVAL as isize);
         }
+
+        // if the map in heap, now we ignore it
+        if self.heap.lock().contains(start) && self.heap.lock().contains(start + len) {
+            return Ok(start);
+        }
+
         // not map to file
         let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
             None
@@ -1420,7 +1426,7 @@ impl Task {
                     affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
                     affinity
                 },
-                unmask: 0o666,
+                unmask: 0o022,
                 stack: stack_info,
                 need_wait: 0,
             }),
@@ -1606,7 +1612,7 @@ impl Task {
                     affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
                     affinity
                 },
-                unmask: 0o666,
+                unmask: 0o022,
                 stack: inner.stack.clone(),
                 need_wait: 0,
             }),

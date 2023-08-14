@@ -5,12 +5,21 @@ use buddy_system_allocator::LockedHeap;
 
 use crate::common::FRAME_SIZE;
 use crate::memory::sbrk;
-use crate::println;
 
 #[global_allocator]
-static HEAP: BuddyAllocator = BuddyAllocator::new();
+pub static HEAP: BuddyAllocator = BuddyAllocator::new();
 
-struct BuddyAllocator {
+// static mut HEAP_BUFFER: [u8; 1024 * 1024 * 16] = [0; 1024 * 1024 * 16];
+
+pub fn init_heap() {
+    // unsafe {
+    //     HEAP.heap
+    //         .lock()
+    //         .init(HEAP_BUFFER.as_ptr() as usize, HEAP_BUFFER.len());
+    // }
+}
+
+pub struct BuddyAllocator {
     heap: LockedHeap<32>,
 }
 
@@ -31,7 +40,7 @@ unsafe impl GlobalAlloc for BuddyAllocator {
             let size = (size + FRAME_SIZE - 1) / FRAME_SIZE * FRAME_SIZE * 2;
             let res = sbrk(size as isize);
             if res == -1 {
-                panic!("oom");
+                panic!("can't alloc, oom");
             }
             let res = res as usize;
             self.heap.lock().add_to_heap(res, res + size);
@@ -46,6 +55,7 @@ unsafe impl GlobalAlloc for BuddyAllocator {
                 panic!("oom");
             }
         }
+        // self.heap.lock().alloc(layout).unwrap().as_ptr()
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         self.heap.lock().dealloc(NonNull::new(ptr).unwrap(), layout);

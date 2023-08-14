@@ -99,6 +99,15 @@ make unmatched LOG= UNMATCHED=y SMP=2
 
 目前cv1811h开发板可以上板启动，但是我们暂时没有处理其需要的特殊页表项。对于visionfive2和unmatched，可以启动并运行bash。
 
+
+
+## GDB
+
+1. `gdb-server`
+2. `gdb-client`
+
+
+
 ## Doc
 
 [文件系统接口](./doc/fs.md)
@@ -132,12 +141,11 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] signal
 - [ ] ....
 
-## App
+## App/Test
 
 - [x] libc-test
 - [x] busybox
 - [x] lua
-- [x] bash
 - [x] lmbench
 - [x] iozone
 - [x] cyclictest
@@ -145,6 +153,9 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] unixbench
 - [x] netperf
 - [x] iperf
+- [x] bash
+- [x] redis
+- [x] sqlite3
 
 ## Project Structure
 

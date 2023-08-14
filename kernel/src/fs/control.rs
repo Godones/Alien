@@ -7,7 +7,7 @@ use syscall_define::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, TeletypeComm
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
-use crate::fs::file::FileIoctlExt;
+use crate::fs::file::{FileIoctlExt, FileSocketExt};
 use crate::fs::vfs::VfsProvider;
 use crate::fs::{user_path_at, AT_FDCWD};
 use crate::task::current_task;
@@ -55,7 +55,20 @@ pub fn fcntl(fd: usize, cmd: usize, arg: usize) -> isize {
                 "fcntl: F_SETFL :{:?}",
                 OpenFlags::from_bits_truncate(arg as u32)
             );
-            file.get_file().access_inner().flags = OpenFlags::from_bits_truncate(arg as u32);
+            let flag = OpenFlags::from_bits_truncate(arg as u32);
+            let real_file = file.get_file();
+            real_file.access_inner().flags = flag;
+            if real_file.is_socket() {
+                let socket = file.get_socketdata();
+                if flag.contains(OpenFlags::O_NONBLOCK) {
+                    socket.set_socket_nonblock(true);
+                } else {
+                    socket.set_socket_nonblock(false);
+                }
+            }
+        }
+        Fcntl64Cmd::GETLK | Fcntl64Cmd::SETLK | Fcntl64Cmd::SETLKW => {
+            warn!("fcntl: GETLK SETLK SETLKW now ignored");
         }
         _ => {
             return LinuxErrno::EINVAL as isize;
@@ -163,7 +176,7 @@ pub fn faccessat(dirfd: isize, path: usize, mode: usize, flag: usize) -> isize {
     let path = task.transfer_str(path as *const u8);
     let path = user_path_at(dirfd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
-        return -1;
+        return LinuxErrno::ENOENT.into();
     }
     let path = path.unwrap();
     let mode = FaccessatMode::from_bits_truncate(mode as u32);
@@ -174,7 +187,7 @@ pub fn faccessat(dirfd: isize, path: usize, mode: usize, flag: usize) -> isize {
     );
     let file = vfs_open_file::<VfsProvider>(&path, OpenFlags::O_RDONLY, FileMode::FMODE_RDWR);
     if file.is_err() {
-        return -1;
+        return LinuxErrno::ENOENT.into();
     }
     0
 }
@@ -186,6 +199,11 @@ pub fn chmod(_fd: usize, _mode: usize) -> isize {
 
 #[syscall_func(53)]
 pub fn chmodat() -> isize {
+    0
+}
+
+#[syscall_func(55)]
+pub fn fchown() -> isize {
     0
 }
 

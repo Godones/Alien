@@ -19,6 +19,10 @@ impl Display {
         let fb = frame_buffer();
         Self { size, point, fb }
     }
+
+    pub fn flush(&self) {
+        flush_frame_buffer();
+    }
 }
 
 impl OriginDimensions for Display {

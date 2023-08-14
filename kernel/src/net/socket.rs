@@ -5,6 +5,7 @@ use core::net::SocketAddr;
 
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
+use rvfs::inode::SpecialData;
 use rvfs::mount::VfsMount;
 use rvfs::superblock::{DataOps, Device};
 use rvfs::StrResult;
@@ -116,6 +117,11 @@ impl SocketData {
             file_ext_ops.is_ready_write = socket_ready_to_write;
             file_ext_ops
         };
+        file.f_dentry
+            .access_inner()
+            .d_inode
+            .access_inner()
+            .special_data = Some(SpecialData::Socket);
         file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket_data);
         Ok(Arc::new(file))
     }
@@ -145,6 +151,11 @@ impl SocketData {
             file_ext_ops.is_ready_write = socket_ready_to_write;
             file_ext_ops
         };
+        file.f_dentry
+            .access_inner()
+            .d_inode
+            .access_inner()
+            .special_data = Some(SpecialData::Socket);
         file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket_data);
         Arc::new(file)
     }
@@ -423,9 +434,13 @@ fn socket_file_read(file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<
     let inode_inner = dentry_inner.d_inode.access_inner();
     let data = inode_inner.data.as_ref().unwrap();
     let socket = SocketData::from_ptr(data.data());
-    warn!("socket_file_read: {:?}", buf.len());
-    socket
-        .recvfrom(buf, 0)
-        .map(|x| x.0)
-        .map_err(|_| "Net Error")
+    let res = socket.recvfrom(buf, 0).map(|x| x.0).map_err(|x| {
+        error!("socket_file_read: {:?}", x);
+        match x {
+            LinuxErrno::EAGAIN => "Try Again",
+            _ => "Net Error",
+        }
+    });
+    warn!("socket_file_read: {:?}, indeed {:?}", buf.len(), res);
+    res
 }

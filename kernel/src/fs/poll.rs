@@ -10,9 +10,9 @@ use crate::timer::TimeSpec;
 
 /// Reference:https://man7.org/linux/man-pages/man2/ppoll.2.html
 #[syscall_func(73)]
-pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, mask: usize) -> isize {
-    assert_eq!(time, 0);
-    assert_eq!(mask, 0);
+pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, _mask: usize) -> isize {
+    // assert_eq!(time, 0);
+    // assert_eq!(mask, 0);
     let task = current_task().unwrap();
     let mut fds = Vec::<PollFd>::with_capacity(nfds);
     task.access_inner()
