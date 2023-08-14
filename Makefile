@@ -10,7 +10,7 @@ BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/sdcard.img
-SMP ?= 4
+SMP ?= 1
 GUI ?=n
 NET ?=y
 #IMG1 := tools/fs1.img
@@ -100,7 +100,7 @@ trace_info:
 user:
 	@cd apps && make all
 
-sdcard:$(img) testelf user
+sdcard:fat32 testelf user
 
 run:sdcard install compile
 	@echo qemu booot $(SMP)
@@ -150,16 +150,10 @@ f_test:
 	    -device virtio-net-device,netdev=net -netdev user,id=net
 
 testelf:
-	@#sudo mkdir /fat/ostest
-	@#sudo cp test/* /fat/ostest -r
-	@#sudo mkdir /fat/libc
 	if [ -d "sdcard" ]; then \
 		sudo cp sdcard/* /fat -r; \
 		sudo cp sdcard/* /fat/bin -r;\
 	fi
-	#if [ -d "tools/siglibc" ]; then \
-#		sudo cp tools/siglibc/build/* /fat/libc -r; \
-#	fi
 	@sync
 
 dtb:
@@ -200,27 +194,20 @@ img-hex:
 	@hexdump $(IMG) > test.hex
 	@cat test.hex
 
-gdb-server:
+gdb-server: sdcard install compile
 	@qemu-system-riscv64 \
-            -M virt $(1)\
+            -M virt\
             -bios $(BOOTLOADER) \
             -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
             -drive file=$(IMG),if=none,format=raw,id=x0 \
             -device virtio-blk-device,drive=x0 \
-            -nographic \
+			-$(QEMU_ARGS) \
             -kernel  kernel-qemu\
-            -smp 1 -m 128M \
+            -smp 1 -m 1024M \
             -s -S
 
-debug: compile $(img) user
-	@tmux new-session -d \
-		"qemu-system-riscv64 -machine virt -nographic -bios $(BOOTLOADER) -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
-		-drive file=$(IMG),if=none,format=raw,id=x0  -device virtio-blk-device,drive=x0 -smp 1 -m 128M -s -S" && \
-		tmux split-window -h "riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'" && \
-		tmux -2 attach-session -d
-
 gdb-client:
-	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL_FILE)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
+	@riscv64-unknown-elf-gdb -ex 'file kernel-qemu' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
 kernel_asm:
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/boot > kernel.asm
