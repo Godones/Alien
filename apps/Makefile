@@ -7,9 +7,7 @@ APPS_NAME := $(shell ls -d */ | cut -d '/' -f 1)
 
 
 all:build
-	@# move to /fat32
 	@echo "Moving apps to /fat32/bin"
-	@#$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) /fat/$(dir););)
 	@$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) /fat/bin/$(dir););)
 	@sync
 
@@ -17,7 +15,6 @@ all:build
 build:
 	@echo "Building apps"
 	@$(foreach dir, $(BUILD_CRATES), (cd $(dir) && $(compile) && cd ..);)
-	@#$(foreach dir, $(BUILD_CRATES), echo $(dir);)
 
 
 BUILD_CRATES := \
@@ -28,7 +25,9 @@ BUILD_CRATES := \
 	cat \
 	run_test \
 	tests \
-	sleep\
-	socket_test
+	sleep \
+	socket_test \
+	print
 #	slint \
-#	memory-game\
+#	memory-game \
+#	guitest

@@ -47,8 +47,8 @@ fn clear_bss() {
 fn main(_: usize, _: usize) -> ! {
     // on visionfive2
     // if we don't call clear_bss before load STARTED, the kernel may be freeze
-    clear_bss();
     if !STARTED.load(Ordering::Relaxed) {
+        clear_bss();
         println!("{}", config::FLAG);
         cfg_if! {
             if #[cfg(not(feature = "qemu"))] {
@@ -94,9 +94,6 @@ fn main(_: usize, _: usize) -> ! {
         thread_local_init();
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
-        loop {
-            spin_loop();
-        }
     }
     timer::set_next_trigger();
     println!("begin run task...");

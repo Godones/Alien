@@ -6,8 +6,7 @@ pub use block::{BlockDevice, BLOCK_DEVICE};
 pub use gpu::{GpuDevice, GPU_DEVICE};
 pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 
-use crate::board::get_rtc_info;
-use crate::device::net::NetNeedFunc;
+use crate::board::{get_rtc_info, probe_devices_from_dtb};
 use crate::driver::rtc::Rtc;
 use crate::driver::uart::Uart;
 use crate::driver::GenericBlockDevice;
@@ -26,7 +25,30 @@ mod pci;
 mod rtc;
 mod uart;
 
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq, Hash, Ord, Eq)]
+pub enum DeviceType {
+    Block,
+    GPU,
+    KeyBoardInput,
+    MouseInput,
+    Network,
+    Uart,
+    Rtc,
+}
+
+pub struct DeviceInfo {
+    pub base_addr: usize,
+    pub irq: usize,
+}
+
+impl DeviceInfo {
+    pub fn new(base_addr: usize, irq: usize) -> Self {
+        Self { base_addr, irq }
+    }
+}
+
 pub fn init_device() {
+    probe_devices_from_dtb();
     init_uart();
     init_gpu();
     init_keyboard_input_device();
@@ -34,7 +56,6 @@ pub fn init_device() {
     init_rtc();
     init_net();
     // in qemu, we can't init block device before other virtio device now
-    // todo!(fix device tree probe methods)
     init_block_device();
     // init_pci();
 }
@@ -199,6 +220,7 @@ fn init_net() {
     println!("Init net device, base_addr:{:#x},irq:{}", base_addr, irq);
     #[cfg(feature = "qemu")]
     {
+        use crate::device::net::NetNeedFunc;
         use crate::driver::net::VirtIONetDeviceWrapper;
         let mut net_device = VirtIONetDeviceWrapper::from_addr(base_addr);
         // let _ = register_device_to_plic(irq, net_device);

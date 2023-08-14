@@ -121,6 +121,9 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     let mut file_mode = FileMode::from(file_mode);
     let mut flag = OpenFlags::from_bits(flag as u32).unwrap();
     let process = current_task().unwrap();
+    if path == 0 {
+        return LinuxErrno::EFAULT.into();
+    }
     let path = process.transfer_str(path as *const u8);
     let path = user_path_at(dirfd, &path, LookUpFlags::empty()).map_err(|_| -1);
     if path.is_err() {
@@ -249,13 +252,21 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
         let pipe = file.get_file().is_pipe();
         let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64);
         if r.is_err() {
-            res = LinuxErrno::EIO.into();
+            if r.err().unwrap() == "Try Again" {
+                res = LinuxErrno::EAGAIN.into();
+            } else {
+                res = LinuxErrno::EIO.into();
+            }
             break;
         }
         let r = r.unwrap();
         count += r;
         offset += r;
+        // TODO! fix
         if pipe && r != 0 {
+            break;
+        }
+        if r != b.len() {
             break;
         }
     }
@@ -567,7 +578,6 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
     let flag = flag.unwrap();
     warn!("sys_fstateat: path: {}, flag: {:?}", path, flag);
     let res = vfs_getattr::<VfsProvider>(path.as_str(), flag);
-    warn!("sys_fstateat: res: {:?}", res);
     if res.is_err() {
         return LinuxErrno::ENOENT as isize;
     }
@@ -576,6 +586,11 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
     unsafe {
         (&mut file_stat as *mut FileStat as *mut usize as *mut KStat).write(res);
     }
+    file_stat.st_mode |= 0o755;
+    if file_stat.st_ino == 0 {
+        file_stat.st_ino = 999;
+    }
+    warn!("sys_fstateat: res: {:?}", file_stat);
     process
         .access_inner()
         .copy_to_user(&file_stat, stat as *mut FileStat);

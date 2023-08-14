@@ -298,7 +298,7 @@ pub fn getsockopt(
     level: usize,
     opt_name: usize,
     opt_value: usize,
-    _opt_len: u32,
+    opt_len: usize,
 ) -> isize {
     let socket_fd = common_socket_syscall(socketfd);
     error_unwrap!(socket_fd, socket_fd.err().unwrap());
@@ -312,22 +312,34 @@ pub fn getsockopt(
             error_unwrap!(opt_name, LinuxErrno::EINVAL.into());
             warn!("[getsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
             match opt_name {
-                SocketOption::SOL_RCVBUF => {
+                SocketOption::SO_RCVBUF => {
                     let opt_value_ref = current_task()
                         .unwrap()
                         .access_inner()
                         .transfer_raw_ptr_mut(opt_value as *mut u32);
                     *opt_value_ref = simple_net::common::SOCKET_RECV_BUFFER_SIZE as u32;
                 }
-                SocketOption::SOL_SNDBUF => {
+                SocketOption::SO_SNDBUF => {
                     let opt_value_ref = current_task()
                         .unwrap()
                         .access_inner()
                         .transfer_raw_ptr_mut(opt_value as *mut u32);
                     *opt_value_ref = simple_net::common::SOCKET_SEND_BUFFER_SIZE as u32;
                 }
+                SocketOption::SO_ERROR => {
+                    let opt_value_ref = current_task()
+                        .unwrap()
+                        .access_inner()
+                        .transfer_raw_ptr_mut(opt_value as *mut u32);
+                    *opt_value_ref = 0;
+                }
                 _ => {}
             }
+            let opt_len_ref = current_task()
+                .unwrap()
+                .access_inner()
+                .transfer_raw_ptr_mut(opt_len as *mut u32);
+            *opt_len_ref = core::mem::size_of::<u32>() as u32;
         }
         SocketLevel::Tcp => {
             let opt_name = TcpSocketOption::try_from(opt_name);
