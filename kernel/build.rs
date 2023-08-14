@@ -1,3 +1,4 @@
+use std::{format, fs};
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -7,7 +8,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::string::{String, ToString};
 use std::vec::Vec;
-use std::{format, fs};
 
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/");
@@ -92,11 +92,18 @@ pub fn scan_and_generate(path: String) {
 
 fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
     let entries = fs::read_dir(dir).unwrap();
-    for entry in entries {
-        let entry = entry.unwrap();
-        let path = entry.path();
+
+    let paths = entries.map(|entry| entry.unwrap().path()).collect::<Vec<PathBuf>>();
+    // sort the paths
+    let mut paths = paths.iter().collect::<Vec<&PathBuf>>();
+    paths.sort();
+
+
+    for path in paths {
+        // let entry = entry.unwrap();
+        // let path = entry.path();
         if path.is_dir() {
-            scan(import, context, path);
+            scan(import, context, path.clone());
         } else {
             if path.extension().unwrap() == "rs" {
                 let file = File::open(path.clone()).unwrap();
@@ -136,8 +143,7 @@ fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                             component.len() - 1
                         };
                         for i in 0..correct {
-                            if component[i] == "src" {
-                            } else {
+                            if component[i] == "src" {} else {
                                 mod_name.push_str("::");
                                 if component[i].ends_with(".rs") {
                                     mod_name.push_str(component[i].strip_suffix(".rs").unwrap());

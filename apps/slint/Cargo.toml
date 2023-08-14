@@ -12,3 +12,4 @@ input2event = { path = "../../modules/input2event" }
 slint-helper = { path = "../slint-helper" }
 [build-dependencies]
 slint-build = "1.1.1"
+

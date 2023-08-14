@@ -30,4 +30,6 @@ BUILD_CRATES := \
 	print \
 	slint \
 	memory-game \
+	printdemo \
+	todo \
 #	guitest
