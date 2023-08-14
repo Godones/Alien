@@ -22,7 +22,7 @@ pub const STACK_SIZE: usize = 1024 * 64;
 pub const STACK_SIZE_BITS: usize = 16;
 
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
-pub const CPU_NUM: usize = 1;
+pub const CPU_NUM: usize = 2;
 
 #[cfg(feature = "qemu")]
 pub const MMIO: &[(usize, usize)] = &[
