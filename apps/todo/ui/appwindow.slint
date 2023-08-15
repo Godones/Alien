@@ -10,8 +10,8 @@ export struct TodoItem  {
 }
 
 component MainWindow inherits Window {
-    preferred-width: 1280px;
-    preferred-height: 800px;
+    width: 1280px;
+    height: 800px;
     callback todo-added(string);
     callback remove-done();
 
@@ -109,7 +109,6 @@ component MainWindow inherits Window {
                 }
             }
         }
-        AboutSlint { }
         HorizontalBox {
             alignment: end;
             Button {

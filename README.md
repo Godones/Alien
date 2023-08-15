@@ -2,7 +2,7 @@
 
 A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os, so the system is composed of a series of independent modules. At present, the system already supports user-mode programs and some simple functions.
 
-![image-20230607222452791](assert/image-20230607222452791.png)
+![image-20230815132104606](assert/image-20230815132104606.png)
 
 ## Modules
 
@@ -46,7 +46,7 @@ Other modules are not listed here, you can find them in the cargo.toml file.
 2. install rust nightly
 
 ```
-make run LOG=WARN img=fat32 SMP=1 GUI=n
+make run LOG=WARN SMP=1
 ```
 
 如果只想重新构建`kernel`而不改变测试程序，可以使用：
@@ -58,20 +58,20 @@ make build SMP=1 LOG=WARN
 使用已经编译好的程序运行而不是再次编译可以使用：
 
 ```
-make fake_run GUI=n SMP=1
+make fake_run SMP=1
 ```
 
 ### Run with Gui
 
 ```
-make run LOG=WARN img=fat32 SMP=1 GUI=y
-./slint or ./guitest
+make run LOG=WARN SMP=1 GUI=y
+slint or guitest or todo or printdemo or memorygame or ...
 ```
 
 ### Run VisionFive2
 
 ```
-make sdcard img=fat32 
+make sdcard
 // 制作fat32
 make vf2 LOG=WARN VF2=y SMP=2
 // 生成testos.bin
@@ -81,7 +81,7 @@ make vf2 LOG=WARN VF2=y SMP=2
 ### Run cv1811h
 
 ```
-make sdcard img=fat32 
+make sdcard 
 // 制作fat32
 make vf2 LOG=WARN CV1811h=y SMP=1 
 // 等待修复
@@ -90,7 +90,7 @@ make vf2 LOG=WARN CV1811h=y SMP=1
 ## Run Unmatched
 
 ```
-make sdcard img=fat32 
+make sdcard
 // 制作fat32
 make unmatched LOG= UNMATCHED=y SMP=2
 // 生成testos.bin
@@ -156,6 +156,8 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] bash
 - [x] redis
 - [x] sqlite3
+- [x] slint gui
+- [x] embedded graphic gui
 
 ## Project Structure
 
