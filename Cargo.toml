@@ -22,6 +22,8 @@ members = [
     "apps/sleep",
     "apps/todo",
     "apps/printdemo",
+    "apps/egui",
+    "apps/sysinfo",
     #    "apps/dbfs",
     "apps/init",
     "apps/ls",

@@ -3,7 +3,7 @@ compile := cargo build --release
 mode := release
 target := ../target/riscv64gc-unknown-none-elf/$(mode)/
 APPS_NAME := $(shell ls -d */ | cut -d '/' -f 1)
-
+GUI ?=n
 
 
 all:build
@@ -28,8 +28,13 @@ BUILD_CRATES := \
 	sleep \
 	socket_test \
 	print \
-	slint \
-	memory-game \
-	printdemo \
-	todo \
-#	guitest
+
+ifeq ($(GUI),y)
+	BUILD_CRATES += sysinfo \
+					slint \
+					memory-game \
+					printdemo \
+					todo \
+					egui \
+					guitest
+endif

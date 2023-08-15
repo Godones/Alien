@@ -178,7 +178,7 @@ fat32:
 		rm $(IMG); \
 		touch $(IMG); \
 	fi
-	@dd if=/dev/zero of=$(IMG) bs=1M count=256
+	@dd if=/dev/zero of=$(IMG) bs=1M count=128
 	@mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
 		sudo umount /fat; \
