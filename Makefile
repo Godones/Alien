@@ -214,7 +214,8 @@ kernel_asm:
 	@vim kernel.asm
 	@rm kernel.asm
 
-
+docs:
+	cargo doc --open --no-deps -p kernel --target riscv64gc-unknown-none-elf --features $(FEATURES)
 clean:
 	@cargo clean
 	@rm riscv.*

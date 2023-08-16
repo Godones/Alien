@@ -109,7 +109,7 @@ pub fn register_all_syscall(){
 	(94, exit_group),
 	(124, do_suspend),
 	(154, set_pgid),
-	(155, git_pgid),
+	(155, get_pgid),
 	(157, set_sid),
 	(172, get_pid),
 	(173, get_ppid),
@@ -247,6 +247,7 @@ use crate::task::do_exec;
 use crate::task::do_exit;
 use crate::task::do_suspend;
 use crate::task::exit_group;
+use crate::task::get_pgid;
 use crate::task::get_pid;
 use crate::task::get_ppid;
 use crate::task::get_tid;
@@ -254,7 +255,6 @@ use crate::task::getegid;
 use crate::task::geteuid;
 use crate::task::getgid;
 use crate::task::getuid;
-use crate::task::git_pgid;
 use crate::task::prlimit64;
 use crate::task::set_pgid;
 use crate::task::set_sid;
