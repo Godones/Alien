@@ -58,6 +58,7 @@ fn vfs_statfs2fsstat(vfs_res: StatFs) -> FsStat {
     }
 }
 
+/// (待支持) 一个系统调用，用于将一个设备(通常是存储设备)挂载到一个已经存在的目录上，可以挂载文件系统。
 #[syscall_func(40)]
 pub fn sys_mount(
     special: *const u8,
@@ -99,6 +100,7 @@ pub fn sys_mount(
     0
 }
 
+/// (待支持) 一个系统调用，用于取消一个目录上的文件挂载(卸载一个文件系统)。
 #[syscall_func(39)]
 pub fn sys_umount(dir: *const u8) -> isize {
     let process = current_task().unwrap();
@@ -113,7 +115,26 @@ pub fn sys_umount(dir: *const u8) -> isize {
     0
 }
 
-/// Reference: https://man7.org/linux/man-pages/man2/openat.2.html
+/// 一个系统调用，用于打开相对于一个目录某位置处的另一个文件。
+/// 
+/// 当传入的`path`是一个相对地址时，那么`path`会被解析成基于文件描述符`dirfd`
+/// 所指向的目录地址的一个地址；当传入的`path`是一个相对地址并且
+/// `dirfd`被特殊的设置为`AT_FDCWD`时，`path`会
+/// 被解析成基于调用该系统调用的进程当前工作目录的一个地址；
+/// 当传入的`path`是一个绝对地址时，`dirfd`将被直接忽略。
+/// 
+/// 在`Alien`使用的`rvfs`中，对一个文件路径`path`是相对路径还是绝对路径的的判断条件如下：
+/// + 绝对路径：以`\`开头，如`\file1.txt`，表示根目录下的`file1.txt`文件；
+/// + 相对路径: 以`.\`或者`..\`或者其它开头，如`.\file1.txt`，表示`dirfd`所指向的目录下的`file1.txt`文件。
+/// 
+/// `sys_openat`对flag的相关规定和`sys_open`对flag的规定相同，
+/// 可以通过下面的参考链接查看。
+/// 
+/// 如果成功打开文件，`sys_openat`将返回一个新的文件描述符；否则返回-1或错误类型。
+/// 出错的情况大致包括：当`path`是一个相对地址，`dirfd`所指向的文件不是一个目录文件；
+/// `dirfd`不是一个有效的文件描述符等。
+/// 
+/// Reference: [openat](https://man7.org/linux/man-pages/man2/openat.2.html)
 #[syscall_func(56)]
 pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize {
     // we don't support mode yet
@@ -157,6 +178,14 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     }
 }
 
+/// 一个系统调用，用于关闭一个文件描述符，以便回收该文件描述符。
+///
+/// 传入的文件描述符`fd`指向要关闭的文件。如果`fd`所指向的文件已经被`unlink`，
+/// 那么在关闭文件描述符后，还将继续执行`unlink`，删除该文件链接，并回收相应的存储空间。
+/// 
+/// 如果`sys_close`成功关闭文件描述符，将返回0，否则-1或返回错误的类型。
+/// 
+/// Reference: [close](https://man7.org/linux/man-pages/man2/close.2.html)
 #[syscall_func(57)]
 pub fn sys_close(fd: usize) -> isize {
     let process = current_task().unwrap();
@@ -182,6 +211,16 @@ pub fn sys_close(fd: usize) -> isize {
     0
 }
 
+/// 一个系统调用，用于读取文件的目录项信息。
+/// 
+/// 参数：
+/// + `fd`: 用于指明操作文件的文件描述符。
+/// + `buf`: 用于指明一块缓冲区，保存获取到的目录项信息。
+/// + `len`: 用于指明缓冲区的长度。
+/// 
+/// 若获取文件的目录项信息成功，则返回获取信息的长度(字节数)；否则返回 -1 表示获取相关信息失败。
+/// 
+/// Reference: [sys_getdents](https://man7.org/linux/man-pages/man2/getdents.2.html)
 #[syscall_func(61)]
 pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
     let process = current_task().unwrap();
@@ -206,6 +245,14 @@ pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> isize {
     res.unwrap() as isize
 }
 
+/// 一个系统调用，用于将一个文件的大小截断到一个指定长度。与 [`sys_ftruncate`] 功能类似。
+/// 
+/// `path` 用于指明要截断文件的路径，`len` 用于指明要截断到的长度。
+/// 当文件长度小于 `len` 时，多余的部分填充为'\0'；当文件长度大于 `len` 时，多余的数据将会被直接舍弃。
+/// 
+/// 需保证该 `path` 所指出的文件必须是可写的。此外，该调用对于文件的偏移量 offset 将不会改变。
+/// 
+/// 当截断成功时，返回 0；否则返回 -1 表示截断出现错误。
 /// Reference: https://man7.org/linux/man-pages/man2/truncate64.2.html
 #[syscall_func(45)]
 pub fn sys_truncate(path: usize, len: usize) -> isize {
@@ -218,6 +265,15 @@ pub fn sys_truncate(path: usize, len: usize) -> isize {
     0
 }
 
+/// 一个系统调用，用于将一个文件的大小截断到一个指定长度。与 [`sys_truncate`] 功能类似。
+/// 
+/// `fd` 用于指明要截断文件的文件描述符，`len` 用于指明要截断到的长度。
+/// 当文件长度小于 `len` 时，多余的部分填充为'\0'；当文件长度大于 `len` 时，多余的数据将会被直接舍弃。
+/// 
+/// 需保证该 `fd` 所指出的文件必须是打开的。此外，该调用对于文件的偏移量 offset 将不会改变。
+/// 
+/// 当截断成功时，返回 0；否则返回 -1 表示截断出现错误。
+/// Reference: https://man7.org/linux/man-pages/man2/truncate64.2.html
 #[syscall_func(46)]
 pub fn sys_ftruncate(fd: usize, len: usize) -> isize {
     let process = current_task().unwrap();
@@ -233,6 +289,12 @@ pub fn sys_ftruncate(fd: usize, len: usize) -> isize {
     0
 }
 
+/// 一个系统调用，用于从一个打开的文件描述符中读取文件内容。对于每个打开的文件描述符都具有一个偏移量，读取将从该偏移位置开始。
+/// 
+/// `fd` 指明了要读取并且已经打开的文件的文件描述符，`buf` 指明了读取内容后所要保存的位置，
+/// `len` 指明了缓冲区 `buf` 的大小(即最多读取的内容长度)
+/// 
+/// 读取完成后，将返回读取内容的长度(字节数)；如果发生错误，将返回错误类型。
 #[syscall_func(63)]
 pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let process = current_task().unwrap();
@@ -265,6 +327,12 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     count as isize
 }
 
+/// 一个系统调用，用于向一个打开的文件描述符中写入内容。对于每个打开的文件描述符都具有一个偏移量，写入将从该偏移位置开始。
+/// 
+/// `fd` 指明了要写入并且已经打开的文件的文件描述符，`buf` 指明了要写入的内容在内存中保存的位置，
+/// `len` 指明了缓冲区 `buf` 的大小(即所要写入的内容长度)
+/// 
+/// 写入完成后，将返回写入内容的长度(字节数)；如果发生错误，将返回错误类型。
 #[syscall_func(64)]
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     // warn!("sys_write is not implemented yet");
@@ -300,6 +368,10 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     count as isize
 }
 
+/// 一个系统调用，用于获取当前工作目录。
+/// 获取的工作目录将直接保存在 `buf` 所指向的缓冲区中，`len` 用于指明 `buf` 的长度。
+///
+/// 获取当前目录成功后，返回 `buf` 的首地址。当 `buf` 为空指针时，会导致函数 panic。
 #[syscall_func(17)]
 pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     assert!(!buf.is_null());
@@ -329,6 +401,9 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
     buf[0].as_ptr() as isize
 }
 
+/// 一个系统调用，用于切换当前工作目录。`path` 指出要切换到的工作目录。
+///
+/// 切换工作目录成功后，将返回 0；当输入的 path 不是一个合法的目录项时，会返回 -1 表示切换目录错误。
 #[syscall_func(49)]
 pub fn sys_chdir(path: *const u8) -> isize {
     let process = current_task().unwrap();
@@ -351,6 +426,7 @@ pub fn sys_chdir(path: *const u8) -> isize {
     0
 }
 
+/// 一个系统调用，用于在 path 路径下创建一个空的目录。创建成功返回 0；否则返回 -1。
 #[syscall_func(83)]
 pub fn sys_mkdir(path: *const u8) -> isize {
     info!("sys_mkdir");
@@ -363,6 +439,17 @@ pub fn sys_mkdir(path: *const u8) -> isize {
     0
 }
 
+/// 一个系统调用，用于调整一个已经打开的文件描述符的偏移量。文件描述符的偏移量用于确定读写文件时操作的位置。
+///
+/// 参数：
+/// + `fd`: 指明要操作的文件描述符；
+/// + `offset`: 指明要调整的偏移量，实际要调整到的位置和 `whence` 的取值有关。
+/// + `whence`: 用于定义参数 offset 偏移量对应的参考值，可以取的值及其含义如下：(详情可见 [`SeekFrom`])
+///     + `SEEK_SET`: 读写偏移量将指向 offset 字节位置处（从文件头部开始算）；
+///     + `SEEK_CUR`: 读写偏移量将指向当前位置偏移量 + offset 字节位置处， offset 可以为正、也可以为负，如果是正数表示往后偏移，如果是负数则表示往前偏移；
+///     + `SEEK_END`: 读写偏移量将指向文件末尾 + offset 字节位置处，同样 offset 可以为正、也可以为负，如果是正数表示往后偏移、如果是负数则表示往前偏移。
+/// 
+/// 调整成功后，将返回从文件头部开始算起的位置偏移量（字节为单位），也就是当前的读写位置；发生错误将返回错误码，
 #[syscall_func(62)]
 pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
     let process = current_task().unwrap();
@@ -383,6 +470,11 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> isize {
     res.unwrap() as isize
 }
 
+/// 一个系统调用，用于获取文件的相关信息。获取的信息会保存在 `stat` 指向的 [`FileStat`] 结构中。
+/// `fd` 用于指明要获取信息的文件的文件描述符。
+/// 
+/// 获取相关信息成功后，函数返回 0；否则函数会返回 -1 表示获取信息出错。
+/// 如果输入的 `stat` 为空指针，那么会导致函数 panic。
 #[syscall_func(80)]
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     assert!(!stat.is_null());
@@ -418,14 +510,30 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     0
 }
 
-/// If the pathname given in oldpath is relative, then it is interpreted relative to
-/// the directory referred to by the file descriptor olddirfd (rather than relative
-/// to the current working directory of the calling process, as is done by link(2) for a relative pathname).
-/// If oldpath is relative and olddirfd is the special value AT_FDCWD, then oldpath
-/// is interpreted relative to the current working directory of the calling process (like link(2)).
-/// If oldpath is absolute, then olddirfd is ignored.
+/// 一个系统调用，用于创建相对于一个目录某位置处的一个文件的(硬)链接。
+/// 
+/// 当传入的 `old_name` 是一个相对地址时，那么 `old_name` 会被解析成基于文件描述符 `old_fd`
+/// 所指向的目录地址的一个地址；当传入的 `old_name` 是一个相对地址并且 
+/// `old_fd` 被特殊的设置为 `AT_FDCWD` 时，`old_name` 会
+/// 被解析成基于调用该系统调用的进程当前工作目录的一个地址；
+/// 当传入的 `old_name` 是一个绝对地址时，`old_fd` 将被直接忽略。
+/// 对于 `new_name` 同理，将根据 'new_fd' 进行解析。
+/// 
+/// 在 `Alien` 使用的 `rvfs` 中，对一个文件路径 `path` 是相对路径还是绝对路径的的判断条件如下：
+/// + 绝对路径：以 `\` 开头，如 `\file1.txt`，表示根目录下的 `file1.txt` 文件；
+/// + 相对路径: 以 `.\` 或者 `..\` 或者其它开头，如 `.\file1.txt `，表示 `dirfd` 所指向的目录下的 `file1.txt` 文件。
+/// 
+/// `flag` 处可以传入的值及其含义包括：
+/// + AT_SYMLINK_FOLLOW: 0x400，允许软链接(Follow symbolic links.)。
+/// + AT_EMPTY_PATH: 0x1000，允许 old_name 和 new_name 为空字符串(Allow empty relative pathname.).
+/// 
+/// `flag` 可以为包括上述值 `OR` 运算的结果。
 ///
-/// The interpretation of newpath is as for oldpath, except that a relative pathname is interpreted relative to the directory referred to by the file descriptor newdirfd.
+/// 如果成功创建文件链接，`sys_linkat` 将返回0；否则返回-1或错误类型。
+/// 出错的情况大致包括：当 `old_name` 或 `new_name` 是一个相对地址，`old_fd` 或 `new_fd` 所指向的文件不是一个目录文件；
+/// `old_fd` 或 `new_fd` 不是一个有效的文件描述符等。
+/// 
+/// Reference: [link](https://man7.org/linux/man-pages/man2/link.2.html)
 #[syscall_func(37)]
 pub fn sys_linkat(
     old_fd: isize,
@@ -473,6 +581,37 @@ pub fn sys_linkat(
     0
 }
 
+/// 一个系统调用，用于删除相对于一个目录某位置处的一个文件的链接。
+/// 
+/// `unlinkat`执行的操作将根据`flag`参数是否设置为`AT_REMOVEDIR`而执行`unlink`或`rmdir`操作。
+/// 不同情况下，`unlinkat`删除文件链接成功的结果包括：
+/// + 如果要删除的链接是软链接，直接删除链接；
+/// + 如果要删除的链接是硬连接，并且不是指向该文件的最后一个链接，那么直接删除链接；
+/// + 如果要删除的链接是硬连接，并且是指向该文件的最后一个链接
+///     + 如果该文件在某进程中处于打开状态，该文件会一直存活到进程关闭其文件描述符，而后被删除。
+///     + 如果该文件没有任何进程目前正在打开，该文件会被删除，并回收其所占的存储空间。
+/// 
+/// 当传入的`path`是一个相对地址时，那么`path`会被解析成基于文件描述符`fd`
+/// 所指向的目录地址的一个地址；当传入的`path`是一个相对地址并且
+/// `fd`被特殊的设置为`AT_FDCWD`时，`path`会
+/// 被解析成基于调用该系统调用的进程当前工作目录的一个地址；
+/// 当传入的`path`是一个绝对地址时，`fd`将被直接忽略。
+/// 
+/// 在`Alien`使用的`rvfs`中，对一个文件路径`path`是相对路径还是绝对路径的的判断条件如下：
+/// + 绝对路径：以`\`开头，如`\file1.txt`，表示根目录下的`file1.txt`文件；
+/// + 相对路径: 以`.\`或者`..\`或者其它开头，如`.\file1.txt`，表示`dirfd`所指向的目录下的`file1.txt`文件。
+/// 
+/// `flag`处可以传入的值及其含义包括：
+/// + AT_REMOVEDIR: 0x200，`sys_linkat`将执行`rmdir`操作。(`rmdir`要求要删除的目录必须为空)
+/// 
+/// `flag`可以置为AT_REMOVEDIR或者为0。
+///
+/// 如果成功删除文件链接，`sys_linkat`将返回0；否则返回-1或错误类型。
+/// 
+/// Reference: 
+/// + [unlink](https://man7.org/linux/man-pages/man2/unlink.2.html)
+/// + [rmdir](https://man7.org/linux/man-pages/man2/rmdir.2.html)
+/// 
 #[syscall_func(35)]
 pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
     let task = current_task().unwrap();
@@ -513,6 +652,11 @@ pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
     0
 }
 
+/// 一个系统调用，用于创建一个指向 `oldname` 的新目录项.
+/// 
+/// `old_name` 指明 要链接到的目录位置；新目录项的位置将由 `new_fd` 和 `new_name` 一起解析出，有关解析的相关信息可见 [`user_path_at`]。
+/// 
+/// 若创建链接成功，则返回 0；否则返回 -1。
 #[syscall_func(36)]
 pub fn sys_symlinkat(old_name: *const u8, new_fd: isize, new_name: *const u8) -> isize {
     let process = current_task().unwrap();
@@ -530,6 +674,12 @@ pub fn sys_symlinkat(old_name: *const u8, new_fd: isize, new_name: *const u8) ->
     0
 }
 
+/// 一个系统调用，从相对于 一个目录某位置处 的一个软链接文件处读取文件的软链接内容(即链接到文件的路径)。
+/// 
+/// 要读取的文件的路径由 `fd` 和 `path` 解析得出。Alien 中有关 `fd` 和 `path` 的路径解析可见 [`user_path_at`] (解析出的文件需是一个软链接文件，否则函数将返回 `ENOENT`)。
+/// `buf` 指明了读取内容要保存到的缓冲区首地址，`size` 指明了缓冲区的大小，即所能保存的内容的最大值。
+/// 
+/// 若读取成功，则返回读取内容的长度(即链接到文件的路径的长度)；否则返回错误码。
 #[syscall_func(78)]
 pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> isize {
     let process = current_task().unwrap();
@@ -550,6 +700,14 @@ pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> 
     res as isize
 }
 
+/// 一个系统调用，用于获取文件的相关信息。功能与 [`sys_fstat`] 类似。
+/// 
+/// `sys_fstateat` 中要获取信息的文件 由 `dir_fd` 和 `path` 解析得出。Alien 中有关 `fd` 和 `path` 的路径解析可见 [`user_path_at`]。
+/// 获取的信息会保存在 `stat` 指向的 [`FileStat`] 结构中，`flag` 是一组标志位，用于定义相关的操作类型，具体可见 [`StatFlags`]。
+/// 
+/// 获取相关信息成功后，函数返回 0；否则函数会返回 -1 表示获取信息出错。
+/// 如果输入的 `stat` 为空指针，那么会导致函数 panic。
+/// 
 /// Reference: https://man7.org/linux/man-pages/man2/newfstatat.2.html
 #[syscall_func(79)]
 pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) -> isize {
@@ -582,6 +740,10 @@ pub fn sys_fstateat(dir_fd: isize, path: *const u8, stat: *mut u8, flag: usize) 
     0
 }
 
+/// 一个系统调用，用于获取一个已挂载的文件系统的使用情况。与 [`sys_statfs`] 的功能类似。
+/// 获取到的相关信息将会保存在 `statfs` 所指向的 [`FsStat`] 结构中，`fd` 可以是该已挂载的文件系统下的任意一个文件的文件描述符。
+/// 
+/// 如果获取成功，函数会返回 0；否则返回 -1 表示获取信息异常。
 /// Reference: https://man7.org/linux/man-pages/man2/fstatfs64.2.html
 #[syscall_func(44)]
 pub fn sys_fstatfs(fd: isize, buf: *mut u8) -> isize {
@@ -602,6 +764,10 @@ pub fn sys_fstatfs(fd: isize, buf: *mut u8) -> isize {
     0
 }
 
+/// 一个系统调用，用于获取一个已挂载的文件系统的使用情况。
+/// 获取到的相关信息将会保存在 `statfs` 所指向的 [`FsStat`] 结构中，`path` 可以是该已挂载的文件系统下的任意一个文件的路径。
+/// 
+/// 如果获取成功，函数会返回 0；否则返回 -1 表示获取信息异常。
 #[syscall_func(43)]
 pub fn sys_statfs(path: *const u8, statfs: *const u8) -> isize {
     let process = current_task().unwrap();
@@ -618,6 +784,10 @@ pub fn sys_statfs(path: *const u8, statfs: *const u8) -> isize {
     0
 }
 
+/// 一个系统调用，用于更改文件所在的路径名。文件的新\旧路径 将分别使用 new_dirfd\old_dirfd 和 new_path\old_path 解析获得。有关解析的相关设计请查看 [`user_path_at`]。
+///
+/// 更改文件路径名成功后，函数会返回 0；否则函数返回-1（即当新路径或旧路径中存在不合法的路径 或 在文件系统中修改路径出错时）。
+///
 /// Reference: https://man7.org/linux/man-pages/man2/renameat.2.html
 #[syscall_func(276)]
 pub fn sys_renameat(
@@ -646,7 +816,11 @@ pub fn sys_renameat(
     0
 }
 
-/// Reference: https://man7.org/linux/man-pages/man2/mkdirat.2.html
+/// 一个系统调用，用于在 相对于一个目录某位置处 路径下创建一个空的目录。功能与 [`sys_mkdir`] 相似。
+/// 
+/// 有关对 `dirfd` 和 `path` 的解析规则以及 flag 的相关设置可见 [`sys_openat`]。成功创建目录则返回 0；否则返回错误码。
+/// 
+/// Reference: [mkdirat](https://man7.org/linux/man-pages/man2/mkdirat.2.html)
 #[syscall_func(34)]
 pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
     let process = current_task().unwrap();
@@ -670,6 +844,20 @@ pub fn sys_mkdirat(dirfd: isize, path: *const u8, flag: usize) -> isize {
     0
 }
 
+/// 一个系统调用，用于设置文件的 扩展属性(xattrs, Extended Attributes)。
+/// 
+/// 扩展属性(xattrs)提供了一个机制用来将一个(键, 值)对永久地关联到文件，让现有的文件系统得以支持在原始设计中未提供的功能。扩展属性是文件系统不可知论者，
+/// 应用程序可以通过一个标准的接口来操纵他们，此接口不因文件系统而异。每个扩展属性可以通过唯一的键来区分，键的内容必须是有效的UTF-8，格式为namespace.attribute，
+/// 每个键采用完全限定的形式。
+/// 
+/// 参数：
+/// + `path`: 用于指明要操作文件的路径；
+/// + `name`: 用于指明要设置的扩展属性的 `key` 名称，是一个字符串的首地址；
+/// + `value`: 用于指明要设置的扩展属性值 `value`，是一段缓冲区的首地址；
+/// + `size`: 用于指明缓冲区的长度。请注意该长度最好不要超过一个帧的大小 (4K)；
+/// + `flag`: 用于调整操作的类型。目前 Alien 中默认未使用该值，请保证该值为0，否则会导致函数 panic。
+/// 
+/// 返回值： 当设置扩展属性成功时，返回 0；否则返回 -1 表示设置失败。
 /// Reference: https://man7.org/linux/man-pages/man2/setxattr.2.html
 #[syscall_func(5)]
 pub fn sys_setxattr(
@@ -692,7 +880,10 @@ pub fn sys_setxattr(
     0
 }
 
-/// The difference between lsetxattr and setxattr is that lsetxattr will not follow the symbolic link
+/// 一个系统调用，用于设置文件的 扩展属性(xattrs, Extended Attributes)。在功能上与 [`sys_setxattr`] 相似。
+/// 唯一的不同点是 `sys_lsetxattr` 不允许设置软链接文件。
+/// 
+/// 目前的实现为直接调用 [`sys_setxattr`]。
 #[syscall_func(6)]
 pub fn sys_lsetxattr(
     path: *const u8,
@@ -704,6 +895,10 @@ pub fn sys_lsetxattr(
     sys_setxattr(path, name, value, size, flag)
 }
 
+/// 一个系统调用，用于设置文件的 扩展属性(xattrs, Extended Attributes)。在功能和实现上与 [`sys_setxattr`] 相似。
+/// 唯一的不同点是 `sys_fsetxattr` 采用文件描述符 `fd` 查找文件，而非文件路径 `path`。
+/// 
+/// 有关其它参数和 扩展属性 的相关信息可见 [`sys_setxattr`]。
 #[syscall_func(7)]
 pub fn sys_fsetxattr(
     fd: usize,
@@ -729,6 +924,16 @@ pub fn sys_fsetxattr(
     0
 }
 
+/// 一个系统调用，用于获取文件的扩展属性值。有关 扩展属性 的相关信息可见 [`sys_setxattr`]。
+/// 
+/// 参数：
+/// + `path`: 用于指明要操作文件的路径；
+/// + `name`: 用于指明要获取的扩展属性的 `key` 名称，是一个字符串的首地址；
+/// + `value`: 用于指明要获取的扩展属性值 `value` 保存的位置，是一段缓冲区的首地址；
+/// + `size`: 用于指明缓冲区的长度。请注意该长度最好不要超过一个帧的大小 (4K)。
+/// 
+/// 如果获取扩展属性值成功，返回获取到的扩展属性值的长度；否则返回 -1 表示获取扩展属性值失败。
+/// 
 /// Reference: https://man7.org/linux/man-pages/man2/getxattr.2.html
 #[syscall_func(8)]
 pub fn sys_getxattr(path: *const u8, name: *const u8, value: *const u8, size: usize) -> isize {
@@ -748,11 +953,19 @@ pub fn sys_getxattr(path: *const u8, name: *const u8, value: *const u8, size: us
     res as isize
 }
 
+/// 一个系统调用，用于获取文件的 扩展属性。在功能上与 [`sys_getxattr`] 相似。
+/// 唯一的不同点是 `sys_lgetxattr` 不允许获取软链接文件的 扩展属性。
+/// 
+/// 目前的实现为直接调用 [`sys_getxattr`]。
 #[syscall_func(9)]
 pub fn sys_lgetxattr(path: *const u8, name: *const u8, value: *const u8, size: usize) -> isize {
     sys_getxattr(path, name, value, size)
 }
 
+/// 一个系统调用，用于获取文件的 扩展属性。在功能上与 [`sys_getxattr`] 相似。
+/// 唯一的不同点是 `sys_fgetxattr` 采用文件描述符 `fd` 查找文件，而非文件路径 `path`。
+/// 
+/// 有关其它参数和 扩展属性 的相关信息可见 [`sys_getxattr`] 和 [`sys_setxattr`]。
 #[syscall_func(10)]
 pub fn sys_fgetxattr(fd: usize, name: *const u8, value: *const u8, size: usize) -> isize {
     let process = current_task().unwrap();
@@ -775,6 +988,17 @@ pub fn sys_fgetxattr(fd: usize, name: *const u8, value: *const u8, size: usize) 
     res as isize
 }
 
+/// 一个系统调用，用于获取一个文件的所有扩展属性类型 。有关 扩展属性 的相关信息可见 [`sys_setxattr`]。
+/// 
+/// 参数：
+/// + `path`: 用于指明要操作文件的路径；
+/// + `list`: 用于指明要获取的所有扩展属性类型保存的位置，是一段缓冲区的首地址；
+/// + `size`: 用于指明缓冲区的长度。请注意该长度最好不要超过一个帧的大小 (4K)。
+/// 
+/// 如果获取扩展属性类型成功，返回获取到的扩展属性类型的长度(总字节数)；否则返回 -1 表示获取扩展属性类型失败。
+/// 
+/// Note: 获取到的拓展属性类型类似于 `user.name1\0system.name1\0user.name2\0`，每个拓展属性类型后都会使用 `\0` 表示该种拓展属性类型结束。
+///
 /// Reference: https://man7.org/linux/man-pages/man2/listxattr.2.html
 #[syscall_func(11)]
 pub fn sys_listxattr(path: *const u8, list: *const u8, size: usize) -> isize {
@@ -792,11 +1016,19 @@ pub fn sys_listxattr(path: *const u8, list: *const u8, size: usize) -> isize {
     res as isize
 }
 
+/// 一个系统调用，用于获取一个文件的所有扩展属性类型。在功能上与 [`sys_listxattr`] 相似。
+/// 唯一的不同点是 `sys_llistxattr` 不允许获取软链接文件的所有扩展属性类型。
+/// 
+/// 目前的实现为直接调用 [`sys_listxattr`]。
 #[syscall_func(12)]
 pub fn sys_llistxattr(path: *const u8, list: *const u8, size: usize) -> isize {
     sys_listxattr(path, list, size)
 }
 
+/// 一个系统调用，用于获取一个文件的所有扩展属性类型。在功能上与 [`sys_listxattr`] 相似。
+/// 唯一的不同点是 `sys_flistxattr` 采用文件描述符 `fd` 查找文件，而非文件路径 `path`。
+/// 
+/// 有关其它参数和 扩展属性 的相关信息可见 [`sys_listxattr`] 和 [`sys_setxattr`]。
 #[syscall_func(13)]
 pub fn sys_flistxattr(fd: usize, list: *const u8, size: usize) -> isize {
     let process = current_task().unwrap();
@@ -817,6 +1049,14 @@ pub fn sys_flistxattr(fd: usize, list: *const u8, size: usize) -> isize {
     res as isize
 }
 
+/// 一个系统调用，用于删除文件的某个扩展属性值。有关 扩展属性 的相关信息可见 [`sys_setxattr`]。
+/// 
+/// 参数：
+/// + `path`: 用于指明要操作文件的路径；
+/// + `name`: 用于指明要删除的扩展属性的 `key` 名称，是一个字符串的首地址。
+/// 
+/// 如果删除扩展属性值成功，返回0；否则返回 -1 表示删除扩展属性值失败。
+/// 
 /// Reference: https://man7.org/linux/man-pages/man2/removexattr.2.html
 #[syscall_func(14)]
 pub fn sys_removexattr(path: *const u8, name: *const u8) -> isize {
@@ -830,11 +1070,22 @@ pub fn sys_removexattr(path: *const u8, name: *const u8) -> isize {
     0
 }
 
+/// 一个系统调用，用于删除文件的某个扩展属性值。在功能上与 [`sys_removexattr`] 相似。
+/// 唯一的不同点是 `sys_lremovexattr` 不允许删除软链接文件的扩展属性值。
+/// 
+/// 目前的实现为直接调用 [`sys_removexattr`]。
 #[syscall_func(15)]
 pub fn sys_lremovexattr(path: *const u8, name: *const u8) -> isize {
     sys_removexattr(path, name)
 }
 
+/// 一个系统调用，用于向一个打开的文件描述符中写入内容，写入的内容将用一组缓冲区给出。
+/// 对于每个打开的文件描述符都具有一个偏移量，写入将从该偏移位置开始。
+/// 
+/// `fd` 指明了要执行写入操作并且已经打开的文件的文件描述符，`iovec` 指明了该组缓冲区向量的首地址，
+/// `iovcnt` 指明了缓冲区向量的长度，即在这组缓冲区向量包含了多少个缓冲区。(每个缓冲区的大小，通过调用 IoVec::len() 来获取)
+/// 
+/// 写入完成后，将返回写入内容的长度(字节数)；如果发生错误，将返回错误类型。
 #[syscall_func(66)]
 pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     let process = current_task().unwrap();
@@ -885,6 +1136,13 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     count as isize
 }
 
+/// 一个系统调用，用于从一个打开的文件描述符中读取文件内容，将读取到的文件内容保存到一组缓冲区中。
+/// 对于每个打开的文件描述符都具有一个偏移量，读取将从该偏移位置开始。
+/// 
+/// `fd` 指明了要读取并且已经打开的文件的文件描述符，`iovec` 指明了该组缓冲区向量的首地址，
+/// `iovcnt` 指明了缓冲区向量的长度，即在这组缓冲区向量包含了多少个缓冲区。(每个缓冲区的大小，通过调用 IoVec::len() 来获取)
+/// 
+/// 读取完成后，将返回所有被读取内容的总长度(字节数)。
 #[syscall_func(65)]
 pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     let task = current_task().unwrap();
@@ -920,6 +1178,12 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> isize {
     count as isize
 }
 
+/// 一个系统调用，用于从一个打开的文件描述符中读取文件内容。与 [`sys_read`] 不同，该调用将指定一个偏移量 `offset`，读取将从该偏移位置开始。
+/// 
+/// `fd` 指明了要读取并且已经打开的文件的文件描述符，`buf` 指明了读取内容后所要保存的位置，
+/// `len` 指明了缓冲区 `buf` 的大小(即最多读取的内容长度)，`offset` 指明开始读取位置的偏移量。
+/// 
+/// 读取完成后，将返回读取内容的长度(字节数)。
 #[syscall_func(67)]
 pub fn sys_pread(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
     let task = current_task().unwrap();
@@ -939,6 +1203,12 @@ pub fn sys_pread(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
     count as isize
 }
 
+/// 一个系统调用，用于向一个打开的文件描述符中写入内容。与 [`sys_write`] 不同，该调用将指定一个偏移量 `offset`，写入将从该偏移位置开始。
+/// 
+/// `fd` 指明了要写入并且已经打开的文件的文件描述符，`buf` 指明了要写入的内容在内存中保存的位置，
+/// `count` 指明了缓冲区 `buf` 的大小(即所要写入的内容长度)
+/// 
+/// 写入完成后，将返回写入内容的长度(字节数)；如果发生错误(如输入的 fd 不合法等)，将返回 -1。
 #[syscall_func(68)]
 pub fn sys_pwrite(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
     let task = current_task().unwrap();
@@ -958,6 +1228,10 @@ pub fn sys_pwrite(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
     count as isize
 }
 
+/// 一个系统调用，用于删除文件的某个扩展属性值型。在功能上与 [`sys_removexattr`] 相似。
+/// 唯一的不同点是 `sys_fremovexattr` 采用文件描述符 `fd` 查找文件，而非文件路径 `path`。
+/// 
+/// 有关其它参数和 扩展属性 的相关信息可见 [`sys_removexattr`] 和 [`sys_setxattr`]。
 #[syscall_func(16)]
 pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {
     let process = current_task().unwrap();
@@ -974,11 +1248,13 @@ pub fn sys_fremovexattr(fd: usize, name: *const u8) -> isize {
     0
 }
 
-/// Reference:https://man7.org/linux/man-pages/man2/sendfile64.2.html
+/// 一个系统调用，用于在文件描述符之间传递数据。
 ///
-/// 从 in_fd 读取最多 count 个字符，存到 out_fd 中。
-/// - 如果 offset != 0，则其指定了 in_fd 中文件的偏移，此时完成后会修改 offset 为读取后的位置，但不更新文件内部的 offset
-/// - 否则，正常更新文件内部的 offset
+/// 从 `in_fd` 读取最多 `count` 个字符，存到 `out_fd` 中。
+/// - 如果 `offset != 0`，则其指定了 `in_fd` 中文件的偏移，此时完成后会修改 `offset` 为读取后的位置，但不更新文件内部的 `offset`
+/// - 否则，正常更新文件内部的 `offset`
+///
+/// Reference: [send_file](https://man7.org/linux/man-pages/man2/sendfile64.2.html)
 #[syscall_func(71)]
 pub fn send_file(out_fd: usize, in_fd: usize, offset_ptr: usize, count: usize) -> isize {
     warn!(
@@ -1035,16 +1311,26 @@ pub fn send_file(out_fd: usize, in_fd: usize, offset_ptr: usize, count: usize) -
     write as isize
 }
 
+/// (待实现) 一个系统调用函数，用于包把含更新文件的所有内核缓冲区(包含数据块、指针块、元数据等)都flush到磁盘上。
 #[syscall_func(81)]
 pub fn sync() -> isize {
     0
 }
 
+/// (待实现) 一个系统调用函数，用于把打开的文件描述符fd相关的所有缓冲元数据和数据都刷新到磁盘上。
 #[syscall_func(82)]
 pub fn fsync(_fd: usize) -> isize {
     0
 }
 
+/// 一个地址解析函数，通过 `fd` 所指向的一个目录文件 和 相对于该目录文件的路径或绝对路径 `path` 解析出某目标文件的绝对路径。
+/// 
+/// 当传入的`path`是一个相对地址时，那么`path`会被解析成基于文件描述符`fd`所指向的目录地址的一个地址；当传入的`path`是一个相对地址并且
+/// `fd`被特殊的设置为`AT_FDCWD`时，`path`会被解析成基于调用该系统调用的进程当前工作目录的一个地址；当传入的`path`是一个绝对地址时，`fd`将被直接忽略。
+/// 
+/// 在`Alien`使用的`rvfs`中，对一个文件路径`path`是相对路径还是绝对路径的的判断条件如下：
+/// + 绝对路径：以`\`开头，如`\file1.txt`，表示根目录下的`file1.txt`文件；
+/// + 相对路径: 以`.\`或者`..\`或者其它开头，如`.\file1.txt`，表示`dirfd`所指向的目录下的`file1.txt`文件。
 fn user_path_at(fd: isize, path: &str, flag: LookUpFlags) -> Result<String, ()> {
     let process = current_task().unwrap();
     let path = ParsePathType::from(path);

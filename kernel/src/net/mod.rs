@@ -19,6 +19,13 @@ pub mod port;
 pub mod socket;
 mod unix;
 
+/// 一个系统调用，用于创建一个未绑定的socket套接字。
+///
+/// + `domain`: 指明套接字被创建的协议簇(包括文件路径协议簇和网络地址协议簇，具体可见[`Domain`]);
+/// + `s_type`: 指明被创建的socket的类型，具体可见[`SocketType`];
+/// + `protocol`: 指明该socket应用于某一个特定的协议上。当确定了套接字使用的协议簇和类型，该参数可以取为0。
+///
+/// 如果创建套接字成功则返回一个能在之后使用的文件描述符，否则返回错误信息。
 #[syscall_func(198)]
 pub fn socket(domain: usize, s_type: usize, protocol: usize) -> isize {
     let domain = Domain::try_from(domain);
@@ -44,6 +51,13 @@ pub fn socket(domain: usize, s_type: usize, protocol: usize) -> isize {
     fd as isize
 }
 
+/// 一个系统调用，用于绑定socket的地址和端口。
+///
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `sockaddr`: 指明存储有关绑定信息([`RawIpV4Addr`])的地址;
+/// + `len`: `address`([`RawIpV4Addr`])的长度。
+///
+/// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(200)]
 pub fn bind(socketfd: usize, sockaddr: usize, len: usize) -> isize {
     let socket_fd = common_socket_syscall(socketfd);
@@ -64,6 +78,12 @@ pub fn bind(socketfd: usize, sockaddr: usize, len: usize) -> isize {
     }
 }
 
+/// 一个系统调用，用于等待client提交连接请求，一般用于bind之后，accept之前 
+///
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `backlog`: 指明套接字侦听队列中正在处于半连接状态(等待accept)的请求数最大值。如果该值小于等于0，则自动调为0，同时也有最大值上限。
+///
+/// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(201)]
 pub fn listening(socketfd: usize, backlog: usize) -> isize {
     let socket_fd = common_socket_syscall(socketfd);
@@ -78,6 +98,14 @@ pub fn listening(socketfd: usize, backlog: usize) -> isize {
     }
 }
 
+/// 一个系统调用，用于取出套接字listen队列中的第一个连接，创建一个与指定套接字具有相同套接字类型的地址族的新套接字。
+/// 新套接字用于传递数据，原套接字继续处理侦听队列中的连接请求。如果侦听队列中无请求，accept()将阻塞。
+/// 
+/// + `socketfd`: 指明要操作socket的文件描述符fd，需经过bind()和listen()处理;
+/// + `socket_addr`: 要么为空，要么指明保存accept成功的客户端相关信息([`RawIpV4Addr`])的地址;
+/// + `addr_len`: 保存连接的client相关信息`address`长度的地址。
+///
+/// 执行成功则返回新的套接字的文件描述符，否则返回错误信息.
 #[syscall_func(202)]
 pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> isize {
     let socket_fd = common_socket_syscall(socketfd);
@@ -109,7 +137,16 @@ pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> isize {
     }
 }
 
-/// For netperf_test, the server may be run after client, so we nedd allow
+
+/// 一个系统调用，用于client请求在一个套接字上建立连接。
+/// 
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `socket_addr`: 指明保存服务器地址和端口号的数据结构([`RawIpV4Addr`])的地址;
+/// + `len`: `socket_addr`长度的地址。
+///
+/// 执行成功则返回0，否则返回错误信息。
+///
+/// Note: For netperf_test, the server may be run after client, so we nedd allow
 /// client retry once
 #[syscall_func(203)]
 pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> isize {
@@ -144,6 +181,13 @@ pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> isize {
     0
 }
 
+/// 一个系统调用，查询一个套接字本地bind()的相关信息。
+/// 
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `socket_addr`: 指明相关信息([`RawIpV4Addr`])将要保存的地址;
+/// + `len`: 保存`address`长度的地址。
+///
+/// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(204)]
 pub fn getsockname(socketfd: usize, socket_addr: usize, len: usize) -> isize {
     let socket_fd = common_socket_syscall(socketfd);
@@ -161,6 +205,13 @@ pub fn getsockname(socketfd: usize, socket_addr: usize, len: usize) -> isize {
     0
 }
 
+/// 一个系统调用，用于获取一个本地套接字所连接的远程服务器的信息。
+/// 
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `socket_addr`: 指明连接的客户端相关信息([`RawIpV4Addr`])将要保存的地址;
+/// + `len`: 保存`address`长度的地址。
+///
+/// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(205)]
 pub fn get_peer_name(socketfd: usize, sockaddr: usize, len: usize) -> isize {
     let socket_fd = common_socket_syscall(socketfd);
@@ -178,6 +229,16 @@ pub fn get_peer_name(socketfd: usize, sockaddr: usize, len: usize) -> isize {
     0
 }
 
+/// 一个系统调用，用于发送消息。当面向连接时，dest_addr被忽略；当非面向连接时，消息发送给dest_addr。
+/// 
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `message`: 指明要发送的消息的首地址;
+/// + `length`: 指明`message`的长度;
+/// + `flags`: 指明发送操作的类型;
+/// + `dest_addr`: 指明保存目的地的相关信息([`RawIpV4Addr`])的地址;
+/// + `dest_len`: 指明`dest_addr`([`RawIpV4Addr`])的大小。
+///
+/// 如果发送成功，返回发送的字节数；否则返回错误信息.
 #[syscall_func(206)]
 pub fn sendto(
     socketfd: usize,
@@ -227,6 +288,16 @@ pub fn sendto(
     send as isize
 }
 
+/// 一个系统调用，用于接收消息。消息源地址的相关信息将会保存在src_addr所指向的位置处。
+/// 
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `buffer`: 指明接收消息的缓冲区的首地址;
+/// + `length`: 指明缓冲区的长度(能接收消息的最大长度);
+/// + `flags`: 指明接收操作的类型;
+/// + `src_addr`: 指明消息源地址的相关信息([`RawIpV4Addr`])的保存地址。当该值为空时，不进行相关信息的保存;
+/// + `addr_len`: 指明`src_addr`([`RawIpV4Addr`])大小的保存地址。
+///
+/// 如果接收成功，返回接收message的字节数；否则返回错误信息。
 #[syscall_func(207)]
 pub fn recvfrom(
     socketfd: usize,
@@ -263,6 +334,15 @@ pub fn recvfrom(
     recv_info.0 as isize
 }
 
+/// (待完成)一个系统调用函数，用于设置套接字的选项。
+///
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `level`: 定义选项的级别，包括`Ip`，`Socket`，`TCP`等，详情可见[`SocketLevel`];
+/// + `opt_name`: 在对应level下，为其设置值的套接字选项，详情可见[`SocketOption`];
+/// + `_opt_value`: 存储选项值位置的指针;
+/// + `_opt_len`: 选项值长度;
+///
+/// 如果函数执行成功，则返回0；否则返回错误信息。
 #[syscall_func(208)]
 pub fn setsockopt(
     socketfd: usize,
@@ -292,6 +372,15 @@ pub fn setsockopt(
     0
 }
 
+/// 一个系统调用函数，用于获取套接字的选项。
+///
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `level`: 定义选项的级别，包括`Ip`，`Socket`，`TCP`等，详情可见[`SocketLevel`];
+/// + `opt_name`: 在对应level下，要为其检索值的套接字选项，详情可见[`SocketOption`];
+/// + `opt_value`: 一个指向将要保存请求选项值的缓冲区的指针;
+/// + `_opt_len`: 指向保存选项值长度的指针;
+///
+/// 如果函数执行成功，则返回0；否则返回错误信息。
 #[syscall_func(209)]
 pub fn getsockopt(
     socketfd: usize,
@@ -355,6 +444,12 @@ pub fn getsockopt(
     0
 }
 
+/// 一个系统调用，用于关闭一个socket的发送操作或接收操作。
+///
+/// + `socketfd`: 指明要操作socket的文件描述符fd;
+/// + `how`: 指明要关闭的操作：包括只关闭Read，只关闭Write，RW都关闭，相关Flag值可见[`ShutdownFlag`]。
+///
+/// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(210)]
 pub fn shutdown(socketfd: usize, how: usize) -> isize {
     let flag = ShutdownFlag::try_from(how);
@@ -373,6 +468,16 @@ pub fn shutdown(socketfd: usize, how: usize) -> isize {
     }
 }
 
+/// (待实现)一个系统调用，创建一对未绑定的socket套接字，该对套接字可以用于全双工通信，或者用于父子进程之间的通信。
+///
+/// 如果向其中的一个socket写入后，再从该socket读时，就会发生阻塞。只能在另一个套接字中读。往往和shutdown()配合使用
+/// 
+/// + `domain`: 指明套接字被创建的协议簇(包括文件路径协议簇和网络地址协议簇，具体可见[`Domain`]);
+/// + `type`: 指明被创建的socket的类型，具体可见[`SocketType`];
+/// + `protocol`: 指明该socket应用于某一个特定的协议上。当确定了套接字使用的协议簇和类型，该参数可以取为0。
+/// + `sv[2]`:  用于存放一对套接字的文件描述符。
+///
+/// 如果创建成功则返回0，否则返回错误信息。
 #[syscall_func(199)]
 pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> isize {
     let domain = Domain::try_from(domain);
@@ -387,6 +492,7 @@ pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> isi
     // LinuxErrno::EAFNOSUPPORT.into()
 }
 
+/// 通过socket文件描述符fd获取对应的文件
 fn common_socket_syscall(sockfd: usize) -> Result<Arc<KFile>, isize> {
     let task = current_task().unwrap();
     let socket_fd = task.get_file(sockfd);
