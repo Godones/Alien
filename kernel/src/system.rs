@@ -2,17 +2,25 @@ use syscall_table::syscall_func;
 
 use crate::task::current_task;
 
+/// 记录系统信息的结构，包括操作系统名、在网络中的用户名、操作系统release和version版本、硬件类型、域名等信息。
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct Utsname {
+    /// 操作系统名
     sysname: [u8; 65],
+    /// Name within communications network to which the node is attached
     nodename: [u8; 65],
+    /// 系统发行版
     release: [u8; 65],
+    /// 系统版本
     version: [u8; 65],
+    /// 硬件类型
     machine: [u8; 65],
+    /// 域名
     domainname: [u8; 65],
 }
 
+/// 返回系统信息，信息保存在[`Utsname`]结构中。
 fn system_info() -> Utsname {
     const SYSNAME: &str = "Linux";
     const NODENAME: &str = "Alien";
@@ -37,6 +45,9 @@ fn system_info() -> Utsname {
     name
 }
 
+/// 一个系统调用，返回系统信息。信息包括操作系统名、在网络中的用户名、操作系统release和version版本、硬件类型、域名等信息，详情可见[`Utsname`]。
+///
+/// 函数成功执行后返回0。
 #[syscall_func(160)]
 pub fn uname(utsname: *const u8) -> isize {
     let task = current_task().unwrap();

@@ -22,30 +22,30 @@ numeric_enum! {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Sysinfo {
+    /// Seconds since boot 
     pub uptime: usize,
-    /* Seconds since boot */
+    /// 1, 5, and 15 minute load averages 
     pub loads: [usize; 3],
-    /* 1, 5, and 15 minute load averages */
+    /// Total usable main memory size 
     pub totalram: usize,
-    /* Total usable main memory size */
+    /// Available memory size 
     pub freeram: usize,
-    /* Available memory size */
+    /// Amount of shared memory 
     pub sharedram: usize,
-    /* Amount of shared memory */
+    /// Memory used by buffers 
     pub bufferram: usize,
-    /* Memory used by buffers */
+    /// Total swap space size 
     pub totalswap: usize,
-    /* Total swap space size */
+    /// Swap space still available
     pub freeswap: usize,
-    /* Swap space still available */
+    /// Number of current processes 
     pub procs: u16,
-    /* Number of current processes */
+    /// Total high memory size 
     pub totalhigh: usize,
-    /* Total high memory size */
+    /// Available high memory size 
     pub freehigh: usize,
-    /* Available high memory size */
+    /// Memory unit size in bytes 
     pub mem_unit: u32,
-    /* Memory unit size in bytes */
     //char __reserved[256];
     // In the above structure, sizes of the memory and swap fields are given as multiples of mem_unit bytes.
 }
@@ -53,37 +53,38 @@ pub struct Sysinfo {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Rusage {
+    /// user CPU time used 
     pub ru_utime: TimeVal,
-    /* user CPU time used */
+    /// system CPU time used 
     pub ru_stime: TimeVal,
-    /* system CPU time used */
+    /// (NOT IMPLEMENTED) maximum resident set size
     ru_maxrss: isize,
-    // NOT IMPLEMENTED /* maximum resident set size */
+    /// (NOT IMPLEMENTED) integral shared memory size
     ru_ixrss: isize,
-    // NOT IMPLEMENTED /* integral shared memory size */
+    /// (NOT IMPLEMENTED) integral unshared data size
     ru_idrss: isize,
-    // NOT IMPLEMENTED /* integral unshared data size */
+    /// (NOT IMPLEMENTED) integral unshared stack size
     ru_isrss: isize,
-    // NOT IMPLEMENTED /* integral unshared stack size */
+    /// (NOT IMPLEMENTED) page reclaims (soft page faults)
     ru_minflt: isize,
-    // NOT IMPLEMENTED /* page reclaims (soft page faults) */
+    /// (NOT IMPLEMENTED) page faults (hard page faults)
     ru_majflt: isize,
-    // NOT IMPLEMENTED /* page faults (hard page faults) */
+    /// (NOT IMPLEMENTED) swaps
     ru_nswap: isize,
-    // NOT IMPLEMENTED /* swaps */
+    /// (NOT IMPLEMENTED) block input operations
     ru_inblock: isize,
-    // NOT IMPLEMENTED /* block input operations */
+    /// (NOT IMPLEMENTED) block output operations
     ru_oublock: isize,
-    // NOT IMPLEMENTED /* block output operations */
+    /// (NOT IMPLEMENTED) IPC messages sent
     ru_msgsnd: isize,
-    // NOT IMPLEMENTED /* IPC messages sent */
+    /// (NOT IMPLEMENTED) IPC messages received
     ru_msgrcv: isize,
-    // NOT IMPLEMENTED /* IPC messages received */
+    /// (NOT IMPLEMENTED) signals received
     ru_nsignals: isize,
-    // NOT IMPLEMENTED /* signals received */
+    /// (NOT IMPLEMENTED) voluntary context switches
     ru_nvcsw: isize,
-    // NOT IMPLEMENTED /* voluntary context switches */
-    ru_nivcsw: isize, // NOT IMPLEMENTED /* involuntary context switches */
+    /// (NOT IMPLEMENTED) involuntary context switches
+    ru_nivcsw: isize, 
 }
 
 #[repr(C)]

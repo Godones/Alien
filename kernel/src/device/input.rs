@@ -26,6 +26,13 @@ pub fn init_mouse_input_device(input_device: Arc<dyn InputDevice>) {
     MOUSE_INPUT_DEVICE.call_once(|| input_device);
 }
 
+/// 一个系统调用函数，用于获取鼠标和键盘事件。
+/// 
+/// `sys_event_get`会将获取到的事件将保存在event_buf所指向的内存位置处，
+/// 此次允许获取到的事件的最大值(即event_buf)的大小由len指出。
+/// 
+/// 函数将返回成功获取到的事件个数。
+/// 
 #[syscall_func(2002)]
 pub fn sys_event_get(event_buf: *mut u64, len: usize) -> isize {
     let process = current_task().unwrap();
