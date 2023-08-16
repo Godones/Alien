@@ -51,8 +51,8 @@ use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFram
 type FdManager = MinimalManager<Arc<KFile>>;
 
 lazy_static! {
-    /// 这里把MinimalManager复用为pid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
-    /// 但pid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
+    /// 这里把MinimalManager复用为tid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
+    /// 但tid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
     pub static ref TID_MANAGER:Mutex<MinimalManager<u8>> = Mutex::new(MinimalManager::new(MAX_THREAD_NUM));
 }
 #[derive(Debug)]
@@ -357,6 +357,7 @@ impl Task {
         inner.children.clone()
     }
 
+    /// 查找进程号为pid的子进程是否已经退出。当pid为-1时，任意子进程退出都将返回子进程的pid号。
     pub fn check_child(&self, pid: isize) -> Option<usize> {
         let res = self
             .inner
@@ -469,6 +470,7 @@ impl Task {
         self.access_inner().transfer_raw_ptr_mut(ptr)
     }
 
+    /// 通过用户地址空间中一个字符串的首指针 `ptr`，获取一个字符串。
     pub fn transfer_str(&self, ptr: *const u8) -> String {
         // we need check the ptr and len before transfer indeed
         let mut start = ptr as usize;
@@ -497,6 +499,7 @@ impl Task {
         self.access_inner().transfer_str(ptr)
     }
 
+    /// 通过用户地址空间中一个缓冲区的指针 `ptr` 和 缓冲区的长度 `len`，得到一组对用户地址空间中缓冲区的可变引用，每一组引用的长度为 4K
     pub fn transfer_buffer<T: Debug>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
         // we need check the ptr and len before transfer indeed
         let mut start = ptr as usize;
@@ -582,6 +585,7 @@ impl TaskInner {
         TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
     }
 
+    /// 在信号处理需要执行用户态信号处理函数时，保存原 trap 上下文。
     pub fn save_trap_frame(&mut self) -> bool {
         let trap_frame = self.trap_frame();
         if self.trap_cx_before_signal.is_some() {
@@ -592,6 +596,7 @@ impl TaskInner {
         true
     }
 
+    /// 待用户态信号处理函数执行完毕后，需要重新加载原 trap 上下文。
     pub fn load_trap_frame(&mut self) -> isize {
         if let Some(old_trap_frame) = self.trap_cx_before_signal.take() {
             let trap_frame = self.trap_frame();
@@ -894,6 +899,7 @@ impl TaskInner {
         self.statistical_data.last_stime = now;
     }
 
+    /// 设置计时器。
     pub fn set_timer(&mut self, itimer: ITimerVal, timer_type: TimerType) {
         self.timer.timer_remained = itimer.it_value.to_clock();
         self.timer.timer_interval = itimer.it_interval;
@@ -901,6 +907,9 @@ impl TaskInner {
         self.timer.start = TimeVal::now().to_clock();
     }
 
+    /// 更新计时器。
+    /// 如果没有计时器则直接返回；如果有计时器但时辰未到也直接返回；
+    /// 如果有计时器且计时器到时间了，根据是否为one-shot计时器，确定重置计时器或者置`timer`的`timer_remained`为0。
     pub fn update_timer(&mut self) {
         let now = read_timer();
         let delta = now - self.timer.start;
@@ -975,7 +984,15 @@ impl TaskInner {
         Ok(heap.current)
     }
 
-    /// the len will be aligned to 4k
+    /// 在虚拟空间中创建内存映射。
+    /// + `start`: 所要创建的映射区的起始地址。当该值为0时，内核将自动为其分配一段内存空间创建内存映射。该值在函数运行过程中将被调整为与4K对齐。
+    /// + `len`: 指明所要创建的映射区的长度。该值在函数运行过程中将被调整为与4K对齐。
+    /// + `prot`: 指明创建内存映射区的初始保护位。具体可见[`ProtFlags`]。
+    /// + `flags`: 指明mmap操作的相关设置。具体可见[`MapFlags`]。
+    /// + `fd`: 指明要创建内存映射的文件的文件描述符。
+    /// + `offset`: 将从文件中偏移量为`offset`处开始映射。该值需要和4K对齐。
+    ///
+    /// 函数成功执行后将返回所创建的内存映射区的首地址；否则返回错误类型。
     pub fn add_mmap(
         &mut self,
         start: usize,
@@ -1094,6 +1111,7 @@ impl TaskInner {
         Ok(start)
     }
 
+    /// 用于在进程的虚拟内存空间中消除一段内存映射。传入的`start`需要是某段内存映射的首地址，`len`需要是该段内存映射的长度。
     pub fn unmap(&mut self, start: usize, len: usize) -> Result<(), isize> {
         // check whether the start is in mmap
         let x = self.mmap.get_region(start);
@@ -1113,6 +1131,7 @@ impl TaskInner {
         Ok(())
     }
 
+    /// 设置内存映射的保护位，函数会检查传入的`start`和`len`所指示的内存映射区是否已经处于被映射状态，如果是，则将对应内存映射区的保护位与`prot`做或运算。
     pub fn map_protect(&mut self, start: usize, len: usize, prot: ProtFlags) -> Result<(), isize> {
         // check whether the start is in mmap
         let x = self.mmap.get_region_mut(start);
@@ -1443,7 +1462,19 @@ impl Task {
         let res = Some(process);
         res
     }
-    /// fork a child
+    
+    /// 产生一个新的子进程。
+    /// 
+    /// `flag`用于控制父子进程之间资源的共享程度，有关flag值及其相关含义设置可见[`CloneFlags`]。
+    /// `stack`用于控制子进程的用户栈。由于clone产生的子进程有可能和父进程共享内存，所以它不能使用父进程的栈。
+    /// `sig`用于控制子进程退出时传递给父进程的相关信号。目前Alien中的设计为当其值为`SIGCHLD`时，在子进程退出时会向父程序发送`SIGCHLD`信号。会其它有关值的设置可见[`SignalNumber`]。
+    /// `ptid`是一个在父进程地址空间中的地址，用于在创建子进程成功后向该位置写入子进程的tid号。在flag包含`CLONE_PARENT_SETTID`时才会发挥效果。
+    /// `tls`用于为子进程创建新的TLS(thread-local storage)值，在flag包含`CLONE_SETTLS`时才会实际产生效果。
+    /// `ctid`用于给子进程中的[`set_child_tid`]和[`clear_child_tid`]赋值(分别在flag中包含`CLONE_CHILD_SETTID`和`CLONE_CHILD_CLEARTID`时产生效果)。
+    /// 
+    /// 成功创建子进程后父进程会返回子进程的TCB。
+    /// 
+    /// Note: 当传入的ptid未在父进程地址空间中被分配时，会引发panic。
     pub fn t_clone(
         self: &Arc<Self>,
         flag: CloneFlags,
@@ -1620,6 +1651,14 @@ impl Task {
         Some(task)
     }
 
+    /// 用于执行一个可执行文件，供sys_exec调用。
+    /// 
+    /// `name`用于传入文件的路径和文件名。
+    /// `elf_data`用于传入从对应文件处读入的文件数据，用于构造elf_info。
+    /// `args`用于指明启动可执行文件时要传入的参数。
+    /// `env`用于指明相关环境变量。
+    /// 
+    /// 成功执行则返回OK(())；否则返回错误码(isize)。
     pub fn exec(
         &self,
         name: &str,

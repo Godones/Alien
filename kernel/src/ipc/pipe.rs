@@ -12,8 +12,13 @@ use crate::config::PIPE_BUF;
 use crate::fs::file::KFile;
 use crate::task::{current_task, do_suspend};
 
+/// 管道是一种最基本的IPC机制，作用于有血缘关系的进程之间，完成数据传递。
+/// 
+/// `Alien` 中对于管道的设计参考了`rCore`的相关设计。创建管道时会同时创建一个环形缓冲区，
+/// 管道的两个端口抽象成文件，对两个端口直接的相关的文件操作（读操作或者写操作）都被设计成对缓冲区进行数据处理（向缓冲区中传入数据或接收数据）。
 pub struct Pipe;
 
+/// 环形缓冲区，用于在内存中维护管道的相关信息。
 pub struct RingBuffer {
     pub buf: [u8; PIPE_BUF],
     pub head: usize,
@@ -90,6 +95,9 @@ impl RingBuffer {
 }
 
 impl Pipe {
+    /// 创建一个管道，初始化环形缓冲区，返回一对文件，分别对应读端文件和写端文件。
+    /// 过程包括创建一个环形缓冲区、创建并初始化写端文件和读端文件，
+    /// 将两个文件与环形缓冲区相连，使得通过两个端文件快速对缓冲区进行读写。
     pub fn new() -> (Arc<KFile>, Arc<KFile>) {
         let mut buf = Box::new(RingBuffer::new());
         let mut tx_file = File::new(

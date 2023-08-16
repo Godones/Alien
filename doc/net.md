@@ -217,7 +217,7 @@ pub fn sys_socket(domain: usize, socket_type: usize, protocol:usize) -> isize;
 
 
 // sys_socket_pair:  syscall_id 199
-// 创建一对未绑定的socket套接字，该对套接字可以用于全双工通信，或者用于父子进程之间的通信）
+// 创建一对未绑定的socket套接字，该对套接字可以用于全双工通信，或者用于父子进程之间的通信
 // 如果向其中的一个socket写入后，再从该socket读时，就会发生阻塞。只能在另一个套接字中读。
 // 往往和shutdown()配合使用
 //
@@ -234,7 +234,7 @@ fn sys_socket_pair(domain: usize, socket_type: usize, protocol:usize, sv: *const
 // 绑定socket的地址和端口
 // 
 // socket: 指明要操作socket的文件描述符id
-// address: 指明存储的有关绑定信息（sockaddr结构）的地址（sockaddr结构包括地址组信息address_family和要绑定的地址信息socket_address）
+// address: 指明存储有关绑定信息（sockaddr结构）的地址（sockaddr结构包括地址组信息address_family和要绑定的地址信息socket_address）
 // address_len: address（即sockaddr结构）的长度。
 // 返回: 执行成功则返回0，否则返回错误信息
 fn sys_bind(socket: usize, address: *const usize, address_len: usize) -> SysResult;
@@ -325,15 +325,15 @@ fn sys_send(socket: usize, message: *const usize, length: usize, flags:usize) ->
 
 
 // sys_recvfrom: syscall_id 207
-// 发送消息。当面向连接时，dest_addr被忽略；当非面向连接时，消息发送给dest_addr。
+// 接收消息。消息源地址的相关信息将会保存在src_addr所指向的位置处。
 //
 // socket: 指明要操作socket的文件描述符id
 // buffer: 指明接收message的缓冲区的首地址
 // length: 指明能接收message的最大长度
 // flags: 指明接收message的类型
-// address: 指明信息发送方的相关信息（sockaddr结构）的保存地址
-// address_len: 指明address的（sockaddr）结构体的长度的地址
-// 返回: 如果发送成功，返回接收message的字节数；否则返回错误信息
+// src_addr: 指明信息发送方的相关信息（sockaddr结构）的保存地址
+// address_len: 指明src_addr的（sockaddr）结构体的长度的地址
+// 返回: 如果接收成功，返回接收message的字节数；否则返回错误信息
 pub fn sys_recvfrom(socket: usize, buffer: *mut u8, length: usize, flags:i32, src_addr: *mut usize, address_len: *mut u32) -> isize;
 
 

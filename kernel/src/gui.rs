@@ -7,6 +7,7 @@ use crate::task::current_task;
 
 const FB_VADDR: usize = 0x1000_0000;
 
+/// 一个系统调用，用于获取一段帧缓存。执行成功后返回帧缓存的首地址，Alien 中默认该地址为 FB_VADDR (0x1000_0000)
 #[syscall_func(2000)]
 pub fn sys_framebuffer() -> isize {
     let fb = GPU_DEVICE.get().unwrap().get_framebuffer();
@@ -25,6 +26,7 @@ pub fn sys_framebuffer() -> isize {
     FB_VADDR as isize
 }
 
+/// 一个系统调用，用于刷新帧缓存。执行成功后返回 0。
 #[syscall_func(2001)]
 pub fn sys_framebuffer_flush() -> isize {
     GPU_DEVICE.get().unwrap().flush();

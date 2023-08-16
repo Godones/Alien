@@ -119,11 +119,17 @@ pub const SHMSEG: usize = SHMMNI;
 
 bitflags! {
     pub struct ShmGetFlags: i32 {
+        /// 
         const SHM_R = 0o400;
+        /// 
         const SHM_W = 0o200;
+        /// Create a new segment. If this flag is not used, then shmget() will find the segment associated with key and check to see if the user has permission to access the segment.
         const IPC_CREAT = 0o1000;
+        /// This flag is used with IPC_CREAT to ensure that this call creates the segment.  If the segment already exists, the call fails.
         const IPC_EXCL = 0o2000;
+        /// segment will use huge TLB pages
         const SHM_HUGETLB = 0o4000;
+        /// don't check for reservations
         const SHM_NORESERVE = 0o10000;
     }
 }
@@ -137,9 +143,13 @@ bitflags! {
 // #define	SHM_EXEC	0100000	/* execution access */
 bitflags! {
     pub struct ShmAtFlags: i32 {
+        /// read-only access
         const SHM_RDONLY = 0o10000;
+        /// round attach address to SHMLBA boundary
         const SHM_RND = 0o20000;
+        /// take-over region on attach
         const SHM_REMAP = 0o40000;
+        /// execution access
         const SHM_EXEC = 0o100000;
     }
 }

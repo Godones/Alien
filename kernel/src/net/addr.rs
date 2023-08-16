@@ -65,7 +65,10 @@ impl From<SocketAddr> for RawIpV4Addr {
     }
 }
 
-// 地址解析
+/// 地址解析，将根据`family_user_addr`的[`Domain`]类型分类进行解析。
+///
+/// 对于`AF_INET`将解析成SocketAddrExt::SocketAddr(SocketAddr)，
+/// 对于`AF_UNIX`将解析成ocketAddrExt::LocalPath(String)，详情可见[`SocketAddrExt`]。
 pub fn socket_addr_resolution(family_user_addr: usize, len: usize) -> Result<SocketAddrExt, isize> {
     let task = current_task().unwrap();
     let family = task
@@ -100,10 +103,3 @@ pub fn socket_addr_resolution(family_user_addr: usize, len: usize) -> Result<Soc
     }
 }
 
-pub fn split_u32_to_u8s(num: u32) -> [u8; 4] {
-    let byte1 = (num >> 24) as u8;
-    let byte2 = (num >> 16) as u8;
-    let byte3 = (num >> 8) as u8;
-    let byte4 = num as u8;
-    [byte1, byte2, byte3, byte4]
-}
