@@ -67,11 +67,15 @@ numeric_enum_macro::numeric_enum! {
 
 bitflags! {
     pub struct MapFlags: u32 {
+        /// 该段映射为共享映射，多个进程对该文件映射共享
         const MAP_SHARED = 0x01;
+        /// (未使用到)对映射区域的写入操作会产生一个映射文件的复制，即私人的"写入时复制"(copy on write)对此区域作的任何修改都不会写回原来的文件内容。
         const MAP_PRIVATE = 0x02;
+        /// 直接采用`addr`作为绝对地址创建映射。如果参数`start`所指的地址无法成功建立映射时，则放弃映射，不对地址做修正。
         const MAP_FIXED = 0x10;
+        /// 不采用文件映射。
         const MAP_ANONYMOUS = 0x20;
-        // 映射时不保留空间，即可能在实际使用mmp出来的内存时内存溢出
+        /// 映射时不保留空间，即可能在实际使用mmp出来的内存时内存溢出
         const MAP_NORESERVE = 1 << 14;
     }
 }

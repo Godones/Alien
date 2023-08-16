@@ -275,6 +275,7 @@ pub fn user_trap_vector() {
     trap_return();
 }
 
+/// 用于检查进程的计时器是否超时。如果超时则会重置计时器，并按照计时器类型向进程发送信号。
 pub fn check_task_timer_expired() {
     let task = current_task().unwrap();
     let timer_expired = task.access_inner().check_timer_expired();

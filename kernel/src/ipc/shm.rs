@@ -1,3 +1,11 @@
+//! 共享内存是一种最为高效的进程间通信方式。因为进程可以直接读写内存，不需要任何数据的拷贝。
+//! 为了在多个进程间交换信息，内核专门留出了一块内存区。这段内存区可以由需要访问的进程将其映射到自己的私有地址空间。
+//! 因此，进程就可以直接读写这一内存区而不需要进行数据的拷贝，从而大大提高了效率。
+//! 
+//! 共享内存并未提供同步机制，也就是说，在第一个进程结束对共享内存的写操作之前，并无自动机制可以阻止第二个进程开始对它进行读取。
+//! 所以我们通常需要用其他的机制来同步对共享内存的访问，如互斥锁和信号量等。
+//! 
+
 use alloc::collections::btree_map::BTreeMap;
 use alloc::vec::Vec;
 
@@ -81,6 +89,18 @@ pub enum ShmMemoryState {
 
 pub static SHM_MEMORY: Mutex<BTreeMap<usize, ShmMemory>> = Mutex::new(BTreeMap::new());
 
+/// 一个系统调用，用于创建一块共享内存，方便进程间通信。
+///
+/// 参数：
+/// + `key`: 指明共享内存的键值，多个进程可以通过它来访问同一个共享内存。当其值为 `IPC_PRIVATE` 时，用于创建当前进程的私有共享内存，多用于父子进程间。
+/// + `size`: 用于指明创建共享内存区大小。在函数执行过程中，内核将自动将该值与帧大小(4K)对齐。
+/// + `shmflg`: 用于指明操作的类型。当包含 `IPC_CREAT` 时，将创建一块共享内存，目前 Alien 中仅对 `IPC_CREAT` 有所识别。其它 flag 具体可见 [`ShmGetFlags`]。
+///
+/// 如果已经有共享内存使用了键值 `key`，那么将直接返回 `key` 的值，不会进行创建共享内存操作。
+/// 
+/// 返回值：如果创建共享内存成功或已经有共享内存使用了键值 `key`，则返回 `key` 值；否则返回 `ENOENT`。
+///
+/// Reference: [shmget](https://man7.org/linux/man-pages/man2/shmget.2.html)
 #[syscall_func(194)]
 pub fn shmget(key: usize, size: usize, shmflg: u32) -> isize {
     warn!(
@@ -117,6 +137,19 @@ pub fn shmget(key: usize, size: usize, shmflg: u32) -> isize {
     LinuxErrno::ENOENT as isize
 }
 
+/// 一个系统调用，用于将一块共享内存映射到进程的虚拟空间中。通常与 [`shmget`] 一起使用。
+///
+/// 参数：
+/// + `shmid`: 用于指明要映射的共享内存的键值 `key`, 一般为 [`shmget`] 的返回值。
+/// + `shmaddr`: 用于指明共享内存要映射到的虚存地址。一般有以下几种情况(目前Alien只能处理情况1，其余情况会导致 panic 退出)
+///     1. 如果 `shmaddr` 是NULL，系统将自动选择一个合适的地址
+///     2. 如果 `shmaddr` 不是NULL 并且没有指定 SHM_RND，则此段连接到addr所指定的地址上
+///     3. 如果 `shmaddr` 不是NULL 并且指定了 SHM_RND，则此段连接到 shmaddr -(shmaddr mod SHMLAB)所表示的地址上
+/// + `shmflg`: 一组标志位，通常为0。详细可见 [`ShmAtFlags`]。
+///
+/// 函数正常执行且映射成功时，则会返回虚拟空间中映射的首地址；当 `shmid` 不合法时，会返回 `EINVAL`。
+/// 
+/// Reference: [shmat](https://www.man7.org/linux/man-pages/man3/shmat.3p.html)
 #[syscall_func(196)]
 pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> isize {
     warn!(
@@ -168,6 +201,16 @@ pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> isize {
     free_map.start as isize
 }
 
+/// 一个系统调用，用于控制共享内存。
+///
+/// 参数：
+/// + `shmid`: 用于指明要操作的共享内存的键值 `key`, 一般为 [`shmget`] 的返回值。
+/// + `cmd`: 指明要采取的操作。具体可见 [`ShmCtlCmd`]，目前Alien仅支持 `IpcRmid`，即删除共享内存操作。
+/// + `_buf`: 指向一个存储共享内存模式和访问权限的结构，目前未用到。
+/// 
+/// 当接受的 `cmd` 为 `IpcRmid` 且 成功执行后，将返回 0；否则会因为还未支持相关操作类型而 panic。
+///
+/// Reference: [shmctl](https://man7.org/linux/man-pages/man2/shmctl.2.html)
 #[syscall_func(195)]
 pub fn shmctl(shmid: usize, cmd: usize, _buf: usize) -> isize {
     let cmd = ShmCtlCmd::try_from(cmd as u32);

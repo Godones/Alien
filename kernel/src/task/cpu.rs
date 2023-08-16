@@ -120,6 +120,15 @@ pub fn current_trap_frame() -> &'static mut TrapFrame {
     task.trap_frame()
 }
 
+/// 一个系统调用，用于终止进程。
+///
+/// 运行成功后，调用该函数的进程将转变为Zombie状态，同时回收部分资源，并让渡CPU执行其他的进程。
+/// 等待父进程得知其终止退出后，将回收该进程的其余资源。
+/// `exit_code`中的值，将会在其父进程调用[`wait4`]时，作为信息传递给父进程。
+/// 当一个具有子进程的进程终止时，其所有子进程将转交至init进程，由init进程完成其子进程相关资源的回收。
+/// 当`clear_child_tid`不为0时，会将`clear_child_tid`该处的值置为0，同时内核唤醒当前正在等待的futex。
+///
+/// 当调用该函数的进程为`pid==0`的init进程时，将直接调用`system_shutdown`使得内核终止。
 #[syscall_func(93)]
 pub fn do_exit(exit_code: i32) -> isize {
     let task = current_task().unwrap();
@@ -166,11 +175,15 @@ pub fn do_exit(exit_code: i32) -> isize {
     0
 }
 
+/// 一个系统调用，退出当前进程(进程组)下的所有线程(进程)。
+///
+/// 目前该系统调用直接调用[`do_exit`]，有关进程组的相关功能有待实现。
 #[syscall_func(94)]
 pub fn exit_group(exit_code: i32) -> isize {
     do_exit(exit_code)
 }
 
+/// 一个系统调用，用于使当前正在运行的进程让渡CPU。
 #[syscall_func(124)]
 pub fn do_suspend() -> isize {
     let task = current_task().unwrap();
@@ -181,27 +194,32 @@ pub fn do_suspend() -> isize {
     0
 }
 
+/// (待实现)设置进程组的id。目前直接返回0。
 #[syscall_func(154)]
 pub fn set_pgid() -> isize {
     0
 }
 
+/// (待实现)获取进程组的id。目前直接返回0。
 #[syscall_func(155)]
-pub fn git_pgid() -> isize {
+pub fn get_pgid() -> isize {
     0
 }
 
+/// 创建一个新的session，并使得使用系统调用的当前task成为新session的leader，同时也是新进程组的leader(待实现)
 #[syscall_func(157)]
 pub fn set_sid() -> isize {
     0
 }
 
+/// 获取当前正在运行task的pid号。在Alien中pid作为线程组的标识符，位于同一线程组中的线程的pid相同。
 #[syscall_func(172)]
 pub fn get_pid() -> isize {
     let process = current_task().unwrap();
     process.get_pid()
 }
 
+/// 获取当前正在运行task的ppid号，即父task的pid号。
 #[syscall_func(173)]
 pub fn get_ppid() -> isize {
     let process = current_task().unwrap();
@@ -213,35 +231,53 @@ pub fn get_ppid() -> isize {
     }
 }
 
+/// (待实现)获取用户 id。在实现多用户权限前默认为最高权限。目前直接返回0。
 #[syscall_func(174)]
 pub fn getuid() -> isize {
     0
 }
 
-/// 获取有效用户 id，即相当于哪个用户的权限。在实现多用户权限前默认为最高权限
+/// (待实现)获取有效用户 id，即相当于哪个用户的权限。在实现多用户权限前默认为最高权限。目前直接返回0。
 #[syscall_func(175)]
 pub fn geteuid() -> isize {
     0
 }
 
-/// 获取用户组 id。在实现多用户权限前默认为最高权限
+/// (待实现)获取用户组 id。在实现多用户权限前默认为最高权限。目前直接返回0。
 #[syscall_func(176)]
 pub fn getgid() -> isize {
     0
 }
 
-/// 获取有效用户组 id，即相当于哪个用户的权限。在实现多用户权限前默认为最高权限
+/// (待实现)获取有效用户组 id，即相当于哪个用户组的权限。在实现多用户组权限前默认为最高权限。目前直接返回0。
 #[syscall_func(177)]
 pub fn getegid() -> isize {
     0
 }
 
+/// 获取当前正在运行task的tid号。在Alien中tid作为task的唯一标识符。
 #[syscall_func(178)]
 pub fn get_tid() -> isize {
     let process = current_task().unwrap();
     process.get_tid()
 }
 
+/// 一个系统调用，用于创建一个子进程。
+///
+/// 与传统的`fork()`的功能大致相同，创建一个子进程，并将其放入任务队列中等待cpu进行调度。
+/// 但与`fork()`的功能相比，`Alien`中`clone`系统调用提供了更多详细的控制，
+/// 管理父进程和子进程之间的共享资源，例如调用者可以控制父子进程之间是否共享虚拟内存空间、文件描述符表、
+/// 信号处理程序等。
+/// 
+/// `flag`用于控制父子进程之间资源的共享程度，有关flag值及其相关含义设置可见[`CloneFlags`]和[`SignalNumber`]。
+/// `stack`用于控制子进程的用户栈。由于clone产生的子进程有可能和父进程共享内存，所以它不能使用父进程的栈。
+/// `ptid`是一个在父进程地址空间中的地址，用于在创建子进程成功后向该位置写入子进程的tid号。在flag包含`CLONE_PARENT_SETTID`时才会发挥效果。
+/// `tls`用于为子进程创建新的TLS(thread-local storage)值，在flag包含`CLONE_SETTLS`时才会实际产生效果。
+/// `ctid`用于给子进程中的[`set_child_tid`]和[`clear_child_tid`]赋值(分别在flag中包含`CLONE_CHILD_SETTID`和`CLONE_CHILD_CLEARTID`时产生效果)。
+/// 
+/// 成功创建子进程后父进程会返回子进程的tid号，子进程的返回值将被设置为0；否则返回-1。
+/// 
+/// Reference: [clone](https://www.man7.org/linux/man-pages/man2/clone.2.html)
 #[syscall_func(220)]
 pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) -> isize {
     let clone_flag = CloneFlags::from_bits_truncate(flag as u32);
@@ -270,6 +306,13 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     tid
 }
 
+/// 一个系统调用，用于执行一个文件。
+///
+/// `path`用于指明要执行的文件的绝对路径。
+/// `args_ptr`用于指明保存启动可执行文件时要传入的参数的地址。
+/// `env`用于指明保存相关环境变量的地址。
+/// 
+/// 成功执行文件后会返回0；否则会返回-1或错误类型。
 #[syscall_func(221)]
 pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
     let task = current_task().unwrap();
@@ -302,7 +345,16 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
     }
 }
 
-/// Please care about the exit code,it may be null
+/// 一个系统调用，用于父进程等待某子进程退出。
+///
+/// `pid`用于指明等待的子进程pid号。`pid == -1`表示父进程等待任意子进程返回。
+/// 当`exit_code`非空时，将会把退出的子程序的退出值赋给`exit_code`所指向的位置。
+/// `options`主要用于控制`wait4`的执行逻辑，例如当`wait_options`包含`WNOHANG`时，即使未发现子程序返回，函数也将直接返回0。
+/// 
+/// 一般`wait4`会使得父进程阻塞，直到子进程退出，返回退出的子进程pid。但当`wait_options`包含`WNOHANG`时，即使未发现子程序返回，函数也将直接返回0。
+/// 当父进程的所有子进程中不包含进程号为pid的子进程，将返回-1。
+/// 
+/// Reference:[wait](https://man7.org/linux/man-pages/man2/wait.2.html)
 #[syscall_func(260)]
 pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
     let process = current_task().unwrap().clone();
@@ -343,6 +395,12 @@ pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) 
     }
 }
 
+/// 一个系统调用，用于改变堆区的大小(目前仅可以增加堆区大小)
+///
+/// `addr`用于指明扩充堆区后，堆区的末尾位置。
+/// 当`addr`所标识的位置在当前堆起始位置的前方，或者堆当前已使用的末尾位置的前方时，将会导致增加堆区大小失败。
+/// 
+/// 成功增加堆区大小时，函数返回堆当前已使用的末尾位置；否则返回-1。
 #[syscall_func(214)]
 pub fn do_brk(addr: usize) -> isize {
     let process = current_task().unwrap();
@@ -362,6 +420,7 @@ pub fn do_brk(addr: usize) -> isize {
     res.unwrap() as isize
 }
 
+/// 一个系统调用，用于修改进程clear_child_tid的值，同时返回进程的tid。
 #[syscall_func(96)]
 pub fn set_tid_address(tidptr: usize) -> isize {
     let task = current_task().unwrap();
@@ -369,6 +428,17 @@ pub fn set_tid_address(tidptr: usize) -> isize {
     task.get_tid()
 }
 
+/// 一个系统调用，用于修改进程的资源限制。
+///
+/// 进程对其拥有的资源，包括用户栈大小、可以打开的文件描述符数、用户地址空间大小等都有所上限。
+/// 
+/// `prlimit64`则可以根据资源的种类对不同的资源进行大小的限制。针对每一具体限制都包括软上限和硬上限，具体可见[`PrLimit`]。
+/// `pid`用于指明需要修改资源限制的进程的pid号。
+/// `resource`用于指明需要修改的资源类型，可选的值包括`RLIMIT_STACK`、`RLIMIT_NOFILE`、`RLIMIT_AS`等，详情可见[`PrLimitRes`]。
+/// `new_limit`用于指明新限制的指针，如果为空指针则不进行新限制的赋值。
+/// `old_limit`用于指明存放旧限制的指针，如果为空则不进行旧限制的保存。
+/// 
+/// 正确执行后会返回0；如果输入的pid为0或者为当前正在运行的进程号，则会直接终止。
 #[syscall_func(261)]
 pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *mut u8) -> isize {
     assert!(pid == 0 || pid == current_task().unwrap().get_pid() as usize);
@@ -394,6 +464,7 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
     0
 }
 
+/// 用于exec可执行文件时，分别在args_ptr和env_ptr所指向的地址处取出参数和环境变量
 fn parse_user_arg_env(args_ptr: usize, env_ptr: usize) -> (Vec<String>, Vec<String>) {
     let task = current_task().unwrap();
     let mut args = Vec::new();
