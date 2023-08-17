@@ -1,3 +1,4 @@
+//! Error types for the buddy allocator.
 use core::fmt::Display;
 use core::ops::Range;
 
@@ -28,6 +29,7 @@ impl Display for BuddyError {
     }
 }
 
+/// Check if the memory range is valid for the buddy allocator.
 pub fn check(memory: Range<usize>) -> BuddyResult<()> {
     if memory.start & 0xfff != 0 {
         return Err(BuddyError::MemoryStartNotAligned);

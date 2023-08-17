@@ -1,10 +1,23 @@
+//! Convert virtio_input_event to WindowEvent(slint)
+//!
+//! # Example
+//! ```
+//! use input2event::input2event;
+//! use slint::platform::{PointerEventButton, WindowEvent};
+//! use slint::LogicalPosition;
+//! let mut x = 0;
+//! let mut y = 0;
+//! let event = input2event(0x1000000000000000, &mut x, &mut y).unwrap();
+//! ```
+//!
 #![cfg_attr(not(test), no_std)]
-
+#![deny(missing_docs)]
 use slint::platform::{PointerEventButton, WindowEvent};
 use slint::LogicalPosition;
 
 use virtio_input_decoder::{DecodeType, Decoder, Key, KeyType, Mouse};
 
+/// u64 -> Virtio Decoder
 pub fn u64_to_decoder(event: u64) -> Result<DecodeType, ()> {
     let dtype = (event >> 48) as usize;
     let code = (event >> 32) & 0xffff;

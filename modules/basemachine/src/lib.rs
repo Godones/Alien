@@ -1,5 +1,12 @@
+//! This crate provides a way to get machine information from a device-tree.
+//!
+//! # Example
+//! ```
+//! use basemachine::machine_info_from_dtb;
+//! let machine_info = machine_info_from_dtb(0x80700000);
+//! ```
 #![no_std]
-
+#![deny(missing_docs)]
 use core::cmp::min;
 use core::fmt::Debug;
 use core::ops::Range;
@@ -13,15 +20,24 @@ const PLIC: &str = "plic";
 const CLINT: &str = "clint";
 const RTC: &str = "rtc";
 
+/// Machine basic information
 #[derive(Clone)]
 pub struct MachineInfo {
+    /// Machine model
     pub model: [u8; 32],
+    /// Number of CPUs
     pub smp: usize,
+    /// Memory range
     pub memory: Range<usize>,
+    /// UART information
     pub uart: [UartInfo; 8],
+    /// PLIC information
     pub plic: Range<usize>,
+    /// CLINT information
     pub clint: Range<usize>,
+    /// RTC information
     pub rtc: RtcInfo,
+    /// Number of UARTs
     pub uart_count: usize,
 }
 
@@ -48,24 +64,32 @@ impl Debug for MachineInfo {
     }
 }
 
+/// RTC information
 #[derive(Debug, Default, Clone)]
 pub struct RtcInfo {
+    /// mmio virtual address
     pub range: Range<usize>,
+    /// interrupt number
     pub irq: usize,
 }
 
+/// UART information
 #[derive(Debug, Default, Copy, Clone)]
 #[allow(unused)]
 pub struct UartInfo {
+    /// mmio virtual address
     base: usize,
+    /// interrupt number
     irq: usize,
 }
 
+/// Get machine information from a device-tree
 pub fn machine_info_from_dtb(ptr: usize) -> MachineInfo {
     let fdt = unsafe { Fdt::from_ptr(ptr as *const u8).unwrap() };
     walk_dt(fdt)
 }
 
+// Walk the device-tree and get machine information
 fn walk_dt(fdt: Fdt) -> MachineInfo {
     let mut machine = MachineInfo {
         model: [0; 32],

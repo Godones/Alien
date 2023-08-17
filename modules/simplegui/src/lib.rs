@@ -9,7 +9,6 @@ use spin::{Mutex, MutexGuard};
 pub mod basic;
 pub mod complex;
 
-/// TODO The user should implement the `UPIntrFreeCell` trait
 pub struct UPIntrFreeCell<T> {
     inner: Mutex<T>,
 }
