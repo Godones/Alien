@@ -1,9 +1,28 @@
+//! A minimal index manager
+//!
+//! # Example
+//! ```
+//! use gmanager::MinimalManager;
+//! let mut manager = MinimalManager::<usize>::new(10);
+//! for i in 0..10 {
+//!     let index = manager.insert(10).unwrap();
+//!     assert_eq!(index, i);
+//!  }
+//! let index = manager.insert(10);
+//! assert!(index.is_err());
+//! let ans = manager.remove(10);
+//! assert!(ans.is_err());
+//! let _ans = manager.remove(1).unwrap();
+//! let index = manager.insert(10).unwrap();
+//! assert_eq!(index, 1);
+//! ```
 #![cfg_attr(not(test), no_std)]
 
 extern crate alloc;
 
 use alloc::vec::Vec;
 
+/// A minimal index manager
 #[derive(Debug, Clone)]
 pub struct MinimalManager<T: Clone> {
     data: Vec<Option<T>>,
@@ -21,6 +40,7 @@ impl<T: Clone> MinimalManager<T> {
             max,
         }
     }
+    /// reset the max index
     pub fn set_max(&mut self, val: usize) -> bool {
         if val > self.max {
             self.max = val;
@@ -37,13 +57,16 @@ impl<T: Clone> MinimalManager<T> {
         true
     }
 
+    /// get the max index
     pub fn max(&self) -> usize {
         self.max
     }
 
+    /// get the data reference
     pub fn data(&self) -> &Vec<Option<T>> {
         &self.data
     }
+    /// insert a value
     pub fn insert(&mut self, val: T) -> Result<usize, ManagerError> {
         if self.usable == self.max {
             return Err(ManagerError::NoSpace);
@@ -58,6 +81,7 @@ impl<T: Clone> MinimalManager<T> {
         Ok(ans)
     }
 
+    /// find the next usable index
     pub fn find_next_index(&self) -> Option<usize> {
         let data = self
             .data
@@ -67,6 +91,8 @@ impl<T: Clone> MinimalManager<T> {
             .map(|x| x.0);
         data
     }
+
+    /// remove a value by index
     pub fn remove(&mut self, index: usize) -> Result<(), ManagerError> {
         if index >= self.max {
             return Err(ManagerError::IndexOver);
@@ -81,6 +107,8 @@ impl<T: Clone> MinimalManager<T> {
         }
         Ok(())
     }
+
+    /// get a value by index
     pub fn get(&self, index: usize) -> Result<Option<T>, ManagerError> {
         if index > self.max {
             return Err(ManagerError::IndexOver);
@@ -92,7 +120,9 @@ impl<T: Clone> MinimalManager<T> {
         let val = val.unwrap();
         Ok(val.clone())
     }
+
     #[allow(unused)]
+    /// check the index is usable
     pub fn is_usable(&self, index: usize) -> Result<bool, ManagerError> {
         if index > self.max {
             return Err(ManagerError::IndexOver);
@@ -115,6 +145,8 @@ impl<T: Clone> MinimalManager<T> {
         }
         Ok(())
     }
+
+    /// clear all data
     pub fn clear(&mut self) -> Vec<T> {
         let res = self
             .data
@@ -128,6 +160,7 @@ impl<T: Clone> MinimalManager<T> {
     }
 }
 
+/// Error type
 #[derive(Debug)]
 pub enum ManagerError {
     NoSpace = 0,

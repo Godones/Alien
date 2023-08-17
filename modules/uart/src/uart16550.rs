@@ -1,9 +1,11 @@
+/// The UART 16550 driver.
 pub struct Uart16550Raw(usize);
 
 impl Uart16550Raw {
     pub fn new(base: usize) -> Self {
         Uart16550Raw(base)
     }
+    /// Initialize the UART.
     pub fn init(&self) {
         let ptr = self.0 as *mut u8;
         unsafe {
@@ -24,6 +26,7 @@ impl Uart16550Raw {
             // ptr.add(1).write_volatile(0x1);
         }
     }
+    /// Write a byte to the UART.
     pub fn put(&self, c: u8) {
         let ptr = self.0 as *mut u8;
         unsafe {
@@ -33,6 +36,7 @@ impl Uart16550Raw {
             ptr.add(0).write_volatile(c);
         }
     }
+    /// Read a byte from the UART. If there is no data, return `None`.
     pub fn read(&self) -> Option<u8> {
         let ptr = self.0 as *mut u8;
         unsafe {

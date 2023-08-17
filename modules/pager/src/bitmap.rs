@@ -1,9 +1,13 @@
+//! Bitmap page allocator
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 
 use crate::error::{check, BuddyError};
 use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
 
+/// The bitmap page allocator
+///
+/// It can manage N*8 pages
 pub struct Bitmap<const N: usize> {
     /// Current number of allocated pages
     current: usize,

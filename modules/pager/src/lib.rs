@@ -1,8 +1,28 @@
+//! Two simple page allocator
+//! * `Zone` - a simple buddy allocator
+//! * `Bitmap` - a simple bitmap allocator
+//! # Example
+//! ```
+//! use pager::{PageAllocator, Zone, Bitmap};
+//! use core::ops::Range;
+//! let mut zone = Zone::<12>::new();
+//! let mut bitmap = Bitmap::<12>::new();
+//! let memory = Range {
+//!     start: 0x80000000,
+//!     end: 0x80000000 + 0x100000,
+//! };
+//! zone.init(memory.clone()).unwrap();
+//! bitmap.init(memory.clone()).unwrap();
+//! let page = zone.alloc(0).unwrap();
+//! zone.free(page, 0).unwrap();
+//! let page = bitmap.alloc(0).unwrap();
+//! bitmap.free(page, 0).unwrap();
+//! ```
 #![feature(generic_const_exprs)]
 #![cfg_attr(not(test), no_std)]
 #![allow(incomplete_features)]
 #![allow(unused)]
-//! Buddy memory allocator
+#![deny(missing_docs)]
 
 extern crate alloc;
 
@@ -19,6 +39,7 @@ mod error;
 
 type BuddyResult<T> = Result<T, error::BuddyError>;
 
+/// The trait of page allocator
 pub trait PageAllocator {
     /// init the allocator according to the memory range
     fn init(&mut self, memory: Range<usize>) -> BuddyResult<()>;
@@ -33,6 +54,9 @@ pub trait PageAllocator {
     fn free(&mut self, page: usize, order: usize) -> BuddyResult<()>;
 }
 
+/// The trait of page allocator
+///
+/// It allows to allocate continuous pages
 pub trait PageAllocatorExt {
     /// allocate pages
     /// # Params

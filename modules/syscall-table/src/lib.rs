@@ -1,11 +1,43 @@
+//! syscall table
+//!
+//! Since the number of parameters used by each system call is inconsistent,
+//! we need to pay attention to the use of parameters when calling the system call.
+//! This module uses the macro mechanism of rust to abstract the various system calls.
+//! Users only need to register the system call number and function To a global table,
+//! when in use, directly pass the system call number and a `&[usize]` parameter array.
+//!
+//! # Example
+//! ```
+//!use syscall_table::Table;
+//! fn read(p1: usize, p2: usize) -> isize {
+//!     println!("p1+p2 = {}", p1 + p2);
+//!     0
+//! }
+//! fn test(p1: usize, p2: usize, p3: *const u8) -> isize {
+//!     let len = p1 + p2;
+//!     let buf = unsafe { core::slice::from_raw_parts(p3, len) };
+//!     // transfer to usize
+//!     let buf = buf
+//!         .chunks(8)
+//!         .map(|x| {
+//!             let mut buf = [0u8; 8];
+//!             buf.copy_from_slice(x);
+//!             usize::from_le_bytes(buf)
+//!         })
+//!         .collect::<Vec<usize>>();
+//!     println!("read {}, buf = {:?}", len, buf);
+//!     0
+//! }
+//! let mut table = Table::new();
+//! table.register(0, read);
+//! table.register(1, test);
+//! table.do_call(0, &[1, 2, 0, 0, 0, 0]);
+//! let data = [6usize; 8];
+//! table.do_call(1, &[0, 8 * 8, data.as_ptr() as usize, 0, 0, 0]);
+//!```
+
 #![cfg_attr(not(feature = "test"), no_std)]
 #![allow(non_snake_case)]
-
-#[cfg(feature = "std")]
-pub mod scan;
-
-#[cfg(feature = "test")]
-extern crate std;
 
 extern crate alloc;
 
@@ -15,6 +47,9 @@ use alloc::string::String;
 use alloc::sync::Arc;
 pub use systable_macro_derive::syscall_func;
 
+/// A system call table
+///
+/// It uses a BTreeMap to store the system call number and the corresponding handler.
 pub struct SysCallTable {
     table: BTreeMap<usize, Arc<dyn Handler>>,
 }
@@ -25,15 +60,15 @@ impl SysCallTable {
             table: BTreeMap::new(),
         }
     }
+    /// Call the system call
     pub fn register(&mut self, id: usize, handler: Arc<dyn Handler>) {
         self.table.insert(id, handler);
     }
+    /// Call the system call
     pub fn remove(&mut self, id: usize) -> Option<Arc<dyn Handler>> {
         self.table.remove(&id)
     }
 }
-
-pub static mut SYSCALL_TABLE: SysCallTable = SysCallTable::new();
 
 pub trait Handler {
     fn name(&self) -> &str;
@@ -201,7 +236,9 @@ impl Service {
         (self.service)(args)
     }
 }
-
+/// 系统调用表
+///
+/// 使用BTreeMap存储系统调用
 pub struct Table {
     map: BTreeMap<usize, Service>,
 }
@@ -214,6 +251,7 @@ impl Table {
             map: BTreeMap::new(),
         }
     }
+    /// 注册系统调用
     pub fn register<F, Args, Res>(&mut self, id: usize, func: F)
     where
         F: UniFn<Args, Res> + 'static,
@@ -223,9 +261,12 @@ impl Table {
         let handler = SysCallHandler::new(func);
         self.map.insert(id, Service::from_handler(handler));
     }
+    /// 移除系统调用
     pub fn remove(&mut self, id: usize) -> Option<Service> {
         self.map.remove(&id)
     }
+
+    /// 调用系统调用
     pub fn do_call(&self, id: usize, args: &[usize]) -> Option<isize> {
         self.map.get(&id).map(|x| x.handle(args))
     }

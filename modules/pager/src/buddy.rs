@@ -1,3 +1,15 @@
+//! Buddy system allocator
+//!
+//! The buddy system is a memory allocation and management algorithm that manages memory in power of
+//! two increments. It operates by splitting memory into halves until each chunk is the size of the
+//! allocation request.
+//!
+//! The buddy system is often used to allocate memory in a computer system for the execution of a
+//! program by an application programmer (or a compiler or assembler). It is also used by kernels
+//! for their internal data structures, and sometimes for user-space memory allocation.
+//!
+//! # References
+//! <https://en.wikipedia.org/wiki/Buddy_memory_allocation>
 use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;

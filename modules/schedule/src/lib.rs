@@ -1,5 +1,38 @@
-#![cfg_attr(not(test), no_std)]
+//! A simple scheduler for smp
+//!
+//! Every hart has a task queue, and the scheduler will fetch a task from the queue.
+//! If the queue is empty, the scheduler will fetch a task from the global queue.
+//! When task is suspended, it will be pushed into the local queue and if the local queue is full,
+//! it will be pushed into the global queue.
+//!
+//! # Example
+//! ```
+//! use std::sync::atomic::{AtomicUsize, Ordering};use crate::schedule::*;
+//! static TMP: AtomicUsize = AtomicUsize::new(0);
+//! #[derive(Debug)]
+//! struct ScheduleHartImpl;
+//!
+//! impl ScheduleHart for ScheduleHartImpl {
+//!     fn hart_id() -> usize {
+//!         TMP.load(Ordering::SeqCst)
+//!     }
+//! }
+//! let s = Scheduler::<u32, ScheduleHartImpl, 4, 16>::new();
+//! s.push_to_global(1); // push to global queue
+//! s.push(2).unwrap(); // push to local queue 0
+//! TMP.store(1, Ordering::SeqCst);
+//! s.push(3).unwrap(); // push to local queue 1
+//!  // println!("{:#?}", s);
+//! let val1 = s.fetch();
+//! assert_eq!(val1, Some(3));
+//! TMP.store(0, Ordering::SeqCst);
+//! let val2 = s.fetch();
+//! assert_eq!(val2, Some(2));
+//!```
+//!
 
+#![cfg_attr(not(test), no_std)]
+#![deny(missing_docs)]
 extern crate alloc;
 
 use alloc::collections::VecDeque;
@@ -9,18 +42,27 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-const GLOBAL_TASK_MAX: usize = 65536;
+/// The max size of global task queue
+pub const GLOBAL_TASK_MAX: usize = 65536;
 
+
+/// The trait of schedule
 pub trait Schedule {
+    /// The type of task
     type Task: Clone + Debug;
+    /// fetch a task from the queue
     fn fetch(&self) -> Option<Self::Task>;
+    /// push a task into the queue
     fn push(&self, task: Self::Task) -> Result<(), Self::Task>;
 }
 
+/// The trait for getting hart id
 pub trait ScheduleHart: Debug {
+    /// get the hart id
     fn hart_id() -> usize;
 }
 
+/// The task queue
 #[derive(Debug)]
 struct TaskQueue<T: Clone + Debug, const QS: usize> {
     max_size: usize,
@@ -54,6 +96,7 @@ impl<T: Clone + Debug, const QS: usize> Schedule for TaskQueue<T, QS> {
     }
 }
 
+/// The scheduler
 #[derive(Debug)]
 pub struct Scheduler<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> {
     global_lock: AtomicBool,
@@ -65,6 +108,7 @@ pub struct Scheduler<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const 
 impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize>
     Scheduler<T, H, SMP, QS>
 {
+    /// create a scheduler
     pub fn new() -> Self {
         let mut t = Self {
             global_lock: AtomicBool::new(false),
@@ -77,6 +121,9 @@ impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize>
         }
         t
     }
+    /// push a task into the global queue
+    ///
+    /// During the kernel initialization phase, the created tasks will be placed on the global queue
     pub fn push_to_global(&self, task: T) {
         while self
             .global_lock
@@ -151,6 +198,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn fetch_push() {
         let s = Scheduler::<u32, ScheduleHartImpl, 4, 16>::new();
         s.push_to_global(1); // push to global queue
