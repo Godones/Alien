@@ -11,5 +11,6 @@ slint = { version = "1.0.0", default-features = false, features = ["compat-1-0",
 input2event = { path = "../../modules/input2event" }
 libm = "0.2.6"
 rand = { version = "0.8.4", default-features = false, features = ["small_rng"] }
+slint-helper = { path = "../slint-helper" }
 [build-dependencies]
 slint-build = "1.0.0"

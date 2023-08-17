@@ -17,8 +17,14 @@ members = [
     "modules/input2event",
     "modules/uart",
     "modules/simple-net",
+    "modules/schedule",
+    "apps/slint-helper",
     "apps/cat",
     "apps/sleep",
+    "apps/todo",
+    "apps/printdemo",
+    "apps/egui",
+    "apps/sysinfo",
     #    "apps/dbfs",
     "apps/init",
     "apps/ls",
@@ -38,6 +44,7 @@ members = [
     "apps/socket_test",
     "apps/tests",
     "apps/memory-game",
+    "apps/print",
 ]
 
 

@@ -32,7 +32,7 @@ fn main() {
 }
 
 pub fn rewrite_config() {
-    let cpus = option_env!("SMP").unwrap_or("4");
+    let cpus = option_env!("SMP").unwrap_or("1");
     let cpus = cpus.parse::<usize>().unwrap();
     let config_file = Path::new("src/config.rs");
     let config = fs::read_to_string(config_file).unwrap();
@@ -92,11 +92,19 @@ pub fn scan_and_generate(path: String) {
 
 fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
     let entries = fs::read_dir(dir).unwrap();
-    for entry in entries {
-        let entry = entry.unwrap();
-        let path = entry.path();
+
+    let paths = entries
+        .map(|entry| entry.unwrap().path())
+        .collect::<Vec<PathBuf>>();
+    // sort the paths
+    let mut paths = paths.iter().collect::<Vec<&PathBuf>>();
+    paths.sort();
+
+    for path in paths {
+        // let entry = entry.unwrap();
+        // let path = entry.path();
         if path.is_dir() {
-            scan(import, context, path);
+            scan(import, context, path.clone());
         } else {
             if path.extension().unwrap() == "rs" {
                 let file = File::open(path.clone()).unwrap();

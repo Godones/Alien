@@ -9,7 +9,7 @@ use rvfs::mount::VfsMount;
 use rvfs::superblock::{DataOps, Device};
 use rvfs::StrResult;
 
-use syscall_define::io::{TeletypeCommand, Termios, WinSize};
+use syscall_define::io::{LocalModes, TeletypeCommand, Termios, WinSize};
 
 use crate::print::console::{check_have_char, get_char};
 use crate::task::current_task;
@@ -72,14 +72,35 @@ fn stdin_ready_to_read(_file: Arc<File>) -> bool {
     check_have_char()
 }
 
-fn stdin_read(_file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
-    return match get_char() {
-        Some(ch) => {
-            buf[0] = ch;
-            Ok(1)
+fn stdin_read(file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
+    let binding = file.f_dentry.access_inner();
+    let inode_inner = binding.d_inode.access_inner();
+    let data = inode_inner.data.as_ref().unwrap();
+    let data = IoData::from_ptr(data.data());
+
+    // read util \r and transform to \n
+    let mut read_count = 0;
+    loop {
+        let ch = get_char();
+        assert!(ch.is_some());
+        let ch = ch.unwrap();
+        buf[read_count] = ch;
+        read_count += 1;
+        if ch == b'\r' {
+            buf[read_count - 1] = b'\n';
+            if LocalModes::from_bits_truncate(data.termios.lflag).contains(LocalModes::ECHO) {
+                uprint!("\n");
+            }
+            break;
         }
-        None => Ok(0),
-    };
+        if LocalModes::from_bits_truncate(data.termios.lflag).contains(LocalModes::ECHO) {
+            uprint!("{}", ch as char);
+        }
+        if read_count >= buf.len() {
+            break;
+        }
+    }
+    Ok(read_count)
 }
 lazy_static! {
     pub static ref STDOUT: Arc<Stdout> = {
