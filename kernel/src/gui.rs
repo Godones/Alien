@@ -1,3 +1,4 @@
+//! GUI 相关的系统调用
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 
 use syscall_table::syscall_func;
