@@ -119,9 +119,9 @@ pub const SHMSEG: usize = SHMMNI;
 
 bitflags! {
     pub struct ShmGetFlags: i32 {
-        /// 
+        ///
         const SHM_R = 0o400;
-        /// 
+        ///
         const SHM_W = 0o200;
         /// Create a new segment. If this flag is not used, then shmget() will find the segment associated with key and check to see if the user has permission to access the segment.
         const IPC_CREAT = 0o1000;

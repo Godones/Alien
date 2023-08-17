@@ -127,4 +127,3 @@ pub fn socket_addr_resolution(family_user_addr: usize, len: usize) -> Result<Soc
         }
     }
 }
-

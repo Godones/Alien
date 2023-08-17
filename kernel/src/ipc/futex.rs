@@ -9,9 +9,9 @@
 //! 时候，先去查看共享内存中的futex变量，如果没有竞争发生，则只修改futex, 而不用再执行系统调用了。当通过访问futex
 //! 变量告诉进程有竞争发生，则还是得执行系统调用去完成相应的处理(wait 或者 wake up)。简单的说，futex就是通过在用户
 //! 态的检查，（motivation）如果了解到没有竞争就不用陷入内核了，大大提高了low-contention时候的效率。Linux从2.5.7开始支持Futex。
-//! 
+//!
 //! Reference: https://cloud.tencent.com/developer/article/1176832
-//! 
+//!
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec;

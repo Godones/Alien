@@ -5,9 +5,12 @@ use fdt::standard_nodes::Compatible;
 use fdt::Fdt;
 use spin::Once;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::transport::{DeviceType, Transport};
+use virtio_drivers::transport::{DeviceType as VirtDeviceType, Transport};
 
-use crate::board::common::{get_device_info, get_device_info_from_node};
+use crate::board::common::get_device_info;
+use crate::board::BOARD_DEVICES;
+use crate::device::DeviceInfo;
+use crate::device::DeviceType;
 
 pub static DTB: Once<Fdt> = Once::new();
 
@@ -21,57 +24,41 @@ pub fn init_dtb(dtb: Option<usize>) {
 }
 
 /// Get the base address and irq number of the uart device from the device tree.
-///
-/// Return:
-/// (base addr, irq)
-pub fn get_rtc_info() -> Option<(usize, usize)> {
-    let fdt = DTB.get().unwrap();
-    get_device_info(fdt, "rtc")
+pub fn probe_devices_from_dtb() {
+    if let Some(rtc) = probe_rtc() {
+        BOARD_DEVICES.lock().insert(DeviceType::Rtc, rtc);
+    }
+    if let Some(uart) = probe_uart() {
+        BOARD_DEVICES.lock().insert(DeviceType::Uart, uart);
+    }
+    find_virtio_device(DTB.get().unwrap());
 }
 
 /// Get the base address and irq number of the uart device from the device tree.
-///
-/// Return:
-/// (base addr, irq)
-pub fn get_uart_info() -> Option<(usize, usize)> {
+pub fn probe_rtc() -> Option<DeviceInfo> {
     let fdt = DTB.get().unwrap();
-    get_device_info(fdt, "uart")
+    let res = get_device_info(fdt, "rtc");
+    if res.is_none() {
+        return None;
+    }
+    let (base_addr, irq) = res.unwrap();
+    Some(DeviceInfo::new(base_addr, irq))
 }
 
-pub fn get_gpu_info() -> Option<(usize, usize)> {
+/// Get the base address and irq number of the uart device from the device tree.
+pub fn probe_uart() -> Option<DeviceInfo> {
     let fdt = DTB.get().unwrap();
-    find_virtio_device(&fdt, DeviceType::GPU, None)
+    if let Some((base_addr, irq)) = get_device_info(fdt, "uart") {
+        return Some(DeviceInfo::new(base_addr, irq));
+    }
+    None
 }
 
-pub fn get_keyboard_info() -> Option<(usize, usize)> {
-    let fdt = DTB.get().unwrap();
-    find_virtio_device(&fdt, DeviceType::Input, Some(VIRTIO5))
-}
-
-pub fn get_mouse_info() -> Option<(usize, usize)> {
-    let fdt = DTB.get().unwrap();
-    find_virtio_device(&fdt, DeviceType::Input, Some(VIRTIO6))
-}
-
-pub fn get_block_device_info() -> Option<(usize, usize)> {
-    let fdt = DTB.get().unwrap();
-    find_virtio_device(&fdt, DeviceType::Block, None)
-}
-
-pub fn get_net_device_info() -> Option<(usize, usize)> {
-    let fdt = DTB.get().unwrap();
-    find_virtio_device(&fdt, DeviceType::Network, None)
-}
-
-fn find_virtio_device(
-    fdt: &Fdt,
-    device_type: DeviceType,
-    special_addr: Option<usize>,
-) -> Option<(usize, usize)> {
+fn find_virtio_device(fdt: &Fdt) -> Option<(usize, usize)> {
     for node in fdt.all_nodes() {
         if node.name.starts_with("virtio_mmio") {
-            if virtio_probe(&node, device_type, special_addr) {
-                return get_device_info_from_node(&node);
+            if let Some((device_type, info)) = virtio_probe(&node) {
+                BOARD_DEVICES.lock().insert(device_type, info);
             }
         }
     }
@@ -83,7 +70,7 @@ const VIRTIO5: usize = 0x10005000;
 // mouse
 const VIRTIO6: usize = 0x10006000;
 
-fn virtio_probe(node: &FdtNode, device_type: DeviceType, special_addr: Option<usize>) -> bool {
+fn virtio_probe(node: &FdtNode) -> Option<(DeviceType, DeviceInfo)> {
     if let Some(reg) = node.reg().and_then(|mut reg| reg.next()) {
         let paddr = reg.starting_address as usize;
         let size = reg.size.unwrap();
@@ -94,9 +81,16 @@ fn virtio_probe(node: &FdtNode, device_type: DeviceType, special_addr: Option<us
             node.name,
             node.compatible().map(Compatible::first),
         );
+        let irq = if let Some(mut interrupts) = node.interrupts() {
+            let irq = interrupts.next().unwrap();
+            irq
+        } else {
+            0
+        };
+
         let header = NonNull::new(vaddr as *mut VirtIOHeader).unwrap();
         match unsafe { MmioTransport::new(header) } {
-            Err(_) => false,
+            Err(_) => {}
             Ok(mut transport) => {
                 info!(
                     "Detected virtio MMIO device with vendor id {:#X}, device type {:?}, version {:?}, features:{:?}",
@@ -105,22 +99,35 @@ fn virtio_probe(node: &FdtNode, device_type: DeviceType, special_addr: Option<us
                     transport.version(),
                     transport.read_device_features(),
                 );
-                info!(
-                    "Probe virtio device: {:?}, special addr: {:?}",
-                    transport.device_type(),
-                    special_addr
-                );
-                if device_type == transport.device_type() {
-                    if special_addr.is_none() {
-                        return true;
-                    } else if special_addr.is_some() && special_addr.unwrap() == paddr {
-                        return true;
+                info!("Probe virtio device: {:?}", transport.device_type());
+                match transport.device_type() {
+                    VirtDeviceType::Input => {
+                        let device_info = DeviceInfo::new(paddr, irq);
+                        let res = if paddr == VIRTIO5 {
+                            Some((DeviceType::KeyBoardInput, device_info))
+                        } else if paddr == VIRTIO6 {
+                            Some((DeviceType::MouseInput, device_info))
+                        } else {
+                            None
+                        };
+                        return res;
                     }
+                    VirtDeviceType::Block => {
+                        let device_info = DeviceInfo::new(paddr, irq);
+                        return Some((DeviceType::Block, device_info));
+                    }
+                    VirtDeviceType::GPU => {
+                        let device_info = DeviceInfo::new(paddr, irq);
+                        return Some((DeviceType::GPU, device_info));
+                    }
+                    VirtDeviceType::Network => {
+                        let device_info = DeviceInfo::new(paddr, irq);
+                        return Some((DeviceType::Network, device_info));
+                    }
+                    _ => return None,
                 }
-                false
             }
         }
-    } else {
-        false
     }
+    None
 }

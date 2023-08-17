@@ -1006,6 +1006,12 @@ impl TaskInner {
         if start == 0 && flags.contains(MapFlags::MAP_FIXED) {
             return Err(LinuxErrno::EINVAL as isize);
         }
+
+        // if the map in heap, now we ignore it
+        if self.heap.lock().contains(start) && self.heap.lock().contains(start + len) {
+            return Ok(start);
+        }
+
         // not map to file
         let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
             None
@@ -1439,7 +1445,7 @@ impl Task {
                     affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
                     affinity
                 },
-                unmask: 0o666,
+                unmask: 0o022,
                 stack: stack_info,
                 need_wait: 0,
             }),
@@ -1462,18 +1468,18 @@ impl Task {
         let res = Some(process);
         res
     }
-    
+
     /// 产生一个新的子进程。
-    /// 
+    ///
     /// `flag`用于控制父子进程之间资源的共享程度，有关flag值及其相关含义设置可见[`CloneFlags`]。
     /// `stack`用于控制子进程的用户栈。由于clone产生的子进程有可能和父进程共享内存，所以它不能使用父进程的栈。
     /// `sig`用于控制子进程退出时传递给父进程的相关信号。目前Alien中的设计为当其值为`SIGCHLD`时，在子进程退出时会向父程序发送`SIGCHLD`信号。会其它有关值的设置可见[`SignalNumber`]。
     /// `ptid`是一个在父进程地址空间中的地址，用于在创建子进程成功后向该位置写入子进程的tid号。在flag包含`CLONE_PARENT_SETTID`时才会发挥效果。
     /// `tls`用于为子进程创建新的TLS(thread-local storage)值，在flag包含`CLONE_SETTLS`时才会实际产生效果。
     /// `ctid`用于给子进程中的[`set_child_tid`]和[`clear_child_tid`]赋值(分别在flag中包含`CLONE_CHILD_SETTID`和`CLONE_CHILD_CLEARTID`时产生效果)。
-    /// 
+    ///
     /// 成功创建子进程后父进程会返回子进程的TCB。
-    /// 
+    ///
     /// Note: 当传入的ptid未在父进程地址空间中被分配时，会引发panic。
     pub fn t_clone(
         self: &Arc<Self>,
@@ -1637,7 +1643,7 @@ impl Task {
                     affinity.set_bits(0..CPU_NUM, 1 << CPU_NUM - 1);
                     affinity
                 },
-                unmask: 0o666,
+                unmask: 0o022,
                 stack: inner.stack.clone(),
                 need_wait: 0,
             }),
@@ -1652,12 +1658,12 @@ impl Task {
     }
 
     /// 用于执行一个可执行文件，供sys_exec调用。
-    /// 
+    ///
     /// `name`用于传入文件的路径和文件名。
     /// `elf_data`用于传入从对应文件处读入的文件数据，用于构造elf_info。
     /// `args`用于指明启动可执行文件时要传入的参数。
     /// `env`用于指明相关环境变量。
-    /// 
+    ///
     /// 成功执行则返回OK(())；否则返回错误码(isize)。
     pub fn exec(
         &self,

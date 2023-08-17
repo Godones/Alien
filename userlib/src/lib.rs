@@ -11,6 +11,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::arch::asm;
 
+use crate::heap::init_heap;
 use crate::process::exit;
 use crate::syscall::__system_shutdown;
 
@@ -32,6 +33,7 @@ pub mod time;
 
 #[cfg(feature = "gui")]
 pub mod gui;
+pub mod sync;
 
 #[no_mangle]
 #[naked]
@@ -50,6 +52,8 @@ extern "C" fn _start() -> ! {
 fn _start_rust(argc_ptr: usize) {
     let argc = unsafe { (argc_ptr as *const usize).read_volatile() };
     let argv = argc_ptr + core::mem::size_of::<usize>();
+    init_heap();
+
     let argv = parse_args(argc, argv); //todo!(env)
     exit(unsafe { main(argc, argv) });
 }
