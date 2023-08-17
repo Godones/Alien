@@ -171,7 +171,7 @@ pub fn do_munmap(start: usize, len: usize) -> isize {
 }
 
 /// 一个系统调用，用于将文件或设备映射到内存中。将一个普通文件映射到内存中，通常在需要对文件进行频繁读写时使用，这样用内存读写取代I/O读写，以获得较高的性能。
-/// 
+///
 /// + `start`: 所要创建的映射区的起始地址。当该值为0时，内核将自动为其分配一段内存空间创建内存映射。该值在函数运行过程中将被调整为与4K对齐。
 /// + `len`: 指明所要创建的映射区的长度。该值在函数运行过程中将被调整为与4K对齐。
 /// + `prot`: 指明创建内存映射区的初始保护位。具体可见[`ProtFlags`]。
@@ -200,7 +200,7 @@ pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offse
 
 /// 一个系统调用，用于修改内存映射的保护位，从而修改对内存映射的访问权限。
 /// 函数会检查传入的`start`和`len`所指示的内存映射区是否已经处于被映射状态，如果是，则将对应内存映射区的保护位与`prot`做或运算。
-/// 
+///
 /// 如果函数正常执行，则返回0；如果`start`和`len`所指示的内存映射区未已经处于被映射状态，函数将返回-1。
 #[syscall_func(226)]
 pub fn map_protect(start: usize, len: usize, prot: u32) -> isize {
@@ -221,7 +221,7 @@ pub fn map_protect(start: usize, len: usize, prot: u32) -> isize {
 /// (待实现)一个系统调用，用于同步文件在内存映射中的修改。一个文件通过[`do_mmap`]映射到内存中，可以在内存中对其进行快速的读写。
 /// 当我们对文件的映射进行修改后，如果不调用`msync`系统调用，那么在调用[`do_munmap`]之前内存中的相应内容都不会写回磁盘文件，有可能导致不一致性问题。
 /// 目前函数仅会检查所传入的`addr`是否已经被映射，如果没有被映射，则会返回`EFAULT`；否则直接返回0。
-/// 
+///
 /// Reference: [madvise](https://man7.org/linux/man-pages/man2/madvise.2.html)
 #[syscall_func(227)]
 pub fn msync(addr: usize, len: usize, flags: usize) -> isize {
@@ -240,7 +240,7 @@ pub fn msync(addr: usize, len: usize, flags: usize) -> isize {
 }
 
 /// (待实现)一个系统调用，用于向内核提供使用内存的建议。目前直接返回0。
-/// 
+///
 /// Reference: [madvise](https://man7.org/linux/man-pages/man2/madvise.2.html)
 #[syscall_func(233)]
 pub fn madvise(addr: usize, len: usize, advice: usize) -> isize {

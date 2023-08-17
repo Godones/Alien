@@ -95,7 +95,7 @@ impl TimeFromFreq for TimeVal {
 #[derive(Copy, Clone, Debug)]
 pub struct TimeSpec {
     pub tv_sec: usize,
-    pub tv_nsec: usize, //0~999999999    
+    pub tv_nsec: usize, //0~999999999
 }
 
 impl TimeSpec {
@@ -165,7 +165,7 @@ pub fn get_time_ms() -> isize {
 
 /// 一个系统调用函数，获取当前的时间，获取的时间将存储在`tv`所指向的[`TimeVal`]结构处。
 /// 执行成功则返回0。
-/// 
+///
 /// Reference: [get_time_of_day](https://man7.org/linux/man-pages/man2/gettimeofday.2.html)
 #[syscall_func(169)]
 pub fn get_time_of_day(tv: *mut u8) -> isize {
@@ -219,7 +219,7 @@ pub fn nanosleep(req: *mut u8, _: *mut u8) -> isize {
 }
 
 /// 一个系统调用函数，可以根据输入的时钟类型`clock_id`来获取当前的时间，获取的时间将存储在`tp`所指向的[`TimeSpec`]结构处。
-/// 
+///
 /// 目前仅支持`Monotonic`、`Realtime`和`ProcessCputimeId`三种时钟类型，均会返回当前的系统时间。
 /// 执行成功则返回0；当所输入的`clock_id`不在`Monotonic`、`Realtime`和`ProcessCputimeId`中时，进程将会被panic。
 ///
@@ -375,10 +375,10 @@ pub fn clock_getres(id: usize, res: usize) -> isize {
 }
 
 /// 一个系统调用函数，如`nanosleep`一样，暂停本进程直到一段时间后结束，但`clock_nanosleep`可以根据传入的`clock_id`来指定使用的时钟类型。
-/// 
+///
 /// 要暂停的时间将保存在`req`所指向的[`TimeSpec`]结构处。目前仅支持`Monotonic`，输入其它时钟类型将会返回使得进程panic。
 /// 如`nanosleep`一样，在`clock_nanosleep`执行过程中，本进程也有可能被其他信号唤醒。
-/// 
+///
 /// 函数若正常停止`req`时间则返回0；如果由于因为其他信号而被唤醒，此时函数返回-1(EINTR)。
 ///
 /// Reference: [times](https://man7.org/linux/man-pages/man2/times.2.html)

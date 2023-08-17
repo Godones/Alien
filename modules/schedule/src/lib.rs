@@ -54,7 +54,6 @@ impl<T: Clone + Debug, const QS: usize> Schedule for TaskQueue<T, QS> {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Scheduler<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> {
     global_lock: AtomicBool,
@@ -63,7 +62,9 @@ pub struct Scheduler<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const 
     hart: PhantomData<H>,
 }
 
-impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> Scheduler<T, H, SMP, QS> {
+impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize>
+    Scheduler<T, H, SMP, QS>
+{
     pub fn new() -> Self {
         let mut t = Self {
             global_lock: AtomicBool::new(false),
@@ -77,7 +78,11 @@ impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> Sched
         t
     }
     pub fn push_to_global(&self, task: T) {
-        while self.global_lock.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        while self
+            .global_lock
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
             // spin
         }
         self.global_queue.push(task).unwrap();
@@ -85,7 +90,9 @@ impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> Sched
     }
 }
 
-impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> Schedule for Scheduler<T, H, SMP, QS> {
+impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> Schedule
+    for Scheduler<T, H, SMP, QS>
+{
     type Task = T;
 
     fn fetch(&self) -> Option<Self::Task> {
@@ -95,7 +102,11 @@ impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> Sched
         if task.is_some() {
             return task;
         }
-        while self.global_lock.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        while self
+            .global_lock
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
             // spin
         }
         let task = self.global_queue.fetch();
@@ -110,7 +121,11 @@ impl<T: Clone + Debug, H: ScheduleHart, const SMP: usize, const QS: usize> Sched
         if task.is_ok() {
             return Ok(());
         }
-        while self.global_lock.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        while self
+            .global_lock
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
             // spin
         }
         self.global_queue.push(task.err().unwrap()).unwrap();
@@ -138,11 +153,11 @@ mod tests {
 
     fn fetch_push() {
         let s = Scheduler::<u32, ScheduleHartImpl, 4, 16>::new();
-        s.push_to_global(1);  // push to global queue
-        s.push(2).unwrap();   // push to local queue 0
+        s.push_to_global(1); // push to global queue
+        s.push(2).unwrap(); // push to local queue 0
         TMP.store(1, Ordering::SeqCst);
-        s.push(3).unwrap();   // push to local queue 1
-        // println!("{:#?}", s);
+        s.push(3).unwrap(); // push to local queue 1
+                            // println!("{:#?}", s);
         let val1 = s.fetch();
         assert_eq!(val1, Some(3));
         TMP.store(0, Ordering::SeqCst);

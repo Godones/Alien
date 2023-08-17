@@ -78,7 +78,7 @@ pub fn bind(socketfd: usize, sockaddr: usize, len: usize) -> isize {
     }
 }
 
-/// 一个系统调用，用于等待client提交连接请求，一般用于bind之后，accept之前 
+/// 一个系统调用，用于等待client提交连接请求，一般用于bind之后，accept之前
 ///
 /// + `socketfd`: 指明要操作socket的文件描述符fd;
 /// + `backlog`: 指明套接字侦听队列中正在处于半连接状态(等待accept)的请求数最大值。如果该值小于等于0，则自动调为0，同时也有最大值上限。
@@ -100,7 +100,7 @@ pub fn listening(socketfd: usize, backlog: usize) -> isize {
 
 /// 一个系统调用，用于取出套接字listen队列中的第一个连接，创建一个与指定套接字具有相同套接字类型的地址族的新套接字。
 /// 新套接字用于传递数据，原套接字继续处理侦听队列中的连接请求。如果侦听队列中无请求，accept()将阻塞。
-/// 
+///
 /// + `socketfd`: 指明要操作socket的文件描述符fd，需经过bind()和listen()处理;
 /// + `socket_addr`: 要么为空，要么指明保存accept成功的客户端相关信息([`RawIpV4Addr`])的地址;
 /// + `addr_len`: 保存连接的client相关信息`address`长度的地址。
@@ -137,9 +137,8 @@ pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> isize {
     }
 }
 
-
 /// 一个系统调用，用于client请求在一个套接字上建立连接。
-/// 
+///
 /// + `socketfd`: 指明要操作socket的文件描述符fd;
 /// + `socket_addr`: 指明保存服务器地址和端口号的数据结构([`RawIpV4Addr`])的地址;
 /// + `len`: `socket_addr`长度的地址。
@@ -182,7 +181,7 @@ pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> isize {
 }
 
 /// 一个系统调用，查询一个套接字本地bind()的相关信息。
-/// 
+///
 /// + `socketfd`: 指明要操作socket的文件描述符fd;
 /// + `socket_addr`: 指明相关信息([`RawIpV4Addr`])将要保存的地址;
 /// + `len`: 保存`address`长度的地址。
@@ -206,7 +205,7 @@ pub fn getsockname(socketfd: usize, socket_addr: usize, len: usize) -> isize {
 }
 
 /// 一个系统调用，用于获取一个本地套接字所连接的远程服务器的信息。
-/// 
+///
 /// + `socketfd`: 指明要操作socket的文件描述符fd;
 /// + `socket_addr`: 指明连接的客户端相关信息([`RawIpV4Addr`])将要保存的地址;
 /// + `len`: 保存`address`长度的地址。
@@ -230,7 +229,7 @@ pub fn get_peer_name(socketfd: usize, sockaddr: usize, len: usize) -> isize {
 }
 
 /// 一个系统调用，用于发送消息。当面向连接时，dest_addr被忽略；当非面向连接时，消息发送给dest_addr。
-/// 
+///
 /// + `socketfd`: 指明要操作socket的文件描述符fd;
 /// + `message`: 指明要发送的消息的首地址;
 /// + `length`: 指明`message`的长度;
@@ -289,7 +288,7 @@ pub fn sendto(
 }
 
 /// 一个系统调用，用于接收消息。消息源地址的相关信息将会保存在src_addr所指向的位置处。
-/// 
+///
 /// + `socketfd`: 指明要操作socket的文件描述符fd;
 /// + `buffer`: 指明接收消息的缓冲区的首地址;
 /// + `length`: 指明缓冲区的长度(能接收消息的最大长度);
@@ -483,7 +482,7 @@ pub fn shutdown(socketfd: usize, how: usize) -> isize {
 /// (待实现)一个系统调用，创建一对未绑定的socket套接字，该对套接字可以用于全双工通信，或者用于父子进程之间的通信。
 ///
 /// 如果向其中的一个socket写入后，再从该socket读时，就会发生阻塞。只能在另一个套接字中读。往往和shutdown()配合使用
-/// 
+///
 /// + `domain`: 指明套接字被创建的协议簇(包括文件路径协议簇和网络地址协议簇，具体可见[`Domain`]);
 /// + `type`: 指明被创建的socket的类型，具体可见[`SocketType`];
 /// + `protocol`: 指明该socket应用于某一个特定的协议上。当确定了套接字使用的协议簇和类型，该参数可以取为0。

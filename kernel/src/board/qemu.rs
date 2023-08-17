@@ -120,6 +120,10 @@ fn virtio_probe(node: &FdtNode) -> Option<(DeviceType, DeviceInfo)> {
                         let device_info = DeviceInfo::new(paddr, irq);
                         return Some((DeviceType::GPU, device_info));
                     }
+                    VirtDeviceType::Network => {
+                        let device_info = DeviceInfo::new(paddr, irq);
+                        return Some((DeviceType::Network, device_info));
+                    }
                     _ => return None,
                 }
             }
