@@ -268,15 +268,15 @@ pub fn get_tid() -> isize {
 /// 但与`fork()`的功能相比，`Alien`中`clone`系统调用提供了更多详细的控制，
 /// 管理父进程和子进程之间的共享资源，例如调用者可以控制父子进程之间是否共享虚拟内存空间、文件描述符表、
 /// 信号处理程序等。
-/// 
+///
 /// `flag`用于控制父子进程之间资源的共享程度，有关flag值及其相关含义设置可见[`CloneFlags`]和[`SignalNumber`]。
 /// `stack`用于控制子进程的用户栈。由于clone产生的子进程有可能和父进程共享内存，所以它不能使用父进程的栈。
 /// `ptid`是一个在父进程地址空间中的地址，用于在创建子进程成功后向该位置写入子进程的tid号。在flag包含`CLONE_PARENT_SETTID`时才会发挥效果。
 /// `tls`用于为子进程创建新的TLS(thread-local storage)值，在flag包含`CLONE_SETTLS`时才会实际产生效果。
 /// `ctid`用于给子进程中的[`set_child_tid`]和[`clear_child_tid`]赋值(分别在flag中包含`CLONE_CHILD_SETTID`和`CLONE_CHILD_CLEARTID`时产生效果)。
-/// 
+///
 /// 成功创建子进程后父进程会返回子进程的tid号，子进程的返回值将被设置为0；否则返回-1。
-/// 
+///
 /// Reference: [clone](https://www.man7.org/linux/man-pages/man2/clone.2.html)
 #[syscall_func(220)]
 pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) -> isize {
@@ -311,7 +311,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 /// `path`用于指明要执行的文件的绝对路径。
 /// `args_ptr`用于指明保存启动可执行文件时要传入的参数的地址。
 /// `env`用于指明保存相关环境变量的地址。
-/// 
+///
 /// 成功执行文件后会返回0；否则会返回-1或错误类型。
 #[syscall_func(221)]
 pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
@@ -350,10 +350,10 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
 /// `pid`用于指明等待的子进程pid号。`pid == -1`表示父进程等待任意子进程返回。
 /// 当`exit_code`非空时，将会把退出的子程序的退出值赋给`exit_code`所指向的位置。
 /// `options`主要用于控制`wait4`的执行逻辑，例如当`wait_options`包含`WNOHANG`时，即使未发现子程序返回，函数也将直接返回0。
-/// 
+///
 /// 一般`wait4`会使得父进程阻塞，直到子进程退出，返回退出的子进程pid。但当`wait_options`包含`WNOHANG`时，即使未发现子程序返回，函数也将直接返回0。
 /// 当父进程的所有子进程中不包含进程号为pid的子进程，将返回-1。
-/// 
+///
 /// Reference:[wait](https://man7.org/linux/man-pages/man2/wait.2.html)
 #[syscall_func(260)]
 pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
@@ -399,7 +399,7 @@ pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) 
 ///
 /// `addr`用于指明扩充堆区后，堆区的末尾位置。
 /// 当`addr`所标识的位置在当前堆起始位置的前方，或者堆当前已使用的末尾位置的前方时，将会导致增加堆区大小失败。
-/// 
+///
 /// 成功增加堆区大小时，函数返回堆当前已使用的末尾位置；否则返回-1。
 #[syscall_func(214)]
 pub fn do_brk(addr: usize) -> isize {
@@ -431,13 +431,13 @@ pub fn set_tid_address(tidptr: usize) -> isize {
 /// 一个系统调用，用于修改进程的资源限制。
 ///
 /// 进程对其拥有的资源，包括用户栈大小、可以打开的文件描述符数、用户地址空间大小等都有所上限。
-/// 
+///
 /// `prlimit64`则可以根据资源的种类对不同的资源进行大小的限制。针对每一具体限制都包括软上限和硬上限，具体可见[`PrLimit`]。
 /// `pid`用于指明需要修改资源限制的进程的pid号。
 /// `resource`用于指明需要修改的资源类型，可选的值包括`RLIMIT_STACK`、`RLIMIT_NOFILE`、`RLIMIT_AS`等，详情可见[`PrLimitRes`]。
 /// `new_limit`用于指明新限制的指针，如果为空指针则不进行新限制的赋值。
 /// `old_limit`用于指明存放旧限制的指针，如果为空则不进行旧限制的保存。
-/// 
+///
 /// 正确执行后会返回0；如果输入的pid为0或者为当前正在运行的进程号，则会直接终止。
 #[syscall_func(261)]
 pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *mut u8) -> isize {

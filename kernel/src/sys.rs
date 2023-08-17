@@ -14,11 +14,11 @@ const LOG: &str = r"
 ";
 
 /// (待完善)一个系统调用函数，用于对内核消息环状缓冲区进行操作。
-/// 
+///
 /// + `log_type`: 指明操作的类型，具体值可见[`SyslogAction`]；
 /// + `buf`: 指明读取消息时，消息要保存到的位置；
 /// + `len`: 指明具体操作时，对于消息读取的长度限制。真正的读取消息的长度将取决于就传入的`len`和`LOG_BUF_LEN`的最小值。
-/// 
+///
 /// 当`log_type`为`READ`、`ReadAll`、`ReadClear`三种flag，正确执行后返回读取消息的长度；
 /// 当`log_type`为`Unknown`时，会返回`EINVAL`；当`log_type`为`OPEN`或`CLOSE`时，函数不进行任何操作后返回0。
 /// 目前Alien仅支持上述`log_type`值，其余值都将不进行任何操作后返回0。
@@ -57,7 +57,7 @@ extern "C" {
 
 /// 一个系统调用函数，用于获取系统相关信息。信息包括系统的自启动经过的时间、对于内存的使用情况、共享存储区的大小、
 /// 缓冲区与交换区的大小、当前进程数目等，具体可见[`Sysinfo`]。获取到的信息将保存到`dst_info`所指向的[`Sysinfo`]结构处。
-/// 
+///
 /// 目前功能还有待完善。正确执行后返回0。
 #[syscall_func(179)]
 pub fn sys_info(dst_info: usize) -> isize {
@@ -138,7 +138,7 @@ pub fn sched_setscheduler(_pid: usize, _policy: usize, _param: usize) -> isize {
 }
 
 /// (待完善)一个系统调用，用于获取对系统资源的使用量信息。获取的信息将保存到`usage`所指向的[`Rusage`]结构中。
-/// 
+///
 /// 可以通过`who`修改获取信息的对象，包括:
 /// + `RUSAGE_SELF`: 返回调用该函数进程的资源用量统计，会返回该进程下所有线程的资源用量之和;
 /// + `RUSAGE_CHILDREN`: 返回调用该函数进程所有已终止且被回收子进程的资源用量统计.

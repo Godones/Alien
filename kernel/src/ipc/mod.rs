@@ -35,11 +35,11 @@ struct FdPair {
 
 /// 一个系统调用，用于创建管道。管道是一种最基本的IPC机制，作用于有血缘关系的进程之间，完成数据传递。
 /// 调用 `sys_pipe` 系统函数即可创建一个管道。 `Alien` 中有关管道的设计可见[`Pipe`]。
-/// 
+///
 /// `sys_pipe` 按照传入的 `pipe` 解析出对应的 [`FdPair`] 结构在用户内存中的位置，
 /// 并将创建成功的管道的读端赋值给 `fd_pair.fd[0]` ，将管道的写端赋值给 `fd_pair.fd[1]` 。
 /// 目前的 `flag` 未发挥作用。
-/// 
+///
 /// 若创建管道成功，则会返回 0；若发生创建管道错误，或 `pipe == 0` 会导致函数返回 -1。
 #[syscall_func(59)]
 pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
@@ -64,11 +64,11 @@ pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
 
 /// 一个系统调用，将进程中一个已经打开的文件复制一份并分配到一个新的文件描述符中。可以用于IO重定向。
 /// `old_fd` 指明进程中一个已经打开的文件的文件描述符。
-/// 
+///
 /// 如果传入的 `old_fd` 并不对应一个合法的已打开文件，将会返回 -1；
 /// 如果创建新的文件描述符失败，那么会返回 `EMFILE`；
 /// 否则创建新的文件描述符成功，返回能够访问已打开文件的新文件描述符。(同时文件描述符分配器会保证新文件描述符是当时情况下所能分配的描述符中最小的)
-/// 
+///
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(23)]
 pub fn sys_dup(old_fd: usize) -> isize {
@@ -86,14 +86,14 @@ pub fn sys_dup(old_fd: usize) -> isize {
 }
 
 /// 一个系统调用，将进程中一个已经打开的文件复制一份并分配到一个新的文件描述符中。功能上与 `sys_dup` 大致相同。
-/// 
+///
 /// `old_fd` 指明进程中一个已经打开的文件的文件描述符，`new_fd` 指明新的文件描述符。
 /// 如果 `new_fd` 已经分配给一个文件，那么将自动关闭 `new_fd` 原来对应的那个文件后，再将复制的文件分配到 `new_fd`。
-/// 
+///
 /// 如果传入的 `old_fd` 并不对应一个合法的已打开文件或者创建新的文件描述符失败，都将会返回 -1；
 /// 如果 `new_fd` 与 `old_fd` 相等， 那么调用将什么也不进行，直接返回 `new_fd`。
 /// 否则创建新的文件描述符成功，返回 `new_fd`。
-/// 
+///
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(24)]
 pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
@@ -117,13 +117,13 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
 static FCOUNT: Mutex<usize> = Mutex::new(0);
 
 /// 一个系统调用，对 futex 进行操作。 有关 `futex` 的相关信息请见 [`futex`]。
-/// 
+///
 /// 参数：
 /// + `uaddr`: 用户态下共享内存的地址，里面存放的是一个对齐的整型计数器，指向一个 futex。
 /// + `futex_op`: 指明操作的类型。具体操作类型可见 [`FutexOp`]。目前 Alien 识别的 futex_op 包括：
 ///     + FutexOp::FutexWaitPrivate | FutexOp::FutexWait: 先比较 uaddr 上计数器的值和 val 是否相等，如果不相等则将直接返回 `EAGAIN`；否则
 /// 该进程将等待在 uaddr 上，并根据 val2 的值确定等待的逻辑。若 val2 值为0，则表示进程一直等待；若 val2 是一个正数，则表示进程将在等待 val2 时间后因超时被唤醒
-///     + FutexOp::FutexCmpRequeuePiPrivate: 先比较 uaddr 上计数器的值和 val3 是否相等，如果不相等则将直接返回 `EAGAIN`；否则 
+///     + FutexOp::FutexCmpRequeuePiPrivate: 先比较 uaddr 上计数器的值和 val3 是否相等，如果不相等则将直接返回 `EAGAIN`；否则
 /// 唤醒至多 val 个在 uaddr 上等待的进程后，将原来等待在 uaddr 上至多 val2 个进程转移到 uaddr2 上等待，最后返回 唤醒的进程数 + 转移的进程数
 ///     + FutexOp::FutexRequeuePrivate: 唤醒至多 val 个在 uaddr 上等待的进程后，将原来等待在 uaddr 上至多 val2 个进程转移到 uaddr2 上等待
 /// 最后返回 唤醒的进程数 + 转移的进程数
@@ -132,9 +132,9 @@ static FCOUNT: Mutex<usize> = Mutex::new(0);
 /// + `val2`: 传入的参数2，将根据 futex_op 发挥不同的作用。
 /// + `uaddr2`: 传入的地址2，将根据 futex_op 发挥不同的作用。
 /// + `val3`: 传入的参数3，将根据 futex_op 发挥不同的作用。
-/// 
+///
 /// 在此过程中，如果出现异常，会返回异常类型。
-/// 
+///
 /// Reference: [futex](https://man7.org/linux/man-pages/man2/futex.2.html)
 #[syscall_func(98)]
 pub fn futex(
@@ -233,7 +233,7 @@ pub fn futex(
 }
 
 /// 一个系统调用，用于设置当前进程的 robust 锁的列表头。robust 锁主要是解决当一个持有互斥锁的线程退出之后这个锁成为不可用状态的问题。
-/// 
+///
 /// 当传入的 `len` 不等于 `HEAD_SIZE` 时，将会返回 `EINVAL`，否则函数将把 `head` 赋值给 tcb 的 robust 的 head 字段，然后返回 0。
 #[syscall_func(99)]
 pub fn set_robust_list(head: usize, len: usize) -> isize {
@@ -247,9 +247,9 @@ pub fn set_robust_list(head: usize, len: usize) -> isize {
 }
 
 /// 一个系统调用，用于获取某进程的 robust 锁的列表头。robust 锁主要是解决当一个持有互斥锁的线程退出之后这个锁成为不可用状态的问题。
-/// 
+///
 /// `pid` 指明了要获取相关信息的进程号；`head_ptr` 指明了获取信息后保存的位置；`len_ptr` 指明了获取列表长度信息后保存的位置。
-/// 
+///
 /// 当 `pid` 的值为 0 时，将会导致函数 panic；当函数正确执行时，返回 0。
 #[syscall_func(100)]
 pub fn get_robust_list(pid: usize, head_ptr: usize, len_ptr: usize) -> isize {
