@@ -1,3 +1,4 @@
+use std::{format, fs};
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -7,7 +8,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::string::{String, ToString};
 use std::vec::Vec;
-use std::{format, fs};
 
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/");
@@ -62,9 +62,11 @@ pub fn scan_and_generate(path: String) {
         .unwrap();
     let mut context = Vec::new();
     let import = b"\
+    //! syscall table registe\n\
     use spin::Once;\n\
     use syscall_table::{register_syscall, Table};\n\
     static SYSCALL_TABLE: Once<Table> = Once::new();\n\
+    /// Register all system calls\n\
     pub fn register_all_syscall(){\n\
         \tlet mut table = Table::new();\n\
         \tregister_syscall!(table,\n\
@@ -77,6 +79,7 @@ pub fn scan_and_generate(path: String) {
         \t);\n\
         \tSYSCALL_TABLE.call_once(||table);\n\
     }\n\
+    /// Call the corresponding system call according to the syscall number\n\
     pub fn do_syscall(id:usize,args:&[usize])->Option<isize>{\n\
         \tlet res = SYSCALL_TABLE.get().unwrap().do_call(id,&args);\n\
         \tres\n\
@@ -144,8 +147,7 @@ fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                             component.len() - 1
                         };
                         for i in 0..correct {
-                            if component[i] == "src" {
-                            } else {
+                            if component[i] == "src" {} else {
                                 mod_name.push_str("::");
                                 if component[i].ends_with(".rs") {
                                     mod_name.push_str(component[i].strip_suffix(".rs").unwrap());
