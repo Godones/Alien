@@ -2,10 +2,9 @@
 //! 为了在多个进程间交换信息，内核专门留出了一块内存区。这段内存区可以由需要访问的进程将其映射到自己的私有地址空间。
 //! 因此，进程就可以直接读写这一内存区而不需要进行数据的拷贝，从而大大提高了效率。
 //!
-//! 共享内存并未提供同步机制，也就是说，在第一个进程结束对共享内存的写操作之前，并无自动机制可以阻止第二个进程开始对它进行读取。
-//! 所以我们通常需要用其他的机制来同步对共享内存的访问，如互斥锁和信号量等。
+//! Alien 中的共享内存同时提供了同步机制，也就是说，所有的 [`ShmMemoryInner`] 结构被包裹在一个 Mutex 中，
+//! 最后封装成 [`ShmMemory`] 结构。
 //!
-
 use alloc::collections::btree_map::BTreeMap;
 use alloc::vec::Vec;
 
@@ -21,31 +20,42 @@ use crate::config::FRAME_SIZE;
 use crate::memory::{frames_alloc, FrameTracker};
 use crate::task::current_task;
 
+/// 共享内存被 Mutex 封装后的结构
 #[derive(Debug)]
 pub struct ShmMemory {
+    /// 封装后的共享内存
     inner: Mutex<ShmMemoryInner>,
 }
 
+/// 未加入同步机制前的 共享内存
 #[derive(Debug)]
 pub struct ShmMemoryInner {
+    /// 引用计数器
     ref_count: usize,
+    /// 共享内存数据部分
     pub frames: Vec<FrameTracker>,
+    /// 共享内存的状态
     state: ShmMemoryState,
 }
 
+/// 共享内存的信息，在创建一块共享内存时，需要将对应的信息加入到进程控制块中的 `shm` 字段下
 #[derive(Debug, Clone)]
 pub struct ShmInfo {
+    /// 共享内存的虚拟地址首地址
     pub start_va: usize,
+    /// 共享内存的虚拟地址尾地址
     pub end_va: usize,
 }
 
 impl ShmInfo {
+    /// 创建新的共享内存信息
     pub fn new(start_va: usize, end_va: usize) -> Self {
         Self { start_va, end_va }
     }
 }
 
 impl ShmMemory {
+    /// 创建新的共享内存
     pub fn new(frames: Vec<FrameTracker>) -> Self {
         Self {
             inner: Mutex::new(ShmMemoryInner {
@@ -55,31 +65,44 @@ impl ShmMemory {
             }),
         }
     }
+
+    /// 同步获取内部的共享内存信息
     pub fn access_inner(&self) -> MutexGuard<ShmMemoryInner> {
         self.inner.lock()
     }
+
+    /// 返回共享内存数据区的长度(字节数)
     pub fn len(&self) -> usize {
         self.access_inner().frames.len() * FRAME_SIZE
     }
 
+    /// 引用计数器加一
     pub fn add_ref(&self) {
         self.access_inner().ref_count += 1;
     }
+
+    /// 获取当前共享内存的引用数
     pub fn get_ref(&self) -> usize {
         self.access_inner().ref_count
     }
+
+    /// 删除当前的共享内存
     pub fn delete(&self) {
         self.access_inner().state = ShmMemoryState::Deleted;
     }
+
+    /// 查询当前的共享内存是否被删除
     pub fn is_deleted(&self) -> bool {
         self.access_inner().state == ShmMemoryState::Deleted
     }
 
+    /// 引用计数器减一
     pub fn dec_ref(&self) {
         self.access_inner().ref_count -= 1;
     }
 }
 
+/// 记录共享内存当前状态的结构
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum ShmMemoryState {
     Init,
@@ -87,6 +110,7 @@ pub enum ShmMemoryState {
     Deleted,
 }
 
+/// 用于记录共享内存分配情况的全局变量，可使用其获取已经被创建的一块共享内存
 pub static SHM_MEMORY: Mutex<BTreeMap<usize, ShmMemory>> = Mutex::new(BTreeMap::new());
 
 /// 一个系统调用，用于创建一块共享内存，方便进程间通信。

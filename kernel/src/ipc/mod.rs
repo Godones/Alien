@@ -1,3 +1,10 @@
+//! IPC 进程间通信
+//! 
+//! [`futex`] 子模块指明了 Alien 中的 futex (快速用户空间互斥体)结构。
+//! [`pipe`] 子模块指明了 Alien 中管道结构。
+//! [`shm`] 子模块指明了 Alien 中的共享内存结构。
+//! [`signal`] 子模块指明了 Alien 中使用的信号机制。
+
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicI32, Ordering};
 
@@ -23,6 +30,7 @@ pub mod shm;
 pub mod signal;
 
 lazy_static! {
+    /// 一个全局变量，用于记录和管理 futex 的等待队列
     pub static ref FUTEX_WAITER: Mutex<FutexWaitManager> = Mutex::new(FutexWaitManager::new());
 }
 
@@ -265,6 +273,7 @@ pub fn get_robust_list(pid: usize, head_ptr: usize, len_ptr: usize) -> isize {
     0
 }
 
+/// 唤醒所有当前正在等待 futex 但因为超时或者信号而需要被唤醒的进程
 pub fn solve_futex_wait() {
     let mut futex_waiter = FUTEX_WAITER.lock();
     futex_waiter.wake_for_timeout();

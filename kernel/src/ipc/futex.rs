@@ -24,17 +24,25 @@ use crate::error::{AlienError, AlienResult};
 use crate::task::{Task, TASK_MANAGER};
 use crate::timer::read_timer;
 
+/// 用于记录一个进程等待一个 futex 的相关信息
 pub struct FutexWaiter {
+    /// 进程的控制块
     task: Option<Arc<Task>>,
+    /// 进程等待 futex 的等待时间
     wait_time: Option<usize>,
+    /// 超时事件的标志位，标识该进程对于 futex 等待是否超时
     timeout_flag: Arc<Mutex<bool>>,
 }
 
+/// 用于管理 futex 等待队列的数据结构
+///
+/// 包含一个 futex id -> futexWait Vec 的 map
 pub struct FutexWaitManager {
     map: BTreeMap<usize, Vec<FutexWaiter>>,
 }
 
 impl FutexWaiter {
+    /// 创建一个新的 `FutexWaiter` 保存等待在某 futex 上的一个进程 有关等待的相关信息
     pub fn new(task: Arc<Task>, wait_time: Option<usize>, timeout_flag: Arc<Mutex<bool>>) -> Self {
         Self {
             task: Some(task),
@@ -43,12 +51,14 @@ impl FutexWaiter {
         }
     }
 
+    /// 唤醒该进程，返回该进程的控制块
     pub fn wake(&mut self) -> Arc<Task> {
         self.task.take().unwrap()
     }
 }
 
 impl FutexWaitManager {
+    /// 创建一个新的 futex 管理器，保存 futex 和在其上等待队列的映射关系
     pub fn new() -> Self {
         Self {
             map: BTreeMap::new(),
