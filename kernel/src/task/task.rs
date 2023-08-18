@@ -1,3 +1,8 @@
+//! Alien 中任务控制块的相关定义。
+//!
+//! Alien 中对于进程\线程的相关概念的设计与 Linux 类似，进程和线程共用一个控制块结构。
+//! 使用 `clone` 创建新的进程(线程)时，会根据 flag 指明父子进程之间资源共享的程度。
+//! tid 是标识不同任务的唯一标识。
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
@@ -55,10 +60,13 @@ lazy_static! {
     /// 但tid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
     pub static ref TID_MANAGER:Mutex<MinimalManager<u8>> = Mutex::new(MinimalManager::new(MAX_THREAD_NUM));
 }
+
+/// 用于存储线程的tid
 #[derive(Debug)]
 pub struct TidHandle(pub usize);
 
 impl TidHandle {
+    /// 获取一个新的线程 tid (来自于 `TID_MANAGER` 分配)
     pub fn new() -> Option<Self> {
         let tid = TID_MANAGER.lock().insert(0);
         if tid.is_err() {
@@ -76,32 +84,51 @@ impl Drop for TidHandle {
 
 #[derive(Debug)]
 pub struct Task {
+    /// 任务的唯一标识
     pub tid: TidHandle,
+    /// 作为进程时，pid == tid；作为线程时，pid 为其线程组 leader (父进程)的 tid 号。
     pub pid: usize,
     /// 当退出时是否向父进程发送信号 SIGCHLD。
     /// 如果创建时带 CLONE_THREAD 选项，则不发送信号，除非它是线程组(即拥有相同pid的所有线程)中最后一个退出的线程；
     /// 否则发送信号
     pub send_sigchld_when_exit: bool,
+    /// 内核栈
     pub kernel_stack: Stack,
+    /// 更详细的信息
     inner: Mutex<TaskInner>,
 }
 
 #[derive(Debug)]
 pub struct TaskInner {
+    /// 任务名，一般为其文件路径加文件名
     pub name: String,
+    /// 线程计数器，用于分配同一个线程组中的线程序号
     pub threads: MinimalManager<()>,
+    /// 用于记录当前线程组中的线程个数
     pub thread_number: usize,
+    /// 地址空间
     pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
+    /// 线程状态
     pub state: TaskState,
+    /// 父亲任务控制块
     pub parent: Option<Weak<Task>>,
+    /// 孩子任务控制块的集合
     pub children: Vec<Arc<Task>>,
+    /// 文件描述符表
     pub fd_table: Arc<Mutex<FdManager>>,
+    /// 任务上下文
     pub context: Context,
+    /// 文件系统的信息
     pub fs_info: FsContext,
+    /// 有关任务执行情况的统计信息
     pub statistical_data: StatisticalData,
+    /// 任务计时器
     pub timer: TaskTimer,
+    /// 返回值
     pub exit_code: i32,
+    /// 堆空间
     pub heap: Arc<Mutex<HeapInfo>>,
+    /// 地址空间中的映射信息
     pub mmap: MMapInfo,
     /// 信号量对应的一组处理函数。
     /// 因为发送信号是通过 pid/tid 查找的，因此放在 inner 中一起调用时更容易导致死锁
@@ -120,12 +147,17 @@ pub struct TaskInner {
     /// 此时用户可能修改其中的 pc 信息(如musl-libc 的 pthread_cancel 函数)。
     /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
     pub signal_set_siginfo: bool,
+    /// robust 锁的列表
     pub robust: RobustList,
+    /// 共享内存
     pub shm: BTreeMap<usize, ShmInfo>,
+    /// cpu 亲和力，用于 cpu 调度时 倾向于将该任务调度给 哪个 CPU
     pub cpu_affinity: usize,
-    /// process's file mode creation mask
+    /// 进程创建文件时，文件权限的默认掩码
     pub unmask: usize,
+    /// 栈空间的信息
     pub stack: Range<usize>,
+    /// 是否需要等待
     pub need_wait: u8,
 }
 
@@ -142,15 +174,18 @@ pub struct TaskTimer {
     ///
     /// 根据 timer_type 的规则不断减少，当归零时触发信号
     pub timer_remained: usize,
-
+    /// 上一次计时的开始时间
     pub start: usize,
+    /// 该计时器是否已经超时
     pub expired: bool,
 }
 
 impl TaskTimer {
+    /// 创建一个新的任务计数器
     pub fn new() -> Self {
         Self::default()
     }
+    /// 清除当前的计数器信息，将 timer_remained 置为 0
     pub fn clear(&mut self) {
         self.timer_type = TimerType::NONE;
         self.timer_interval = TimeVal::new();
@@ -160,6 +195,7 @@ impl TaskTimer {
 }
 
 impl Default for TaskTimer {
+    /// 默认的任务计数器
     fn default() -> Self {
         Self {
             timer_type: TimerType::NONE,
@@ -188,6 +224,7 @@ pub struct StatisticalData {
 }
 
 impl StatisticalData {
+    /// 用于创建一个新的 `StatisticalData` 结构
     pub fn new() -> Self {
         let now = read_timer();
         StatisticalData {
@@ -199,6 +236,7 @@ impl StatisticalData {
             tms_cstime: 0,
         }
     }
+    /// 清除当前 `StatisticalData` 结构中储存的数据，并将 `last_utime` 和 `last_stime` 的值置为 当前的时间
     pub fn clear(&mut self) {
         let now = read_timer();
         self.tms_utime = 0;
@@ -223,6 +261,7 @@ pub struct FsContext {
 }
 
 impl FsContext {
+    /// 返回一个空的 `FsContext` 结构
     pub fn empty() -> Self {
         FsContext {
             cwd: Arc::new(DirEntry::empty()),
@@ -232,6 +271,7 @@ impl FsContext {
         }
     }
 
+    /// 创建一个新的 `FsContext` 结构
     pub fn new(
         root: Arc<DirEntry>,
         cwd: Arc<DirEntry>,
@@ -260,19 +300,22 @@ impl Into<ProcessFsInfo> for FsContext {
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub enum TaskState {
+    /// 就绪态
     Ready,
+    /// 运行态
     Running,
-    // waiting for some time
+    /// 等待一段时间
     Sleeping,
-    // waiting some event
+    /// 等待一个事件
     Waiting,
-    // waiting for parent to reap
+    /// 僵尸态，等待父进程回收资源
     Zombie,
-    // terminated
+    /// 终止态
     Terminated,
 }
 
 impl Task {
+    /// 终止进程，回收内核栈等资源，同时将该任务的状态修改为 `Terminated`
     pub fn terminate(self: Arc<Self>) {
         // recycle kernel stack
         self.kernel_stack.release();
@@ -294,64 +337,83 @@ impl Task {
         self.access_inner().state = TaskState::Terminated;
     }
 
+    /// 获取进程的 pid 号
     #[inline]
     pub fn get_pid(&self) -> isize {
         self.pid as isize
     }
+
+    /// 获取进程的 tid 号
     #[inline]
     pub fn get_tid(&self) -> isize {
         self.tid.0 as isize
     }
 
+    /// 设置 `clear_child_tid` 字段的 值
     pub fn set_tid_address(&self, tidptr: usize) {
         let mut inner = self.inner.lock();
         inner.clear_child_tid = tidptr;
     }
+
+    /// 获取文件的名称 
     pub fn get_name(&self) -> String {
         let inner = self.inner.lock();
         inner.name.clone()
     }
+
+    /// 尝试获取 TaskInner
     pub fn access_inner(&self) -> MutexGuard<TaskInner> {
         self.inner.lock()
     }
+
+    /// 获取进程页表的root ppn
     pub fn token(&self) -> usize {
         let inner = self.inner.lock();
         let paddr = inner.address_space.lock().root_paddr();
         (8usize << 60) | (paddr.as_usize() >> 12)
     }
 
+    /// 获取 trap 帧的可变引用
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
         self.inner.lock().trap_frame()
     }
 
+    /// 获取 trap 帧的指针
     pub fn trap_frame_ptr(&self) -> *mut TrapFrame {
         self.inner.lock().trap_frame_ptr()
     }
 
+    /// 将进程的状态修改为 state
     pub fn update_state(&self, state: TaskState) {
         let mut inner = self.inner.lock();
         inner.state = state;
     }
 
+    /// 返回进程的状态
     pub fn state(&self) -> TaskState {
         let inner = self.inner.lock();
         inner.state
     }
 
+    /// 更新进程的返回码
     pub fn update_exit_code(&self, code: i32) {
         let mut inner = self.inner.lock();
         inner.exit_code = code;
     }
 
+    /// 获取任务上下文的指针
     pub fn get_context_raw_ptr(&self) -> *const Context {
         let inner = self.inner.lock();
         &inner.context as *const Context
     }
+
+    /// 获取任务上下文的可变指针
     pub fn get_context_mut_raw_ptr(&self) -> *mut Context {
         let mut inner = self.inner.lock();
         &mut inner.context as *mut Context
     }
 
+    /// 获取该进程的子进程的控制块列表
     pub fn children(&self) -> Vec<Arc<Task>> {
         let inner = self.inner.lock();
         inner.children.clone()
@@ -372,12 +434,14 @@ impl Task {
         res
     }
 
+    /// 取走当前进程的子进程控制块列表的所有权
     pub fn take_children(&self) -> Vec<Arc<Task>> {
         let children = self.children();
         self.access_inner().children = Vec::new();
         children
     }
 
+    /// 将任务号为 `tid` 的进程 从子进程列表中移除
     pub fn remove_child_by_tid(&self, tid: isize) -> Option<Arc<Task>> {
         let mut inner = self.inner.lock();
         let index = inner
@@ -391,27 +455,32 @@ impl Task {
         }
     }
 
+    /// 将子进程列表中第 `index` 个进程 从子进程列表中移除
     pub fn remove_child(&self, index: usize) -> Arc<Task> {
         let mut inner = self.inner.lock();
         assert!(index < inner.children.len());
         inner.children.remove(index)
     }
 
+    /// 将进程的父进程更新为 `parent`
     pub fn update_parent(&self, parent: Arc<Task>) {
         let mut inner = self.inner.lock();
         inner.parent = Some(Arc::downgrade(&parent));
     }
 
+    /// 向子进程列表中插入一个新的子进程
     pub fn insert_child(&self, child: Arc<Task>) {
         let mut inner = self.inner.lock();
         inner.children.push(child);
     }
 
+    /// 获取进程当前的返回码
     pub fn exit_code(&self) -> i32 {
         let inner = self.inner.lock();
         inner.exit_code
     }
 
+    /// 用于判断一个文件是否存在在该进程的文件描述符表中，如果存在返回该文件描述符
     pub fn file_existed(&self, file: Arc<File>) -> Option<Arc<KFile>> {
         let inner = self.inner.lock();
         let fd_table = inner.fd_table.lock();
@@ -429,11 +498,15 @@ impl Task {
             }
         })
     }
+
+    /// 用于获取文件描述符id号为 fd 的 文件描述符
     pub fn get_file(&self, fd: usize) -> Option<Arc<KFile>> {
         let inner = self.inner.lock();
         let file = inner.fd_table.lock().get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
+
+    /// 在进程的文件描述符表中加入 file 文件
     pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, isize> {
         self.access_inner()
             .fd_table
@@ -441,12 +514,15 @@ impl Task {
             .insert(file)
             .map_err(|x| x as isize)
     }
+
+    /// 指定文件描述符表中的一个id，在该处加入一个 file 文件
     pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
         let inner = self.access_inner();
         let mut fd_table = inner.fd_table.lock();
         fd_table.insert_with_index(fd, file).map_err(|_| {})
     }
 
+    /// 指明文件描述符表中的一个id，删除并返回该处的 file 文件
     pub fn remove_file(&self, fd: usize) -> Result<Arc<KFile>, ()> {
         let inner = self.inner.lock();
         let file = inner.fd_table.lock().get(fd);
@@ -462,10 +538,12 @@ impl Task {
         Ok(file)
     }
 
+    /// 获取一个虚拟地址 `ptr` 的实际物理地址
     pub fn transfer_raw(&self, ptr: usize) -> usize {
         self.access_inner().transfer_raw(ptr)
     }
 
+    /// 获取一个虚拟地址 `ptr` 对应的 T 类型数据 的 可变引用
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
         self.access_inner().transfer_raw_ptr_mut(ptr)
     }
@@ -531,13 +609,17 @@ impl Task {
 }
 
 impl TaskInner {
+    /// 获取进程的文件系统信息
     pub fn cwd(&self) -> FsContext {
         self.fs_info.clone()
     }
 
+    /// 获取进程的计时器
     pub fn get_timer(&self) -> TaskTimer {
         self.timer.clone()
     }
+
+    /// 获取当前进程对于资源的限制
     pub fn get_prlimit(&self, resource: PrLimitRes) -> PrLimit {
         match resource {
             PrLimitRes::RlimitStack => PrLimit::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64),
@@ -549,6 +631,7 @@ impl TaskInner {
         }
     }
 
+    /// 设置当前进程对于资源的限制
     pub fn set_prlimit(&mut self, resource: PrLimitRes, value: PrLimit) {
         match resource {
             PrLimitRes::RlimitStack => {}
@@ -560,6 +643,7 @@ impl TaskInner {
         }
     }
 
+    /// 返回 trap 上下文的一个可变指针
     pub fn trap_frame_ptr(&self) -> *mut TrapFrame {
         let trap_context_base = if self.thread_number != 0 {
             let base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
@@ -570,6 +654,7 @@ impl TaskInner {
         trap_context_base as *mut TrapFrame
     }
 
+    /// 返回 trap 上下文的一个可变引用
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
         let trap_context_base = if self.thread_number != 0 {
             let base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
@@ -618,6 +703,8 @@ impl TaskInner {
             -1
         }
     }
+
+    /// 获取一个虚拟地址 `ptr` 的实际物理地址
     pub fn transfer_raw(&mut self, ptr: usize) -> usize {
         let (phy, flag, _) = self
             .address_space
@@ -637,6 +724,8 @@ impl TaskInner {
         }
         phy.as_usize()
     }
+
+    /// 获取 虚拟地址空间中的以 `ptr` 为起始地址，以 '\0' 结尾的字符串 
     pub fn transfer_str(&self, ptr: *const u8) -> String {
         let mut res = String::new();
         let mut start = ptr as usize;
@@ -657,6 +746,7 @@ impl TaskInner {
         res
     }
 
+    /// 将虚拟地址空间中的一段缓冲区的首地址 `ptr` 和 缓冲区的长度 `len` 转换为 实地址下的一组页
     pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
         let address_space = &self.address_space.lock();
         let mut start = ptr as usize;
@@ -681,6 +771,7 @@ impl TaskInner {
         v
     }
 
+    /// 从物理地址的 `src` 处取一个长度为 `len` 类型为 T 的缓冲区 赋到 用户虚拟地址空间下的 `dst` 处
     pub fn copy_to_user_buffer<T: 'static + Copy>(
         &mut self,
         src: *const T,
@@ -719,6 +810,7 @@ impl TaskInner {
         }
     }
 
+    /// 从用户虚拟地址空间的 `src` 处取一个长度为 `len` 类型为 T 的缓冲区 赋到 物理地址下的 `dst` 处
     pub fn copy_from_user_buffer<T: 'static + Copy>(
         &mut self,
         src: *const T,
@@ -757,7 +849,7 @@ impl TaskInner {
         }
     }
 
-    /// src is in kernel memory, we don't need trans
+    /// 从物理空间下的 `src` 处取一个 T 类型的数据 赋给 虚拟地址空间下的 `dst` 处
     pub fn copy_to_user<T: 'static + Copy>(&mut self, src: *const T, dst: *mut T) {
         // self.copy_to_user_buffer(src, dst, 1);
         let size = core::mem::size_of::<T>();
@@ -792,6 +884,7 @@ impl TaskInner {
         }
     }
 
+    /// 从用户虚拟地址空间的 `src` 处取一个 T 类型的数据 赋给 物理地址下的 `dst` 处
     pub fn copy_from_user<T: 'static + Copy>(&mut self, src: *const T, dst: *mut T) {
         // self.copy_from_user_buffer(src, dst, 1);
         let size = core::mem::size_of::<T>();
@@ -826,6 +919,7 @@ impl TaskInner {
         }
     }
 
+    /// 将在进程的虚拟空间中的一段缓冲区的首地址 `ptr` 和 长度 `len` 转换为 实地址下的一组页
     pub fn transfer_buffer<T: Debug>(
         &mut self,
         ptr: *const T,
@@ -859,6 +953,7 @@ impl TaskInner {
         v
     }
 
+    /// 将一个在进程的虚拟空间中的虚地址 转换为一个实地址的可变引用
     pub fn transfer_raw_ptr_mut<T>(&self, ptr: *mut T) -> &'static mut T {
         let (physical, flag, _) = self
             .address_space
@@ -869,6 +964,7 @@ impl TaskInner {
         unsafe { &mut *(physical.as_usize() as *mut T) }
     }
 
+    /// 将一个在进程的虚拟空间中的虚地址 转换为一个实地址的不可变引用
     pub fn transfer_raw_ptr<T>(&self, ptr: *const T) -> &'static T {
         let (physical, flag, _) = self
             .address_space
@@ -879,7 +975,7 @@ impl TaskInner {
         unsafe { &*(physical.as_usize() as *const T) }
     }
 
-    /// When process return to user mode, we need to update the user mode time
+    /// 当进程回到用户态时，需要更新进程在内核态下的运行时间
     /// WARNING: If the cause of the process returning to the kernel is a timer interrupt,
     /// We should not call this function.
     pub fn update_kernel_mode_time(&mut self) {
@@ -890,7 +986,7 @@ impl TaskInner {
         self.statistical_data.last_utime = now;
     }
 
-    /// When process return to kernel mode, we need to update the user Mode Time
+    /// 当进程进入内核态时，需要更新进程在用户态下的运行时间
     pub fn update_user_mode_time(&mut self) {
         let now = read_timer(); // current cpu clocks
         let time = now - self.statistical_data.last_utime;
@@ -899,7 +995,7 @@ impl TaskInner {
         self.statistical_data.last_stime = now;
     }
 
-    /// 设置计时器。
+    /// 设置计时器
     pub fn set_timer(&mut self, itimer: ITimerVal, timer_type: TimerType) {
         self.timer.timer_remained = itimer.it_value.to_clock();
         self.timer.timer_interval = itimer.it_interval;
@@ -907,7 +1003,8 @@ impl TaskInner {
         self.timer.start = TimeVal::now().to_clock();
     }
 
-    /// 更新计时器。
+    /// 更新计时器
+    /// 
     /// 如果没有计时器则直接返回；如果有计时器但时辰未到也直接返回；
     /// 如果有计时器且计时器到时间了，根据是否为one-shot计时器，确定重置计时器或者置`timer`的`timer_remained`为0。
     pub fn update_timer(&mut self) {
@@ -932,9 +1029,7 @@ impl TaskInner {
         self.timer.expired = true;
     }
 
-    /// After call `update_user_mode_time` and `update_kernel_mode_time`, we
-    /// need to check if the timer is expired
-    #[must_use]
+    /// 在调用 `update_user_mode_time` 和 `update_kernel_mode_time` 后，我们需要检查一下计时器是否已经超时
     pub fn check_timer_expired(&mut self) -> Option<TimerType> {
         if self.timer.expired {
             self.timer.expired = false;
@@ -944,19 +1039,22 @@ impl TaskInner {
         }
     }
 
+    /// 返回进程的统计信息
     pub fn statistical_data(&self) -> &StatisticalData {
         &self.statistical_data
     }
 
+    /// 返回堆信息
     pub fn heap_info(&self) -> HeapInfo {
         self.heap.lock().clone()
     }
 
+    /// (待实现)缩减堆空间
     pub fn shrink_heap(_addr: usize) -> Result<usize, AlienError> {
         todo!()
     }
 
-    /// extend heap
+    /// 拓展堆空间
     pub fn extend_heap(&mut self, addr: usize) -> Result<usize, AlienError> {
         let mut heap = self.heap.lock();
         heap.current = addr;
@@ -1159,6 +1257,7 @@ impl TaskInner {
         Ok(())
     }
 
+    /// 用于处理装入页异常
     pub fn do_load_page_fault(
         &mut self,
         addr: usize,
@@ -1208,6 +1307,7 @@ impl TaskInner {
         Ok(Some((file.clone(), buf, read_offset as u64)))
     }
 
+    /// 用于处理无效页错误
     fn invalid_page_solver(
         &mut self,
         addr: usize,
@@ -1265,6 +1365,7 @@ impl TaskInner {
         Ok(None)
     }
 
+    /// 用于处理指令页异常
     pub fn do_instruction_page_fault(
         &mut self,
         addr: usize,
@@ -1287,6 +1388,8 @@ impl TaskInner {
         }
         panic!("instruction page fault");
     }
+
+    /// 用于处理数据页异常
     pub fn do_store_page_fault(
         &mut self,
         o_addr: usize,
@@ -1349,6 +1452,7 @@ impl TaskInner {
 }
 
 impl Task {
+    /// 对进程的资源进行预回收，将会回收 trap 帧、子进程控制块列表、文件描述符表等资源。
     pub fn pre_recycle(&self) {
         // recycle trap page
         let trap_frame_ptr = self.trap_frame_ptr() as usize;
@@ -1383,12 +1487,12 @@ impl Task {
         }
     }
 
-    /// get the clear_child_tid
+    /// 获取进程的 `clear_child_tid` 字段
     pub fn futex_wake(&self) -> usize {
         self.access_inner().clear_child_tid
     }
 
-    /// only call once
+    /// 从 elf 文件中创建一个新的进程控制块，只会调用一次(即读取 init 进程的相关信息)
     pub fn from_elf(name: &str, elf: &[u8]) -> Option<Task> {
         let tid = TidHandle::new()?;
         let pid = tid.0;
