@@ -4,41 +4,53 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 
 ![image-20230815132104606](assert/image-20230815132104606.png)
 
-## Modules
+## Project Structure
 
-`pci` ：pci driver to detect devices on the bus
+```c
+├── LICENSE
+├── Makefile				(编译命令)
+├── README.md				(readme)
+├── apps                    (rust程序)
+├── assert
+├── boot					(内核启动代码)
+├── doc						(开发文档与内核相关模块文档)
+├── kernel					
+	├── Cargo.toml
+    ├── build.rs			(系统调用+调式符号生成脚本)
+    └── src			
+        ├── arch			(riscv相关代码)
+        ├── board      		(板级设备扫描注册)
+        ├── config.rs 		(内核配置)
+        ├── device			(设备注册管理)
+        ├── driver			(设备驱动)
+        ├── error.rs		(内核错误码定义)
+        ├── fs				(文件系统相关)
+        ├── gui.rs			(gui显示相关)
+        ├── interrupt		(外中断相关)
+        ├── ipc				(进程间通信模块)
+        ├── lib.rs			(内核代码模块导出)
+        ├── memory			(内存管理)
+        ├── net				(网络模块)
+        ├── panic.rs		(堆栈回溯)
+        ├── print			(内核输入输出)
+        ├── sbi.rs			(SBI系统调用)
+        ├── sync			(同步原语)
+        ├── sys.rs			(内核运行信息)
+        ├── syscall.rs		(系统调用表)
+        ├── system.rs		(机器信息)
+        ├── task			(进程/线程管理)
+        ├── timer			(计时器)
+        ├── trace			(堆栈回溯)
+        └── trap			(异常处理)
+├── modules				    (独立模块)
+├── rust-toolchain.toml		
+├── sdcard					(测试程序)
+├── test					(初赛测试)
+├── tools					(一些dts文件)
+└── userlib					(rust lib库)
+```
 
-`rtc` ：rtc driver to get time
 
-`page-table `： page table to manage virtual memory
-
-`pager`： buddy and bitmap to manage frames
-
-`gmanager`: a simple allocator to manage `process`/ `fd` and so on
-
-`rvfs `: a vfs framework like linux, it can support multiple file systems
-
-`fat32-vfs`: a disk file system, it can support fat32
-
-`jammdb `: a key-value database, it can support `dbfs`
-
-`dbfs2 `:  a disk file system, it is based on `jammdb`
-
-`trace_lib `: stack trace library
-
-`preprint ` : a simple print library
-
-`rslab `: slab allocator like linux
-
-`syscall-table `: A tool to automatically collect syscalls
-
-`dbop`: Make database functions available to users as system calls
-
-`plic`: riscv plic driver
-
-`uart`: uart driver(8250/16550), it supports interrupt
-
-Other modules are not listed here, you can find them in the cargo.toml file.
 
 ## Run
 
@@ -46,13 +58,13 @@ Other modules are not listed here, you can find them in the cargo.toml file.
 2. install rust nightly
 
 ```
-make run LOG=WARN SMP=1
+make run LOG= SMP=1
 ```
 
 如果只想重新构建`kernel`而不改变测试程序，可以使用：
 
 ```
-make build SMP=1 LOG=WARN
+make build LOG= SMP=1
 ```
 
 使用已经编译好的程序运行而不是再次编译可以使用：
@@ -60,6 +72,8 @@ make build SMP=1 LOG=WARN
 ```
 make fake_run SMP=1
 ```
+
+可以指定LOG=ERROR/WARN/INFO/DEBUG/TRACE开启调式
 
 ### Run with Gui
 
@@ -99,30 +113,41 @@ make unmatched LOG= UNMATCHED=y SMP=2
 
 目前cv1811h开发板可以上板启动，但是我们暂时没有处理其需要的特殊页表项。对于visionfive2和unmatched，可以启动并运行bash。
 
-
-
 ## GDB
 
 1. `gdb-server`
 2. `gdb-client`
 
-
-
 ## Doc
 
-[文件系统接口](./doc/fs.md)
+- [决赛规划](./doc/target.m)
+- [开发日志](./doc/开发日志.md)
+- [系统架构](./系统架构.md)
+- [设备管理](./doc/设备管理.md)
+- 设备驱动
+  - [串口设备](./doc/uaret.md)
+  - [SDIO](./sdio.md)
+  - [PLIC](./doc/plic.md)
+- 文件系统
+  - [文件系统接口](./doc/fs.md)
+- [测试支持情况](./doc/test.md)
+- [网络支持](./doc/net.md)
+- 应用程序
+  - [bash](./doc/bash.md)
+  - [lmbench](./doc/lmbench.md)
+  - [redis](./doc/redis.md)
+  - [unixbench](./unibench.md)
 
-[下一步规划](./doc/target.md)
+- 杂项
+  - [开发板相关](./doc/boot.md)
+  - [fat32bug](./doc/fat32.md)
+  - [内存管理](./doc/memory.md)
+  - [slab](https://github.com/os-module/rslab/blob/main/src/slab.rs)
+  - [dbfs](https://github.com/Godones/dbfs2)
+  - [物理页帧分配器](./modules/pager/README.md)
+- 更多: 查看[系统架构](./doc/系统架构.md)中module部分各个子模块的详细说明
 
-[测试](./doc/test.md)
 
-[slab](https://github.com/os-module/rslab/blob/main/src/slab.rs)
-
-[dbfs](https://github.com/Godones/dbfs2)
-
-[物理页帧分配器](./modules/pager/README.md)
-
-[more](./doc)
 
 ## Feature
 
@@ -133,13 +158,14 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] Mutex
 - [x] sleep task queue
 - [x] uart task queue
-- [ ] block driver task queue
 - [x] a simple shell
 - [x] memory management
 - [x] process management
 - [x] stack trace
 - [x] signal
 - [ ] ....
+
+
 
 ## App/Test
 
@@ -159,56 +185,12 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [x] slint gui
 - [x] embedded graphic gui
 
-## Project Structure
 
-```
-├── apps 一些测试程序+shell
-│   ├── cat
-│   ├── forktest
-│   ├── init
-│   ├── ls
-│   ├── mkdir
-│   ├── mmmap
-│   ├── pipetest
-│   ├── pipetest2
-│   ├── pwd
-│   ├── run_test
-│   ├── shell
-│   ├── time
-│   └── touch
-│── boot 启动模块
-│   └── src
-├── doc  相关文档
-├── kernel
-│   └── src
-│       ├── arch  riscv
-│       ├── driver 驱动模块
-│       ├── fs	   文件系统
-│       ├── ipc    进程间通信
-│       ├── memory 内存管理
-│       ├── print  输出
-│       ├── sync   同步机制
-│       ├── task   进程与线程模块
-│       ├── timer  时钟
-│       ├── trace  内核堆栈回溯
-│       └── trap   异常处理
-├── modules
-│   ├── basemachine  dtb基本信息获取
-│   ├── gmanager     最小索引分配与管理
-│   ├── pager        页分配
-│   ├── pci-rs       PCI
-│   ├── plic         riscv平台中断控制器
-│   ├── syscall		 
-│   ├── syscall-table  系统调用过程宏
-│   ├── systable-macro-derive  
-│   └── uart           串口驱动c le |
-└── userlib   		用户库
-    └── src
-```
 
 ## Reference
 
 - rCoreTutorial-v3 http://rcore-os.cn/rCore-Tutorial-Book-v3/chapter0/index.html
 - Maturin https://gitlab.eduxiji.net/scPointer/maturin
 - Redox https://gitlab.redox-os.org/redox-os/
+- [Files · master · FTL OS / OSKernel2022-FTLOS · GitLab (eduxiji.net)](https://gitlab.eduxiji.net/DarkAngelEX/oskernel2022-ftlos/-/tree/master)
 
