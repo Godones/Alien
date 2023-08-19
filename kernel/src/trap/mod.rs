@@ -71,6 +71,7 @@ pub fn trap_return() -> ! {
     }
 }
 
+/// 设置用户态 trap 处理例程的入口点
 #[inline]
 fn set_user_trap_entry() {
     unsafe {
@@ -78,6 +79,7 @@ fn set_user_trap_entry() {
     }
 }
 
+/// 设置内核态 trap 处理例程的入口点
 #[inline]
 pub fn set_kernel_trap_entry() {
     unsafe {
@@ -103,6 +105,7 @@ pub trait TrapHandler {
 }
 
 impl TrapHandler for Trap {
+    /// 用户态下的 trap 例程
     fn do_user_handle(&self) {
         let stval = stval::read();
         let sepc = sepc::read();
@@ -187,6 +190,8 @@ impl TrapHandler for Trap {
             }
         }
     }
+
+    /// 内核态下的 trap 例程
     fn do_kernel_handle(&self) {
         let stval = stval::read();
         let sepc = sepc::read();
@@ -230,6 +235,7 @@ impl TrapHandler for Trap {
     }
 }
 
+/// 检查时钟中断是否被屏蔽
 pub fn check_timer_interrupt_pending() {
     let sip = riscv::register::sip::read();
     if sip.stimer() {
