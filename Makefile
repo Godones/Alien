@@ -83,7 +83,7 @@ install:
 	@cargo install --git  https://github.com/os-module/elfinfo
 	@#cd $(TRACE_EXE_PATH) && cargo build --release
 
-build:compile
+build:install compile
 
 
 compile:

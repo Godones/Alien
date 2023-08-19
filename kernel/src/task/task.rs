@@ -76,35 +76,54 @@ impl Drop for TidHandle {
 
 #[derive(Debug)]
 pub struct Task {
+    /// 任务的线程号
     pub tid: TidHandle,
+    /// 任务所属进程号
     pub pid: usize,
     /// 当退出时是否向父进程发送信号 SIGCHLD。
     /// 如果创建时带 CLONE_THREAD 选项，则不发送信号，除非它是线程组(即拥有相同pid的所有线程)中最后一个退出的线程；
     /// 否则发送信号
     pub send_sigchld_when_exit: bool,
+    /// 任务内核栈
     pub kernel_stack: Stack,
     inner: Mutex<TaskInner>,
 }
 
 #[derive(Debug)]
 pub struct TaskInner {
+    /// 任务名称
     pub name: String,
+    /// 线程分配情况
     pub threads: MinimalManager<()>,
+    /// 线程编号
+    /// 这个编号不同与tid，tid是唯一的，这个thread_number表示这个任务是一个进程还是一个线程
     pub thread_number: usize,
+    /// 地址空间
     pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
+    /// 任务状态
     pub state: TaskState,
+    /// 所属的父任务
     pub parent: Option<Weak<Task>>,
+    /// 子任务
     pub children: Vec<Arc<Task>>,
+    /// 文件描述符表
     pub fd_table: Arc<Mutex<FdManager>>,
+    /// 任务切换上下文
     pub context: Context,
+    /// 当前所在目录信息
     pub fs_info: FsContext,
+    /// 任务运行信息
     pub statistical_data: StatisticalData,
+    /// 计时器
     pub timer: TaskTimer,
+    /// 退出码
     pub exit_code: i32,
+    /// 堆分配信息
     pub heap: Arc<Mutex<HeapInfo>>,
+    /// mmap映射信息
     pub mmap: MMapInfo,
     /// 信号量对应的一组处理函数。
-    /// 因为发送信号是通过 pid/tid 查找的，因此放在 inner 中一起调用时更容易导致死锁
+    /// 发送信号是通过 tid 查找的
     pub signal_handlers: Arc<Mutex<SignalHandlers>>,
     /// 接收信号的结构。每个线程中一定是独特的，而上面的 handler 可能是共享的
     pub signal_receivers: Arc<Mutex<SignalReceivers>>,
@@ -120,15 +139,18 @@ pub struct TaskInner {
     /// 此时用户可能修改其中的 pc 信息(如musl-libc 的 pthread_cancel 函数)。
     /// 在这种情况下，需要手动在 sigreturn 时更新已保存的上下文信息
     pub signal_set_siginfo: bool,
+    /// robust信息
     pub robust: RobustList,
+    /// 共享内存
     pub shm: BTreeMap<usize, ShmInfo>,
+    /// cpu亲核性
     pub cpu_affinity: usize,
     /// process's file mode creation mask
     pub unmask: usize,
+    /// 任务的用户栈区间
     pub stack: Range<usize>,
     pub need_wait: u8,
 }
-
 #[derive(Debug, Copy, Clone)]
 pub struct TaskTimer {
     /// 计时器类型
