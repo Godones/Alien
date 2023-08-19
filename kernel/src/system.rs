@@ -1,3 +1,4 @@
+//! uname系统调用实现
 use syscall_table::syscall_func;
 
 use crate::task::current_task;

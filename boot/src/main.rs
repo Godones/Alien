@@ -1,8 +1,23 @@
+//! 内核启动模块
+//!
+//! 该模块主要完成以下功能：
+//! 1. 初始化内核的栈空间
+//! 2. 清空.bss段
+//! 3. 从设备树中获取基本的信息
+//! 4. 初始化内存子系统
+//! 5. 初始化中断子系统
+//! 6. 初始化系统调用
+//! 7. 初始化进程子系统
+//! 8. 初始化文件系统
+//! 9. 初始化设备子系统
+//! 10. 主核唤醒其它核
+
 #![no_std]
 #![no_main]
 #![feature(naked_functions)]
 #![feature(asm_const)]
 #![feature(stmt_expr_attributes)]
+#![deny(missing_docs)]
 
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -10,6 +25,7 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use cfg_if::cfg_if;
 
 use basemachine::machine_info_from_dtb;
+use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
 use kernel::arch::hart_id;
 #[cfg(not(feature = "qemu"))]
 use kernel::board;
@@ -22,14 +38,15 @@ use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
-use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
 
 mod entry;
 
-// 多核启动标志
+/// 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
+/// cpu启动计数
 static CPUS: AtomicUsize = AtomicUsize::new(0);
 
+/// 清空.bss段
 #[inline]
 fn clear_bss() {
     extern "C" {
@@ -42,11 +59,9 @@ fn clear_bss() {
     }
 }
 
-/// rust_main is the entry of the kernel
+/// 内核位于高级语言的入口
 #[no_mangle]
-fn main(_: usize, _: usize) -> ! {
-    // on visionfive2
-    // if we don't call clear_bss before load STARTED, the kernel may be freeze
+pub fn main(_: usize, _: usize) -> ! {
     if !STARTED.load(Ordering::Relaxed) {
         clear_bss();
         println!("{}", config::FLAG);
@@ -100,6 +115,10 @@ fn main(_: usize, _: usize) -> ! {
     task::schedule::first_into_user();
 }
 
+/// 唤醒其它核
+///
+/// 对于qemu来说，只需要工具所有的核都是一样的，因此从严号核开始唤醒。
+/// 对于visionfive2/unmatched 来说，0号核只有M态，因此不进行唤醒
 fn init_other_hart(hart_id: usize) {
     cfg_if! {
         if #[cfg(any(feature="vf2",feature = "hifive"))]{
@@ -117,10 +136,12 @@ fn init_other_hart(hart_id: usize) {
             assert_eq!(res.error, 0);
         }
     }
-    // 等待其它cpu核启动
     wait_all_cpu_start();
 }
 
+/// 等待其它cpu核启动
+///
+/// 对于visionfive2/unmatched 来说，我们使用make SMP=2 来进行单核启动，这里针对这个情况做了处理
 fn wait_all_cpu_start() {
     cfg_if! {
         if #[cfg(any(feature="vf2",feature = "hifive"))]{
