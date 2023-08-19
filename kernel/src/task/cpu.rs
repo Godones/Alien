@@ -1,3 +1,4 @@
+//! Alien 中有关进程的系统调用 和 多核的相关支持。
 use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
@@ -26,17 +27,22 @@ use crate::task::task::{Task, TaskState};
 use crate::task::INIT_PROCESS;
 use crate::trap::{check_task_timer_expired, TrapFrame};
 
+/// 记录当前 CPU 上正在执行的线程 和 线程上下文
 #[derive(Debug, Clone)]
 pub struct CPU {
+    /// 正在该 CPU 上运行的线程的控制块
     pub task: Option<Arc<Task>>,
+    /// 当前线程的上下文
     pub context: Context,
 }
 
+/// 记录一组 CPU 的相关信息
 pub struct CpuManager<const CPUS: usize> {
     cpus: Vec<CPU>,
 }
 
 impl<const CPUS: usize> CpuManager<CPUS> {
+    /// 创建一个 `CpuManager` 结构
     pub fn new() -> Self {
         Self {
             cpus: vec![CPU::empty(); CPUS],
@@ -47,44 +53,55 @@ impl<const CPUS: usize> CpuManager<CPUS> {
 impl<const CPUS: usize> Index<usize> for CpuManager<CPUS> {
     type Output = CPU;
 
+    /// 用于快捷取出 hartid 为 index 的 CPU 的一个不可变引用
     fn index(&self, index: usize) -> &Self::Output {
         &self.cpus[index]
     }
 }
 
 impl<const CPUS: usize> IndexMut<usize> for CpuManager<CPUS> {
+    /// 用于快捷取出 hartid 为 index 的 CPU 的一个可变引用
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.cpus[index]
     }
 }
 
 impl CPU {
+    /// 获取一个空的 CPU
     const fn empty() -> Self {
         Self {
             task: None,
             context: Context::empty(),
         }
     }
+    
+    /// 获取 cpu 上的线程任务控制块(会直接获取该任务控制块的所有权)
     pub fn take_process(&mut self) -> Option<Arc<Task>> {
         self.task.take()
     }
+
+    /// 获取线程上下文的一个 不可变引用 的指针
     pub fn get_context_raw_ptr(&self) -> *const Context {
         &self.context as *const Context
     }
+
+    /// 获取线程上下文的一个 可变引用 的指针
     pub fn get_context_mut_raw_ptr(&mut self) -> *mut Context {
         &mut self.context as *mut Context
     }
 }
 
-/// save info for each cpu
+/// 保存每个核的信息
 static mut CPU_MANAGER: Once<CpuManager<CPU_NUM>> = Once::new();
 
-/// the global process pool
+/// 全局的线程池
 type ProcessPool = VecDeque<Arc<Task>>;
 lazy_static! {
+    /// 管理所有线程的全局变量
     pub static ref TASK_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
 }
 
+/// 初始化 CPU 的相关信息
 pub fn init_per_cpu() {
     unsafe {
         CPU_MANAGER.call_once(|| CpuManager::new());
@@ -92,7 +109,7 @@ pub fn init_per_cpu() {
     println!("{} cpus in total", CPU_NUM);
 }
 
-/// get the current cpu info
+/// 获取当前 cpu 的信息
 pub fn current_cpu() -> &'static mut CPU {
     let hart_id = arch::hart_id();
     unsafe {
@@ -102,19 +119,19 @@ pub fn current_cpu() -> &'static mut CPU {
     // unsafe { &mut CPU_MANAGER[hart_id] }
 }
 
-/// get the current_process
+/// 获取当前 CPU 上的线程
 pub fn current_task() -> Option<&'static Arc<Task>> {
     let cpu = current_cpu();
     cpu.task.as_ref()
 }
 
-/// get the current process's token (root ppn)
+/// 获取当前进程的虚拟页表的 token (root ppn)
 pub fn current_user_token() -> usize {
     let task = current_task().unwrap();
     task.token()
 }
 
-/// get the current process's trap frame
+/// 获取当前进程的 trap 帧（上下文）
 pub fn current_trap_frame() -> &'static mut TrapFrame {
     let task = current_task().unwrap();
     task.trap_frame()
