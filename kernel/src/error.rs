@@ -1,6 +1,10 @@
+//! alien os中error定义
+//!
+//! 后续需要将其与linux的error等价转换
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 
+/// alien os中error定义
 #[derive(Debug, PartialOrd, PartialEq)]
 pub enum AlienError {
     NoSpace,

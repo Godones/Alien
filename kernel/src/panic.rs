@@ -1,13 +1,15 @@
+//! panic 处理
 use core::panic::PanicInfo;
 use core::sync::atomic::AtomicBool;
 
 use crate::sbi::system_shutdown;
 
+/// 递归标志
 static RECURSION: AtomicBool = AtomicBool::new(false);
 
 /// 错误处理
 ///
-/// 发生 panic 是进行结果处理
+/// 发生 panic 是进行结果处理.目前我们会读取符号表信息，进行堆栈回溯
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     if let Some(p) = info.location() {
@@ -28,6 +30,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
     loop {}
 }
 
+/// 打印堆栈回溯信息
 fn back_trace() {
     println!("---START BACKTRACE---");
     let info = crate::trace::init_kernel_trace();
