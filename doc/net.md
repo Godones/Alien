@@ -4,16 +4,16 @@
 
 + [x] 封装Interface的poll方法，使其易于调用
     + [x] 完善DeviceWrapper和InterfaceWrapper结构
-+ [ ] 实现各系统调用
++ [x] 实现各系统调用
     + [x] socket::new
-    + [ ] udp: bind + send + recieve
-    + [ ] ListenTable 结构
-    + [ ] tcp
-        + [ ] sever:  bind + listen + accept + recv + send
-        + [ ] client:  connect + recv + send
-    + [ ] close
-    + [ ] shutdown
-+ [ ] 重构目前的IpAddr，使用smoltcp中已有的结构
+    + [x] udp: bind + send + recieve
+    + [x] ListenTable 结构
+    + [x] tcp
+        + [x] sever:  bind + listen + accept + recv + send
+        + [x] client:  connect + recv + send
+    + [x] close
+    + [x] shutdown
++ [x] 重构目前的IpAddr，使用smoltcp中已有的结构
 
 + [ ] 支持DNS
 

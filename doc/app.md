@@ -25,6 +25,3 @@
 ```
 
 [与sys_waitid相关flag和option的定义](https://man7.org/linux/man-pages/man2/waitpid.2.html)
-
-## 接下来的任务
-+ 确定syscall_waitid的参数，在Mstd中实现thread_join
