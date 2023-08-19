@@ -1,3 +1,15 @@
+//! Alien 中的有关时钟、计时器的结构 以及 一些计时器的系统调用。
+//! 
+//! 在对系统时间的记录上，Alien 中使用 [`TimeVal`] 记录 (秒，微秒) 的时间，使用 [`TimeSpec`] 记录 更精细的 (秒，纳秒) 的时间；
+//! 在对进程的运行时间的记录上，使用 [`Times`] 结构记录进程运行的时间，记录的信息包括程序在用户态、内核态下分别运行的时间，
+//! 其子进程运行的总时间等，在任务控制块中记录相应数据的结构为 [`StatisticalData`]。
+//! 
+//! 计时器方面， [`Timer`] 结构为实际放入计时器队列 [`TIMER_QUEUE`] 中的计时器结构。
+//! 当发生时钟中断时，会检查所有计时器队列中的计时器是否超时，具体可见 [`check_timer_queue`]。
+//! [`ITimerVal`] 结构为系统调用 [`getitimer`] / [`setitimer`] 指定的类型，用户执行系统调用时获取和输入时需要为该种类型的计时器,
+//! 在任务控制块中记录相应数据的字段为 `timer`(结构为 `TaskTimer` )。
+//!
+//! 对于时间片 (每次引发时钟中断的时间间隔) 大小的设计：目前 Alien 中用户态和内核态下采用相同的时间片间隔，1s 内触发 10 次时钟中断。
 use alloc::collections::BinaryHeap;
 use alloc::sync::Arc;
 use core::cmp::Ordering;
@@ -14,9 +26,11 @@ use crate::arch;
 use crate::config::CLOCK_FREQ;
 use crate::task::{current_task, do_suspend, StatisticalData, Task, TASK_MANAGER};
 
+/// 每秒包含的 时间片 数，每隔一个时间片，就会产生一个时钟中断
 const TICKS_PER_SEC: usize = 10;
 // const TICKS_PER_SEC_IN_KERNEL: usize = 1000;
 
+/// 每秒包含的毫秒数
 const MSEC_PER_SEC: usize = 1000;
 
 /// 程序运行时间
@@ -34,6 +48,7 @@ pub struct Times {
 }
 
 impl Times {
+    /// 创建一个各字段值都为 0 的新 `Times` 变量
     pub fn new() -> Self {
         Self {
             tms_utime: 0,
@@ -43,6 +58,7 @@ impl Times {
         }
     }
 
+    /// 从一个 [`StatisticalData`] 结构 (一般为 task 的 statistical_data 字段) 得到一个 `Times` 变量
     pub fn from_process_data(data: &StatisticalData) -> Self {
         Self {
             tms_stime: data.tms_stime,
@@ -53,14 +69,17 @@ impl Times {
     }
 }
 
+/// 实现 `TimeNow` 特征的时钟结构，能够通过调用 `now` 方法得出 表示当前的 cpu 时间的一个本类型时钟
 pub trait TimeNow {
     fn now() -> Self;
 }
 
+/// 实现 `ToClock` 特征的时钟结构，能够将所表示的时间间隔，转换为 cpu 时钟
 pub trait ToClock {
     fn to_clock(&self) -> usize;
 }
 
+/// 实现 `TimeFromFreq` 特征的时钟结构，能够实现从 cpu时钟跳变的次数 初始化一个本类型的时钟
 pub trait TimeFromFreq {
     fn from_freq(freq: usize) -> Self;
 }
@@ -99,12 +118,15 @@ pub struct TimeSpec {
 }
 
 impl TimeSpec {
+    /// 创建一个新的 [`TimeSpec`] 时钟
     pub fn new(sec: usize, ns: usize) -> Self {
         Self {
             tv_sec: sec,
             tv_nsec: ns,
         }
     }
+
+    /// 获取一个可以表示当前 cpu 时间的一个 [`TimeSpec`] 时钟
     pub fn now() -> Self {
         let time = read_timer();
         Self {
@@ -113,6 +135,7 @@ impl TimeSpec {
         }
     }
 
+    /// 将本时钟所表示的时间间隔转化为 cpu 上时钟的跳变数 
     pub fn to_clock(&self) -> usize {
         self.tv_sec * CLOCK_FREQ + self.tv_nsec * CLOCK_FREQ / 1000_000_000
     }
@@ -127,7 +150,7 @@ impl TimeFromFreq for TimeSpec {
     }
 }
 
-/// gettimer / settimer 指定的类型，用户输入输出计时器
+/// [`getitimer`] / [`setitimer`] 指定的类型，用户执行系统调用时获取和输入的计时器
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct ITimerVal {
@@ -151,6 +174,9 @@ pub fn set_next_trigger() {
     crate::sbi::set_timer(next);
 }
 
+/// 设置内核态中下一次时钟的中断
+/// 
+/// 原设计为内核态下的时间片设置的更短一些，以免一个进程在进入内核态前后占用过多的时间片。但目前修改为 内核态和用户态下的时间片大小相同。
 #[inline]
 pub fn set_next_trigger_in_kernel() {
     let next = read_timer() + CLOCK_FREQ / TICKS_PER_SEC;
@@ -158,6 +184,7 @@ pub fn set_next_trigger_in_kernel() {
     crate::sbi::set_timer(next);
 }
 
+/// 获取当前时间，以 ms 为单位
 // #[syscall_func(169)]
 pub fn get_time_ms() -> isize {
     (read_timer() / (CLOCK_FREQ / MSEC_PER_SEC)) as isize
@@ -240,16 +267,24 @@ pub fn clock_get_time(clock_id: usize, tp: *mut u8) -> isize {
     0
 }
 
+/// 实际放入计时器队列中的计时器结构。
+/// 
+/// 当发生时钟中断时，会检查所有计时器队列中的计时器是否超时，具体可见 [`check_timer_queue`]
 #[derive(Debug)]
 pub struct Timer {
+    /// 计时器超时时间
     end_time: usize,
+    /// 在该计时器上进行等待的进程
     process: Arc<Task>,
 }
 
 impl Timer {
+    /// 通过传入的 超时时间 和 等待进程的控制块 创建一个新的 `Timer` 结构
     pub fn new(end_time: usize, process: Arc<Task>) -> Self {
         Self { end_time, process }
     }
+
+    /// 获取等待在该计时器上的进程的控制块信息
     pub fn get_task(&self) -> &Arc<Task> {
         &self.process
     }
@@ -278,13 +313,21 @@ impl Ord for Timer {
 }
 
 lazy_static! {
+    /// 存储所有当前处于等待状态的计时器，是一个二叉树结构。
+    ///
+    /// 保证存储在该队列中的计时器，按照超时时间 由先到后 的次序排列。
     pub static ref TIMER_QUEUE: Mutex<BinaryHeap<Timer>> = Mutex::new(BinaryHeap::new());
 }
 
+/// 将一个需要等待在 超时时间为 `end_time` 的计数器上的进程记录到计数器列表中
 pub fn push_to_timer_queue(process: Arc<Task>, end_time: usize) {
     TIMER_QUEUE.lock().push(Timer::new(end_time, process));
 }
 
+/// 当发生时钟中断时，`trap_handler` 会调用该函数检查所有计时器队列中的计时器，并唤醒等待在这些计时器上的进程
+/// 
+/// 遍历所有计时器队列 [`TIMER_QUEUE`] 中的计时器，若计时器的超时时间在当前时间之前(即已超时)，那么将该等待的进程加入
+/// 线程池的首位，马上对其进行调度。
 pub fn check_timer_queue() {
     let now = read_timer();
     let mut queue = TIMER_QUEUE.lock();

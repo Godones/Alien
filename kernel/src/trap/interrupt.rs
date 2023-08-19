@@ -1,3 +1,6 @@
+//! Alien 的外部中断处理
+//!
+//! 目前仅有时钟中断处理函数。
 use crate::ipc::solve_futex_wait;
 use crate::task::do_suspend;
 use crate::timer::{check_timer_queue, set_next_trigger};
