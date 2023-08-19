@@ -6,7 +6,7 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 
 ## Project Structure
 
-```c
+```
 ├── LICENSE
 ├── Makefile				(编译命令)
 ├── README.md				(readme)
