@@ -1,3 +1,8 @@
+//! Alien 中对于内部异常的处理
+//! 
+//! 目前包括系统调用异常处理 [`syscall_exception_handler`]、页错误异常处理 [`page_exception_handler`] (包括
+//! 指令页错误异常处理 [`instruction_page_fault_exception_handler`]、 加载页错误异常处理[`load_page_fault_exception_handler`]、
+//! 储存页错误异常处理 [`store_page_fault_exception_handler`]) 和 文件读入异常处理 [`trap_common_read_file`]。
 use alloc::sync::Arc;
 
 use riscv::register::scause::{Exception, Trap};
@@ -10,6 +15,7 @@ use crate::fs::vfs::VfsProvider;
 use crate::syscall;
 use crate::task::{current_task, current_trap_frame};
 
+/// 系统调用异常处理
 pub fn syscall_exception_handler() {
     // enable interrupt
     interrupt_enable();
@@ -67,7 +73,9 @@ pub fn syscall_exception_handler() {
     cx.update_res(result.unwrap() as usize);
 }
 
-/// the solution for page fault
+/// 页异常处理，会根据不同的异常类型，分发至指令页错误异常处理 [`instruction_page_fault_exception_handler`]、 
+/// 加载页错误异常处理 [`load_page_fault_exception_handler`]、
+/// 储存页错误异常处理 [`store_page_fault_exception_handler`] 等处理方案中。
 pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     trace!(
         "[pid: {}] page fault addr:{:#x} trap:{:?}",
@@ -88,6 +96,7 @@ pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
     Ok(())
 }
 
+/// 指令页错误异常处理
 pub fn instruction_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let task = current_task().unwrap();
     trace!(
@@ -105,6 +114,7 @@ pub fn instruction_page_fault_exception_handler(addr: usize) -> AlienResult<()> 
     Ok(())
 }
 
+/// 加载页错误异常处理
 pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let info = {
         let process = current_task().unwrap();
@@ -119,6 +129,7 @@ pub fn load_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     Ok(())
 }
 
+/// 储存页错误异常处理
 pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     let process = current_task().unwrap();
     trace!(
@@ -136,6 +147,7 @@ pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
     Ok(())
 }
 
+/// 文件读入异常处理
 pub fn trap_common_read_file(file: Arc<KFile>, buf: &mut [u8], offset: u64) {
     error!(
         "trap_common_read_file buf.len: {}, offset:{:#x}",
