@@ -33,11 +33,15 @@ use crate::task::current_task;
 
 mod stdio;
 
+pub mod basic;
 mod control;
 pub mod file;
 pub mod poll;
 pub mod select;
 pub mod vfs;
+
+use crate::interrupt::record::write_interrupt_record;
+pub use basic::*;
 
 pub const AT_FDCWD: isize = -100isize;
 
@@ -115,26 +119,6 @@ pub fn sys_umount(dir: *const u8) -> isize {
     0
 }
 
-/// 一个系统调用，用于打开相对于一个目录某位置处的另一个文件。
-///
-/// 当传入的`path`是一个相对地址时，那么`path`会被解析成基于文件描述符`dirfd`
-/// 所指向的目录地址的一个地址；当传入的`path`是一个相对地址并且
-/// `dirfd`被特殊的设置为`AT_FDCWD`时，`path`会
-/// 被解析成基于调用该系统调用的进程当前工作目录的一个地址；
-/// 当传入的`path`是一个绝对地址时，`dirfd`将被直接忽略。
-///
-/// 在`Alien`使用的`rvfs`中，对一个文件路径`path`是相对路径还是绝对路径的的判断条件如下：
-/// + 绝对路径：以`\`开头，如`\file1.txt`，表示根目录下的`file1.txt`文件；
-/// + 相对路径: 以`.\`或者`..\`或者其它开头，如`.\file1.txt`，表示`dirfd`所指向的目录下的`file1.txt`文件。
-///
-/// `sys_openat`对flag的相关规定和`sys_open`对flag的规定相同，
-/// 可以通过下面的参考链接查看。
-///
-/// 如果成功打开文件，`sys_openat`将返回一个新的文件描述符；否则返回-1或错误类型。
-/// 出错的情况大致包括：当`path`是一个相对地址，`dirfd`所指向的文件不是一个目录文件；
-/// `dirfd`不是一个有效的文件描述符等。
-///
-/// Reference: [openat](https://man7.org/linux/man-pages/man2/openat.2.html)
 #[syscall_func(56)]
 pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize {
     // we don't support mode yet
@@ -163,6 +147,9 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
         flag -= OpenFlags::O_EXCL;
     }
     file_mode |= FileMode::FMODE_RDWR;
+    if path.contains("interrupts") {
+        file_mode = FileMode::FMODE_READ;
+    }
     let file = vfs_open_file::<VfsProvider>(&path, flag, file_mode);
     if file.is_err() {
         return LinuxErrno::ENOENT.into();
@@ -306,6 +293,10 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
         return LinuxErrno::EBADF.into();
     }
     let file = file.unwrap();
+    let path = user_path_at(fd as isize, "", LookUpFlags::empty()).map_err(|_| -1);
+    if path.is_ok() && path.unwrap().contains("interrupts") {
+        write_interrupt_record(0);
+    }
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
@@ -353,6 +344,10 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         return -1;
     }
     let file = file.unwrap();
+    let path = user_path_at(fd as isize, "", LookUpFlags::empty()).map_err(|_| -1);
+    if path.is_ok() && path.unwrap().contains("interrupts") {
+        return LinuxErrno::EPERM.into();
+    }
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
@@ -363,6 +358,8 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
             if r.err().unwrap().starts_with("pipe_write") {
                 error!("pipe_write error: {:?}", r.err().unwrap());
                 res = LinuxErrno::EPIPE.into()
+            } else if r.err().unwrap() == "Try Again" {
+                res = LinuxErrno::EAGAIN.into();
             } else {
                 res = LinuxErrno::EIO.into()
             };
@@ -633,6 +630,9 @@ pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> isize {
     }
     // TODO we need make sure the file of the path is not being used
     let path = path.unwrap();
+    if path.contains("interrupts") {
+        return LinuxErrno::EPERM.into();
+    }
     // find the file, checkout whether it is being used
     let file = vfs_open_file::<VfsProvider>(&path, OpenFlags::empty(), FileMode::FMODE_RDWR);
     if file.is_err() {
@@ -819,6 +819,9 @@ pub fn sys_renameat(
         return -1;
     }
     let old_path = old_path.unwrap();
+    if old_path.contains("interrupts") {
+        return LinuxErrno::EPERM.into();
+    }
     let new_path = user_path_at(new_dirfd, &new_path, LookUpFlags::empty()).map_err(|_| -1);
     if new_path.is_err() {
         return -1;
@@ -1209,12 +1212,14 @@ pub fn sys_pread(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
     let file = file.unwrap();
     let mut buf = task.transfer_buffer(buf as *mut u8, count);
     let mut offset = offset;
+    let old_file_offset = file.get_file().access_inner().f_pos;
     let mut count = 0;
     buf.iter_mut().for_each(|b| {
         let r = vfs_read_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
         count += r;
         offset += r;
     });
+    file.get_file().access_inner().f_pos = old_file_offset;
     count as isize
 }
 
@@ -1234,12 +1239,14 @@ pub fn sys_pwrite(fd: usize, buf: usize, count: usize, offset: usize) -> isize {
     let file = file.unwrap();
     let buf = task.transfer_buffer(buf as *mut u8, count);
     let mut offset = offset;
+    let old_file_offset = file.get_file().access_inner().f_pos;
     let mut count = 0;
     buf.iter().for_each(|b| {
         let r = vfs_write_file::<VfsProvider>(file.get_file(), b, offset as u64).unwrap();
         count += r;
         offset += r;
     });
+    file.get_file().access_inner().f_pos = old_file_offset;
     count as isize
 }
 

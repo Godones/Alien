@@ -1,13 +1,13 @@
 //! 一些跟获取系统信息有关/设置cpu亲和性相关的系统调用函数。
 use core::cmp::min;
 
-use syscall_define::LinuxErrno;
 use syscall_define::sys::{Rusage, RusageFlag, Sysinfo, SyslogAction, TimeVal};
+use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
-use crate::{error_unwrap, MACHINE_INFO};
 use crate::task::{current_task, TASK_MANAGER};
 use crate::timer::{get_time_ms, TimeFromFreq};
+use crate::{error_unwrap, MACHINE_INFO};
 
 const LOG_BUF_LEN: usize = 4096;
 const LOG: &str = r"

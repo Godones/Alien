@@ -80,7 +80,7 @@ endef
 
 
 install:
-	@cargo install --git  https://github.com/os-module/elfinfo
+	@#cargo install --git  https://github.com/os-module/elfinfo
 	@#cd $(TRACE_EXE_PATH) && cargo build --release
 
 build:install compile
@@ -178,7 +178,7 @@ fat32:
 		rm $(IMG); \
 		touch $(IMG); \
 	fi
-	@dd if=/dev/zero of=$(IMG) bs=1M count=128
+	@dd if=/dev/zero of=$(IMG) bs=1M count=64
 	@mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
 		sudo umount /fat; \

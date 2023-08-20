@@ -3,33 +3,33 @@
 
 extern crate alloc;
 
-use Mstd::println;
 use Mstd::process::{exec, exit, fork, wait, waitpid};
 use Mstd::thread::m_yield;
+use Mstd::{println, system_shutdown};
 
 #[no_mangle]
 fn main() -> isize {
-    if fork() == 0 {
-        // exec("/bin/bash\0", &[0 as *const u8], BASH_ENV);
-        exec("/bin/shell\0", &[0 as *const u8], BASH_ENV);
-    } else {
-        loop {
-            let mut exit_code: i32 = 0;
-            let tid = wait(&mut exit_code);
-            if tid == -1 {
-                m_yield();
-                continue;
-            }
-            println!(
-                "[Init] Released a task, tid={}, exit_code={}",
-                tid, exit_code,
-            );
-        }
-    }
-    0
-    // run_test();
-    // println!("!TEST FINISH!");
-    // system_shutdown();
+    // if fork() == 0 {
+    //     // exec("/bin/bash\0", &[0 as *const u8], BASH_ENV);
+    //     exec("/bin/shell\0", &[0 as *const u8], BASH_ENV);
+    // } else {
+    //     loop {
+    //         let mut exit_code: i32 = 0;
+    //         let tid = wait(&mut exit_code);
+    //         if tid == -1 {
+    //             m_yield();
+    //             continue;
+    //         }
+    //         println!(
+    //             "[Init] Released a task, tid={}, exit_code={}",
+    //             tid, exit_code,
+    //         );
+    //     }
+    // }
+    // 0
+    run_test();
+    println!("!TEST FINISH!");
+    system_shutdown();
 }
 
 #[allow(unused)]
@@ -55,13 +55,21 @@ const BASH_ENV: &[*const u8] = &[
 fn run_test() {
     let commands = [
         "./time-test\0",
+        "./lmbench_testcode.sh\0",
+        "./interrupts-test-1\0",
+        "./interrupts-test-2\0",
+        "./copy-file-range-test-1\0",
+        "./copy-file-range-test-2\0",
+        "./copy-file-range-test-3\0",
+        "./copy-file-range-test-4\0",
         "./run-static.sh\0",
         "./run-dynamic.sh\0",
         "./libc-bench2\0",
         "./lua_testcode.sh\0",
         "./busybox_testcode.sh\0",
         "./cyclictest_testcode.sh\0",
-        "./lmbench_testcode.sh\0",
+        "./netperf_testcode.sh\0",
+        "./iperf_testcode.sh\0",
         "./iozone_testcode.sh\0",
         "./unixbench_testcode.sh\0",
     ];

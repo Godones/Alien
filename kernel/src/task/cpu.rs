@@ -74,7 +74,7 @@ impl CPU {
             context: Context::empty(),
         }
     }
-    
+
     /// 获取 cpu 上的线程任务控制块(会直接获取该任务控制块的所有权)
     pub fn take_process(&mut self) -> Option<Arc<Task>> {
         self.task.take()

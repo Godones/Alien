@@ -22,6 +22,7 @@ use crate::arch::{
 use crate::config::TRAMPOLINE;
 use crate::error::AlienError;
 use crate::interrupt::external_interrupt_handler;
+use crate::interrupt::record::write_interrupt_record;
 use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
@@ -198,6 +199,7 @@ impl TrapHandler for Trap {
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 trace!("[kernel] timer interrupt");
+                // write_interrupt_record(0);
                 check_timer_queue();
                 solve_futex_wait();
                 // set_next_trigger();

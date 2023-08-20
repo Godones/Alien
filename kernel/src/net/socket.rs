@@ -1,8 +1,8 @@
 //! Alien 内核中使用的套接字结构。
-//! 
+//!
 //! Alien 目前采用 [`SocketData`] 存储每一个套接字的相关信息，其字段 socket (结构为 [`Socket`]) 存储套接字的具体信息，
 //! 对于套接字的操作最终都会归结于对 [`SocketData`] 的操作。
-//! 
+//!
 //! 套接字的创建时，需要返回一个创建的套接字文件描述符用于获取和操作该套接字。依据 Alien 所使用的 rvfs 中对文件 `File`
 //! 的规定，我们只需为套接字文件规定好 [`socket_file_release`]、[`socket_file_write`]、[`socket_file_read`]、
 //! [`socket_ready_to_read`]、[`socket_ready_to_write`] 几个操作函数，即可快速的创建套接字文件，并将其放入进程的文件描述
@@ -89,7 +89,7 @@ impl SocketData {
     }
 
     /// 用于创建一个新的套接字数据 `SocketData` 结构，返回创建的文件描述符。一般被系统调用 [`socket`] 所调用。
-    /// 
+    ///
     /// 执行过程中会创建一个对应的套接字文件，打开后将对应的文件描述符放入进程的文件描述符表中，
     /// 对于 `Alien` 中对文件的相关定义可见 `rvfs` 模块中的 `File` 结构。这里对套接字文件的相关
     /// 操作函数可见 [`socket_file_release`]、[`socket_file_write`]、[`socket_file_read`]、
@@ -149,7 +149,7 @@ impl SocketData {
     }
 
     /// 用于对一个已经存在的 tcp_socket 创建对应的套接字文件。一般在 accept 成功接受一个 client 后被调用。
-    /// 
+    ///
     /// 对于 `Alien` 中对文件的相关定义可见 `rvfs` 模块中的 `File` 结构。
     fn new_connected(&self, tcp_socket: TcpSocket) -> Arc<File> {
         let socket_data = Self {
@@ -271,7 +271,7 @@ impl SocketData {
         dest_addr: Option<SocketAddrExt>,
     ) -> Result<usize, LinuxErrno> {
         match &self.socket {
-            Socket::Tcp(tcp) => tcp.send(message).map_err(neterror2linux),
+            Socket::Tcp(tcp) => tcp.send(message).map_err(|x| neterror2linux(x)),
             Socket::Udp(udp) => {
                 if let Some(dest_addr) = dest_addr {
                     udp.send_to(message, dest_addr.get_socketaddr())
@@ -435,7 +435,7 @@ fn socket_file_release(file: Arc<File>) -> StrResult<()> {
 }
 
 /// 套接字文件的读就绪操作，效果等同于 ready_read。当套接字中有未接收的数据时，会返回 true；否则返回 false。
-/// 
+///
 /// 会调用 simple_net::poll_interfaces()。有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
 fn socket_ready_to_read(file: Arc<File>) -> bool {
     let dentry_inner = file.f_dentry.access_inner();
@@ -447,7 +447,7 @@ fn socket_ready_to_read(file: Arc<File>) -> bool {
 }
 
 /// 套接字文件的写就绪操作，效果等同于 ready_write。当套接字中有未发送的数据时，会返回 true；否则返回 false。
-/// 
+///
 /// 会调用 simple_net::poll_interfaces()。有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
 fn socket_ready_to_write(file: Arc<File>) -> bool {
     let dentry_inner = file.f_dentry.access_inner();
@@ -459,7 +459,7 @@ fn socket_ready_to_write(file: Arc<File>) -> bool {
 }
 
 /// 套接字文件的写操作，效果等同于 send_to。
-/// 
+///
 /// 有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
 fn socket_file_write(file: Arc<File>, buf: &[u8], _offset: u64) -> StrResult<usize> {
     let dentry_inner = file.f_dentry.access_inner();
@@ -467,7 +467,14 @@ fn socket_file_write(file: Arc<File>, buf: &[u8], _offset: u64) -> StrResult<usi
     let data = inode_inner.data.as_ref().unwrap();
     let socket = SocketData::from_ptr(data.data());
     warn!("socket_file_write: {:?}", buf.len());
-    let res = socket.send_to(buf, 0, None).map_err(|_| "Net Error");
+    simple_net::poll_interfaces();
+    let res = socket.send_to(buf, 0, None).map_err(|x| {
+        error!("socket_file_write: {:?}", x);
+        match x {
+            LinuxErrno::EAGAIN => "Try Again",
+            _ => "Net Error",
+        }
+    });
     do_suspend();
     res
 }
@@ -480,6 +487,7 @@ fn socket_file_read(file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<
     let inode_inner = dentry_inner.d_inode.access_inner();
     let data = inode_inner.data.as_ref().unwrap();
     let socket = SocketData::from_ptr(data.data());
+    simple_net::poll_interfaces();
     let res = socket.recvfrom(buf, 0).map(|x| x.0).map_err(|x| {
         error!("socket_file_read: {:?}", x);
         match x {

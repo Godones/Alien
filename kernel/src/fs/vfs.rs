@@ -9,7 +9,8 @@ use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
 use rvfs::file::{
-    vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file, FileMode, OpenFlags,
+    vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file, FileMode, FileMode2,
+    OpenFlags,
 };
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::inode::{InodeMode, SpecialData};
@@ -20,7 +21,7 @@ use rvfs::superblock::{register_filesystem, DataOps, Device};
 
 use kernel_sync::Mutex;
 
-use crate::config::{MEMINFO, PASSWORD, RTC_TIME, UTC};
+use crate::config::{INTERRUPT_RECORD, MEMINFO, PASSWORD, RTC_TIME, UTC};
 use crate::device::{get_rtc_time, BLOCK_DEVICE};
 use crate::task::current_task;
 
@@ -172,6 +173,16 @@ fn prepare_proc() {
     )
     .unwrap();
     vfs_write_file::<VfsProvider>(mem_info, MEMINFO.as_bytes(), 0).unwrap();
+
+    let interrupts = vfs_open_file::<VfsProvider>(
+        "/proc/interrupts",
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT,
+        FileMode::FMODE_READ,
+    )
+    .unwrap();
+    interrupts.access_inner().f_mode2 = FileMode2::from_bits_truncate(0x777);
+    vfs_write_file::<VfsProvider>(interrupts.clone(), INTERRUPT_RECORD.as_bytes(), 0).unwrap();
+    interrupts.access_inner().f_mode2 = FileMode2::from_bits_truncate(0x600);
 }
 
 fn prepare_etc() {

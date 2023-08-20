@@ -4,7 +4,7 @@
 //! 管道的两个端口抽象成文件，对两个端口直接的相关的文件操作（读操作或者写操作）都被设计
 //! 成对缓冲区进行数据处理（向缓冲区中传入数据或接收数据）。
 //!
-//! 管道文件创建时，依据 Alien 所使用的 rvfs 中对文件 `File` 的规定，我们只需为管道文件规定好 
+//! 管道文件创建时，依据 Alien 所使用的 rvfs 中对文件 `File` 的规定，我们只需为管道文件规定好
 //! [`pipe_release`]、[`pipe_write`]、[`pipe_read`]、[`pipe_exec`]、[`pipe_llseek`]、
 //! [`pipe_read_is_hang_up`]、[`pipe_write_is_hang_up`]、[`pipe_ready_to_read`]
 //! 、[`pipe_ready_to_write`] 几个操作函数，即可快速的创建管道文件，并将其放入进程的文件描述
@@ -125,7 +125,7 @@ impl RingBuffer {
 
 impl Pipe {
     /// 创建一个管道，初始化环形缓冲区，返回一对文件，分别对应读端文件和写端文件。
-    /// 
+    ///
     /// 过程包括创建一个环形缓冲区、创建并初始化写端文件和读端文件、
     /// 将两个文件与环形缓冲区相连、使得通过两个端文件快速对缓冲区进行读写等。
     pub fn new() -> (Arc<KFile>, Arc<KFile>) {
