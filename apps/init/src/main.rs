@@ -55,14 +55,14 @@ const BASH_ENV: &[*const u8] = &[
 fn run_test() {
     let commands = [
         "./time-test\0",
-        "./lua_testcode.sh\0",
-        "./busybox_testcode.sh\0",
         "./interrupts-test-1\0",
         "./interrupts-test-2\0",
         "./copy-file-range-test-1\0",
         "./copy-file-range-test-2\0",
         "./copy-file-range-test-3\0",
         "./copy-file-range-test-4\0",
+        "./lua_testcode.sh\0",
+        "./busybox_testcode.sh\0",
         "./run-static.sh\0",
         "./run-dynamic.sh\0",
         "./libc-bench\0",
