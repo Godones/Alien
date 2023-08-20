@@ -1,4 +1,3 @@
-use std::{format, fs};
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -8,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::string::{String, ToString};
 use std::vec::Vec;
+use std::{format, fs};
 
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/");
@@ -147,7 +147,8 @@ fn scan(import: &mut BTreeSet<String>, context: &mut Vec<u8>, dir: PathBuf) {
                             component.len() - 1
                         };
                         for i in 0..correct {
-                            if component[i] == "src" {} else {
+                            if component[i] == "src" {
+                            } else {
                                 mod_name.push_str("::");
                                 if component[i].ends_with(".rs") {
                                     mod_name.push_str(component[i].strip_suffix(".rs").unwrap());

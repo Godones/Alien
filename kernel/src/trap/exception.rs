@@ -1,5 +1,5 @@
 //! Alien 中对于内部异常的处理
-//! 
+//!
 //! 目前包括系统调用异常处理 [`syscall_exception_handler`]、页错误异常处理 [`page_exception_handler`] (包括
 //! 指令页错误异常处理 [`instruction_page_fault_exception_handler`]、 加载页错误异常处理[`load_page_fault_exception_handler`]、
 //! 储存页错误异常处理 [`store_page_fault_exception_handler`]) 和 文件读入异常处理 [`trap_common_read_file`]。
@@ -73,7 +73,7 @@ pub fn syscall_exception_handler() {
     cx.update_res(result.unwrap() as usize);
 }
 
-/// 页异常处理，会根据不同的异常类型，分发至指令页错误异常处理 [`instruction_page_fault_exception_handler`]、 
+/// 页异常处理，会根据不同的异常类型，分发至指令页错误异常处理 [`instruction_page_fault_exception_handler`]、
 /// 加载页错误异常处理 [`load_page_fault_exception_handler`]、
 /// 储存页错误异常处理 [`store_page_fault_exception_handler`] 等处理方案中。
 pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {

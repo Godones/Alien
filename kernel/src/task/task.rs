@@ -355,7 +355,7 @@ impl Task {
         inner.clear_child_tid = tidptr;
     }
 
-    /// 获取文件的名称 
+    /// 获取文件的名称
     pub fn get_name(&self) -> String {
         let inner = self.inner.lock();
         inner.name.clone()
@@ -725,7 +725,7 @@ impl TaskInner {
         phy.as_usize()
     }
 
-    /// 获取 虚拟地址空间中的以 `ptr` 为起始地址，以 '\0' 结尾的字符串 
+    /// 获取 虚拟地址空间中的以 `ptr` 为起始地址，以 '\0' 结尾的字符串
     pub fn transfer_str(&self, ptr: *const u8) -> String {
         let mut res = String::new();
         let mut start = ptr as usize;
@@ -1004,7 +1004,7 @@ impl TaskInner {
     }
 
     /// 更新计时器
-    /// 
+    ///
     /// 如果没有计时器则直接返回；如果有计时器但时辰未到也直接返回；
     /// 如果有计时器且计时器到时间了，根据是否为one-shot计时器，确定重置计时器或者置`timer`的`timer_remained`为0。
     pub fn update_timer(&mut self) {

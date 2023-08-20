@@ -36,7 +36,7 @@ pub const STACK_SIZE_BITS: usize = 16;
 /// equal to CLOCK_FREQ
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
 /// 可配置的启动cpu数量
-pub const CPU_NUM: usize = 1;
+pub const CPU_NUM: usize = 2;
 
 ///qemu的设备地址空间
 #[cfg(feature = "qemu")]
@@ -61,7 +61,6 @@ pub const MMIO: &[(usize, usize)] = &[
 pub const MMIO: &[(usize, usize)] = &[
     (0xc000000, 0x4000000), //PLIC
 ];
-
 
 // todo!(if the app linker script changed, this should be changed too)
 /// 进程的堆空间上限
@@ -106,7 +105,6 @@ pub const MAX_FD_NUM: usize = 4096;
 
 /// 最大的输入事件数量
 pub const MAX_INPUT_EVENT_NUM: usize = 1024;
-
 
 /// 如果 elf 的 phdr 指示 base 是 0(如 libc-test 的 libc.so)，则需要找一个非0的位置放置
 /// 我们将其从 0x4000_0000 开始放置。主要用于动态链接库使用
@@ -191,4 +189,15 @@ Hugetlb:               0 kB
 /// password文件中保存的内容
 pub const PASSWORD: &str = r"
 root:x:0:0:root:/root:/bin/bash
+";
+
+/// 记录interrupts文件中保存的内容
+///
+/// 0：时钟中断
+/// 10：串口中断
+/// 11：块设备中断
+pub const INTERRUPT_RECORD: &str = r"
+0: 1
+10: 0
+11: 0
 ";

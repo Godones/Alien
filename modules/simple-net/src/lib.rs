@@ -62,7 +62,7 @@ pub trait KernelNetFunc: Send + Sync {
 }
 
 pub fn init_net<H: Hal + 'static, T: Transport + 'static, const QS: usize>(
-    device: VirtIONet<H, T, QS>,
+    device: Option<VirtIONet<H, T, QS>>,
     kernel_func: Arc<dyn KernelNetFunc>,
     ip: Option<IpAddress>,
     gate_way: Option<IpAddress>,
@@ -70,6 +70,7 @@ pub fn init_net<H: Hal + 'static, T: Transport + 'static, const QS: usize>(
     loop_device: bool,
 ) {
     if !loop_device {
+        let device = device.expect("no network device found");
         let mac_addr = EthernetAddress::from_bytes(device.mac_address().as_slice());
         let mut device = VirtIONetDeviceWrapper::new(device, kernel_func.clone());
         if test {

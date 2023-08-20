@@ -2,11 +2,14 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::sync::atomic::Ordering;
 
+use virtio_drivers::transport::mmio::MmioTransport;
+
 pub use block::{BlockDevice, BLOCK_DEVICE};
 pub use gpu::{GpuDevice, GPU_DEVICE};
 pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 
 use crate::board::{get_rtc_info, probe_devices_from_dtb};
+use crate::driver::hal::HalImpl;
 use crate::driver::rtc::Rtc;
 use crate::driver::uart::Uart;
 use crate::driver::GenericBlockDevice;
@@ -213,6 +216,7 @@ fn init_mouse_input_device() {
 fn init_net() {
     let res = crate::board::get_net_device_info();
     if res.is_none() {
+        init_loop_device();
         println!("There is no net device");
         return;
     }
@@ -226,10 +230,31 @@ fn init_net() {
         // let _ = register_device_to_plic(irq, net_device);
         let net_device = net_device.take().unwrap();
         // use default ip and gateway for qemu
-        simple_net::init_net(net_device, Arc::new(NetNeedFunc), None, None, false, true);
+        simple_net::init_net(
+            Some(net_device),
+            Arc::new(NetNeedFunc),
+            None,
+            None,
+            false,
+            true,
+        );
         println!("init net device success");
         println!("test echo-server");
         #[cfg(feature = "net_test")]
         net::nettest::accept_loop();
     }
+}
+
+fn init_loop_device() {
+    use crate::device::net::NetNeedFunc;
+    // use default ip and gateway for qemu
+    simple_net::init_net::<HalImpl, MmioTransport, 64>(
+        None,
+        Arc::new(NetNeedFunc),
+        None,
+        None,
+        false,
+        true,
+    );
+    println!("init net device success");
 }

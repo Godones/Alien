@@ -1,4 +1,4 @@
-//！ Trap 上下文 (Trap帧) 的定义和相关操作 
+//！ Trap 上下文 (Trap帧) 的定义和相关操作
 use bit_field::BitField;
 
 use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
@@ -47,7 +47,7 @@ impl TrapFrame {
         self.sepc += 4;
     }
 
-    /// 
+    ///
     pub fn from_raw_ptr(ptr: *mut TrapFrame) -> &'static mut Self {
         unsafe { &mut *(ptr as *mut Self) }
     }
@@ -57,12 +57,12 @@ impl TrapFrame {
         self.k_sp = val;
     }
 
-    /// 返回 Trap 帧中的 sepc 
+    /// 返回 Trap 帧中的 sepc
     pub fn sepc(&self) -> usize {
         self.sepc
     }
 
-    /// 设置 Trap 帧中的 sepc 
+    /// 设置 Trap 帧中的 sepc
     pub fn set_sepc(&mut self, val: usize) {
         self.sepc = val;
     }

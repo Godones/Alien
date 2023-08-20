@@ -1,10 +1,10 @@
 //! Alien 内核部分的的网络模块，向下调用 `simple_net` 模块实现 tcp 和 udp 套接字的系统调用。
-//! 
+//!
 //! [`addr`] 子模块指明了在 Alien 内核中使用的 socket 套接字地址结构。
 //! [`port`] 子模块现为将网络异常类型 [`NetError`] 转为 系统异常类型 [`LinuxErrno`]的模块。
 //! [`socket`] 子模块指明了Alien 内核中使用的套接字。
 //! [`unix`] 子模块指明了有关 Unix 协议族下的套接字结构。(目前有关的功能有待支持)
-//! 
+//!
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -506,8 +506,8 @@ pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> isi
         "socketpair: {:?}, {:?}, {:?}, {:?}",
         domain, c_type, proto, sv
     );
-    panic!("socketpair");
-    // LinuxErrno::EAFNOSUPPORT.into()
+    // panic!("socketpair");
+    LinuxErrno::EAFNOSUPPORT.into()
 }
 
 /// 通过socket文件描述符fd获取对应的文件

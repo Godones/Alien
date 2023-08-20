@@ -247,6 +247,7 @@ const SYSCALL_MEMBARRIER: usize = 283;
 const SYSCALL_FACCESSAT2: usize = 439;
 const SYSCALL_SHUTDOWN: usize = 210;
 // Not standard POSIX sys_call
+const SYSCALL_COPY_FILE_RANGE: usize = 285;
 const SYSCALL_LS: usize = 500;
 const SYSCALL_CLEAR: usize = 502;
 const SYSCALL_OPEN: usize = 506;
@@ -255,6 +256,7 @@ const SYSCALL_GET_TIME: usize = 1690; //you mean get time of day by 169?
 
 pub fn syscall_name(id: usize) -> &'static str {
     match id {
+        SYSCALL_COPY_FILE_RANGE => "copy_file_range",
         SYSCALL_FCHOWN => "fchown",
         SYSCALL_SETSID => "setsid",
         SYSCALL_SIGSUSPEND => "sigsuspend",

@@ -45,7 +45,6 @@ use core::sync::atomic::{AtomicBool, Ordering};
 /// The max size of global task queue
 pub const GLOBAL_TASK_MAX: usize = 65536;
 
-
 /// The trait of schedule
 pub trait Schedule {
     /// The type of task

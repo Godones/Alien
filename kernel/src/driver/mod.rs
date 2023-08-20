@@ -2,7 +2,7 @@ pub use block_device::*;
 pub use mpci::pci_probe;
 
 mod block_device;
-mod hal;
+pub mod hal;
 mod mpci;
 
 pub mod gpu;

@@ -14,6 +14,7 @@ use crate::config::CPU_NUM;
 use crate::MACHINE_INFO;
 
 mod ext_interrupt;
+pub mod record;
 mod timer;
 
 pub static PLIC: Once<PLIC> = Once::new();

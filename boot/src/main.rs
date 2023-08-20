@@ -25,10 +25,15 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use cfg_if::cfg_if;
 
 use basemachine::machine_info_from_dtb;
-use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
 use kernel::arch::hart_id;
 #[cfg(not(feature = "qemu"))]
 use kernel::board;
+#[cfg(any(
+    feature = "vf2",
+    feature = "qemu",
+    feature = "hifive",
+    feature = "cv1811h"
+))]
 use kernel::board::init_dtb;
 use kernel::config::CPU_NUM;
 use kernel::device::init_device;
@@ -38,6 +43,7 @@ use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
+use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
 
 mod entry;
 
@@ -86,7 +92,10 @@ pub fn main(_: usize, _: usize) -> ! {
         init_memory_system(machine_info.memory.end, true);
         thread_local_init();
         // init device tree
+        #[cfg(feature = "qemu")]
         init_dtb(Some(device_tree_addr));
+        #[cfg(feature = "vf2")]
+        init_dtb(None);
         // init plic associate board
         init_plic();
         // init all device
