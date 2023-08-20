@@ -16,7 +16,7 @@ use spin::Mutex;
 lazy_static! {
     pub static ref INTERRUPT_RECORD: Mutex<BTreeMap<u32, usize>> = {
         let mut tree = BTreeMap::new();
-        tree.insert(1, 0);
+        tree.insert(1, 1);
         Mutex::new(tree)
     };
 }
