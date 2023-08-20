@@ -25,10 +25,10 @@ cfg-if = "1.0.0"
 ### for memory manage
 page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
 #page-table = { path = "../../os-module/page-table" }
-#rvfs = { git = "https://github.com/Godones/rvfs.git" }
-rvfs = { path = "../../os-module/rvfs" }
-#fat32-vfs = { git = "https://github.com/Godones/fat32-vfs.git" }
-fat32-vfs = { path = "../../os-module/fat32-vfs" }
+rvfs = { git = "https://github.com/Godones/rvfs.git" }
+#rvfs = { path = "../../os-module/rvfs" }
+fat32-vfs = { git = "https://github.com/Godones/fat32-vfs.git" }
+#fat32-vfs = { path = "../../os-module/fat32-vfs" }
 visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git", optional = true }
 trace_lib = { git = "https://github.com/os-module/rtrace" }
 preprint = "0.1.0"
