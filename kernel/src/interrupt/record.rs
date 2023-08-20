@@ -3,19 +3,26 @@ use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use lazy_static::lazy_static;
 use rvfs::dentry::vfs_truncate_by_file;
-use rvfs::file::{vfs_open_file, vfs_read_file, vfs_write_file, FileMode, FileMode2, OpenFlags};
+use rvfs::file::{vfs_open_file, vfs_read_file, vfs_write_file, FileMode, FileMode2, OpenFlags, vfs_llseek};
 use spin::Mutex;
 
-static INTERRUPT_RECORD: Mutex<BTreeMap<usize, usize>> = Mutex::new(BTreeMap::new());
+lazy_static! {
+    pub static ref INTERRUPT_RECORD: Mutex<BTreeMap<u32, usize>> = {
+        let mut tree = BTreeMap::new();
+        tree.insert(1, 0);
+        Mutex::new(tree)
+    };
+}
 
-pub fn write_interrupt_record(irq: usize) {
+pub fn write_interrupt_record(irq: usize) -> String {
     let file = vfs_open_file::<VfsProvider>(
         "/proc/interrupts",
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
-    .unwrap();
+        .unwrap();
     let mut buf = [0u8; 512];
     file.access_inner().f_mode2 = FileMode2::from_bits_truncate(0x777);
     let len = vfs_read_file::<VfsProvider>(file.clone(), &mut buf, 0).unwrap();
@@ -51,13 +58,15 @@ pub fn write_interrupt_record(irq: usize) {
     vfs_truncate_by_file(file.clone(), 0).unwrap();
     vfs_write_file::<VfsProvider>(file.clone(), new_buf.as_bytes(), 0).unwrap();
     file.access_inner().f_mode2 = FileMode2::from_bits_truncate(0x600);
+    new_buf
 }
 
 pub fn interrupts_info() -> String {
-    let mut buf = String::new();
     let mut interrupts = INTERRUPT_RECORD.lock();
-    for (irq, count) in interrupts.iter() {
-        buf.push_str(&format!("{}: {}\n", irq, count));
-    }
-    buf
+    let irq = interrupts.keys().next().unwrap().clone();
+    let value = interrupts.get_mut(&irq).unwrap().clone();
+    interrupts.remove(&irq);
+    interrupts.insert(irq, value + 1);
+    let res = format!("{}: {}", irq, value);
+    res
 }

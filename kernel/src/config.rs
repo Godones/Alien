@@ -36,7 +36,7 @@ pub const STACK_SIZE_BITS: usize = 16;
 /// equal to CLOCK_FREQ
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
 /// 可配置的启动cpu数量
-pub const CPU_NUM: usize = 2;
+pub const CPU_NUM: usize = 1;
 
 ///qemu的设备地址空间
 #[cfg(feature = "qemu")]
@@ -197,7 +197,6 @@ root:x:0:0:root:/root:/bin/bash
 /// 10：串口中断
 /// 11：块设备中断
 pub const INTERRUPT_RECORD: &str = r"
-0: 1
-10: 0
-11: 0
+1: 1
+4: 1
 ";
