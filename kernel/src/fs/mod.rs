@@ -317,7 +317,6 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
         }
         let r = r.unwrap();
         if file.access_inner().path.contains("interrupts") {
-            println!("{} {}", r, offset);
             if r > 0 {
                 set_flag(false);
             } else {
@@ -402,7 +401,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-    .unwrap();
+        .unwrap();
 
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
