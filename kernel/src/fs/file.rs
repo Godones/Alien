@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use core::fmt::Debug;
 use core::ops::{Deref, DerefMut};
@@ -29,6 +29,7 @@ pub struct KFileInner {
     pub atime: TimeSpec,
     pub mtime: TimeSpec,
     pub ctime: TimeSpec,
+    pub path: String,
 }
 
 impl KFile {
@@ -42,6 +43,7 @@ impl KFile {
                 atime: TimeSpec::now(),
                 mtime: TimeSpec::now(),
                 ctime: TimeSpec::now(),
+                path: "".to_string(),
             }),
         })
     }

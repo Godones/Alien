@@ -40,7 +40,7 @@ pub mod poll;
 pub mod select;
 pub mod vfs;
 
-use crate::interrupt::record::write_interrupt_record;
+use crate::interrupt::record::{interrupts_info, write_interrupt_record};
 pub use basic::*;
 
 pub const AT_FDCWD: isize = -100isize;
@@ -154,7 +154,9 @@ pub fn sys_openat(dirfd: isize, path: usize, flag: usize, _mode: usize) -> isize
     if file.is_err() {
         return LinuxErrno::ENOENT.into();
     }
-    let fd = process.add_file(KFile::new(file.unwrap()));
+    let file = KFile::new(file.unwrap());
+    file.access_inner().path = path;
+    let fd = process.add_file(file);
     warn!("openat fd: {:?}", fd);
     if fd.is_err() {
         let error: ManagerError = (fd.unwrap_err() as usize).into();
@@ -293,11 +295,17 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
         return LinuxErrno::EBADF.into();
     }
     let file = file.unwrap();
-    let path = user_path_at(fd as isize, "", LookUpFlags::empty()).map_err(|_| -1);
-    if path.is_ok() && path.unwrap().contains("interrupts") {
-        write_interrupt_record(0);
-    }
     let mut buf = process.transfer_buffer(buf, len);
+
+    if file.access_inner().path.contains("interrupts") {
+        let cont = write_interrupt_record(1);
+        // let r = vfs_read_file::<VfsProvider>(file.get_file(), buf[0], 0).unwrap();
+        // return r as isize;
+        // let info = interrupts_info();
+        // buf[0][..info.as_bytes().len()].copy_from_slice(info.as_bytes());
+        // return info.as_bytes().len() as isize;
+    }
+
     let mut count = 0;
     let mut offset = file.get_file().access_inner().f_pos;
     let mut res = 0;
@@ -392,7 +400,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-    .unwrap();
+        .unwrap();
 
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
