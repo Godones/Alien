@@ -146,8 +146,7 @@ make unmatched LOG= UNMATCHED=y SMP=2
   - [dbfs](https://github.com/Godones/dbfs2)
   - [物理页帧分配器](./modules/pager/README.md)
 - 更多: 查看[系统架构](./doc/系统架构.md)中module部分各个子模块的详细说明
-
-
+- `make docs` 查看kernel源代码文档
 
 ## Feature
 
