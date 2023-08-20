@@ -40,7 +40,7 @@ pub mod poll;
 pub mod select;
 pub mod vfs;
 
-use crate::interrupt::record::{interrupts_info, write_interrupt_record};
+use crate::interrupt::record::{interrupts_info, set_flag, write_interrupt_record};
 pub use basic::*;
 
 pub const AT_FDCWD: isize = -100isize;
@@ -298,12 +298,7 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
     let mut buf = process.transfer_buffer(buf, len);
 
     if file.access_inner().path.contains("interrupts") {
-        let cont = write_interrupt_record(1);
-        // let r = vfs_read_file::<VfsProvider>(file.get_file(), buf[0], 0).unwrap();
-        // return r as isize;
-        // let info = interrupts_info();
-        // buf[0][..info.as_bytes().len()].copy_from_slice(info.as_bytes());
-        // return info.as_bytes().len() as isize;
+        write_interrupt_record(file.get_file(), 1);
     }
 
     let mut count = 0;
@@ -321,9 +316,16 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> isize {
             break;
         }
         let r = r.unwrap();
+        if file.access_inner().path.contains("interrupts") {
+            println!("{} {}", r, offset);
+            if r > 0 {
+                set_flag(false);
+            } else {
+                set_flag(true);
+            }
+        }
         count += r;
         offset += r;
-        // TODO! fix
         if pipe && r != 0 {
             break;
         }
@@ -400,7 +402,7 @@ pub fn sys_getcwd(buf: *mut u8, len: usize) -> isize {
         ParsePathType::Relative("".to_string()),
         LookUpFlags::empty(),
     )
-        .unwrap();
+    .unwrap();
 
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
