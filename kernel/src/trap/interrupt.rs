@@ -8,7 +8,6 @@ use crate::timer::{check_timer_queue, set_next_trigger};
 
 /// 时钟中断处理函数
 pub fn timer_interrupt_handler() {
-    write_interrupt_record(0);
     check_timer_queue();
     solve_futex_wait();
     set_next_trigger();
