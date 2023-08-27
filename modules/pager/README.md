@@ -2,24 +2,25 @@
 
 此仓库包含两个页帧分配器实现：`Buddy` 与 `Bitmap`
 
-
-
 ## Interface
 
 ```rust
-
+/// The trait of page allocator
 pub trait PageAllocator {
     /// init the allocator according to the memory range
-    fn init(&mut self, memory: Range<usize>) -> BuddyResult<()>;
+    ///
+    /// 1. Guaranteed memory alignment to 4k.
+    /// 2. Guaranteed memory size is greater than 4k.
+    fn init(&mut self, memory: Range<usize>) -> PagerResult<()>;
     /// allocate 2^order pages
     /// # Return
     /// * `OK(usize)` - the start page
-    fn alloc(&mut self, order: usize) -> BuddyResult<usize>;
+    fn alloc(&mut self, order: usize) -> PagerResult<usize>;
     /// free 2^order pages
     /// # Params
     /// * `page` - the start page
     /// * `order` - the order of pages
-    fn free(&mut self, page: usize, order: usize) -> BuddyResult<()>;
+    fn free(&mut self, page: usize, order: usize) -> PagerResult<()>;
 }
 
 ```
@@ -27,18 +28,20 @@ pub trait PageAllocator {
 
 
 ```rust
+/// The trait of page allocator
+///
+/// It allows to allocate continuous pages
 pub trait PageAllocatorExt {
     /// allocate pages
     /// # Params
     /// * `pages` - the number of pages, it may not be 2^order
-    fn alloc_pages(&mut self, pages: usize) -> BuddyResult<usize>;
+    fn alloc_pages(&mut self, pages: usize, align: usize) -> PagerResult<usize>;
     /// free pages
     /// # Params
     /// * `page` - the start page
     /// * `pages` - the number of pages, it may not be 2^order
-    fn free_pages(&mut self, page: usize, pages: usize) -> BuddyResult<()>;
+    fn free_pages(&mut self, page: usize, pages: usize) -> PagerResult<()>;
 }
-
 ```
 
 
@@ -70,18 +73,47 @@ pub struct ListHead {
 
 ## Bitmap
 
-位图分配器使用一个大数组的bit位来管理所有页面。其分配和释放算法都很简单。
+位图分配器使用一个大数组或者一定数量的物理页来管理所有页面。
 
+```rust
+pub struct Bitmap<const N: usize> {
+    /// Current number of allocated pages
+    current: usize,
+    /// Maximum number of pages
+    max: usize,
+    /// The bitmap data
+    map: [u8; N],
+    /// The bitmap start page
+    map1: Option<usize>,
+    /// start page
+    start: usize,
+}
+```
 
+当使用位图分配器时，有两种使用方式
 
+1. 在明确知道管理的内存区间大小的情况下，可以指定`N`的大小
 
+```rust
+let mut bitmap = Bitmap::<{ 4096 / 8 }>::new();
+```
 
+这种方式下，位图将会管理N*8数量的物理页面，并在初始化阶段检查。
 
+2. 在不知道管理的内存大小的情况下，设置`N = 0`
+
+```rust
+let mut bitmap = Bitmap::<0>::new();
+```
+
+这种方式下，位图分配器会尝试直接在管理的内存前部，使用一个或多个页的空间来管理剩余的内存。由于一个页大小的内存块可以管理4096*8个页，因此如果内存较小，可能会存在浪费的情况。
+
+1. 这种情况下需要保证内存大于2*4096
+2. 推荐内存较大的情况下使用
+
+位图分配器循环扫描整个位图，寻找满足要求的区间。
 
 
 
 ## Feature
-
-- [ ] 为buddy加入高速缓存
-- [ ] bitmap更快的查找算法
 

@@ -80,75 +80,6 @@ struct HeapAllocator {
     allocator: Mutex<SlabAllocator>,
 }
 
-struct ExtraPage {
-    record: [usize; 1024],
-    pages: [u16; 1024],
-    have_alloc: [u16; 1024],
-    //4MB
-    head: usize,
-}
-
-impl ExtraPage {
-    pub const fn new() -> Self {
-        Self {
-            record: [0; 1024],
-            pages: [0; 1024],
-            have_alloc: [0; 1024],
-            head: 0,
-        }
-    }
-    pub fn insert(&mut self, start_addr: usize, pages: u16) {
-        if self.head < 1024 {
-            self.record[self.head] = start_addr;
-            self.pages[self.head] = pages;
-            self.have_alloc[self.head] = 0;
-            self.head += 1;
-        } else {
-            panic!("ExtraPage is full");
-        }
-    }
-    fn alloc(&mut self, layout: core::alloc::Layout) -> *mut u8 {
-        let size = layout.size();
-        let align = layout.align();
-        for i in 0..self.head {
-            if self.record[i] != 0 && self.have_alloc[i] < FRAME_SIZE as u16 {
-                let end_addr = self.record[i] + self.pages[i] as usize * FRAME_SIZE;
-                let have_alloc = self.have_alloc[i] as usize;
-                let start_addr = self.record[i] + have_alloc;
-                // align
-                let start_addr = if start_addr % align == 0 {
-                    start_addr
-                } else {
-                    start_addr + align - start_addr % align
-                };
-                if start_addr + size <= end_addr {
-                    self.have_alloc[i] = (start_addr - self.record[i]) as u16;
-                    return start_addr as *mut u8;
-                }
-            } else {
-                break;
-            }
-        }
-        return core::ptr::null_mut();
-    }
-    pub fn find(&mut self, val: usize) -> bool {
-        for i in 0..self.head {
-            if self.record[i] != 0 {
-                if self.record[i] <= val
-                    && val < self.record[i] + self.pages[i] as usize * FRAME_SIZE
-                {
-                    return true;
-                }
-            } else {
-                break;
-            }
-        }
-        return false;
-    }
-}
-
-static TRICK_ALLOC: Mutex<ExtraPage> = Mutex::new(ExtraPage::new());
-
 unsafe impl GlobalAlloc for HeapAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let need_page = if layout.size() % FRAME_SIZE == 0 {
@@ -157,42 +88,25 @@ unsafe impl GlobalAlloc for HeapAllocator {
             layout.size() / FRAME_SIZE + 1
         };
         if layout.size() >= 5 * 1024 * 1024 {
-            // assert_eq!(layout.size() % FRAME_SIZE, 0);
             trace!("alloc big page: {:#x}", layout.size());
             let frame = alloc_frames(need_page);
             frame
         } else {
-            let mut ptr = self.allocator.lock().alloc(layout);
-            if ptr.is_null() {
-                ptr = TRICK_ALLOC.lock().alloc(layout);
-                if !ptr.is_null() {
-                    return ptr;
-                }
-                let frame = alloc_frames(need_page);
-                TRICK_ALLOC.lock().insert(frame as usize, need_page as u16);
-                ptr = TRICK_ALLOC.lock().alloc(layout);
-                // assert!(!ptr.is_null());
-                assert_eq!(ptr.is_null(), false);
-            }
+            let ptr = self.allocator.lock().alloc(layout);
+            assert!(!ptr.is_null());
             ptr
         }
     }
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
-        // check TRICK_ALLOC
-        let start = ptr as usize;
         let need_page = if layout.size() % FRAME_SIZE == 0 {
             layout.size() / FRAME_SIZE
         } else {
             layout.size() / FRAME_SIZE + 1
         };
         if layout.size() >= 5 * 1024 * 1024 {
-            // assert_eq!(layout.size() % FRAME_SIZE, 0);
             trace!("free big page: {:#x}", layout.size());
             free_frames(ptr, need_page);
         } else {
-            if TRICK_ALLOC.lock().find(start) {
-                return;
-            }
             assert_eq!(ptr.is_null(), false);
             self.allocator.lock().dealloc(ptr, layout);
         }
@@ -224,7 +138,7 @@ fn current_cpu_id() -> usize {
 
 /// (待实现)在一组线程中，设置内存屏障，控制多核系统中的内存访问次序。目前直接返回0。
 ///
-/// Reference: [membarrier](https://man7.org/linux/man-pages/man2/membarrier.2.html)
+///<https://man7.org/linux/man-pages/man2/membarrier.2.html>
 #[syscall_func(283)]
 pub fn membarrier() -> isize {
     0

@@ -16,10 +16,12 @@ use core::ops::Range;
 
 use doubly_linked_list::*;
 use log::trace;
+use preprint::pprintln;
 
-use crate::error::{check, BuddyError};
-use crate::{BuddyResult, PageAllocator, PageAllocatorExt};
+use crate::error::{check, PagerError};
+use crate::{PageAllocator, PageAllocatorExt, PagerResult};
 
+/// The buddy system allocator
 pub struct Zone<const MAX_ORDER: usize> {
     /// The pages in this zone
     manage_pages: usize,
@@ -30,7 +32,7 @@ pub struct Zone<const MAX_ORDER: usize> {
 #[derive(Copy, Clone)]
 struct FreeArea {
     /// The number of free pages in this free area
-    free_pages: usize,
+    free: usize,
     /// The list of free pages in this free area
     list_head: ListHead,
 }
@@ -38,7 +40,7 @@ struct FreeArea {
 impl FreeArea {
     pub const fn new() -> Self {
         Self {
-            free_pages: 0,
+            free: 0,
             list_head: ListHead::new(),
         }
     }
@@ -56,10 +58,10 @@ impl<const MAX_ORDER: usize> Debug for Zone<MAX_ORDER> {
             .enumerate()
             .for_each(|(order, free_area)| {
                 let list_head = &free_area.list_head;
-                if free_area.free_pages != 0 {
+                if free_area.free != 0 {
                     f.write_fmt(format_args!(
-                        "  Order: {}, FreePages: {}\n",
-                        order, free_area.free_pages
+                        "  Order: {}, Free: {}\n",
+                        order, free_area.free
                     ))
                     .unwrap();
                     list_head.iter().for_each(|l| {
@@ -72,6 +74,7 @@ impl<const MAX_ORDER: usize> Debug for Zone<MAX_ORDER> {
 }
 
 impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
+    /// after new, you should init
     pub const fn new() -> Self {
         Self {
             manage_pages: 0,
@@ -93,7 +96,7 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
         );
         if buddy <= end_page {
             let free_area = &mut self.free_areas[order];
-            free_area.free_pages += 1;
+            free_area.free += 1;
             let addr = start_page << 12;
             let list_head = unsafe { &mut *(addr as *mut ListHead) };
             list_head_init!(*list_head);
@@ -106,23 +109,23 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
     }
 
     /// alloc pages from order+1
-    fn alloc_inner(&mut self, order: usize) -> BuddyResult<()> {
+    fn alloc_inner(&mut self, order: usize) -> PagerResult<()> {
         let order = order + 1;
         if order >= MAX_ORDER {
-            return Err(BuddyError::OutOfMemory(1 << MAX_ORDER));
+            return Err(PagerError::OutOfMemory(1 << MAX_ORDER));
         }
         trace!(
             "alloc_inner:{}, free_pages:{}",
             order,
-            self.free_areas[order].free_pages
+            self.free_areas[order].free
         );
-        if self.free_areas[order].free_pages == 0 {
+        if self.free_areas[order].free == 0 {
             self.alloc_inner(order)?;
         }
         let free_area = &mut self.free_areas[order];
         let list_head = free_area.list_head.next;
         list_del!(list_head);
-        free_area.free_pages -= 1;
+        free_area.free -= 1;
         let page_addr = list_head as usize;
         let buddy = page_addr + (1 << (order - 1)) * 0x1000;
         let buddy_list_head = unsafe { &mut *(buddy as *mut ListHead) };
@@ -133,11 +136,11 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
             to_list_head_ptr!(self.free_areas[order - 1].list_head)
         );
         list_add_tail!(ptr, to_list_head_ptr!(self.free_areas[order - 1].list_head));
-        self.free_areas[order - 1].free_pages += 2;
+        self.free_areas[order - 1].free += 2;
         Ok(())
     }
 
-    fn free_inner(&mut self, page: usize, order: usize) -> BuddyResult<()> {
+    fn free_inner(&mut self, page: usize, order: usize) -> PagerResult<()> {
         let page_addr = page << 12;
         let list_head = unsafe { &mut *(page_addr as *mut ListHead) };
         list_head_init!(*list_head);
@@ -155,7 +158,7 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
             // remove buddy from free area
             list_del!(to_list_head_ptr!(*buddy_list_head));
             list_head_init!(*buddy_list_head);
-            self.free_areas[order].free_pages -= 1;
+            self.free_areas[order].free -= 1;
             // make sure the start page
             let start_page = min(page, buddy);
             self.free_inner(start_page, order + 1)?;
@@ -163,20 +166,20 @@ impl<const MAX_ORDER: usize> Zone<MAX_ORDER> {
             // add page to free area
             let ptr = to_list_head_ptr!(*list_head);
             list_add_tail!(ptr, to_list_head_ptr!(self.free_areas[order].list_head));
-            self.free_areas[order].free_pages += 1;
+            self.free_areas[order].free += 1;
         }
         Ok(())
     }
 }
 
 impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
-    fn init(&mut self, memory: Range<usize>) -> BuddyResult<()> {
+    fn init(&mut self, memory: Range<usize>) -> PagerResult<()> {
+        // check
+        check(memory.clone())?;
         // init free areas
         self.free_areas.iter_mut().for_each(|area| {
             list_head_init!(area.list_head);
         });
-        // check
-        check(memory.clone())?;
         let start_page = memory.start >> 12;
         let end_page = memory.end >> 12;
         let manage_pages = end_page - start_page;
@@ -185,55 +188,82 @@ impl<const MAX_ORDER: usize> PageAllocator for Zone<MAX_ORDER> {
         trace!("page: {:#x?}-{:#x?}", start_page, end_page);
         // init free area
         self.init_free_area(start_page, end_page, MAX_ORDER - 1);
+        pprintln!("Zone<{}> manages {} pages", MAX_ORDER, manage_pages);
         Ok(())
     }
-    fn alloc(&mut self, order: usize) -> BuddyResult<usize> {
+    fn alloc(&mut self, order: usize) -> PagerResult<usize> {
         // check order
         if order >= MAX_ORDER {
-            return Err(BuddyError::OrderTooLarge);
+            return Err(PagerError::OrderTooLarge);
         }
         // check free area
-        if self.free_areas[order].free_pages == 0 {
+        if self.free_areas[order].free == 0 {
             self.alloc_inner(order)?;
             trace!("alloc success from order: {}", order + 1);
         }
         // get the first free page
         let free_area = &mut self.free_areas[order];
         let list_head = free_area.list_head.next;
-        list_del!(list_head);
         trace!("{:#x?}, {:#x?}", list_head, unsafe { &*list_head });
+        list_del!(list_head);
         let page = list_head as usize >> 12;
-        free_area.free_pages -= 1;
-        // init page
+        free_area.free -= 1;
         let page_addr = page << 12;
         unsafe {
-            core::ptr::write_bytes(page_addr as *mut u8, 0, 0x1000);
+            core::ptr::write_bytes(page_addr as *mut u8, 0, 0x1000 * (1 << order));
         }
         Ok(page)
     }
 
-    fn free(&mut self, page: usize, order: usize) -> BuddyResult<()> {
+    fn free(&mut self, page: usize, order: usize) -> PagerResult<()> {
         // check order
         if order >= MAX_ORDER {
-            return Err(BuddyError::OrderTooLarge);
+            return Err(PagerError::OrderTooLarge);
         }
         // check page
         if page < self.start_page || page >= self.start_page + self.manage_pages {
-            return Err(BuddyError::PageOutOfRange);
+            return Err(PagerError::PageOutOfRange);
         }
         self.free_inner(page, order)
     }
 }
 
 impl<const MAX_ORDER: usize> PageAllocatorExt for Zone<MAX_ORDER> {
-    fn alloc_pages(&mut self, pages: usize, align: usize) -> BuddyResult<usize> {
+    fn alloc_pages(&mut self, pages: usize, align: usize) -> PagerResult<usize> {
         assert_eq!(align, 0x1000);
         let order = pages.next_power_of_two().trailing_zeros() as usize;
         self.alloc(order)
     }
 
-    fn free_pages(&mut self, page: usize, pages: usize) -> BuddyResult<()> {
+    fn free_pages(&mut self, page: usize, pages: usize) -> PagerResult<()> {
         let order = pages.next_power_of_two().trailing_zeros() as usize;
         self.free(page, order)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Zone;
+    extern crate std;
+    use crate::PageAllocator;
+    use core::ops::Range;
+    use std::alloc::{alloc, dealloc};
+    fn init() -> Zone<12> {
+        let mut zone = Zone::<12>::new();
+        let memory =
+            unsafe { alloc(std::alloc::Layout::from_size_align(0x1000_000, 0x1000).unwrap()) };
+        let memory = memory as usize;
+        let range = Range {
+            start: memory,
+            end: memory + 0x1000_000,
+        };
+        println!("{range:#x?}");
+        zone.init(range).unwrap();
+        zone
+    }
+    #[test]
+    fn test_alloc_pages() {
+        assert_eq!(100usize.next_power_of_two().trailing_zeros(), 7);
+        assert_eq!(1usize.next_power_of_two().trailing_zeros(), 0);
     }
 }
