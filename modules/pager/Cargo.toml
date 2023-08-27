@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 doubly-linked-list = "0.2.0"
 log = "0.4.17"
-
+preprint = "0.1"
 
 
 [features]
@@ -20,3 +20,4 @@ buddy = []
 [dev-dependencies]
 env_logger = "0.10.0"
 pager = { path = "../pager", features = ["bitmap", "buddy"] }
+rand = "0.8.4"

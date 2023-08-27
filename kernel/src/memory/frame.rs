@@ -1,32 +1,19 @@
+use super::manager::FrameRefManager;
+use crate::config::{FRAME_BITS, FRAME_SIZE};
 use alloc::format;
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
-
-use lazy_static::lazy_static;
-
 use kernel_sync::Mutex;
-use pager::{Bitmap, PageAllocator, PageAllocatorExt};
+use pager::{PageAllocator, PageAllocatorExt};
+use spin::Lazy;
 
-use crate::config::{FRAME_BITS, FRAME_SIZE};
+#[cfg(feature = "pager_bitmap")]
+pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<0>> = Mutex::new(pager::Bitmap::new());
+#[cfg(feature = "pager_buddy")]
+pub static FRAME_ALLOCATOR: Mutex<pager::Zone<12>> = Mutex::new(pager::Zone::new());
 
-use super::manager::FrameRefManager;
-
-//TODO!(need to be modified)
-#[cfg(feature = "vf2")]
-const FRAME_NUM: usize = 2096300 / 8;
-#[cfg(feature = "qemu")]
-const FRAME_NUM: usize = 251722 / 8;
-#[cfg(feature = "hifive")]
-const FRAME_NUM: usize = 2096300 / 8 * 2;
-
-lazy_static! {
-    pub static ref FRAME_ALLOCATOR: Mutex<Bitmap<FRAME_NUM>> = Mutex::new(Bitmap::new());
-}
-
-lazy_static! {
-    pub static ref FRAME_REF_MANAGER: Mutex<FrameRefManager> = Mutex::new(FrameRefManager::new());
-}
-
+pub static FRAME_REF_MANAGER: Lazy<Mutex<FrameRefManager>> =
+    Lazy::new(|| Mutex::new(FrameRefManager::new()));
 extern "C" {
     fn ekernel();
 }
@@ -34,7 +21,6 @@ extern "C" {
 pub fn init_frame_allocator(memory_end: usize) {
     let start = ekernel as usize;
     let end = memory_end;
-    println!("memory start:{:#x},end:{:#x}", start, end);
     let page_start = start / FRAME_SIZE;
     let page_end = end / FRAME_SIZE;
     let page_count = page_end - page_start;
@@ -42,7 +28,6 @@ pub fn init_frame_allocator(memory_end: usize) {
         "page start:{:#x},end:{:#x},count:{:#x}",
         page_start, page_end, page_count
     );
-    println!("set frame allocator manage {} frames", FRAME_NUM);
     FRAME_ALLOCATOR.lock().init(start..end).unwrap();
 }
 
@@ -71,13 +56,6 @@ impl FrameTracker {
     pub fn id(&self) -> usize {
         self.id
     }
-
-    pub fn zero_init(&self) {
-        let start_addr = self.start();
-        unsafe {
-            core::ptr::write_bytes(start_addr as *mut u8, 0, FRAME_SIZE);
-        }
-    }
 }
 
 impl Drop for FrameTracker {
@@ -105,7 +83,7 @@ impl DerefMut for FrameTracker {
 /// 这些页面需要保持连续
 #[no_mangle]
 pub fn alloc_frames(num: usize) -> *mut u8 {
-    // assert_eq!(num.count_ones(), 1);
+    assert_eq!(num.next_power_of_two(), num);
     let start_page = FRAME_ALLOCATOR.lock().alloc_pages(num, FRAME_SIZE);
     if start_page.is_err() {
         panic!("alloc {} frame failed", num);
@@ -119,6 +97,7 @@ pub fn alloc_frames(num: usize) -> *mut u8 {
 /// 提供给slab分配器的接口
 #[no_mangle]
 pub fn free_frames(addr: *mut u8, num: usize) {
+    assert_eq!(num.next_power_of_two(), num);
     let start = addr as usize >> FRAME_BITS;
     trace!("slab free frame {} start:{:#x}", num, addr as usize);
     // make sure the num is 2^n
@@ -154,6 +133,7 @@ pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
 }
 
 pub fn frame_alloc_contiguous(count: usize) -> *mut u8 {
+    let count = count.next_power_of_two();
     let frame = FRAME_ALLOCATOR.lock().alloc_pages(count, FRAME_SIZE);
     if frame.is_err() {
         panic!("alloc {} frame failed, oom", count);

@@ -2,7 +2,7 @@
 //! * `Zone` - a simple buddy allocator
 //! * `Bitmap` - a simple bitmap allocator
 //! # Example
-//! ```
+//! ```no_run
 //! use pager::{PageAllocator, Zone, Bitmap};
 //! use core::ops::Range;
 //! let mut zone = Zone::<12>::new();
@@ -37,21 +37,24 @@ mod bitmap;
 mod buddy;
 mod error;
 
-type BuddyResult<T> = Result<T, error::BuddyError>;
+type PagerResult<T> = Result<T, error::PagerError>;
 
 /// The trait of page allocator
 pub trait PageAllocator {
     /// init the allocator according to the memory range
-    fn init(&mut self, memory: Range<usize>) -> BuddyResult<()>;
+    ///
+    /// 1. Guaranteed memory alignment to 4k.
+    /// 2. Guaranteed memory size is greater than 4k.
+    fn init(&mut self, memory: Range<usize>) -> PagerResult<()>;
     /// allocate 2^order pages
     /// # Return
     /// * `OK(usize)` - the start page
-    fn alloc(&mut self, order: usize) -> BuddyResult<usize>;
+    fn alloc(&mut self, order: usize) -> PagerResult<usize>;
     /// free 2^order pages
     /// # Params
     /// * `page` - the start page
     /// * `order` - the order of pages
-    fn free(&mut self, page: usize, order: usize) -> BuddyResult<()>;
+    fn free(&mut self, page: usize, order: usize) -> PagerResult<()>;
 }
 
 /// The trait of page allocator
@@ -61,12 +64,12 @@ pub trait PageAllocatorExt {
     /// allocate pages
     /// # Params
     /// * `pages` - the number of pages, it may not be 2^order
-    fn alloc_pages(&mut self, pages: usize, align: usize) -> BuddyResult<usize>;
+    fn alloc_pages(&mut self, pages: usize, align: usize) -> PagerResult<usize>;
     /// free pages
     /// # Params
     /// * `page` - the start page
     /// * `pages` - the number of pages, it may not be 2^order
-    fn free_pages(&mut self, page: usize, pages: usize) -> BuddyResult<()>;
+    fn free_pages(&mut self, page: usize, pages: usize) -> PagerResult<()>;
 }
 
 #[cfg(test)]
@@ -77,21 +80,21 @@ mod common_test {
     use core::alloc::Layout;
     use core::ops::Range;
 
-    use crate::error::BuddyError;
+    use crate::error::PagerError;
     use crate::{bitmap, PageAllocator, PageAllocatorExt, Zone};
 
     fn init(allocator: &mut impl PageAllocator) {
         let memory = 0x1001..0x100000;
         assert_eq!(
             allocator.init(memory),
-            Err(BuddyError::MemoryStartNotAligned)
+            Err(PagerError::MemoryStartNotAligned)
         );
         let memory = 0x0..0x0;
-        assert_eq!(allocator.init(memory), Err(BuddyError::MemorySizeTooSmall));
+        assert_eq!(allocator.init(memory), Err(PagerError::MemorySizeTooSmall));
         let memory = 0x1000..0x1001;
         assert_eq!(
             allocator.init(memory),
-            Err(BuddyError::MemorySizeNotAligned)
+            Err(PagerError::MemorySizeNotAligned)
         );
     }
 
@@ -133,7 +136,7 @@ mod common_test {
 
         let page_list = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
         page_list.iter().for_each(|&x| {
-            let page = allocator.alloc_pages(x).unwrap();
+            let page = allocator.alloc_pages(x, 0x1000).unwrap();
             vec.push(page);
         });
         page_list.iter().for_each(|&x| {

@@ -2,10 +2,10 @@
 use core::fmt::Display;
 use core::ops::Range;
 
-use crate::BuddyResult;
+use crate::PagerResult;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum BuddyError {
+pub enum PagerError {
     OutOfMemory(usize),
     OrderTooLarge,
     PageOutOfRange,
@@ -15,30 +15,30 @@ pub enum BuddyError {
     PageNotAllocated,
 }
 
-impl Display for BuddyError {
+impl Display for PagerError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            BuddyError::OutOfMemory(x) => write!(f, "{} Out of memory", x),
-            BuddyError::OrderTooLarge => write!(f, "Order too large"),
-            BuddyError::PageOutOfRange => write!(f, "Page out of range"),
-            BuddyError::MemoryStartNotAligned => write!(f, "Memory start not aligned"),
-            BuddyError::MemorySizeNotAligned => write!(f, "Memory size not aligned"),
-            BuddyError::MemorySizeTooSmall => write!(f, "Memory size too small"),
-            BuddyError::PageNotAllocated => write!(f, "Page not allocated"),
+            PagerError::OutOfMemory(x) => write!(f, "{} Out of memory", x),
+            PagerError::OrderTooLarge => write!(f, "Order too large"),
+            PagerError::PageOutOfRange => write!(f, "Page out of range"),
+            PagerError::MemoryStartNotAligned => write!(f, "Memory start not aligned"),
+            PagerError::MemorySizeNotAligned => write!(f, "Memory size not aligned"),
+            PagerError::MemorySizeTooSmall => write!(f, "Memory size too small"),
+            PagerError::PageNotAllocated => write!(f, "Page not allocated"),
         }
     }
 }
 
 /// Check if the memory range is valid for the buddy allocator.
-pub fn check(memory: Range<usize>) -> BuddyResult<()> {
+pub fn check(memory: Range<usize>) -> PagerResult<()> {
     if memory.start & 0xfff != 0 {
-        return Err(BuddyError::MemoryStartNotAligned);
+        return Err(PagerError::MemoryStartNotAligned);
     }
     if memory.end & 0xfff != 0 {
-        return Err(BuddyError::MemorySizeNotAligned);
+        return Err(PagerError::MemorySizeNotAligned);
     }
     if memory.end - memory.start < 0x1000 {
-        return Err(BuddyError::MemorySizeTooSmall);
+        return Err(PagerError::MemorySizeTooSmall);
     }
     Ok(())
 }

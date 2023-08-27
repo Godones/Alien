@@ -35,7 +35,7 @@ preprint = "0.1.0"
 rslab = { version = "0.2.1" }
 syscall-table = { path = "../modules/syscall-table" }
 plic = { path = "../modules/plic" }
-pager = { path = "../modules/pager", default-features = false, features = ["bitmap"] }
+pager = { path = "../modules/pager", default-features = false, optional = true}
 gmanager = { path = "../modules/gmanager" }
 kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
 syscall_define = { path = "../modules/syscall", package = "syscall" }
@@ -58,7 +58,7 @@ features = [
 ]
 
 [features]
-default = []
+default = ["pager_bitmap"]
 vf2 = ["visionfive2-sd"]
 cv1811h = []
 hifive = []
@@ -68,3 +68,6 @@ net_test = []
 slab = []
 talloc = ["talc"]
 buddy = ["buddy_system_allocator"]
+
+pager_buddy = ["pager/buddy"]
+pager_bitmap = ["pager/bitmap"]
