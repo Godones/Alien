@@ -17,7 +17,7 @@ mod ext_interrupt;
 pub mod record;
 mod timer;
 
-pub static PLIC: Once<PLIC> = Once::new();
+pub static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 
 lazy_static! {
     pub static ref DEVICE_TABLE: Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>> =
@@ -35,7 +35,7 @@ pub fn init_plic() {
     cfg_if! {
         if #[cfg(feature = "qemu")]{
             let privileges = [2;CPU_NUM];
-            let plic = PLIC::new(addr, &privileges);
+            let plic = PLIC::new(addr, privileges);
             PLIC.call_once(|| plic);
             println!("init qemu plic success");
         }else if #[cfg(any(feature = "vf2", feature = "hifive"))]{
@@ -43,7 +43,7 @@ pub fn init_plic() {
             // core 0 don't have S mode
             privileges[0] = 1;
             println!("PLIC context: {:?}",privileges);
-            let plic = PLIC::new(addr, &privileges);
+            let plic = PLIC::new(addr, privileges);
             PLIC.call_once(|| plic);
             println!("init hifive or vf2 plic success");
         }
