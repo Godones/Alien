@@ -34,7 +34,7 @@ trace_lib = { git = "https://github.com/os-module/rtrace" }
 preprint = "0.1.0"
 rslab = { version = "0.2.1" }
 syscall-table = { path = "../modules/syscall-table" }
-plic = { path = "../modules/plic" }
+plic = { git  = "https://github.com/os-module/plic" }
 pager = {git = "https://github.com/os-module/pager", default-features = false, optional = true}
 gmanager = { path = "../modules/gmanager" }
 kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
