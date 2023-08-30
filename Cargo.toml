@@ -8,7 +8,6 @@ members = [
     "modules/pci-rs",
     "modules/syscall-table",
     "modules/systable-macro-derive",
-    "modules/plic",
     "modules/syscall",
     "modules/basemachine",
     "modules/kernel-sync",
