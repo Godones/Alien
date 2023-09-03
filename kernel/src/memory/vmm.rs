@@ -39,6 +39,9 @@ extern "C" {
     fn sbss();
     fn ekernel();
     fn strampoline();
+
+    fn sinit();
+    fn einit();
 }
 
 pub fn kernel_info(memory_end: usize) {
@@ -50,6 +53,7 @@ pub fn kernel_info(memory_end: usize) {
         "kernel rodata: {:#x}-{:#x}",
         srodata as usize, sdata as usize
     );
+    println!("init_array:    {:#x}-{:#x}", sinit as usize, einit as usize);
     println!("kernel data:   {:#x}-{:#x}", sdata as usize, sbss as usize);
     println!(
         "kernel bss:    {:#x}-{:#x}",

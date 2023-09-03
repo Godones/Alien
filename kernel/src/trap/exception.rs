@@ -12,7 +12,6 @@ use crate::arch::interrupt_enable;
 use crate::error::{AlienError, AlienResult};
 use crate::fs::file::KFile;
 use crate::fs::vfs::VfsProvider;
-use crate::syscall;
 use crate::task::{current_task, current_trap_frame};
 
 /// 系统调用异常处理
@@ -47,15 +46,16 @@ pub fn syscall_exception_handler() {
         );
     }
 
-    let result = syscall::do_syscall(parameters[0], &parameters[1..]);
-
-    if result.is_none() {
-        panic!(
-            "The syscall [{}] {} is not implemented!",
-            parameters[0], syscall_name
-        );
-    }
-
+    let result = invoke_call_id!(
+        parameters[0],
+        parameters[1],
+        parameters[2],
+        parameters[3],
+        parameters[4],
+        parameters[5],
+        parameters[6]
+    );
+    let result = Some(result);
     // cx is changed during sys_exec, so we have to call it again
     cx = current_trap_frame();
 

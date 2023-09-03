@@ -23,6 +23,7 @@ use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use cfg_if::cfg_if;
+use kernel::init_init_array;
 
 use basemachine::machine_info_from_dtb;
 use kernel::arch::hart_id;
@@ -43,7 +44,7 @@ use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
 use kernel::task::init_per_cpu;
-use kernel::{config, init_machine_info, println, syscall, task, thread_local_init, timer, trap};
+use kernel::{config, init_machine_info, println, task, thread_local_init, timer, trap};
 
 mod entry;
 
@@ -103,7 +104,7 @@ pub fn main(_: usize, _: usize) -> ! {
         trap::init_trap_subsystem();
         init_per_cpu();
         init_vfs();
-        syscall::register_all_syscall();
+        // syscall::register_all_syscall();
         task::init_process();
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
@@ -119,6 +120,7 @@ pub fn main(_: usize, _: usize) -> ! {
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
     }
+    init_init_array!();
     timer::set_next_trigger();
     println!("begin run task...");
     task::schedule::first_into_user();

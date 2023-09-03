@@ -11,11 +11,14 @@
 #![feature(stmt_expr_attributes)]
 #![feature(addr_parse_ascii)]
 #![feature(let_chains)]
+#![feature(trait_upcasting)]
 // #![deny(missing_docs)]
 
 extern crate alloc;
 #[macro_use]
 extern crate log;
+
+// extern crate syscall_table;
 
 use spin::Once;
 
@@ -39,12 +42,16 @@ pub mod panic;
 pub mod sbi;
 pub mod sync;
 pub mod sys;
-pub mod syscall;
 pub mod system;
 pub mod task;
 pub mod timer;
 pub mod trace;
 pub mod trap;
+
+#[macro_use]
+extern crate syscall_table;
+
+pub use syscall_table::*;
 
 /// 设备基本信息
 pub static MACHINE_INFO: Once<MachineInfo> = Once::new();
