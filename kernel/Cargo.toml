@@ -33,9 +33,9 @@ visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git", opti
 trace_lib = { git = "https://github.com/os-module/rtrace" }
 preprint = "0.1.0"
 rslab = { version = "0.2.1" }
-syscall-table = { path = "../modules/syscall-table" }
-plic = { git  = "https://github.com/os-module/plic" }
-pager = {git = "https://github.com/os-module/pager", default-features = false, optional = true}
+syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
+plic = { git = "https://github.com/os-module/plic" }
+pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
 gmanager = { path = "../modules/gmanager" }
 kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
 syscall_define = { path = "../modules/syscall", package = "syscall" }

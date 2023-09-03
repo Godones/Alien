@@ -1,7 +1,6 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::sync::atomic::Ordering;
-
 use virtio_drivers::transport::mmio::MmioTransport;
 
 pub use block::{BlockDevice, BLOCK_DEVICE};
@@ -10,14 +9,13 @@ pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_D
 
 use crate::board::{get_rtc_info, probe_devices_from_dtb};
 use crate::driver::hal::HalImpl;
-use crate::driver::rtc::Rtc;
 use crate::driver::uart::Uart;
 use crate::driver::GenericBlockDevice;
 use crate::interrupt::register_device_to_plic;
 use crate::print::console::UART_FLAG;
 
 // pub use pci::{pci_probe,pci_read,pci_write};
-pub use self::rtc::{get_rtc_time, RtcDevice, RtcTime, RTC_DEVICE};
+pub use self::rtc::{get_rtc_time, RtcDevice, RTC_DEVICE};
 pub use self::uart::{UartDevice, UART_DEVICE};
 
 mod block;
@@ -71,11 +69,15 @@ fn init_rtc() {
     }
     let (base_addr, irq) = res.unwrap();
     println!("Init rtc, base_addr:{:#x},irq:{}", base_addr, irq);
-    let rtc = Rtc::new(base_addr, irq as u32);
-    let current_time = rtc.read_time();
-    let rtc = Arc::new(rtc);
+    let rtc: Arc<dyn RtcDevice>;
+    #[cfg(feature = "qemu")]
+    {
+        use crate::driver::rtc::GoldFishRtc;
+        rtc = Arc::new(GoldFishRtc::new(base_addr))
+    }
+    let current_time = rtc.read_time_fmt();
     rtc::init_rtc(rtc.clone());
-    let _ = register_device_to_plic(irq, rtc);
+    register_device_to_plic(irq, rtc.clone());
     println!("init rtc success, current time: {:?}", current_time);
 }
 

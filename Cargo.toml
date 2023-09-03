@@ -6,8 +6,6 @@ members = [
     "boot",
     "modules/gmanager",
     "modules/pci-rs",
-    "modules/syscall-table",
-    "modules/systable-macro-derive",
     "modules/syscall",
     "modules/basemachine",
     "modules/kernel-sync",

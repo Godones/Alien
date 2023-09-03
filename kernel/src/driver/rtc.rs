@@ -1,24 +1,17 @@
-pub use rtc::Rtc;
+pub use rtc::goldfish::GoldFishRtc;
+use rtc::{LowRtcDevice, LowRtcDeviceExt};
 
 use crate::device::RtcDevice;
 use crate::interrupt::DeviceBase;
 
-impl RtcDevice for Rtc {
-    fn read_time(&self) -> crate::device::RtcTime {
-        let time = self.read_time();
-        crate::device::RtcTime {
-            year: time.year,
-            month: time.month,
-            day: time.day,
-            hour: time.hour,
-            minute: time.minute,
-            second: time.second,
-        }
+impl DeviceBase for GoldFishRtc {
+    fn hand_irq(&self) {
+        let alarm = self.read_alarm_fmt();
+        let time = self.read_time_fmt();
+        println!("rtc interrupt, time: {:?}, alarm: {:?}", time, alarm);
+        self.clear_irq();
+        self.set_alarm(self.read_time() + 1_000_000_000 * 5);
     }
 }
 
-impl DeviceBase for Rtc {
-    fn hand_irq(&self) {
-        println!("rtc irq");
-    }
-}
+impl RtcDevice for GoldFishRtc {}
