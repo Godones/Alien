@@ -30,6 +30,9 @@ comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
+CARGO_FLAGS := -Zbuild-std=core,compiler_builtins,alloc \
+               -Zbuild-std-features=compiler-builtins-mem
+
 ifeq ($(GUI),y)
 QEMU_ARGS += -device virtio-gpu-device \
 			 -device virtio-keyboard-device \
@@ -77,7 +80,7 @@ define boot_qemu
         -serial mon:stdio
 endef
 
-
+all:
 
 install:
 	@#cargo install --git  https://github.com/os-module/elfinfo
@@ -87,10 +90,10 @@ build:install compile
 
 
 compile:
-	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 	@#call trace_info
-	cargo build --release -p boot --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
 
@@ -222,7 +225,5 @@ clean:
 	@rm kernel-qemu
 	@rm alien-*
 
-.PHONY: all run clean fake_run
 
-all:
-	@mv alien.bin ./os.bin
+.PHONY: all install build run clean fake_run sdcard vf2 unmatched gdb-client gdb-server kernel_asm docs

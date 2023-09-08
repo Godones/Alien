@@ -7,7 +7,6 @@ pub fn external_interrupt_handler() {
     let plic = PLIC.get().unwrap();
     let hart_id = hart_id();
     let irq = plic.claim(hart_id as u32, Mode::Supervisor);
-    info!("external interrupt {} handled", irq);
     let table = DEVICE_TABLE.lock();
     let device = table
         .get(&(irq as usize))
