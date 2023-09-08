@@ -17,8 +17,6 @@ extern "C" fn _start() {
         asm!("\
         mv tp, a0
         csrw sscratch, a1
-        csrci sstatus, 0x02
-        csrw sie, zero
         add t0, a0, 1
         slli t0, t0, 16
         la sp, {boot_stack}

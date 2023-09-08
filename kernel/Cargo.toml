@@ -30,7 +30,7 @@ rvfs = { git = "https://github.com/Godones/rvfs.git" }
 fat32-vfs = { git = "https://github.com/Godones/fat32-vfs.git" }
 #fat32-vfs = { path = "../../os-module/fat32-vfs" }
 visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git", optional = true }
-trace_lib = { git = "https://github.com/os-module/rtrace" }
+tracer = {git = "https://github.com/os-module/tracer"}
 preprint = "0.1.0"
 rslab = { version = "0.2.1" }
 syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
