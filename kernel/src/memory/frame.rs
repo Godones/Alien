@@ -8,7 +8,7 @@ use pager::{PageAllocator, PageAllocatorExt};
 use spin::Lazy;
 
 #[cfg(feature = "pager_bitmap")]
-pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<0>> = Mutex::new(pager::Bitmap::new());
+pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<{251580/8}>> = Mutex::new(pager::Bitmap::new());
 #[cfg(feature = "pager_buddy")]
 pub static FRAME_ALLOCATOR: Mutex<pager::Zone<12>> = Mutex::new(pager::Zone::new());
 
@@ -45,11 +45,9 @@ impl FrameTracker {
     pub fn new(id: usize) -> Self {
         Self { id }
     }
-    #[allow(unused)]
     pub fn start(&self) -> usize {
         self.id << FRAME_BITS
     }
-    #[allow(unused)]
     pub fn end(&self) -> usize {
         self.start() + FRAME_SIZE
     }
@@ -134,6 +132,7 @@ pub fn frames_alloc(count: usize) -> Option<Vec<FrameTracker>> {
 
 pub fn frame_alloc_contiguous(count: usize) -> *mut u8 {
     let count = count.next_power_of_two();
+    assert_ne!(count, 0);
     let frame = FRAME_ALLOCATOR.lock().alloc_pages(count, FRAME_SIZE);
     if frame.is_err() {
         panic!("alloc {} frame failed, oom", count);

@@ -1,9 +1,5 @@
 use core::ptr::NonNull;
-
 use virtio_drivers::{BufferDirection, Hal, PhysAddr, PAGE_SIZE};
-
-use pci::PortOps;
-
 use crate::memory::{addr_to_frame, frame_alloc_contiguous};
 
 pub struct HalImpl;
@@ -32,26 +28,4 @@ unsafe impl Hal for HalImpl {
     }
 
     unsafe fn unshare(_paddr: PhysAddr, _buffer: NonNull<[u8]>, _direction: BufferDirection) {}
-}
-
-pub struct PortImpl;
-
-impl PortOps for PortImpl {
-    unsafe fn read8(&self, _port: u16) -> u8 {
-        0
-    }
-
-    unsafe fn read16(&self, _part: u16) -> u16 {
-        0
-    }
-
-    unsafe fn read32(&self, _part: u32) -> u32 {
-        0
-    }
-
-    unsafe fn write8(&self, _part: u16, _val: u8) {}
-
-    unsafe fn write16(&self, _part: u16, _val: u16) {}
-
-    unsafe fn write32(&self, _part: u32, _val: u32) {}
 }

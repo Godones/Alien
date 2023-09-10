@@ -407,6 +407,11 @@ impl Task {
         &inner.context as *const Context
     }
 
+    pub fn get_context(&self) -> Context {
+        let inner = self.inner.lock();
+        inner.context.clone()
+    }
+
     /// 获取任务上下文的可变指针
     pub fn get_context_mut_raw_ptr(&self) -> *mut Context {
         let mut inner = self.inner.lock();
@@ -1504,7 +1509,7 @@ impl Task {
         }
         let elf_info = elf_info.unwrap();
         let address_space = elf_info.address_space;
-        let k_stack = Stack::new(1)?;
+        let k_stack = Stack::new(USER_KERNEL_STACK_SIZE/FRAME_SIZE)?;
         let k_stack_top = k_stack.top();
         let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let process = Task {
