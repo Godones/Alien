@@ -1,18 +1,17 @@
-use hashbrown::HashMap;
-
+use alloc::collections::BTreeMap;
 use pager::PageAllocator;
 
 use crate::memory::FRAME_ALLOCATOR;
 
 #[derive(Debug)]
 pub struct FrameRefManager {
-    record: HashMap<usize, usize>,
+    record: BTreeMap<usize, usize>,
 }
 
 impl FrameRefManager {
     pub fn new() -> Self {
         Self {
-            record: HashMap::new(),
+            record: BTreeMap::new(),
         }
     }
     pub fn add_ref(&mut self, id: usize) -> usize {

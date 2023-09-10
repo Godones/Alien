@@ -127,15 +127,15 @@ impl Executor {
                 } else {
                     &[0 as *const u8]
                 };
-                let tid = fork();
-                if tid == 0 {
+                let pid = fork();
+                if pid == 0 {
                     self.parameter.args.insert(0, cmd.clone());
                     exec(cmd.as_str(), self.parameter.get_args_raw().as_slice(), env);
                     exit(0);
                 } else {
                     m_yield();
                     let mut exit_code: i32 = 0;
-                    let x = waitpid(tid as usize, &mut exit_code);
+                    let x = waitpid(pid as usize, &mut exit_code);
                     println!("waittid: {}, exit_code: {}", x, exit_code);
                 }
             }
