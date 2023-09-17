@@ -20,7 +20,6 @@ rtc = { git = "https://github.com/os-module/rtc.git" }
 lru = "0.10.0"
 core2 = { version = "0.4.0", default-features = false, features = ["alloc"] }
 cfg-if = "1.0.0"
-### for memory manage
 page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
 #page-table = { path = "../../os-module/page-table" }
 rvfs = { git = "https://github.com/Godones/rvfs.git" }
@@ -28,9 +27,7 @@ rvfs = { git = "https://github.com/Godones/rvfs.git" }
 fat32-vfs = { git = "https://github.com/Godones/fat32-vfs.git" }
 #fat32-vfs = { path = "../../os-module/fat32-vfs" }
 visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git", optional = true }
-tracer = {git = "https://github.com/os-module/tracer"}
-
-
+tracer = { git = "https://github.com/os-module/tracer" }
 preprint = "0.1.0"
 rslab = { version = "0.2.1" }
 syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
@@ -40,11 +37,8 @@ gmanager = { path = "../modules/gmanager" }
 kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
 syscall_define = { git = "https://github.com/os-module/pconst.git", package = "pconst" }
 basemachine = { path = "../modules/basemachine" }
-uart = { path = "../modules/uart" }
-
-uart16550 = { version = "0.0.1",optional = true }
-uart8250 = {path = "../../os-modules/uart-rs/uart8250",optional = true}
-
+uart16550 = { version = "0.0.1", optional = true }
+uart8250 = { git = "https://github.com/os-module/uart-rs.git", optional = true }
 schedule = { path = "../modules/schedule" }
 talc = { version = "1.0", optional = true }
 buddy_system_allocator = { version = "0.9.0", optional = true }
@@ -62,9 +56,9 @@ features = [
 ]
 
 [features]
-default = ["pager_bitmap",]
+default = ["pager_bitmap", ]
 #default = ["pager_buddy"]
-vf2 = ["visionfive2-sd","uart8250"]
+vf2 = ["visionfive2-sd", "uart8250"]
 cv1811h = []
 hifive = ["uart16550"]
 qemu = ["uart16550"]

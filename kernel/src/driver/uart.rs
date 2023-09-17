@@ -2,7 +2,6 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use kernel_sync::Mutex;
-use uart::Uart8250Raw;
 
 #[cfg(not(feature = "vf2"))]
 pub use self::uart16550::Uart16550;
@@ -19,6 +18,7 @@ pub trait LowUartDriver: Send + Sync {
     fn _put(&mut self, c: u8);
     fn _read(&mut self) -> Option<u8>;
 }
+
 #[cfg(feature = "vf2")]
 mod uart8250 {
     use crate::driver::uart::LowUartDriver;
@@ -26,8 +26,11 @@ mod uart8250 {
     pub struct Uart8250 {
         uart_raw: uart8250::MmioUart8250<'static, u32>,
     }
+
     unsafe impl Send for Uart8250 {}
+
     unsafe impl Sync for Uart8250 {}
+
     impl Uart8250 {
         pub fn new(base_addr: usize) -> Self {
             let uart_raw = unsafe { uart8250::MmioUart8250::<u32>::new(base_addr) };
@@ -37,11 +40,15 @@ mod uart8250 {
 
     impl LowUartDriver for Uart8250 {
         fn _init(&mut self) {
-            self.uart_raw.init(0x4000000, 115200)
+            self.uart_raw.enable_received_data_available_interrupt();
         }
 
         fn _put(&mut self, c: u8) {
-            self.uart_raw.write_byte(c).unwrap()
+            loop {
+                if self.uart_raw.write_byte(c).is_ok() {
+                    break;
+                }
+            }
         }
 
         fn _read(&mut self) -> Option<u8> {
@@ -59,7 +66,9 @@ mod uart16550 {
     }
 
     unsafe impl Send for Uart16550 {}
+
     unsafe impl Sync for Uart16550 {}
+
     impl Uart16550 {
         pub fn new(base_addr: usize) -> Self {
             let uart_raw = unsafe { &mut *(base_addr as *mut uart16550::Uart16550<u8>) };
@@ -88,20 +97,6 @@ mod uart16550 {
                 Some(buf[0])
             }
         }
-    }
-}
-
-impl<const W: usize> LowUartDriver for Uart8250Raw<W> {
-    fn _init(&mut self) {
-        self.init()
-    }
-
-    fn _put(&mut self, c: u8) {
-        self.put(c)
-    }
-
-    fn _read(&mut self) -> Option<u8> {
-        self.read()
     }
 }
 

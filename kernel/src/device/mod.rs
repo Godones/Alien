@@ -105,7 +105,7 @@ fn init_uart() {
     {
         // use ::uart::Uart8250Raw;
         // let uart = Uart8250Raw::<4>::new(base_addr);
-
+        //
         use crate::driver::uart::Uart8250;
         let uart = Uart8250::new(base_addr);
         let uart = Uart::new(Box::new(uart));
