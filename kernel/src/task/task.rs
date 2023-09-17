@@ -412,6 +412,10 @@ impl Task {
         inner.context.clone()
     }
 
+    pub fn kstack_top(&self) -> usize {
+        self.kernel_stack.top()
+    }
+
     /// 获取任务上下文的可变指针
     pub fn get_context_mut_raw_ptr(&self) -> *mut Context {
         let mut inner = self.inner.lock();
@@ -1509,7 +1513,7 @@ impl Task {
         }
         let elf_info = elf_info.unwrap();
         let address_space = elf_info.address_space;
-        let k_stack = Stack::new(USER_KERNEL_STACK_SIZE/FRAME_SIZE)?;
+        let k_stack = Stack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE)?;
         let k_stack_top = k_stack.top();
         let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let process = Task {

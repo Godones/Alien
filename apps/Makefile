@@ -28,6 +28,7 @@ BUILD_CRATES := \
 	sleep \
 	socket_test \
 	print \
+	final_test \
 
 ifeq ($(GUI),y)
 	BUILD_CRATES += sysinfo \

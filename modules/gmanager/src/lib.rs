@@ -50,7 +50,8 @@ impl<T: Clone> MinimalManager<T> {
         for i in val..self.max {
             let data = self.data.get(i);
             if data.is_some() && data.unwrap().is_some() {
-                return false;
+                // delete the data
+                self.remove(i).unwrap();
             }
         }
         self.max = val;
@@ -181,6 +182,7 @@ impl From<usize> for ManagerError {
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
     use std::println;
 
     use crate::MinimalManager;
