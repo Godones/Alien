@@ -1,20 +1,17 @@
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use core::sync::atomic::Ordering;
-use virtio_drivers::transport::mmio::MmioTransport;
-
-pub use block::{BlockDevice, BLOCK_DEVICE};
-pub use gpu::{GpuDevice, GPU_DEVICE};
-pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
-
 use crate::board::{get_rtc_info, probe_devices_from_dtb};
 use crate::driver::hal::HalImpl;
 use crate::driver::uart::Uart;
 use crate::driver::GenericBlockDevice;
 use crate::interrupt::register_device_to_plic;
 use crate::print::console::UART_FLAG;
+use alloc::boxed::Box;
+use alloc::sync::Arc;
+pub use block::{BlockDevice, BLOCK_DEVICE};
+use core::sync::atomic::Ordering;
+pub use gpu::{GpuDevice, GPU_DEVICE};
+pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
+use virtio_drivers::transport::mmio::MmioTransport;
 
-// pub use pci::{pci_probe,pci_read,pci_write};
 pub use self::rtc::{get_rtc_time, RtcDevice, RTC_DEVICE};
 pub use self::uart::{UartDevice, UART_DEVICE};
 
@@ -69,16 +66,21 @@ fn init_rtc() {
     }
     let (base_addr, irq) = res.unwrap();
     println!("Init rtc, base_addr:{:#x},irq:{}", base_addr, irq);
-    let rtc: Arc<dyn RtcDevice>;
     #[cfg(feature = "qemu")]
     {
         use crate::driver::rtc::GoldFishRtc;
-        rtc = Arc::new(GoldFishRtc::new(base_addr))
+        let rtc: Arc<dyn RtcDevice>;
+        rtc = Arc::new(GoldFishRtc::new(base_addr));
+        let current_time = rtc.read_time_fmt();
+        rtc::init_rtc(rtc.clone());
+        register_device_to_plic(irq, rtc.clone());
+        println!("init rtc success, current time: {:?}", current_time);
     }
-    let current_time = rtc.read_time_fmt();
-    rtc::init_rtc(rtc.clone());
-    register_device_to_plic(irq, rtc.clone());
-    println!("init rtc success, current time: {:?}", current_time);
+    #[cfg(feature = "vf2")]
+    {
+        // rtc = todo!();
+        println!("Don't support rtc on vf2");
+    }
 }
 
 fn init_uart() {
@@ -91,17 +93,21 @@ fn init_uart() {
     println!("Init uart, base_addr:{:#x},irq:{}", base_addr, irq);
     #[cfg(feature = "qemu")]
     {
-        use ::uart::Uart16550Raw;
-        let uart = Uart16550Raw::new(base_addr);
+        use crate::driver::uart::Uart16550;
+        let uart = Uart16550::new(base_addr);
         let uart = Uart::new(Box::new(uart));
         let uart = Arc::new(uart);
         uart::init_uart(uart.clone());
         register_device_to_plic(irq, uart);
     }
+    // TODO!(use uart8250 crate)
     #[cfg(feature = "vf2")]
     {
-        use ::uart::Uart8250Raw;
-        let uart = Uart8250Raw::<4>::new(base_addr);
+        // use ::uart::Uart8250Raw;
+        // let uart = Uart8250Raw::<4>::new(base_addr);
+
+        use crate::driver::uart::Uart8250;
+        let uart = Uart8250::new(base_addr);
         let uart = Uart::new(Box::new(uart));
         let uart = Arc::new(uart);
         uart::init_uart(uart.clone());

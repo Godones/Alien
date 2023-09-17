@@ -1,32 +1,93 @@
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-
 use kernel_sync::Mutex;
-use uart::{Uart16550Raw, Uart8250Raw};
+use uart::Uart8250Raw;
 
+#[cfg(not(feature = "vf2"))]
+pub use self::uart16550::Uart16550;
 use crate::device::UartDevice;
 use crate::interrupt::DeviceBase;
 use crate::task::schedule::schedule;
 use crate::task::{current_task, Task, TaskState, TASK_MANAGER};
+
+#[cfg(feature = "vf2")]
+pub use self::uart8250::Uart8250;
 
 pub trait LowUartDriver: Send + Sync {
     fn _init(&mut self);
     fn _put(&mut self, c: u8);
     fn _read(&mut self) -> Option<u8>;
 }
+#[cfg(feature = "vf2")]
+mod uart8250 {
+    use crate::driver::uart::LowUartDriver;
 
-impl LowUartDriver for Uart16550Raw {
-    fn _init(&mut self) {
-        self.init()
+    pub struct Uart8250 {
+        uart_raw: uart8250::MmioUart8250<'static, u32>,
+    }
+    unsafe impl Send for Uart8250 {}
+    unsafe impl Sync for Uart8250 {}
+    impl Uart8250 {
+        pub fn new(base_addr: usize) -> Self {
+            let uart_raw = unsafe { uart8250::MmioUart8250::<u32>::new(base_addr) };
+            Uart8250 { uart_raw }
+        }
     }
 
-    fn _put(&mut self, c: u8) {
-        self.put(c)
+    impl LowUartDriver for Uart8250 {
+        fn _init(&mut self) {
+            self.uart_raw.init(0x4000000, 115200)
+        }
+
+        fn _put(&mut self, c: u8) {
+            self.uart_raw.write_byte(c).unwrap()
+        }
+
+        fn _read(&mut self) -> Option<u8> {
+            self.uart_raw.read_byte()
+        }
+    }
+}
+
+#[cfg(not(feature = "vf2"))]
+mod uart16550 {
+    use crate::driver::uart::LowUartDriver;
+
+    pub struct Uart16550 {
+        uart_raw: &'static mut uart16550::Uart16550<u8>,
     }
 
-    fn _read(&mut self) -> Option<u8> {
-        self.read()
+    unsafe impl Send for Uart16550 {}
+    unsafe impl Sync for Uart16550 {}
+    impl Uart16550 {
+        pub fn new(base_addr: usize) -> Self {
+            let uart_raw = unsafe { &mut *(base_addr as *mut uart16550::Uart16550<u8>) };
+            Uart16550 { uart_raw }
+        }
+    }
+
+    impl LowUartDriver for Uart16550 {
+        fn _init(&mut self) {
+            use uart16550::InterruptTypes;
+            let ier = self.uart_raw.ier();
+            let inter = InterruptTypes::ZERO;
+            ier.write(inter.enable_rda());
+        }
+
+        fn _put(&mut self, c: u8) {
+            self.uart_raw.write(&[c]);
+        }
+
+        fn _read(&mut self) -> Option<u8> {
+            let mut buf = [0];
+            let r = self.uart_raw.read(&mut buf);
+            if r == 0 {
+                None
+            } else {
+                Some(buf[0])
+            }
+        }
     }
 }
 

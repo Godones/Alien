@@ -8,7 +8,7 @@ use pager::{PageAllocator, PageAllocatorExt};
 use spin::Lazy;
 
 #[cfg(feature = "pager_bitmap")]
-pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<{251580/8}>> = Mutex::new(pager::Bitmap::new());
+pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<0>> = Mutex::new(pager::Bitmap::new());
 #[cfg(feature = "pager_buddy")]
 pub static FRAME_ALLOCATOR: Mutex<pager::Zone<12>> = Mutex::new(pager::Zone::new());
 

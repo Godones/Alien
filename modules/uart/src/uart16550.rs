@@ -22,7 +22,7 @@ impl Uart16550Raw {
             // reset and enable FIFOs.
             ptr.add(2).write_volatile(0x7);
             // enable receive interrupts and transmit interrupts
-            ptr.add(1).write_volatile(0x3);
+            ptr.add(1).write_volatile(0x1);
             // ptr.add(1).write_volatile(0x1);
         }
     }

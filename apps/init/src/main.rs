@@ -3,9 +3,9 @@
 
 extern crate alloc;
 
+use Mstd::println;
 use Mstd::process::{exec, exit, fork, wait, waitpid};
 use Mstd::thread::m_yield;
-use Mstd::{println, system_shutdown};
 
 #[no_mangle]
 fn main() -> isize {
@@ -27,12 +27,8 @@ fn main() -> isize {
         }
     }
     0
-    // run_test();
-    // println!("!TEST FINISH!");
-    // system_shutdown();
 }
 
-#[allow(unused)]
 const BASH_ENV: &[*const u8] = &[
     "SHELL=/bash\0".as_ptr(),
     "PWD=/\0".as_ptr(),

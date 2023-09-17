@@ -462,8 +462,9 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
     let task = current_task().unwrap();
     let mut inner = task.access_inner();
     if let Ok(resource) = PrLimitRes::try_from(resource) {
-        let limit = inner.get_prlimit(resource);
         if !old_limit.is_null() {
+            let limit = inner.get_prlimit(resource);
+            warn!("get rlimit nofile to {:?}", limit);
             inner.copy_to_user(&limit, old_limit as *mut PrLimit);
         }
         match resource {
@@ -472,6 +473,7 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
                 if !new_limit.is_null() {
                     let mut limit = PrLimit::new(0, 0);
                     inner.copy_from_user(new_limit as *const PrLimit, &mut limit);
+                    warn!("set rlimit nofile to {:?}", limit);
                     inner.set_prlimit(resource, limit);
                 }
             }

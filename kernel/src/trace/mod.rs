@@ -1,6 +1,5 @@
 use core::arch::global_asm;
 
-
 extern "C" {
     #[allow(unused)]
     fn symbol_num();
@@ -14,7 +13,7 @@ extern "C" {
 
 global_asm!(include_str!("kernel_symbol.S"));
 
-pub fn find_symbol_with_addr(addr:usize)->Option<(usize,&'static str)>{
+pub fn find_symbol_with_addr(addr: usize) -> Option<(usize, &'static str)> {
     let symbol_num_addr = symbol_num as usize as *const usize;
     let symbol_num = unsafe { symbol_num_addr.read_volatile() };
     if symbol_num == 0 {
@@ -24,17 +23,17 @@ pub fn find_symbol_with_addr(addr:usize)->Option<(usize,&'static str)>{
     let addr_data = unsafe { core::slice::from_raw_parts(symbol_addr, symbol_num) };
     // find the symbol with the nearest address
     let mut index = -1isize;
-    for i in 0..symbol_num-1{
-        if addr>= addr_data[i] && addr<addr_data[i+1]{
+    for i in 0..symbol_num - 1 {
+        if addr >= addr_data[i] && addr < addr_data[i + 1] {
             index = i as isize;
             break;
         }
     }
-    if addr == addr_data[symbol_num-1]{
-        index = (symbol_num-1) as isize;
+    if addr == addr_data[symbol_num - 1] {
+        index = (symbol_num - 1) as isize;
     }
-    if index == -1{
-       return None;
+    if index == -1 {
+        return None;
     }
     let index = index as usize;
     let symbol_index = symbol_index as usize as *const usize; // 符号字符串的起始位置
@@ -51,12 +50,8 @@ pub fn find_symbol_with_addr(addr:usize)->Option<(usize,&'static str)>{
         }
     }
     let name = unsafe {
-        core::slice::from_raw_parts(
-            symbol_name.add(index_data[index]),
-            last - index_data[index],
-        )
+        core::slice::from_raw_parts(symbol_name.add(index_data[index]), last - index_data[index])
     };
     let name = core::str::from_utf8(name).unwrap();
     Some((addr_data[index], name))
 }
-

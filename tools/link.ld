@@ -50,17 +50,17 @@ SECTIONS
         . = ALIGN(4K);
         ebss = .;
     }
-    .eh_frame : ALIGN(8){
-        kernel_eh_frame = .;
-        KEEP(*(.eh_frame .eh_frame.*))
-        kernel_eh_frame_end = .;
-    }
-    .eh_frame_hdr : ALIGN(4K){
-        kernel_eh_frame_hdr = .;
-        *(.eh_frame_hdr .eh_frame_hdr.*)
-        . = ALIGN(4K);
-        kernel_eh_frame_hdr_end = .;
-    }
+/*    .eh_frame : ALIGN(8){*/
+/*        kernel_eh_frame = .;*/
+/*        KEEP(*(.eh_frame .eh_frame.*))*/
+/*        kernel_eh_frame_end = .;*/
+/*    }*/
+/*    .eh_frame_hdr : ALIGN(4K){*/
+/*        kernel_eh_frame_hdr = .;*/
+/*        *(.eh_frame_hdr .eh_frame_hdr.*)*/
+/*        . = ALIGN(4K);*/
+/*        kernel_eh_frame_hdr_end = .;*/
+/*    }*/
 
     ekernel = .;
     PROVIDE(end = .);

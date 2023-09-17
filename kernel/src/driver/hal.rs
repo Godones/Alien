@@ -1,6 +1,6 @@
+use crate::memory::{addr_to_frame, frame_alloc_contiguous};
 use core::ptr::NonNull;
 use virtio_drivers::{BufferDirection, Hal, PhysAddr, PAGE_SIZE};
-use crate::memory::{addr_to_frame, frame_alloc_contiguous};
 
 pub struct HalImpl;
 
