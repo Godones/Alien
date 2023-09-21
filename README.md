@@ -78,7 +78,7 @@ make fake_run SMP=1
 ### Run with Gui
 
 ```
-make run LOG=WARN SMP=1 GUI=y
+make run LOG= SMP=1 GUI=y
 slint or guitest or todo or printdemo or memorygame or ...
 ```
 
