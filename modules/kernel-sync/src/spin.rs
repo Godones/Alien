@@ -96,6 +96,19 @@ impl<T: ?Sized> SpinMutex<T> {
     pub fn is_locked(&self) -> bool {
         self.locked.load(Ordering::Relaxed)
     }
+
+    /// Force unlock this [`SpinMutex`].
+    ///
+    /// # Safety
+    ///
+    /// This is *extremely* unsafe if the lock is not held by the current
+    /// thread. However, this can be useful in some instances for exposing the
+    /// lock to FFI that doesn't know how to deal with RAII.
+    #[inline(always)]
+    pub unsafe fn force_unlock(&self) {
+        self.locked.store(false, Ordering::Release);
+        pop_off();
+    }
 }
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for SpinMutex<T> {

@@ -10,7 +10,6 @@ members = [
     "modules/virtio-input-decoder",
     "modules/input2event",
     "modules/simple-net",
-    "modules/schedule",
     "apps/slint-helper",
     "apps/cat",
     "apps/sleep",

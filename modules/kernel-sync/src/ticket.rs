@@ -111,6 +111,19 @@ impl<T: ?Sized> TicketMutex<T> {
         let ticket = self.next_ticket.load(Ordering::Relaxed);
         self.next_serving.load(Ordering::Relaxed) != ticket
     }
+
+    /// Force unlock this [`TicketMutex`], by serving the next ticket.
+    ///
+    /// # Safety
+    ///
+    /// This is *extremely* unsafe if the lock is not held by the current
+    /// thread. However, this can be useful in some instances for exposing the
+    /// lock to FFI that doesn't know how to deal with RAII.
+    #[inline(always)]
+    pub unsafe fn force_unlock(&self) {
+        self.next_serving.fetch_add(1, Ordering::Release);
+        pop_off();
+    }
 }
 
 impl<'a, T: ?Sized> Drop for TicketMutexGuard<'a, T> {
@@ -167,5 +180,27 @@ impl<'a, T: ?Sized> Deref for TicketMutexGuard<'a, T> {
 impl<'a, T: ?Sized> DerefMut for TicketMutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut T {
         self.data
+    }
+}
+
+unsafe impl lock_api::RawMutex for TicketMutex<()> {
+    const INIT: Self = Self::new(());
+    type GuardMarker = lock_api::GuardSend;
+
+    fn lock(&self) {
+        core::mem::forget(Self::lock(self))
+    }
+
+    fn try_lock(&self) -> bool {
+        // Prevent guard destructor running
+        Self::try_lock(self).map(core::mem::forget).is_some()
+    }
+
+    unsafe fn unlock(&self) {
+        self.force_unlock();
+    }
+
+    fn is_locked(&self) -> bool {
+        Self::is_locked(self)
     }
 }

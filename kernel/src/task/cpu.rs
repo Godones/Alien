@@ -5,9 +5,8 @@ use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::{Index, IndexMut};
-
-use lazy_static::lazy_static;
-use spin::Once;
+use smpscheduler::{FifoSmpScheduler, ScheduleHart};
+use spin::{Lazy, Once};
 
 use kernel_sync::Mutex;
 use syscall_define::ipc::FutexOp;
@@ -17,6 +16,7 @@ use syscall_define::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
 use crate::arch;
+use crate::arch::hart_id;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::ipc::{futex, global_logoff_signals};
@@ -96,10 +96,20 @@ static mut CPU_MANAGER: Once<CpuManager<CPU_NUM>> = Once::new();
 
 /// 全局的线程池
 type ProcessPool = VecDeque<Arc<Task>>;
-lazy_static! {
-    /// 管理所有线程的全局变量
-    pub static ref TASK_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
+
+/// 管理所有线程的全局变量
+pub static TASK_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
+
+#[derive(Debug)]
+pub struct ScheduleHartImpl;
+
+impl ScheduleHart for ScheduleHartImpl {
+    fn hart_id() -> usize {
+        hart_id()
+    }
 }
+pub static SMP_FIFO_SCHEDULER: Lazy<FifoSmpScheduler<CPU_NUM, Task, Mutex<()>, ScheduleHartImpl>> =
+    Lazy::new(|| FifoSmpScheduler::new());
 
 /// 初始化 CPU 的相关信息
 pub fn init_per_cpu() {
