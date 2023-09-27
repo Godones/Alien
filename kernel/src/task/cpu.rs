@@ -1,11 +1,10 @@
 //! Alien 中有关进程的系统调用 和 多核的相关支持。
-use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::{Index, IndexMut};
-use smpscheduler::{FifoSmpScheduler, ScheduleHart};
+use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::{Lazy, Once};
 
 use kernel_sync::Mutex;
@@ -94,12 +93,6 @@ impl CPU {
 /// 保存每个核的信息
 static mut CPU_MANAGER: Once<CpuManager<CPU_NUM>> = Once::new();
 
-/// 全局的线程池
-type ProcessPool = VecDeque<Arc<Task>>;
-
-/// 管理所有线程的全局变量
-pub static TASK_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
-
 #[derive(Debug)]
 pub struct ScheduleHartImpl;
 
@@ -108,8 +101,10 @@ impl ScheduleHart for ScheduleHartImpl {
         hart_id()
     }
 }
-pub static SMP_FIFO_SCHEDULER: Lazy<FifoSmpScheduler<CPU_NUM, Task, Mutex<()>, ScheduleHartImpl>> =
-    Lazy::new(|| FifoSmpScheduler::new());
+/// 多核调度器
+pub static GLOBAL_TASK_MANAGER: Lazy<
+    FifoSmpScheduler<CPU_NUM, Arc<Task>, Mutex<()>, ScheduleHartImpl>,
+> = Lazy::new(|| FifoSmpScheduler::new());
 
 /// 初始化 CPU 的相关信息
 pub fn init_per_cpu() {
@@ -126,7 +121,6 @@ pub fn current_cpu() -> &'static mut CPU {
         let cpu_manager = CPU_MANAGER.get_mut().unwrap();
         cpu_manager.index_mut(hart_id)
     }
-    // unsafe { &mut CPU_MANAGER[hart_id] }
 }
 
 /// 获取当前 CPU 上的线程
@@ -326,9 +320,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     let trap_frame = new_task.trap_frame();
     trap_frame.update_res(0);
     let tid = new_task.get_tid();
-    let mut process_pool = TASK_MANAGER.lock();
-    process_pool.push_back(new_task);
-    // drop(process_pool);
+    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(new_task)));
     // do_suspend();
     tid
 }

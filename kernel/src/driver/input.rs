@@ -6,12 +6,13 @@ use virtio_drivers::device::input::VirtIOInput;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use kernel_sync::Mutex;
+use smpscheduler::FifoTask;
 
 use crate::device::InputDevice;
 use crate::driver::hal::HalImpl;
 use crate::interrupt::DeviceBase;
 use crate::task::schedule::schedule;
-use crate::task::{current_task, Task, TaskState};
+use crate::task::{current_task, Task, TaskState, GLOBAL_TASK_MANAGER};
 
 pub struct VirtIOInputDriver {
     inner: Mutex<InputDriverInner>,
@@ -95,8 +96,7 @@ impl DeviceBase for VirtIOInputDriver {
         while !inner.wait_queue.is_empty() && count > 0 {
             let process = inner.wait_queue.pop_front().unwrap();
             process.update_state(TaskState::Ready);
-            let mut guard = crate::task::TASK_MANAGER.lock();
-            guard.push_back(process);
+            GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(process)));
             count -= 1;
         }
     }
