@@ -5,7 +5,7 @@ use syscall_define::sys::{Rusage, RusageFlag, Sysinfo, SyslogAction, TimeVal};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
-use crate::task::{current_task, TASK_MANAGER};
+use crate::task::current_task;
 use crate::timer::{get_time_ms, TimeFromFreq};
 use crate::{error_unwrap, MACHINE_INFO};
 
@@ -65,8 +65,7 @@ pub fn sys_info(dst_info: usize) -> isize {
     const LINUX_SYSINFO_LOADS_SCALE: usize = 65536;
     let task = current_task().unwrap();
     // calculate the task number
-    // TASKMANAGER
-    let task_number = TASK_MANAGER.lock().len();
+    let task_number = 10; // fake task number
     let memory_info = MACHINE_INFO.get().as_ref().unwrap().memory.clone();
     let info = Sysinfo {
         uptime: (get_time_ms() / 1000) as usize,

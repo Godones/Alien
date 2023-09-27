@@ -1,12 +1,15 @@
 //! CPU 调度
+use alloc::sync::Arc;
 use core::arch::asm;
+use smpscheduler::FifoTask;
 
 use syscall_define::signal::SignalNumber;
 
 use crate::ipc::send_signal;
 use crate::task::context::switch;
-use crate::task::cpu::{current_cpu, TASK_MANAGER};
+use crate::task::cpu::current_cpu;
 use crate::task::task::TaskState;
+use crate::task::GLOBAL_TASK_MANAGER;
 use crate::trap::check_timer_interrupt_pending;
 
 /// 在 CPU 启动并初始化完毕后初次进入用户态时，或者在一个任务将要让渡 CPU 时 将会执行该函数。
@@ -22,7 +25,6 @@ use crate::trap::check_timer_interrupt_pending;
 pub fn first_into_user() -> ! {
     loop {
         {
-            let mut task_manager = TASK_MANAGER.lock();
             let cpu = current_cpu();
             if cpu.task.is_some() {
                 let task = cpu.task.take().unwrap();
@@ -46,14 +48,13 @@ pub fn first_into_user() -> ! {
                         task.terminate();
                     }
                     _ => {
-                        task_manager.push_back(task);
+                        GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
                     }
                 }
             }
         }
         let cpu = current_cpu();
-        let mut task_manager = TASK_MANAGER.lock();
-        if let Some(process) = task_manager.pop_front() {
+        if let Some(process) = GLOBAL_TASK_MANAGER.pick_next_task() {
             // if process.get_tid() >= 1 {
             //     warn!("switch to task {}", process.get_tid());
             // }
@@ -61,13 +62,13 @@ pub fn first_into_user() -> ! {
             process.update_state(TaskState::Running);
             // get the process context
             let context = process.get_context_raw_ptr();
-            cpu.task = Some(process);
+            cpu.task = Some(process.inner().clone());
             // switch to the process context
             let cpu_context = cpu.get_context_mut_raw_ptr();
-            drop(task_manager);
+            // warn!("switch to task {}", process.get_tid());
+            drop(process);
             switch(cpu_context, context);
         } else {
-            drop(task_manager);
             unsafe { asm!("wfi") }
         }
     }

@@ -206,7 +206,7 @@ gdb-server: sdcard install compile
             -device virtio-blk-device,drive=x0 \
 			-$(QEMU_ARGS) \
             -kernel  kernel-qemu\
-            -smp 1 -m 1024M \
+            -smp $(SMP) -m 1024M \
             -s -S
 
 gdb-client:

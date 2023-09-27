@@ -737,20 +737,22 @@ impl TaskInner {
     /// 获取 虚拟地址空间中的以 `ptr` 为起始地址，以 '\0' 结尾的字符串
     pub fn transfer_str(&self, ptr: *const u8) -> String {
         let mut res = String::new();
-        let mut start = ptr as usize;
+        let physical = self
+            .address_space
+            .lock()
+            .query(VirtAddr::from(ptr as usize));
+        if physical.is_err() {
+            return res;
+        }
+        let (physical, _, _) = physical.unwrap();
+        let mut physical = physical.as_usize();
         loop {
-            let physical = self.address_space.lock().query(VirtAddr::from(start));
-            if physical.is_err() {
-                break;
-            }
-            let (physical, flag, _) = physical.unwrap();
-            assert!(flag.contains(MappingFlags::V));
-            let c = unsafe { &*(physical.as_usize() as *const u8) };
+            let c = unsafe { &*(physical as *const u8) };
             if *c == 0 {
                 break;
             }
             res.push(*c as char);
-            start += 1;
+            physical += 1;
         }
         res
     }
