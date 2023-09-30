@@ -19,7 +19,7 @@ use rvfs::mount_rootfs;
 use rvfs::ramfs::tmpfs::TMP_FS_TYPE;
 use rvfs::superblock::{register_filesystem, DataOps, Device};
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 
 use crate::config::{INTERRUPT_RECORD, MEMINFO, PASSWORD, RTC_TIME, UTC};
 use crate::device::{get_rtc_time, BLOCK_DEVICE};

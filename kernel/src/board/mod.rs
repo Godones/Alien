@@ -2,7 +2,7 @@ use alloc::collections::BTreeMap;
 
 use cfg_if::cfg_if;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 
 use crate::device::{DeviceInfo, DeviceType};
 

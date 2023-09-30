@@ -10,7 +10,7 @@ use smoltcp::wire::{EthernetAddress, HardwareAddress, IpAddress, IpCidr};
 use virtio_drivers::transport::Transport;
 use virtio_drivers::Hal;
 
-use kernel_sync::Mutex;
+use kernel_sync::TicketMutex as Mutex;
 
 use crate::common::{TCP_RX_BUF_LEN, TCP_TX_BUF_LEN, UDP_RX_BUF_LEN, UDP_TX_BUF_LEN};
 use crate::device::VirtIONetDeviceWrapper;

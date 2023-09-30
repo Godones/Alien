@@ -7,7 +7,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem::size_of;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 use syscall_define::signal::{
     SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
     SignalReceivers, SignalUserContext, SimpleBitSet,

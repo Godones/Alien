@@ -7,10 +7,9 @@ use smoltcp::socket::udp::{self, BindError, SendError};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
 use spin::RwLock;
 
-use kernel_sync::Mutex;
-
 use crate::common::{NetError, NetPollState, NetResult};
 use crate::KERNEL_NET_FUNC;
+use kernel_sync::TicketMutex as Mutex;
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
 use super::{SocketSetWrapper, SOCKET_SET};

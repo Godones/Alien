@@ -18,7 +18,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cmp::min;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 use smpscheduler::FifoTask;
 
 use crate::error::{AlienError, AlienResult};

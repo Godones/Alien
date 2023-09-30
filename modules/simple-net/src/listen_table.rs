@@ -6,9 +6,8 @@ use smoltcp::iface::{SocketHandle, SocketSet};
 use smoltcp::socket::tcp::{self, State};
 use smoltcp::wire::{IpAddress, IpEndpoint, IpListenEndpoint};
 
-use kernel_sync::Mutex;
-
 use crate::common::{NetError, NetResult, LISTEN_QUEUE_SIZE};
+use kernel_sync::TicketMutex as Mutex;
 
 use super::{SocketSetWrapper, SOCKET_SET};
 

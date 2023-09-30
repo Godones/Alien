@@ -16,7 +16,7 @@ use core::cmp::Ordering;
 
 use lazy_static::lazy_static;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 use smpscheduler::FifoTask;
 use syscall_define::sys::TimeVal;
 use syscall_define::time::{ClockId, TimerType};

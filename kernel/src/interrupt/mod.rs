@@ -5,8 +5,8 @@ use cfg_if::cfg_if;
 use lazy_static::lazy_static;
 use spin::Once;
 
+use crate::ksync::Mutex;
 pub use ext_interrupt::external_interrupt_handler;
-use kernel_sync::Mutex;
 use plic::{Mode, PLIC};
 
 use crate::arch::hart_id;

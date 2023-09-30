@@ -7,10 +7,9 @@ use smoltcp::iface::SocketHandle;
 use smoltcp::socket::tcp::{self, ConnectError, State};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
 
-use kernel_sync::Mutex;
-
 use crate::common::{NetError, NetPollState, NetResult};
 use crate::{KERNEL_NET_FUNC, LISTENING_TABLE, NET_INTERFACE};
+use kernel_sync::TicketMutex as Mutex;
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
 use super::{SocketSetWrapper, SOCKET_SET};

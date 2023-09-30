@@ -22,8 +22,8 @@ use rvfs::info::ProcessFsInfo;
 use rvfs::link::vfs_unlink;
 use rvfs::mount::VfsMount;
 
+use crate::ksync::{Mutex, MutexGuard};
 use gmanager::MinimalManager;
-use kernel_sync::{Mutex, MutexGuard};
 use syscall_define::aux::{
     AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
     AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,

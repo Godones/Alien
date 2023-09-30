@@ -43,7 +43,6 @@ use kernel::interrupt::init_plic;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
-use kernel::task::init_per_cpu;
 use kernel::{config, init_machine_info, println, task, thread_local_init, timer, trap};
 
 mod entry;
@@ -102,7 +101,6 @@ pub fn main(_: usize, _: usize) -> ! {
         // init all device
         init_device();
         trap::init_trap_subsystem();
-        init_per_cpu();
         init_vfs();
         task::init_process();
         CPUS.fetch_add(1, Ordering::Release);

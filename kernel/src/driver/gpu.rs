@@ -6,7 +6,7 @@ use tinybmp::Bmp;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 
 use crate::device::GpuDevice;
 use crate::driver::hal::HalImpl;
