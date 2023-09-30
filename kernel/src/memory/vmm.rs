@@ -13,7 +13,7 @@ use page_table::pte::MappingFlags;
 use page_table::table::{PagingIf, Sv39PageTable};
 use xmas_elf::program::{SegmentData, Type};
 
-use kernel_sync::RwLock;
+use crate::ksync::RwLock;
 
 use crate::config::{
     ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,

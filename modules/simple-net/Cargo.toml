@@ -7,7 +7,8 @@ edition = "2021"
 
 [dependencies]
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "de1c3b130e507702f13d142b9bee55670a4a2858" }
-kernel-sync = { path = "../../../os-modules/kernel-sync" }
+kernel-sync = { git = "https://github.com/os-module/kernel-sync.git" }
+
 spin = "0.9.8"
 log = "0.4.17"
 preprint = "0.1.0"

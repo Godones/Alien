@@ -5,7 +5,7 @@ use core::ops::{Deref, DerefMut};
 
 use rvfs::file::{File, OpenFlags};
 
-use kernel_sync::{Mutex, MutexGuard};
+use crate::ksync::{Mutex, MutexGuard};
 
 use crate::net::socket::SocketData;
 use crate::timer::TimeSpec;

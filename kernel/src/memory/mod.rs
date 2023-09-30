@@ -9,8 +9,8 @@ pub use rslab::*;
 #[cfg(feature = "talloc")]
 use talc::{Talc, Talck};
 
+use crate::ksync::Mutex;
 pub use frame::*;
-use kernel_sync::Mutex;
 pub use map::*;
 use syscall_table::syscall_func;
 pub use vmm::*;

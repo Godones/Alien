@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use preprint::Print;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 
 use crate::device::UART_DEVICE;
 use crate::sbi::console_putchar;

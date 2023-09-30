@@ -36,6 +36,7 @@ pub mod fs;
 pub mod gui;
 pub mod interrupt;
 pub mod ipc;
+pub mod ksync;
 pub mod memory;
 pub mod net;
 pub mod panic;
