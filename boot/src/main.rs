@@ -43,7 +43,6 @@ use kernel::interrupt::init_plic;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
-use kernel::task::init_per_cpu;
 use kernel::{config, init_machine_info, println, task, thread_local_init, timer, trap};
 
 mod entry;
@@ -102,13 +101,13 @@ pub fn main(_: usize, _: usize) -> ! {
         // init all device
         init_device();
         trap::init_trap_subsystem();
-        init_per_cpu();
         init_vfs();
-        // syscall::register_all_syscall();
         task::init_process();
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
         init_other_hart(hart_id());
+        // register all syscall
+        init_init_array!();
     } else {
         while !STARTED.load(Ordering::Relaxed) {
             spin_loop();
@@ -116,11 +115,9 @@ pub fn main(_: usize, _: usize) -> ! {
         thread_local_init();
         println!("hart {:#x} start", hart_id());
         init_memory_system(0, false);
-        thread_local_init();
         trap::init_trap_subsystem();
         CPUS.fetch_add(1, Ordering::Release);
     }
-    init_init_array!();
     timer::set_next_trigger();
     println!("begin run task...");
     task::schedule::first_into_user();

@@ -1,14 +1,15 @@
+use crate::ksync::Mutex;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use kernel_sync::Mutex;
+use smpscheduler::FifoTask;
 
 #[cfg(not(feature = "vf2"))]
 pub use self::uart16550::Uart16550;
 use crate::device::UartDevice;
 use crate::interrupt::DeviceBase;
 use crate::task::schedule::schedule;
-use crate::task::{current_task, Task, TaskState, TASK_MANAGER};
+use crate::task::{current_task, Task, TaskState, GLOBAL_TASK_MANAGER};
 
 #[cfg(feature = "vf2")]
 pub use self::uart8250::Uart8250;
@@ -170,8 +171,7 @@ impl DeviceBase for Uart {
                 if !inner.1.wait_queue.is_empty() {
                     let process = inner.1.wait_queue.pop_front().unwrap();
                     process.update_state(TaskState::Ready);
-                    let mut guard = TASK_MANAGER.lock();
-                    guard.push_back(process);
+                    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(process)));
                 }
             } else {
                 break;

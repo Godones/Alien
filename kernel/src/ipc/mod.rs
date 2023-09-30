@@ -10,7 +10,7 @@ use core::sync::atomic::{AtomicI32, Ordering};
 
 use lazy_static::lazy_static;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 pub use pipe::*;
 pub use shm::*;
 pub use signal::*;

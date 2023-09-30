@@ -34,12 +34,12 @@ syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
 plic = { git = "https://github.com/os-module/plic" }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
 gmanager = { path = "../modules/gmanager" }
-kernel-sync = { path = "../modules/kernel-sync", package = "lock" }
+kernel-sync = { git = "https://github.com/os-module/kernel-sync.git" }
 syscall_define = { git = "https://github.com/os-module/pconst.git", package = "pconst" }
 basemachine = { path = "../modules/basemachine" }
 uart16550 = { version = "0.0.1", optional = true }
 uart8250 = { git = "https://github.com/os-module/uart-rs.git", optional = true }
-schedule = { path = "../modules/schedule" }
+smpscheduler = {git = "https://github.com/os-module/smpscheduler.git" }
 talc = { version = "1.0", optional = true }
 buddy_system_allocator = { version = "0.9.0", optional = true }
 

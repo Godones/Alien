@@ -12,7 +12,7 @@ use rvfs::superblock::Device;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 
 use crate::config::BLOCK_CACHE_FRAMES;
 use crate::config::FRAME_SIZE;

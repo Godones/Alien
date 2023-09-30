@@ -16,7 +16,8 @@ use core::cmp::Ordering;
 
 use lazy_static::lazy_static;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
+use smpscheduler::FifoTask;
 use syscall_define::sys::TimeVal;
 use syscall_define::time::{ClockId, TimerType};
 use syscall_define::LinuxErrno;
@@ -24,7 +25,7 @@ use syscall_table::syscall_func;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
-use crate::task::{current_task, do_suspend, StatisticalData, Task, TASK_MANAGER};
+use crate::task::{current_task, do_suspend, StatisticalData, Task, GLOBAL_TASK_MANAGER};
 
 /// 每秒包含的 时间片 数，每隔一个时间片，就会产生一个时钟中断
 const TICKS_PER_SEC: usize = 10;
@@ -334,7 +335,7 @@ pub fn check_timer_queue() {
     while let Some(timer) = queue.peek() {
         if timer.end_time <= now {
             let timer = queue.pop().unwrap();
-            TASK_MANAGER.lock().push_front(timer.process);
+            GLOBAL_TASK_MANAGER.put_prev_task(Arc::new(FifoTask::new(timer.process)), true);
         } else {
             break;
         }
@@ -350,7 +351,7 @@ pub fn getitimer(_which: usize, current_value: usize) -> isize {
     let task = current_task().unwrap();
     let timer = &task.access_inner().timer;
     let itimer = ITimerVal {
-        it_interval: timer.timer_interval.into(),
+        it_interval: timer.timer_interval,
         it_value: timer.timer_remained.into(),
     };
     task.access_inner()

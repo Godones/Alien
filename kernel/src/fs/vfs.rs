@@ -19,7 +19,7 @@ use rvfs::mount_rootfs;
 use rvfs::ramfs::tmpfs::TMP_FS_TYPE;
 use rvfs::superblock::{register_filesystem, DataOps, Device};
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 
 use crate::config::{INTERRUPT_RECORD, MEMINFO, PASSWORD, RTC_TIME, UTC};
 use crate::device::{get_rtc_time, BLOCK_DEVICE};
@@ -81,23 +81,6 @@ pub fn init_vfs() {
     prepare_test_need();
     prepare_dev();
     prepare_var();
-
-    // let fake_sort_src = vfs_open_file::<VfsProvider>(
-    //     "/sort.src",
-    //     OpenFlags::O_CREAT | OpenFlags::O_RDWR,
-    //     FileMode::FMODE_RDWR,
-    // )
-    //     .unwrap();
-    // vfs_write_file::<VfsProvider>(fake_sort_src.clone(), SORT_SRC, 0).unwrap();
-    // vfs_close_file::<VfsProvider>(fake_sort_src).unwrap();
-
-    // let unixbench2 = vfs_open_file::<VfsProvider>(
-    //     "/unixbench_testcode2.sh",
-    //     OpenFlags::O_CREAT | OpenFlags::O_RDWR,
-    //     FileMode::FMODE_RDWR,
-    // ).unwrap();
-    // vfs_write_file::<VfsProvider>(unixbench2.clone(), UNIXBENCH, 0).unwrap();
-    // vfs_close_file::<VfsProvider>(unixbench2).unwrap();
     println!("vfs init success");
 }
 
@@ -148,12 +131,13 @@ fn prepare_dev() {
 }
 
 fn prepare_test_need() {
-    vfs_open_file::<VfsProvider>(
+    let file = vfs_open_file::<VfsProvider>(
         "/test.txt",
         OpenFlags::O_RDWR | OpenFlags::O_CREAT,
         FileMode::FMODE_RDWR,
     )
     .unwrap();
+    vfs_write_file::<VfsProvider>(file, b"hello world", 0).unwrap();
 }
 
 fn prepare_proc() {

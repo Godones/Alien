@@ -18,10 +18,11 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cmp::min;
 
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
+use smpscheduler::FifoTask;
 
 use crate::error::{AlienError, AlienResult};
-use crate::task::{Task, TASK_MANAGER};
+use crate::task::{Task, GLOBAL_TASK_MANAGER};
 use crate::timer::read_timer;
 
 /// 用于记录一个进程等待一个 futex 的相关信息
@@ -81,9 +82,8 @@ impl FutexWaitManager {
                 if receiver.have_signal() {
                     drop(receiver);
                     drop(task_inner);
-                    let mut task_manager = TASK_MANAGER.lock();
                     let task = waiter.wake();
-                    task_manager.push_back(task);
+                    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
                     record.push(index);
                 }
             }
@@ -104,8 +104,7 @@ impl FutexWaitManager {
                     if wait_time <= now {
                         *waiter.timeout_flag.lock() = true;
                         let task = waiter.wake();
-                        let mut task_manager = TASK_MANAGER.lock();
-                        task_manager.push_back(task);
+                        GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
                         record.push(index);
                     }
                 }
@@ -138,8 +137,7 @@ impl FutexWaitManager {
             let min_index = min(num, waiters.len());
             for i in 0..min_index {
                 let task = waiters[i].wake();
-                let mut task_manager = TASK_MANAGER.lock();
-                task_manager.push_back(task);
+                GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
             }
             // delete waiters
             waiters.drain(0..min_index);

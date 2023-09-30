@@ -1,15 +1,14 @@
 //! Alien 中有关进程的系统调用 和 多核的相关支持。
-use alloc::collections::VecDeque;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::cell::UnsafeCell;
 use core::ops::{Index, IndexMut};
+use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
+use spin::Lazy;
 
-use lazy_static::lazy_static;
-use spin::Once;
-
-use kernel_sync::Mutex;
+use crate::ksync::Mutex;
 use syscall_define::ipc::FutexOp;
 use syscall_define::signal::SignalNumber;
 use syscall_define::task::{CloneFlags, WaitOptions};
@@ -17,6 +16,7 @@ use syscall_define::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
 use crate::arch;
+use crate::arch::hart_id;
 use crate::config::CPU_NUM;
 use crate::fs::vfs;
 use crate::ipc::{futex, global_logoff_signals};
@@ -90,33 +90,35 @@ impl CPU {
         &mut self.context as *mut Context
     }
 }
-
-/// 保存每个核的信息
-static mut CPU_MANAGER: Once<CpuManager<CPU_NUM>> = Once::new();
-
-/// 全局的线程池
-type ProcessPool = VecDeque<Arc<Task>>;
-lazy_static! {
-    /// 管理所有线程的全局变量
-    pub static ref TASK_MANAGER: Mutex<ProcessPool> = Mutex::new(ProcessPool::new());
-}
-
-/// 初始化 CPU 的相关信息
-pub fn init_per_cpu() {
-    unsafe {
-        CPU_MANAGER.call_once(|| CpuManager::new());
+pub struct SafeRefCell<T>(UnsafeCell<T>);
+impl<T> SafeRefCell<T> {
+    const fn new(t: T) -> Self {
+        Self(UnsafeCell::new(t))
     }
-    println!("{} cpus in total", CPU_NUM);
 }
+/// #Safety: Only the corresponding cpu will access it.
+unsafe impl<CPU> Sync for SafeRefCell<CPU> {}
+
+const DEFAULT_CPU: SafeRefCell<CPU> = SafeRefCell::new(CPU::empty());
+/// 保存每个核的信息
+static CPU_MANAGER: [SafeRefCell<CPU>; CPU_NUM] = [DEFAULT_CPU; CPU_NUM];
+#[derive(Debug)]
+pub struct ScheduleHartImpl;
+
+impl ScheduleHart for ScheduleHartImpl {
+    fn hart_id() -> usize {
+        hart_id()
+    }
+}
+/// 多核调度器
+pub static GLOBAL_TASK_MANAGER: Lazy<
+    FifoSmpScheduler<CPU_NUM, Arc<Task>, Mutex<()>, ScheduleHartImpl>,
+> = Lazy::new(|| FifoSmpScheduler::new());
 
 /// 获取当前 cpu 的信息
 pub fn current_cpu() -> &'static mut CPU {
     let hart_id = arch::hart_id();
-    unsafe {
-        let cpu_manager = CPU_MANAGER.get_mut().unwrap();
-        cpu_manager.index_mut(hart_id)
-    }
-    // unsafe { &mut CPU_MANAGER[hart_id] }
+    unsafe { &mut (*(CPU_MANAGER[hart_id].0.get())) }
 }
 
 /// 获取当前 CPU 上的线程
@@ -316,9 +318,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     let trap_frame = new_task.trap_frame();
     trap_frame.update_res(0);
     let tid = new_task.get_tid();
-    let mut process_pool = TASK_MANAGER.lock();
-    process_pool.push_back(new_task);
-    // drop(process_pool);
+    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(new_task)));
     // do_suspend();
     tid
 }

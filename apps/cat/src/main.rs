@@ -12,15 +12,22 @@ use Mstd::{print, println};
 #[no_mangle]
 fn main(_argc: usize, argv: Vec<String>) -> isize {
     let file_name = &argv[1];
-    let fd = open(file_name, OpenFlags::O_RDONLY);
-    if fd != -1 {
+    let file_name = if !file_name.ends_with('\0') {
+        file_name.clone() + "\0"
+    } else {
+        file_name.clone()
+    };
+    let fd = open(&file_name, OpenFlags::O_RDONLY);
+    if fd > 0 {
         let mut buf = [0u8; 10];
         loop {
             let len = read(fd as usize, &mut buf);
-            if len == 0 || len == -1 {
+            if len <= 0 {
+                if len < 0 {
+                    println!("read error");
+                }
                 break;
             }
-            // println!("len = {}", len);
             print!("{}", core::str::from_utf8(&buf[..len as usize]).unwrap());
         }
         println!();
