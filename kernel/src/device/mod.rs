@@ -1,3 +1,5 @@
+pub use self::rtc::{get_rtc_time, RTCDevice, RtcDevice, RTC_DEVICE};
+pub use self::uart::{UARTDevice, UartDevice, UART_DEVICE};
 use crate::board::{get_rtc_info, probe_devices_from_dtb};
 use crate::driver::hal::HalImpl;
 use crate::driver::uart::Uart;
@@ -6,20 +8,17 @@ use crate::interrupt::register_device_to_plic;
 use crate::print::console::UART_FLAG;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-pub use block::{BlockDevice, BLOCK_DEVICE};
+pub use block::{BLKDevice, BlockDevice, BLOCK_DEVICE};
 use core::sync::atomic::Ordering;
-pub use gpu::{GpuDevice, GPU_DEVICE};
-pub use input::{sys_event_get, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
+pub use gpu::{GPUDevice, GpuDevice, GPU_DEVICE};
+pub use input::{
+    sys_event_get, INPUTDevice, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE,
+};
 use virtio_drivers::transport::mmio::MmioTransport;
-
-pub use self::rtc::{get_rtc_time, RtcDevice, RTC_DEVICE};
-pub use self::uart::{UartDevice, UART_DEVICE};
-
 mod block;
 mod gpu;
 mod input;
 mod net;
-mod pci;
 mod rtc;
 mod uart;
 
@@ -53,7 +52,6 @@ pub fn init_device() {
     init_mouse_input_device();
     init_rtc();
     init_net();
-    // in qemu, we can't init block device before other virtio device now
     init_block_device();
     // init_pci();
 }
@@ -100,12 +98,8 @@ fn init_uart() {
         uart::init_uart(uart.clone());
         register_device_to_plic(irq, uart);
     }
-    // TODO!(use uart8250 crate)
     #[cfg(feature = "vf2")]
     {
-        // use ::uart::Uart8250Raw;
-        // let uart = Uart8250Raw::<4>::new(base_addr);
-        //
         use crate::driver::uart::Uart8250;
         let uart = Uart8250::new(base_addr);
         let uart = Uart::new(Box::new(uart));

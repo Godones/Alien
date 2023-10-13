@@ -38,6 +38,7 @@ use kernel::board;
 use kernel::board::init_dtb;
 use kernel::config::CPU_NUM;
 use kernel::device::init_device;
+use kernel::fs::init_filesystem;
 use kernel::fs::vfs::init_vfs;
 use kernel::interrupt::init_plic;
 use kernel::memory::{init_memory_system, kernel_info};
@@ -52,13 +53,15 @@ static STARTED: AtomicBool = AtomicBool::new(false);
 /// cpu启动计数
 static CPUS: AtomicUsize = AtomicUsize::new(0);
 
+extern "C" {
+    fn _start();
+    fn sbss();
+    fn ebss();
+}
+
 /// 清空.bss段
 #[inline]
 fn clear_bss() {
-    extern "C" {
-        fn sbss();
-        fn ebss();
-    }
     unsafe {
         core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
             .fill(0);
@@ -101,6 +104,7 @@ pub fn main(_: usize, _: usize) -> ! {
         // init all device
         init_device();
         trap::init_trap_subsystem();
+        init_filesystem();
         init_vfs();
         task::init_process();
         CPUS.fetch_add(1, Ordering::Release);
@@ -136,9 +140,6 @@ fn init_other_hart(hart_id: usize) {
         }
     }
     for i in start_hart..CPU_NUM {
-        extern "C" {
-            fn _start();
-        }
         if i != hart_id {
             let res = hart_start(i, _start as usize, 0);
             assert_eq!(res.error, 0);

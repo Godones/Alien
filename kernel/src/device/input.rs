@@ -2,7 +2,14 @@ use alloc::sync::Arc;
 
 use spin::Once;
 
+use crate::fs::dev::DeviceId;
 use syscall_table::syscall_func;
+use vfscore::error::VfsError;
+use vfscore::file::VfsFile;
+use vfscore::inode::{InodeAttr, VfsInode};
+use vfscore::superblock::VfsSuperBlock;
+use vfscore::utils::{FileStat, PollEvents, VfsNodeType};
+use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
 use crate::task::current_task;
@@ -11,6 +18,57 @@ pub trait InputDevice: Send + Sync + DeviceBase {
     fn is_empty(&self) -> bool;
     fn read_event_with_block(&self) -> u64;
     fn read_event_without_block(&self) -> Option<u64>;
+}
+
+pub struct INPUTDevice {
+    device_id: DeviceId,
+    #[allow(unused)]
+    device: Arc<dyn InputDevice>,
+    #[allow(unused)]
+    is_keyboard: bool,
+}
+
+impl INPUTDevice {
+    pub fn new(device_id: DeviceId, device: Arc<dyn InputDevice>, is_keyboard: bool) -> Self {
+        Self {
+            device_id,
+            device,
+            is_keyboard,
+        }
+    }
+    pub fn device_id(&self) -> DeviceId {
+        self.device_id
+    }
+}
+
+impl VfsFile for INPUTDevice {
+    fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> VfsResult<usize> {
+        todo!()
+    }
+    fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
+        Err(VfsError::NoSys)
+    }
+    fn poll(&self, _event: PollEvents) -> VfsResult<PollEvents> {
+        todo!()
+    }
+}
+
+impl VfsInode for INPUTDevice {
+    fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
+        Err(VfsError::NoSys)
+    }
+    fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
+        Ok(())
+    }
+    fn get_attr(&self) -> VfsResult<FileStat> {
+        Ok(FileStat {
+            st_rdev: self.device_id.id(),
+            ..Default::default()
+        })
+    }
+    fn inode_type(&self) -> VfsNodeType {
+        VfsNodeType::CharDevice
+    }
 }
 
 pub static KEYBOARD_INPUT_DEVICE: Once<Arc<dyn InputDevice>> = Once::new();

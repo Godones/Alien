@@ -1,7 +1,16 @@
+use alloc::format;
 use alloc::sync::Arc;
+use core::cmp::min;
 use rtc::RtcTime;
 
+use crate::fs::dev::DeviceId;
 use spin::Once;
+use vfscore::error::VfsError;
+use vfscore::file::VfsFile;
+use vfscore::inode::{InodeAttr, VfsInode};
+use vfscore::superblock::VfsSuperBlock;
+use vfscore::utils::{FileStat, VfsNodeType};
+use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
 
@@ -17,6 +26,61 @@ pub fn init_rtc(rtc: Arc<dyn RtcDevice>) {
 }
 
 pub trait RtcDevice: Send + Sync + DeviceBase + rtc::LowRtcDevice + rtc::LowRtcDeviceExt {}
+
+pub struct RTCDevice {
+    device_id: DeviceId,
+    device: Arc<dyn RtcDevice>,
+}
+
+impl RTCDevice {
+    pub fn new(device_id: DeviceId, device: Arc<dyn RtcDevice>) -> Self {
+        Self { device_id, device }
+    }
+    pub fn device_id(&self) -> DeviceId {
+        self.device_id
+    }
+}
+
+impl VfsFile for RTCDevice {
+    fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
+        let time = self.device.read_time_fmt();
+        let str = format!("{:?}", time);
+        let bytes = str.as_bytes();
+        let min_len = min(buf.len(), bytes.len());
+        buf[..min_len].copy_from_slice(&bytes[..min_len]);
+        Ok(min_len)
+    }
+    fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
+        todo!()
+    }
+    fn flush(&self) -> VfsResult<()> {
+        Ok(())
+    }
+    fn fsync(&self) -> VfsResult<()> {
+        Ok(())
+    }
+}
+
+impl VfsInode for RTCDevice {
+    fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
+        Err(VfsError::NoSys)
+    }
+
+    fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
+        Ok(())
+    }
+
+    fn get_attr(&self) -> VfsResult<FileStat> {
+        Ok(FileStat {
+            st_rdev: self.device_id.id(),
+            ..Default::default()
+        })
+    }
+
+    fn inode_type(&self) -> VfsNodeType {
+        VfsNodeType::CharDevice
+    }
+}
 
 #[allow(dead_code)]
 fn example() {

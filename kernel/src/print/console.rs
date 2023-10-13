@@ -55,9 +55,9 @@ macro_rules! uprintln {
         concat!($fmt, "\n"), $($arg)*));
 }
 
-struct Stdout;
+pub struct Stdout;
 
-static STDOUT: Mutex<Stdout> = Mutex::new(Stdout);
+pub static STDOUT: Mutex<Stdout> = Mutex::new(Stdout);
 
 pub static UART_FLAG: AtomicBool = AtomicBool::new(false);
 

@@ -6,7 +6,6 @@ members = [
     "boot",
     "modules/gmanager",
     "modules/basemachine",
-    "modules/virtio-input-decoder",
     "modules/input2event",
     "modules/simple-net",
     "apps/slint-helper",

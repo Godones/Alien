@@ -38,7 +38,7 @@ fn main() {
     sysinfo.set_swap_used_kb(0);
     sysinfo.set_swap_total_kb(0);
 
-    //  in-out property <[{dev: string, mnt: string, total: int, free: int}]> partitions;
+    //  in-out property <[{devfs: string, mnt: string, total: int, free: int}]> partitions;
     let mount = Rc::new(
         slint::VecModel::<(SharedString, i32, SharedString, i32)>::from(vec![
             (
