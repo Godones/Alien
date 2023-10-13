@@ -1,14 +1,29 @@
+use crate::fs::file::KFile;
+use crate::fs::vfs::VfsProvider;
+use crate::task::current_task;
+use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
+use alloc::sync::Arc;
 use alloc::vec;
+pub use control::*;
 use core::cmp::min;
-
-use rvfs::dentry::{vfs_rename, vfs_rmdir, vfs_truncate, vfs_truncate_by_file, LookUpFlags};
+use core::ops::Index;
+use devfs::DevFs;
+use dynfs::{DynFs, DynFsKernelProvider};
+use gmanager::ManagerError;
+pub use poll::*;
+use ramfs::RamFs;
+use rvfs::dentry::vfs_rename;
+use rvfs::dentry::vfs_rmdir;
+use rvfs::dentry::{vfs_truncate, vfs_truncate_by_file, LookUpFlags};
 use rvfs::file::{
     vfs_close_file, vfs_llseek, vfs_mkdir, vfs_open_file, vfs_read_file, vfs_readdir,
     vfs_write_file, FileMode, FileMode2, OpenFlags, SeekFrom,
 };
 use rvfs::inode::InodeMode;
-use rvfs::link::{vfs_link, vfs_readlink, vfs_symlink, vfs_unlink, LinkFlags};
+use rvfs::link::vfs_link;
+use rvfs::link::LinkFlags;
+use rvfs::link::{vfs_readlink, vfs_symlink, vfs_unlink};
 use rvfs::mount::MountFlags;
 use rvfs::path::{vfs_lookup_path, ParsePathType};
 use rvfs::stat::{
@@ -17,31 +32,102 @@ use rvfs::stat::{
     vfs_setxattr_by_file, vfs_statfs, vfs_statfs_by_file, KStat, StatFlags,
 };
 use rvfs::superblock::StatFs;
-
-pub use control::*;
-use gmanager::ManagerError;
-pub use poll::*;
 pub use select::*;
+use spin::{Lazy, Once};
 pub use stdio::*;
-use syscall_define::io::{FileStat, FsStat, IoVec, UnlinkatFlags};
+use syscall_define::io::UnlinkatFlags;
+use syscall_define::io::{FileStat, FsStat, IoVec};
 use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
-
-use crate::fs::file::KFile;
-use crate::fs::vfs::VfsProvider;
-use crate::task::current_task;
-
-mod stdio;
+use vfscore::dentry::VfsDentry;
+use vfscore::fstype::VfsFsType;
+use vfscore::path::VfsPath;
+use vfscore::utils::VfsTimeSpec;
+pub mod stdio;
 
 pub mod basic;
 mod control;
+pub mod dev;
 pub mod file;
 pub mod poll;
+pub mod proc;
+pub mod ram;
 pub mod select;
+pub mod sys;
 pub mod vfs;
 
+use crate::fs::dev::{init_devfs, DevFsProviderImpl};
+use crate::fs::proc::init_procfs;
+use crate::fs::ram::init_ramfs;
+use crate::fs::sys::init_sysfs;
 use crate::interrupt::record::write_interrupt_record;
+use crate::ksync::Mutex;
 pub use basic::*;
+
+pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsFsType>>>> =
+    Lazy::new(|| Mutex::new(BTreeMap::new()));
+
+pub static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDentry>> = Once::new();
+
+#[derive(Clone)]
+pub struct ProcOrSysFsProviderImpl;
+
+impl DynFsKernelProvider for ProcOrSysFsProviderImpl {
+    fn current_time(&self) -> VfsTimeSpec {
+        VfsTimeSpec::new(0, 0)
+    }
+}
+
+impl ramfs::KernelProvider for ProcOrSysFsProviderImpl {
+    fn current_time(&self) -> VfsTimeSpec {
+        DynFsKernelProvider::current_time(self)
+    }
+}
+
+fn register_all_fs() {
+    let procfs = Arc::new(DynFs::<_, Mutex<()>>::new(
+        ProcOrSysFsProviderImpl,
+        "procfs",
+    ));
+    let sysfs = Arc::new(DynFs::<_, Mutex<()>>::new(ProcOrSysFsProviderImpl, "sysfs"));
+    let ramfs = Arc::new(RamFs::<_, Mutex<()>>::new(ProcOrSysFsProviderImpl));
+    let devfs = Arc::new(DevFs::<_, Mutex<()>>::new(DevFsProviderImpl));
+    FS.lock().insert("procfs".to_string(), procfs);
+    FS.lock().insert("sysfs".to_string(), sysfs);
+    FS.lock().insert("ramfs".to_string(), ramfs);
+    FS.lock().insert("devfs".to_string(), devfs);
+    info!("register all fs");
+}
+
+/// Init the filesystem
+pub fn init_filesystem() {
+    register_all_fs();
+    let ramfs_root = init_ramfs(FS.lock().index("ramfs").clone());
+    let procfs_root = init_procfs(FS.lock().index("procfs").clone());
+    let devfs_root = init_devfs(FS.lock().index("devfs").clone());
+    let sysfs_root = init_sysfs(FS.lock().index("sysfs").clone());
+    let path = VfsPath::new(ramfs_root.clone());
+    use vfscore::fstype::MountFlags;
+    let proc_mount = path.join("proc").unwrap().open().unwrap();
+    proc_mount
+        .to_mount_point(procfs_root, MountFlags::empty())
+        .unwrap();
+    let sys_mount = path.join("sys").unwrap().open().unwrap();
+    sys_mount
+        .to_mount_point(sysfs_root, MountFlags::empty())
+        .unwrap();
+    let dev_mount = path.join("dev").unwrap().open().unwrap();
+    dev_mount
+        .to_mount_point(devfs_root, MountFlags::empty())
+        .unwrap();
+    vfscore::path::print_fs_tree(
+        &mut (*crate::print::console::STDOUT.lock()),
+        ramfs_root.clone(),
+        "".to_string(),
+    )
+    .unwrap();
+    println!("init filesystem success");
+}
 
 pub const AT_FDCWD: isize = -100isize;
 

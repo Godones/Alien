@@ -2,8 +2,7 @@ use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use core::fmt::Debug;
 use core::ops::{Deref, DerefMut};
-
-use rvfs::file::{File, OpenFlags};
+use rvfs::file::OpenFlags;
 
 use crate::ksync::{Mutex, MutexGuard};
 
@@ -18,7 +17,7 @@ pub enum FileState {
 
 /// like file descriptor in linux
 pub struct KFile {
-    file: Arc<File>,
+    file: Arc<rvfs::file::File>,
     inner: Mutex<KFileInner>,
 }
 
@@ -33,7 +32,7 @@ pub struct KFileInner {
 }
 
 impl KFile {
-    pub fn new(file: Arc<File>) -> Arc<Self> {
+    pub fn new(file: Arc<rvfs::file::File>) -> Arc<Self> {
         let flags = file.access_inner().flags;
         Arc::new(Self {
             file,
@@ -63,7 +62,7 @@ impl KFile {
             false
         }
     }
-    pub fn get_file(&self) -> Arc<File> {
+    pub fn get_file(&self) -> Arc<rvfs::file::File> {
         self.file.clone()
     }
 
@@ -91,7 +90,7 @@ impl Debug for KFile {
 }
 
 impl Deref for KFile {
-    type Target = Arc<File>;
+    type Target = Arc<rvfs::file::File>;
 
     fn deref(&self) -> &Self::Target {
         &self.file
@@ -180,5 +179,110 @@ impl FileSocketExt for KFile {
 
     fn get_socketdata(&self) -> &SocketData {
         self.get_socketdata_mut()
+    }
+}
+
+mod kernel_file {
+    use alloc::sync::Arc;
+    use vfscore::dentry::VfsDentry;
+
+    use crate::ksync::Mutex;
+    use syscall_define::io::{OpenFlags, SeekFrom};
+    use vfscore::error::VfsError;
+    use vfscore::utils::FileStat;
+    use vfscore::VfsResult;
+
+    struct KernelFile {
+        pos: Mutex<u64>,
+        open_flag: Mutex<OpenFlags>,
+        dentry: Arc<dyn VfsDentry>,
+    }
+
+    impl KernelFile {
+        pub fn new(dentry: Arc<dyn VfsDentry>, open_flag: OpenFlags) -> Self {
+            Self {
+                pos: Mutex::new(0),
+                open_flag: Mutex::new(open_flag),
+                dentry,
+            }
+        }
+    }
+
+    pub trait File {
+        fn read(&self, buf: &mut [u8]) -> VfsResult<usize>;
+        fn write(&self, buf: &[u8]) -> VfsResult<usize>;
+        fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize>;
+        fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize>;
+        fn flush(&self) -> VfsResult<()>;
+        fn fsync(&self) -> VfsResult<()>;
+        fn seek(&self, pos: SeekFrom) -> VfsResult<u64>;
+        /// Gets the file attributes.
+        fn get_attr(&self) -> VfsResult<FileStat>;
+    }
+
+    impl File for KernelFile {
+        fn read(&self, buf: &mut [u8]) -> VfsResult<usize> {
+            let mut pos = self.pos.lock();
+            let read = self.read_at(*pos, buf)?;
+            *pos += read as u64;
+            Ok(read)
+        }
+
+        fn write(&self, buf: &[u8]) -> VfsResult<usize> {
+            let mut pos = self.pos.lock();
+            let write = self.write_at(*pos, buf)?;
+            *pos += write as u64;
+            Ok(write)
+        }
+        fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
+            let open_flag = self.open_flag.lock();
+            if !open_flag.contains(OpenFlags::O_RDONLY | OpenFlags::O_RDWR) {
+                return Err(VfsError::PermissionDenied);
+            }
+            let inode = self.dentry.inode()?;
+            let read = inode.read_at(offset, buf)?;
+            Ok(read)
+        }
+        fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
+            let open_flag = self.open_flag.lock();
+            if !open_flag.contains(OpenFlags::O_WRONLY | OpenFlags::O_RDWR) {
+                return Err(VfsError::PermissionDenied);
+            }
+            let inode = self.dentry.inode()?;
+            let write = inode.write_at(offset, buf)?;
+            Ok(write)
+        }
+        fn flush(&self) -> VfsResult<()> {
+            let open_flag = self.open_flag.lock();
+            if !open_flag.contains(OpenFlags::O_WRONLY | OpenFlags::O_RDWR) {
+                return Err(VfsError::PermissionDenied);
+            }
+            let inode = self.dentry.inode()?;
+            inode.flush()
+        }
+        fn fsync(&self) -> VfsResult<()> {
+            let open_flag = self.open_flag.lock();
+            if !open_flag.contains(OpenFlags::O_WRONLY | OpenFlags::O_RDWR) {
+                return Err(VfsError::PermissionDenied);
+            }
+            let inode = self.dentry.inode()?;
+            inode.fsync()
+        }
+        fn seek(&self, pos: SeekFrom) -> VfsResult<u64> {
+            let mut spos = self.pos.lock();
+            let size = self.get_attr()?.st_size;
+            let new_offset = match pos {
+                SeekFrom::Start(pos) => Some(pos),
+                SeekFrom::Current(off) => spos.checked_add_signed(off),
+                SeekFrom::End(off) => size.checked_add_signed(off),
+            }
+            .ok_or_else(|| VfsError::Invalid)?;
+            *spos = new_offset;
+            Ok(new_offset)
+        }
+        /// Gets the file attributes.
+        fn get_attr(&self) -> VfsResult<FileStat> {
+            self.dentry.inode()?.get_attr()
+        }
     }
 }

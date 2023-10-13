@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 slint = { version = "1", default-features = false, features = ["compat-1-0", "unsafe-single-threaded", "libm"] }
-virtio-input-decoder = { path = "../../modules/virtio-input-decoder" }
+virtio-input-decoder = { git = "https://github.com/os-module/virtio-input-decoder.git"}

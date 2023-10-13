@@ -1,13 +1,14 @@
 use simple_net::{KernelNetFunc, NetInstant};
 
 use crate::interrupt::DeviceBase;
-use crate::task::current_task;
+
 use crate::timer::TimeSpec;
 
 pub trait NetDevice: DeviceBase {}
 
 #[cfg(feature = "net_test")]
 pub mod nettest {
+
     use alloc::vec::Vec;
     use core::net::{IpAddr, SocketAddr};
 
@@ -119,6 +120,7 @@ impl KernelNetFunc for NetNeedFunc {
     }
     #[cfg(not(feature = "net_test"))]
     fn yield_now(&self) -> bool {
+        use crate::task::current_task;
         use crate::task::do_suspend;
         do_suspend();
         // interrupt by signal

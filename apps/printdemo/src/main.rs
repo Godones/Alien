@@ -1,4 +1,4 @@
-// Copyright © SixtyFPS GmbH <info@slint.dev>
+// Copyright © SixtyFPS GmbH <info@slint.devfs>
 // SPDX-License-Identifier: MIT
 
 #![no_std]

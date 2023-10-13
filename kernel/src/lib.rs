@@ -41,7 +41,6 @@ pub mod memory;
 pub mod net;
 pub mod panic;
 pub mod sbi;
-pub mod sys;
 pub mod system;
 pub mod task;
 pub mod timer;

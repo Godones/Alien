@@ -5,7 +5,6 @@ use buddy_system_allocator::LockedHeap;
 use cfg_if::cfg_if;
 use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
-pub use rslab::*;
 #[cfg(feature = "talloc")]
 use talc::{Talc, Talck};
 
