@@ -33,9 +33,7 @@ pager = { git = "https://github.com/os-module/pager", default-features = false, 
 gmanager = { path = "../modules/gmanager" }
 kernel-sync = { git = "https://github.com/os-module/kernel-sync.git" }
 
-#syscall_define = { git = "https://github.com/os-module/pconst.git", package = "pconst" }
-
-syscall_define = { path = "../../os-modules/pconst", package = "pconst" }
+syscall_define = { git = "https://github.com/os-module/pconst.git", package = "pconst" }
 
 basemachine = { path = "../modules/basemachine" }
 uart16550 = { version = "0.0.1", optional = true }
@@ -44,16 +42,11 @@ smpscheduler = {git = "https://github.com/os-module/smpscheduler.git" }
 talc = { version = "1.0", optional = true }
 buddy_system_allocator = { version = "0.9.0", optional = true }
 
-#vfscore = {git = "https://github.com/os-module/rvfs.git"}
-#devfs = {git = "https://github.com/os-module/rvfs.git"}
-#dynfs =  {git = "https://github.com/os-module/rvfs.git"}
-#ramfs =  {git = "https://github.com/os-module/rvfs.git"}
-#fat-vfs =  {git = "https://github.com/os-module/rvfs.git"}
-vfscore = {path = "../../os-modules/rvfs/vfscore"}
-devfs = {path = "../../os-modules/rvfs/devfs"}
-dynfs =  {path = "../../os-modules/rvfs/dynfs"}
-ramfs =  {path = "../../os-modules/rvfs/ramfs"}
-fat-vfs =  {path = "../../os-modules/rvfs/fat-vfs"}
+vfscore = {git = "https://github.com/os-module/rvfs.git"}
+devfs = {git = "https://github.com/os-module/rvfs.git"}
+dynfs =  {git = "https://github.com/os-module/rvfs.git"}
+ramfs =  {git = "https://github.com/os-module/rvfs.git"}
+fat-vfs =  {git = "https://github.com/os-module/rvfs.git"}
 
 simple-net = { path = "../modules/simple-net" }
 [dependencies.smoltcp]
