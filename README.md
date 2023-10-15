@@ -75,6 +75,14 @@ make fake_run SMP=1
 
 可以指定LOG=ERROR/WARN/INFO/DEBUG/TRACE开启调式
 
+运行测试(in bash)
+
+```
+> final_test
+```
+
+
+
 ### Run with Gui
 
 ```
@@ -121,6 +129,8 @@ make unmatched LOG= UNMATCHED=y SMP=2
 2. `gdb-client`
 
 ## [Doc](./doc/doc.md)
+
+
 
 ## Feature
 
