@@ -15,8 +15,8 @@ use alloc::vec;
 use core::fmt::Debug;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use syscall_define::net::Domain;
-use syscall_define::LinuxErrno;
+use pconst::net::Domain;
+use pconst::LinuxErrno;
 
 use crate::error_unwrap;
 use crate::task::current_task;

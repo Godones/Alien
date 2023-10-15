@@ -23,7 +23,7 @@ pub fn syscall_exception_handler() {
     cx.update_sepc();
     // get system call return value
     let parameters = cx.parameters();
-    let syscall_name = syscall_define::syscall_name(parameters[0]);
+    let syscall_name = pconst::syscall_name(parameters[0]);
 
     let p_name = current_task().unwrap().get_name();
     let tid = current_task().unwrap().get_tid();

@@ -7,15 +7,14 @@
 
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicI32, Ordering};
-
-use lazy_static::lazy_static;
+use spin::Lazy;
 
 use crate::ksync::Mutex;
+use pconst::ipc::{FutexOp, RobustList};
+use pconst::LinuxErrno;
 pub use pipe::*;
 pub use shm::*;
 pub use signal::*;
-use syscall_define::ipc::{FutexOp, RobustList};
-use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::sys_close;
@@ -29,10 +28,9 @@ mod pipe;
 pub mod shm;
 pub mod signal;
 
-lazy_static! {
-    /// 一个全局变量，用于记录和管理 futex 的等待队列
-    pub static ref FUTEX_WAITER: Mutex<FutexWaitManager> = Mutex::new(FutexWaitManager::new());
-}
+/// 一个全局变量，用于记录和管理 futex 的等待队列
+pub static FUTEX_WAITER: Lazy<Mutex<FutexWaitManager>> =
+    Lazy::new(|| Mutex::new(FutexWaitManager::new()));
 
 /// 一对文件描述符。用于创建管道时，返回管道两个端口的文件描述符。
 #[repr(C)]

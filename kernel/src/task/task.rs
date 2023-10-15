@@ -3,63 +3,52 @@
 //! Alien 中对于进程\线程的相关概念的设计与 Linux 类似，进程和线程共用一个控制块结构。
 //! 使用 `clone` 创建新的进程(线程)时，会根据 flag 指明父子进程之间资源共享的程度。
 //! tid 是标识不同任务的唯一标识。
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::sync::{Arc, Weak};
-use alloc::vec::Vec;
-use alloc::{format, vec};
-use core::fmt::Debug;
-use core::ops::Range;
-
-use bit_field::BitField;
-use lazy_static::lazy_static;
-use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
-use page_table::pte::MappingFlags;
-use page_table::table::Sv39PageTable;
-use rvfs::dentry::DirEntry;
-use rvfs::file::{vfs_close_file, File};
-use rvfs::info::ProcessFsInfo;
-use rvfs::link::vfs_unlink;
-use rvfs::mount::VfsMount;
-
-use crate::ksync::{Mutex, MutexGuard};
-use gmanager::MinimalManager;
-use syscall_define::aux::{
-    AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
-    AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
-};
-use syscall_define::io::MapFlags;
-use syscall_define::ipc::RobustList;
-use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
-use syscall_define::sys::TimeVal;
-use syscall_define::task::CloneFlags;
-use syscall_define::time::TimerType;
-use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
-
-use crate::config::{CPU_NUM, FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
+use crate::config::*;
 use crate::error::{AlienError, AlienResult};
 use crate::fs::file::KFile;
 use crate::fs::vfs::VfsProvider;
 use crate::fs::{STDIN, STDOUT};
 use crate::ipc::{global_register_signals, ShmInfo};
-use crate::memory::{
-    build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
-    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
-};
+use crate::ksync::{Mutex, MutexGuard};
+use crate::memory::*;
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
 use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
+use alloc::collections::BTreeMap;
+use alloc::string::{String, ToString};
+use alloc::sync::{Arc, Weak};
+use alloc::vec::Vec;
+use alloc::{format, vec};
+use bit_field::BitField;
+use core::fmt::Debug;
+use core::ops::Range;
+use gmanager::MinimalManager;
+use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
+use page_table::pte::MappingFlags;
+use page_table::table::Sv39PageTable;
+use pconst::aux::*;
+use pconst::io::MapFlags;
+use pconst::ipc::RobustList;
+use pconst::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
+use pconst::sys::TimeVal;
+use pconst::task::CloneFlags;
+use pconst::time::TimerType;
+use pconst::{LinuxErrno, PrLimit, PrLimitRes};
+use rvfs::dentry::DirEntry;
+use rvfs::file::{vfs_close_file, File};
+use rvfs::info::ProcessFsInfo;
+use rvfs::link::vfs_unlink;
+use rvfs::mount::VfsMount;
+use spin::Lazy;
 
 type FdManager = MinimalManager<Arc<KFile>>;
 
-lazy_static! {
-    /// 这里把MinimalManager复用为tid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
-    /// 但tid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
-    pub static ref TID_MANAGER:Mutex<MinimalManager<u8>> = Mutex::new(MinimalManager::new(MAX_THREAD_NUM));
-}
+/// 这里把MinimalManager复用为tid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
+/// 但tid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
+pub static TID_MANAGER: Lazy<Mutex<MinimalManager<u8>>> =
+    Lazy::new(|| Mutex::new(MinimalManager::new(MAX_THREAD_NUM)));
 
 /// 用于存储线程的tid
 #[derive(Debug)]

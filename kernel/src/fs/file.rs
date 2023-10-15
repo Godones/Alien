@@ -187,7 +187,7 @@ mod kernel_file {
     use vfscore::dentry::VfsDentry;
 
     use crate::ksync::Mutex;
-    use syscall_define::io::{OpenFlags, SeekFrom};
+    use pconst::io::{OpenFlags, SeekFrom};
     use vfscore::error::VfsError;
     use vfscore::utils::FileStat;
     use vfscore::VfsResult;

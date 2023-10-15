@@ -3,8 +3,8 @@ use core::cmp::min;
 
 use bit_field::BitField;
 
-use syscall_define::signal::{SignalNumber, SimpleBitSet};
-use syscall_define::LinuxErrno;
+use pconst::signal::{SignalNumber, SimpleBitSet};
+use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::config::MAX_FD_NUM;

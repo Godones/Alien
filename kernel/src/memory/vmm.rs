@@ -7,13 +7,12 @@ use core::cmp::min;
 use core::fmt::Debug;
 use core::intrinsics::forget;
 
-use lazy_static::lazy_static;
+use crate::ksync::RwLock;
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::{PagingIf, Sv39PageTable};
+use spin::Lazy;
 use xmas_elf::program::{SegmentData, Type};
-
-use crate::ksync::RwLock;
 
 use crate::config::{
     ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
@@ -25,11 +24,11 @@ use crate::memory::frame::{addr_to_frame, frame_alloc};
 use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
 use crate::trap::TrapFrame;
 
-lazy_static! {
-    pub static ref KERNEL_SPACE: Arc<RwLock<Sv39PageTable<PageAllocator>>> = Arc::new(RwLock::new(
-        Sv39PageTable::<PageAllocator>::try_new().unwrap()
-    ));
-}
+pub static KERNEL_SPACE: Lazy<Arc<RwLock<Sv39PageTable<PageAllocator>>>> = Lazy::new(|| {
+    Arc::new(RwLock::new(
+        Sv39PageTable::<PageAllocator>::try_new().unwrap(),
+    ))
+});
 
 #[allow(unused)]
 extern "C" {

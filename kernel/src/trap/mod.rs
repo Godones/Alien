@@ -7,9 +7,9 @@ use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 pub use exception::trap_common_read_file;
-use syscall_define::signal::SignalNumber;
-use syscall_define::signal::SIGNAL_RETURN_TRAP;
-use syscall_define::time::TimerType;
+use pconst::signal::SignalNumber;
+use pconst::signal::SIGNAL_RETURN_TRAP;
+use pconst::time::TimerType;
 
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;

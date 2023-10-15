@@ -3,7 +3,7 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 
-use syscall_define::LinuxErrno;
+use pconst::LinuxErrno;
 
 use crate::fs::file::KFile;
 

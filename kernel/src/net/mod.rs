@@ -9,10 +9,10 @@ use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use syscall_define::net::{
+use pconst::net::{
     Domain, ShutdownFlag, SocketLevel, SocketOption, SocketType, TcpSocketOption, SOCKET_TYPE_MASK,
 };
-use syscall_define::LinuxErrno;
+use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::file::{FileSocketExt, KFile};
