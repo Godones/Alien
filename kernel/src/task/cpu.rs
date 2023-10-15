@@ -9,10 +9,10 @@ use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::Lazy;
 
 use crate::ksync::Mutex;
-use syscall_define::ipc::FutexOp;
-use syscall_define::signal::SignalNumber;
-use syscall_define::task::{CloneFlags, WaitOptions};
-use syscall_define::{PrLimit, PrLimitRes};
+use pconst::ipc::FutexOp;
+use pconst::signal::SignalNumber;
+use pconst::task::{CloneFlags, WaitOptions};
+use pconst::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
 use crate::arch;

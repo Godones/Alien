@@ -1,15 +1,14 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-
-use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
 use rvfs::inode::SpecialData;
 use rvfs::mount::VfsMount;
 use rvfs::superblock::{DataOps, Device};
 use rvfs::StrResult;
+use spin::Lazy;
 
-use syscall_define::io::{LocalModes, TeletypeCommand, Termios, WinSize};
+use pconst::io::{LocalModes, TeletypeCommand, Termios, WinSize};
 
 use crate::print::console::{check_have_char, get_char};
 use crate::task::current_task;
@@ -39,34 +38,31 @@ impl IoData {
     }
 }
 
-lazy_static! {
-    pub static ref STDIN: Arc<Stdin> = {
-        let mut file_ops = FileOps::empty();
-        file_ops.read = stdin_read;
-        let file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_RDONLY,
-            FileMode::FMODE_READ,
-            file_ops,
-        );
-        file.access_inner().f_ops_ext = {
-            let mut ext_ops = FileExtOps::empty();
-            ext_ops.is_ready_read = stdin_ready_to_read;
-            ext_ops.is_ready_write = |_| false;
-            ext_ops.ioctl = stdin_ioctl;
-            ext_ops
-        };
-        file.f_dentry.access_inner().d_inode.access_inner().data =
-            Some(Box::new(IoData::default()));
-        file.f_dentry
-            .access_inner()
-            .d_inode
-            .access_inner()
-            .special_data = Some(SpecialData::CharData(0 as *const u8));
-        Arc::new(file)
+pub static STDIN: Lazy<Arc<Stdin>> = Lazy::new(|| {
+    let mut file_ops = FileOps::empty();
+    file_ops.read = stdin_read;
+    let file = File::new(
+        Arc::new(DirEntry::empty()),
+        Arc::new(VfsMount::empty()),
+        OpenFlags::O_RDONLY,
+        FileMode::FMODE_READ,
+        file_ops,
+    );
+    file.access_inner().f_ops_ext = {
+        let mut ext_ops = FileExtOps::empty();
+        ext_ops.is_ready_read = stdin_ready_to_read;
+        ext_ops.is_ready_write = |_| false;
+        ext_ops.ioctl = stdin_ioctl;
+        ext_ops
     };
-}
+    file.f_dentry.access_inner().d_inode.access_inner().data = Some(Box::new(IoData::default()));
+    file.f_dentry
+        .access_inner()
+        .d_inode
+        .access_inner()
+        .special_data = Some(SpecialData::CharData(0 as *const u8));
+    Arc::new(file)
+});
 
 fn stdin_ready_to_read(_file: Arc<File>) -> bool {
     check_have_char()
@@ -102,34 +98,32 @@ fn stdin_read(file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize>
     }
     Ok(read_count)
 }
-lazy_static! {
-    pub static ref STDOUT: Arc<Stdout> = {
-        let mut file_ops = FileOps::empty();
-        file_ops.write = stdout_write;
-        let file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_WRONLY,
-            FileMode::FMODE_WRITE,
-            file_ops,
-        );
-        file.access_inner().f_ops_ext = {
-            let mut ext_ops = FileExtOps::empty();
-            ext_ops.is_ready_read = |_| false;
-            ext_ops.is_ready_write = |_| true;
-            ext_ops.ioctl = stdin_ioctl;
-            ext_ops
-        };
-        file.f_dentry.access_inner().d_inode.access_inner().data =
-            Some(Box::new(IoData::default()));
-        file.f_dentry
-            .access_inner()
-            .d_inode
-            .access_inner()
-            .special_data = Some(SpecialData::CharData(0 as *const u8));
-        Arc::new(file)
+
+pub static STDOUT: Lazy<Arc<Stdout>> = Lazy::new(|| {
+    let mut file_ops = FileOps::empty();
+    file_ops.write = stdout_write;
+    let file = File::new(
+        Arc::new(DirEntry::empty()),
+        Arc::new(VfsMount::empty()),
+        OpenFlags::O_WRONLY,
+        FileMode::FMODE_WRITE,
+        file_ops,
+    );
+    file.access_inner().f_ops_ext = {
+        let mut ext_ops = FileExtOps::empty();
+        ext_ops.is_ready_read = |_| false;
+        ext_ops.is_ready_write = |_| true;
+        ext_ops.ioctl = stdin_ioctl;
+        ext_ops
     };
-}
+    file.f_dentry.access_inner().d_inode.access_inner().data = Some(Box::new(IoData::default()));
+    file.f_dentry
+        .access_inner()
+        .d_inode
+        .access_inner()
+        .special_data = Some(SpecialData::CharData(0 as *const u8));
+    Arc::new(file)
+});
 
 fn stdout_write(_file: Arc<File>, buf: &[u8], _offset: u64) -> StrResult<usize> {
     uprint!("{}", core::str::from_utf8(buf).unwrap());

@@ -14,13 +14,12 @@ use alloc::collections::BinaryHeap;
 use alloc::sync::Arc;
 use core::cmp::Ordering;
 
-use lazy_static::lazy_static;
-
 use crate::ksync::Mutex;
+use pconst::sys::TimeVal;
+use pconst::time::{ClockId, TimerType};
+use pconst::LinuxErrno;
 use smpscheduler::FifoTask;
-use syscall_define::sys::TimeVal;
-use syscall_define::time::{ClockId, TimerType};
-use syscall_define::LinuxErrno;
+use spin::Lazy;
 use syscall_table::syscall_func;
 
 use crate::arch;
@@ -313,12 +312,11 @@ impl Ord for Timer {
     }
 }
 
-lazy_static! {
-    /// 存储所有当前处于等待状态的计时器，是一个二叉树结构。
-    ///
-    /// 保证存储在该队列中的计时器，按照超时时间 由先到后 的次序排列。
-    pub static ref TIMER_QUEUE: Mutex<BinaryHeap<Timer>> = Mutex::new(BinaryHeap::new());
-}
+/// 存储所有当前处于等待状态的计时器，是一个二叉树结构。
+///
+/// 保证存储在该队列中的计时器，按照超时时间 由先到后 的次序排列。
+pub static TIMER_QUEUE: Lazy<Mutex<BinaryHeap<Timer>>> =
+    Lazy::new(|| Mutex::new(BinaryHeap::new()));
 
 /// 将一个需要等待在 超时时间为 `end_time` 的计数器上的进程记录到计数器列表中
 pub fn push_to_timer_queue(process: Arc<Task>, end_time: usize) {

@@ -1,8 +1,6 @@
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
-
 use cfg_if::cfg_if;
-use lazy_static::lazy_static;
 use spin::Once;
 
 use crate::ksync::Mutex;
@@ -19,10 +17,7 @@ mod timer;
 
 pub static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 
-lazy_static! {
-    pub static ref DEVICE_TABLE: Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>> =
-        Mutex::new(BTreeMap::new());
-}
+pub static DEVICE_TABLE: Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>> = Mutex::new(BTreeMap::new());
 
 pub trait DeviceBase: Sync + Send {
     fn hand_irq(&self);

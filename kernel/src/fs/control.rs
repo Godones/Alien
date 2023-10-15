@@ -3,8 +3,8 @@ use rvfs::file::{vfs_ioctl, vfs_open_file, FileMode, OpenFlags};
 use rvfs::info::VfsTime;
 use rvfs::stat::vfs_set_time;
 
-use syscall_define::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, TeletypeCommand};
-use syscall_define::LinuxErrno;
+use pconst::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, TeletypeCommand};
+use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::file::{FileIoctlExt, FileSocketExt};

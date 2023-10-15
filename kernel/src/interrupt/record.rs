@@ -3,18 +3,15 @@ use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::String;
 use alloc::sync::Arc;
-use lazy_static::lazy_static;
 use rvfs::file::{vfs_write_file, File, FileMode2};
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
-lazy_static! {
-    pub static ref INTERRUPT_RECORD: Mutex<BTreeMap<usize, usize>> = {
-        let mut tree = BTreeMap::new();
-        tree.insert(1, 1); // timer
-        tree.insert(10, 1); // uart
-        Mutex::new(tree)
-    };
-}
+pub static INTERRUPT_RECORD: Lazy<Mutex<BTreeMap<usize, usize>>> = Lazy::new(|| {
+    let mut tree = BTreeMap::new();
+    tree.insert(1, 1); // timer
+    tree.insert(10, 1); // uart
+    Mutex::new(tree)
+});
 
 pub fn write_irq_info(irq: usize) {
     let mut interrupts = INTERRUPT_RECORD.lock();

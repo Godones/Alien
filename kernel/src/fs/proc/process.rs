@@ -1,8 +1,8 @@
 use crate::error_unwrap;
 use crate::task::current_task;
 use crate::timer::TimeFromFreq;
-use syscall_define::sys::{Rusage, RusageFlag, TimeVal};
-use syscall_define::LinuxErrno;
+use pconst::sys::{Rusage, RusageFlag, TimeVal};
+use pconst::LinuxErrno;
 /// (待完善)一个系统调用，用于获取对系统资源的使用量信息。获取的信息将保存到`usage`所指向的[`Rusage`]结构中。
 ///
 /// 可以通过`who`修改获取信息的对象，包括:

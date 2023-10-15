@@ -12,8 +12,8 @@ use page_table::addr::{align_down_4k, PhysAddr, VirtAddr};
 use page_table::table::PageSize;
 
 use crate::ksync::{Mutex, MutexGuard};
-use syscall_define::ipc::{ShmAtFlags, ShmCtlCmd, ShmGetFlags, IPC_PRIVATE};
-use syscall_define::LinuxErrno;
+use pconst::ipc::{ShmAtFlags, ShmCtlCmd, ShmGetFlags, IPC_PRIVATE};
+use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::config::FRAME_SIZE;

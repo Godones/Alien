@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
-use syscall_define::io::{PollEvents, PollFd};
-use syscall_define::LinuxErrno;
+use pconst::io::{PollEvents, PollFd};
+use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::file::FilePollExt;

@@ -6,8 +6,8 @@ use bitflags::bitflags;
 use page_table::addr::{align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 
-use syscall_define::io::MapFlags;
-use syscall_define::LinuxErrno;
+use pconst::io::MapFlags;
+use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::config::{FRAME_SIZE, PROCESS_HEAP_MAX};

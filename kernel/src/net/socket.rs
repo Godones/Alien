@@ -19,10 +19,10 @@ use rvfs::mount::VfsMount;
 use rvfs::superblock::{DataOps, Device};
 use rvfs::StrResult;
 
+use pconst::net::{Domain, SocketType};
+use pconst::LinuxErrno;
 use simple_net::tcp::TcpSocket;
 use simple_net::udp::UdpSocket;
-use syscall_define::net::{Domain, SocketType};
-use syscall_define::LinuxErrno;
 
 use crate::net::addr::SocketAddrExt;
 use crate::net::port::neterror2linux;

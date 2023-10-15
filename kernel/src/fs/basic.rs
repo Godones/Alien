@@ -2,8 +2,8 @@ use crate::fs::vfs::VfsProvider;
 use crate::option_unwrap;
 use crate::task::current_task;
 use alloc::vec;
+use pconst::LinuxErrno;
 use rvfs::file::{vfs_llseek, vfs_read_file, vfs_write_file, SeekFrom};
-use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 #[syscall_func(285)]

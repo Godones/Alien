@@ -3,33 +3,29 @@ use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ptr::null;
-
 use fat32_vfs::fstype::FAT;
-use lazy_static::lazy_static;
 use rvfs::dentry::DirEntry;
 use rvfs::devfs::DEVFS_TYPE;
-use rvfs::file::{
-    vfs_mkdir, vfs_mknod, vfs_open_file, vfs_read_file, vfs_write_file, FileMode, FileMode2,
-    OpenFlags,
-};
+use rvfs::file::*;
 use rvfs::info::{ProcessFs, ProcessFsInfo, VfsTime};
 use rvfs::inode::{InodeMode, SpecialData};
 use rvfs::mount::{do_mount, MountFlags, VfsMount};
 use rvfs::mount_rootfs;
 use rvfs::ramfs::tmpfs::TMP_FS_TYPE;
 use rvfs::superblock::{register_filesystem, DataOps, Device};
+use spin::Lazy;
 
 use crate::ksync::Mutex;
 
-use crate::config::{INTERRUPT_RECORD, MEMINFO, PASSWORD, RTC_TIME, UTC};
+use crate::config::*;
 use crate::device::{get_rtc_time, BLOCK_DEVICE};
 use crate::task::current_task;
 
 // only call once before the first process is created
-lazy_static! {
-    pub static ref TMP_MNT: Mutex<Arc<VfsMount>> = Mutex::new(Arc::new(VfsMount::empty()));
-    pub static ref TMP_DIR: Mutex<Arc<DirEntry>> = Mutex::new(Arc::new(DirEntry::empty()));
-}
+pub static TMP_MNT: Lazy<Mutex<Arc<VfsMount>>> =
+    Lazy::new(|| Mutex::new(Arc::new(VfsMount::empty())));
+pub static TMP_DIR: Lazy<Mutex<Arc<DirEntry>>> =
+    Lazy::new(|| Mutex::new(Arc::new(DirEntry::empty())));
 
 const MOUNT_INFO: &str = r"
  rootfs / rootfs rw 0 0
