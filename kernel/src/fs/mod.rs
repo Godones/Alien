@@ -120,12 +120,12 @@ pub fn init_filesystem() {
     dev_mount
         .to_mount_point(devfs_root, MountFlags::empty())
         .unwrap();
-    vfscore::path::print_fs_tree(
-        &mut (*crate::print::console::STDOUT.lock()),
-        ramfs_root.clone(),
-        "".to_string(),
-    )
-    .unwrap();
+    // vfscore::path::print_fs_tree(
+    //     &mut (*crate::print::console::STDOUT.lock()),
+    //     ramfs_root.clone(),
+    //     "".to_string(),
+    // )
+    // .unwrap();
     println!("init filesystem success");
 }
 
