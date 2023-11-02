@@ -131,23 +131,6 @@ make unmatched LOG= UNMATCHED=y SMP=2
 ## [Doc](./doc/doc.md)
 
 
-
-## Feature
-
-- [x] Thread/Mutil-core
-- [x] full vfs
-- [x] fat32
-- [x] dbfs
-- [x] Mutex
-- [x] sleep task queue
-- [x] uart task queue
-- [x] a simple shell
-- [x] memory management
-- [x] process management
-- [x] stack trace
-- [x] signal
-- [ ] ....
-
 ## App/Test
 
 - [x] libc-test
