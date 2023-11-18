@@ -4,7 +4,7 @@ use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{FileStat, VfsNodeType};
+use vfscore::utils::{VfsFileStat, VfsNodePerm, VfsNodeType};
 use vfscore::VfsResult;
 
 pub struct NullDevice {
@@ -35,17 +35,20 @@ impl VfsInode for NullDevice {
         Err(VfsError::NoSys)
     }
 
+    fn node_perm(&self) -> VfsNodePerm {
+        VfsNodePerm::empty()
+    }
+
     fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
         Ok(())
     }
 
-    fn get_attr(&self) -> VfsResult<FileStat> {
-        Ok(FileStat {
+    fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        Ok(VfsFileStat {
             st_rdev: self.device_id.id(),
             ..Default::default()
         })
     }
-
     fn inode_type(&self) -> VfsNodeType {
         VfsNodeType::CharDevice
     }

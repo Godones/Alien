@@ -1,27 +1,26 @@
 //! 有关 Unix 协议族下的套接字结构。(目前有关的功能有待支持)
 use alloc::string::String;
 use alloc::sync::Arc;
-use core::cell::UnsafeCell;
-
 use pconst::LinuxErrno;
 
-use crate::fs::file::KFile;
+use crate::fs::file::File;
+use crate::ksync::Mutex;
 
 /// Unix 协议族下的套接字结构
 #[allow(unused)]
 pub struct UnixSocket {
     /// 文件路径，即套接字地址
-    file_path: UnsafeCell<Option<String>>,
+    file_path: Mutex<Option<String>>,
     /// 套接字数据
-    file: UnsafeCell<Option<Arc<KFile>>>,
+    file: Mutex<Option<Arc<dyn File>>>,
 }
 
 impl UnixSocket {
     /// 创建一个新的 Unix 协议族下的套接字结构
     pub fn new() -> Self {
         Self {
-            file_path: UnsafeCell::new(None),
-            file: UnsafeCell::new(None),
+            file_path: Mutex::new(None),
+            file: Mutex::new(None),
         }
     }
 

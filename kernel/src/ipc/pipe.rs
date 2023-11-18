@@ -10,25 +10,150 @@
 //! 、[`pipe_ready_to_write`] 几个操作函数，即可快速的创建管道文件，并将其放入进程的文件描述
 //! 符表中。
 
-use alloc::boxed::Box;
-use alloc::sync::{Arc, Weak};
-use core::intrinsics::forget;
-
-use rvfs::dentry::DirEntry;
-use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags, SeekFrom};
-use rvfs::inode::SpecialData;
-use rvfs::mount::VfsMount;
-use rvfs::StrResult;
-
 use crate::config::PIPE_BUF;
-use crate::fs::file::KFile;
+use crate::error::AlienResult;
+use crate::fs::file::File;
+use crate::fs::CommonFsProviderImpl;
+use crate::ksync::Mutex;
 use crate::task::{current_task, do_suspend};
+use alloc::string::{String, ToString};
+use alloc::sync::{Arc, Weak};
+use alloc::vec::Vec;
+use core::fmt::{Debug, Formatter};
+use core::sync::atomic::AtomicUsize;
+use dynfs::DynFsDirInode;
+use pconst::io::{MountFlags, OpenFlags, PollEvents, SeekFrom};
+use pconst::LinuxErrno;
+use spin::Once;
+use vfscore::dentry::VfsDentry;
+use vfscore::error::VfsError;
+use vfscore::file::VfsFile;
+use vfscore::fstype::VfsFsType;
+use vfscore::impl_common_inode_default;
+use vfscore::inode::{InodeAttr, VfsInode};
+use vfscore::superblock::VfsSuperBlock;
+use vfscore::utils::VfsPollEvents;
+use vfscore::utils::*;
+use vfscore::VfsResult;
 
-/// 管道结构
-pub struct Pipe;
+type PipeFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;
+static PIPE_FS_ROOT: Once<Arc<dyn VfsDentry>> = Once::new();
+
+static PIPE: AtomicUsize = AtomicUsize::new(0);
+
+/// 管道文件
+pub struct PipeFile {
+    open_flag: Mutex<OpenFlags>,
+    dentry: Arc<dyn VfsDentry>,
+    inode_copy: Arc<PipeInode>,
+}
+
+impl Debug for PipeFile {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("PipeFile")
+            .field("open_flag", &self.open_flag)
+            .field("name", &self.dentry.name())
+            .finish()
+    }
+}
+
+impl PipeFile {
+    pub fn new(
+        dentry: Arc<dyn VfsDentry>,
+        open_flag: OpenFlags,
+        inode_copy: Arc<PipeInode>,
+    ) -> Self {
+        Self {
+            open_flag: Mutex::new(open_flag),
+            dentry,
+            inode_copy,
+        }
+    }
+}
+
+pub fn init_pipefs(fs: Arc<dyn VfsFsType>) {
+    let root = fs
+        .i_mount(MountFlags::empty().bits(), "", None, &[])
+        .unwrap();
+    PIPE_FS_ROOT.call_once(|| root);
+}
+
+/// create a pipe file
+pub fn make_pipe_file() -> VfsResult<(Arc<PipeFile>, Arc<PipeFile>)> {
+    let root = PIPE_FS_ROOT.get().unwrap();
+    let root_inode = root
+        .inode()?
+        .downcast_arc::<PipeFsDirInodeImpl>()
+        .map_err(|_| VfsError::Invalid)
+        .unwrap();
+    let inode = Arc::new(PipeInode::new());
+    let num_str = PIPE.fetch_add(1, core::sync::atomic::Ordering::AcqRel);
+    let same_inode =
+        root_inode.add_file_manually(&num_str.to_string(), inode.clone(), "rw-rw-rw-".into())?;
+    let dt = root.i_insert(&num_str.to_string(), same_inode)?;
+    let reader = Arc::new(PipeFile::new(
+        dt.clone(),
+        OpenFlags::O_RDONLY,
+        inode.clone(),
+    ));
+    let sender = Arc::new(PipeFile::new(dt, OpenFlags::O_WRONLY, inode.clone()));
+    inode.set_reader(&reader);
+    inode.set_sender(&sender);
+    Ok((reader, sender))
+}
+
+impl File for PipeFile {
+    fn read(&self, buf: &mut [u8]) -> AlienResult<usize> {
+        if buf.len() == 0 {
+            return Ok(0)
+        }
+        self.dentry.inode()?.read_at(0, buf).map_err(|e| e.into())
+    }
+    fn write(&self, buf: &[u8]) -> AlienResult<usize> {
+        if buf.len() == 0 {
+            return Ok(0)
+        }
+        self.dentry.inode()?.write_at(0, buf).map_err(|e| e.into())
+    }
+    fn seek(&self, _pos: SeekFrom) -> AlienResult<u64> {
+        Err(LinuxErrno::ESPIPE)
+    }
+    fn get_attr(&self) -> AlienResult<VfsFileStat> {
+        Err(LinuxErrno::ENOSYS)
+    }
+    fn dentry(&self) -> Arc<dyn VfsDentry> {
+        self.dentry.clone()
+    }
+    fn inode(&self) -> Arc<dyn VfsInode> {
+        self.dentry.inode().unwrap()
+    }
+    fn is_readable(&self) -> bool {
+        let open_flag = self.open_flag.lock();
+        open_flag.contains(OpenFlags::O_RDONLY | OpenFlags::O_RDWR)
+    }
+
+    fn is_writable(&self) -> bool {
+        let open_flag = self.open_flag.lock();
+        open_flag.contains(OpenFlags::O_WRONLY | OpenFlags::O_RDWR)
+    }
+    fn is_append(&self) -> bool {
+        false
+    }
+    fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
+        let inode = self.dentry.inode()?;
+        let res = inode
+            .poll(VfsPollEvents::from_bits_truncate(_event.bits()))
+            .map(|e| PollEvents::from_bits_truncate(e.bits()));
+        res.map_err(Into::into)
+    }
+}
 
 /// 环形缓冲区，用于在内存中维护管道的相关信息。
-pub struct RingBuffer {
+pub struct PipeInode {
+    data: Mutex<PipeInodeData>,
+}
+
+struct PipeInodeData {
     /// 缓冲区的数据部分
     pub buf: [u8; PIPE_BUF],
     /// 缓冲区头部，用于指明当前的读位置
@@ -36,26 +161,12 @@ pub struct RingBuffer {
     /// 缓冲区尾部，用于指明当前的写位置
     pub tail: usize,
     /// 记录 在 读端 进行等待的进程
-    pub read_wait: Option<Weak<KFile>>,
+    pub read_wait: Option<Weak<PipeFile>>,
     /// 记录 在 写端 进行等待的进程
-    pub write_wait: Option<Weak<KFile>>,
-    /// 引用计数
-    pub ref_count: usize,
+    pub write_wait: Option<Weak<PipeFile>>,
 }
 
-impl RingBuffer {
-    /// 创建一片新的管道缓冲区，在 `Pipe::new` 中被调用
-    pub fn new() -> RingBuffer {
-        RingBuffer {
-            buf: [0; PIPE_BUF],
-            head: 0,
-            tail: 0,
-            read_wait: None,
-            write_wait: None,
-            ref_count: 2,
-        }
-    }
-
+impl PipeInodeData {
     /// 用于返回当前的缓冲区是否为空
     pub fn is_empty(&self) -> bool {
         self.head == self.tail
@@ -74,7 +185,6 @@ impl RingBuffer {
             PIPE_BUF - self.head + self.tail
         }
     }
-
     /// 返回当前缓冲区中还能够写入的字节数
     pub fn available_write(&self) -> usize {
         if self.head <= self.tail {
@@ -106,12 +216,6 @@ impl RingBuffer {
         count
     }
 
-    /// 清除缓冲区中的内容，当前实现为将 head 和 tail 重置为 0
-    pub fn clear(&mut self) {
-        self.head = 0;
-        self.tail = 0;
-    }
-
     /// 返回是否有进程在 写端等待
     pub fn is_write_wait(&self) -> bool {
         self.write_wait.is_some() && self.write_wait.as_ref().unwrap().upgrade().is_some()
@@ -123,267 +227,174 @@ impl RingBuffer {
     }
 }
 
-impl Pipe {
-    /// 创建一个管道，初始化环形缓冲区，返回一对文件，分别对应读端文件和写端文件。
-    ///
-    /// 过程包括创建一个环形缓冲区、创建并初始化写端文件和读端文件、
-    /// 将两个文件与环形缓冲区相连、使得通过两个端文件快速对缓冲区进行读写等。
-    pub fn new() -> (Arc<KFile>, Arc<KFile>) {
-        let mut buf = Box::new(RingBuffer::new());
-        let mut tx_file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_WRONLY,
-            FileMode::FMODE_WRITE,
-            FileOps::empty(),
-        );
-        tx_file.f_ops = {
-            let mut ops = FileOps::empty();
-            ops.write = pipe_write;
-            ops.release = pipe_release;
-            ops.llseek = pipe_llseek;
-            ops
-        };
-        tx_file.access_inner().f_ops_ext = {
-            FileExtOps {
-                is_ready_read: |_| false,
-                is_ready_write: pipe_ready_to_write,
-                is_ready_exception: |_| false,
-                is_hang_up: pipe_write_is_hang_up,
-                ioctl: |_, _, _| -1,
-            }
-        };
-        let mut rx_file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_RDONLY,
-            FileMode::FMODE_READ,
-            FileOps::empty(),
-        );
-        rx_file.f_ops = {
-            let mut ops = FileOps::empty();
-            ops.read = pipe_read;
-            ops.release = pipe_release;
-            ops.llseek = pipe_llseek;
-            ops
-        };
-        rx_file.access_inner().f_ops_ext = {
-            FileExtOps {
-                is_ready_read: pipe_ready_to_read,
-                is_ready_write: |_| false,
-                is_ready_exception: |_| false,
-                is_hang_up: pipe_read_is_hang_up,
-                ioctl: |_, _, _| -1,
-            }
-        };
+impl PipeInode {
+    /// 创建一片新的管道缓冲区，在 `Pipe::new` 中被调用
+    pub fn new() -> PipeInode {
+        PipeInode {
+            data: Mutex::new(PipeInodeData {
+                buf: [0; PIPE_BUF],
+                head: 0,
+                tail: 0,
+                read_wait: None,
+                write_wait: None,
+            }),
+        }
+    }
 
-        let (rx_file, tx_file) = (Arc::new(rx_file), Arc::new(tx_file));
-        let (rx_file, tx_file) = (KFile::new(rx_file), KFile::new(tx_file));
-        buf.read_wait = Some(Arc::downgrade(&rx_file));
-        buf.write_wait = Some(Arc::downgrade(&tx_file));
-        let ptr = Box::into_raw(buf) as *const u8;
-        rx_file
-            .f_dentry
-            .access_inner()
-            .d_inode
-            .access_inner()
-            .special_data = Some(SpecialData::PipeData(ptr));
-        tx_file
-            .f_dentry
-            .access_inner()
-            .d_inode
-            .access_inner()
-            .special_data = Some(SpecialData::PipeData(ptr));
-        (rx_file, tx_file)
+    pub fn set_reader(&self, reader: &Arc<PipeFile>) {
+        let mut data = self.data.lock();
+        data.read_wait = Some(Arc::downgrade(reader))
+    }
+    pub fn set_sender(&self, sender: &Arc<PipeFile>) {
+        let mut data = self.data.lock();
+        data.write_wait = Some(Arc::downgrade(sender))
     }
 }
 
-/// 管道文件的写操作，效果等同于 RingBuffer::write
-fn pipe_write(file: Arc<File>, user_buf: &[u8], _offset: u64) -> StrResult<usize> {
-    warn!("pipe_write: {:?}, mode:{:?}", user_buf.len(), file.f_mode);
-    let inode = file.f_dentry.access_inner().d_inode.clone();
-    let mut count = 0;
-    loop {
-        let inode_inner = inode.access_inner();
-        assert!(inode_inner.special_data.is_some());
-        let data = inode_inner.special_data.as_ref().unwrap();
-        let ptr = match data {
-            SpecialData::PipeData(ptr) => *ptr,
-            _ => panic!("pipe_write: invalid special data"),
-        };
-        if ptr.is_null() {
-            panic!("pipe_write: ptr is null");
-        }
-        let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
-        let available = buf.available_write();
-        if available == 0 {
-            if !buf.is_read_wait() {
-                // if there is no process waiting for reading, we should return
-                forget(buf);
-                break;
-            }
-            // wait for reading
-            drop(inode_inner);
-            do_suspend();
-            let task = current_task().unwrap();
-            let task_inner = task.access_inner();
-            let receiver = task_inner.signal_receivers.lock();
-            if receiver.have_signal() {
-                error!("pipe_write: have signal");
-                forget(buf);
-                return Err("pipe_write: have signal");
-            }
-        } else {
-            let min = core::cmp::min(available, user_buf.len() - count);
-            error!("pipe_write: min:{}, count:{}", min, count);
-            count += buf.write(&user_buf[count..count + min]);
-            forget(buf);
-            break;
-        }
-        forget(buf); // we can't drop the buf here, because the inode still holds the pointer
-    }
-    warn!("pipe_write: count:{}", count);
-    Ok(count)
-}
-
-/// 管道文件的写操作，效果等同于 RingBuffer::read
-fn pipe_read(file: Arc<File>, user_buf: &mut [u8], _offset: u64) -> StrResult<usize> {
-    debug!("pipe_read: {:?}", user_buf.len());
-    let inode = file.f_dentry.access_inner().d_inode.clone();
-    let mut count = 0;
-    loop {
-        let inode_inner = inode.access_inner();
-        assert!(inode_inner.special_data.is_some());
-        let data = inode_inner.special_data.as_ref().unwrap();
-        let ptr = match data {
-            SpecialData::PipeData(ptr) => *ptr,
-            _ => panic!("pipe_read: invalid special data"),
-        };
-        let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
-        let available = buf.available_read();
-        warn!("pipe_read: available:{}", available);
-        if available == 0 {
-            if !buf.is_write_wait() {
-                // if there is no process waiting for writing, we should return
-                forget(buf);
-                break;
-            }
-            // wait for writing
-            drop(inode_inner);
-            do_suspend();
-            error!("pipe_read: suspend");
-            // check signal
-            let task = current_task().unwrap();
-            // interrupt by signal
-            let task_inner = task.access_inner();
-            let receiver = task_inner.signal_receivers.lock();
-            if receiver.have_signal() {
-                forget(buf);
-                return Err("interrupted by signal");
-            }
-        } else {
-            let min = core::cmp::min(available, user_buf.len() - count);
-            count += buf.read(&mut user_buf[count..count + min]);
-            forget(buf);
-            break;
-        }
-        forget(buf); // we can't drop the buf here, because the inode still holds the pointer
-    }
-    warn!("pipe_read: return count:{}", count);
-    Ok(count)
-}
-
-/// 管道文件的释放操作，用于关闭管道文件时
-fn pipe_release(file: Arc<File>) -> StrResult<()> {
-    warn!("pipe_release: file");
-    assert_eq!(Arc::strong_count(&file), 1);
-    let inode = &file.f_dentry.access_inner().d_inode;
-    assert!(inode.access_inner().special_data.is_some());
-    let inode_inner = inode.access_inner();
-    let data = inode_inner.special_data.as_ref().unwrap();
-    let ptr = match data {
-        SpecialData::PipeData(ptr) => *ptr,
-        _ => panic!("pipe_release: invalid special data"),
-    };
-    let mut buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
-    buf.ref_count -= 1;
-    warn!("buf.refcount :{}", buf.ref_count);
-    if buf.ref_count == 0 {
-        // the last pipe file is closed, we should free the buffer
-        debug!("pipe_release: free buffer");
-        drop(buf);
-    } else {
-        forget(buf)
-    }
-    warn!("pipe_release: return");
-    Ok(())
-}
-
-/// 管道文件 [`pipe_exec`] 操作中 `func` 参数的类型
-pub enum PipeFunc {
-    /// 读就绪操作
-    AvailableRead,
-    /// 写就绪操作
-    AvailableWrite,
-    /// 某端是否被悬挂操作，当其中的布尔值为 true 时，表示检查的是读端；否则为写端。具体可见 [`pipe_read_is_hang_up`] 和 [`pipe_write_is_hang_up`]
-    Hangup(bool),
-    /// 未知操作
-    Unknown,
-}
-
-/// 管道文件的 exec 操作，用于被其他文件操作函数调用
-fn pipe_exec(file: Arc<File>, func: PipeFunc) -> bool {
-    let inode = file.f_dentry.access_inner().d_inode.clone();
-    let inode_inner = inode.access_inner();
-    assert!(inode_inner.special_data.is_some());
-    let data = inode_inner.special_data.as_ref().unwrap();
-    let ptr = match data {
-        SpecialData::PipeData(ptr) => *ptr,
-        _ => panic!("pipe_read: invalid special data"),
-    };
-    let buf = unsafe { Box::from_raw(ptr as *mut RingBuffer) };
-    let res = match func {
-        PipeFunc::AvailableRead => {
-            let av = buf.available_read();
-            trace!("pipe_exec: available_read:{}", av);
-            av > 0
-        }
-        PipeFunc::AvailableWrite => buf.available_write() > 0,
-        PipeFunc::Hangup(is_read) => {
-            if is_read {
-                !buf.is_write_wait()
+impl VfsFile for PipeInode {
+    fn read_at(&self, _offset: u64, user_buf: &mut [u8]) -> VfsResult<usize> {
+        info!("pipe_read: {:?}", user_buf.len());
+        let mut count = 0;
+        loop {
+            let mut buf = self.data.lock();
+            let available = buf.available_read();
+            info!("pipe_read: available:{}", available);
+            if available == 0 {
+                if !buf.is_write_wait() {
+                    // if there is no process waiting for writing, we should return
+                    break;
+                } else {
+                    // wait for writing
+                    drop(buf);
+                    do_suspend();
+                    warn!("pipe_read: suspend");
+                    // check signal
+                    let task = current_task().unwrap();
+                    // interrupt by signal
+                    let task_inner = task.access_inner();
+                    let receiver = task_inner.signal_receivers.lock();
+                    if receiver.have_signal() {
+                        error!("pipe_write: have signal");
+                        return Err(VfsError::EINTR);
+                    }
+                }
             } else {
-                !buf.is_read_wait()
+                let min = core::cmp::min(available, user_buf.len() - count);
+                count += buf.read(&mut user_buf[count..count + min]);
+                break;
             }
         }
-        _ => false,
-    };
-    forget(buf);
-    res
+        info!("pipe_read: return count:{}", count);
+        Ok(count)
+    }
+    fn write_at(&self, _offset: u64, user_buf: &[u8]) -> VfsResult<usize> {
+        info!("pipe_write: {:?}", user_buf.len());
+        let mut count = 0;
+        loop {
+            let mut buf = self.data.lock();
+            let available = buf.available_write();
+            if available == 0 {
+                if !buf.is_read_wait() {
+                    // if there is no process waiting for reading, we should return
+                    break;
+                }
+                // release lock
+                drop(buf);
+                // wait for reading
+                do_suspend();
+                let task = current_task().unwrap();
+                let task_inner = task.access_inner();
+                let receiver = task_inner.signal_receivers.lock();
+                if receiver.have_signal() {
+                    error!("pipe_write: have signal");
+                    return Err(VfsError::EINTR);
+                }
+            } else {
+                let min = core::cmp::min(available, user_buf.len() - count);
+                info!("pipe_write: min:{}, count:{}", min, count);
+                count += buf.write(&user_buf[count..count + min]);
+                break;
+            }
+        }
+        info!("pipe_write: count:{}", count);
+        Ok(count)
+    }
+    fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
+        let data = self.data.lock();
+        let mut res = VfsPollEvents::empty();
+        if event.contains(VfsPollEvents::IN) {
+            if data.available_read() > 0 {
+                res |= VfsPollEvents::IN;
+            }
+        }
+        if event.contains(VfsPollEvents::OUT) {
+            if data.available_write() > 0 {
+                res |= VfsPollEvents::OUT
+            }
+        }
+        let is_reader = data.is_read_wait();
+        let is_sender = data.is_write_wait();
+        if is_reader && !is_sender {
+            res |= VfsPollEvents::HUP;
+        }
+        if !is_reader && is_sender {
+            res |= VfsPollEvents::ERR;
+        }
+        Ok(res)
+    }
 }
 
-/// 管道文件的读就绪操作，用于检查管道文件是否准备好读，效果等同于 RingBuffer::available_read
-fn pipe_ready_to_read(file: Arc<File>) -> bool {
-    pipe_exec(file, PipeFunc::AvailableRead)
+impl VfsInode for PipeInode {
+    impl_common_inode_default!();
+
+    fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
+        Err(VfsError::NoSys)
+    }
+
+    fn node_perm(&self) -> VfsNodePerm {
+        VfsNodePerm::empty()
+    }
+
+    fn readlink(&self, _buf: &mut [u8]) -> VfsResult<usize> {
+        Err(VfsError::NoSys)
+    }
+
+    fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
+        Err(VfsError::NoSys)
+    }
+
+    fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        Err(VfsError::NoSys)
+    }
+
+    fn list_xattr(&self) -> VfsResult<Vec<String>> {
+        Err(VfsError::NoSys)
+    }
+
+    fn inode_type(&self) -> VfsNodeType {
+        VfsNodeType::Fifo
+    }
+    fn update_time(&self, _: VfsTime, _: VfsTimeSpec) -> VfsResult<()> {
+        Err(VfsError::NoSys)
+    }
 }
 
-/// 管道文件的写就绪操作，用于检查管道文件是否准备好写，效果等同于 RingBuffer::available_write
-fn pipe_ready_to_write(file: Arc<File>) -> bool {
-    pipe_exec(file, PipeFunc::AvailableWrite)
-}
-
-/// 管道文件的 "读端是否处于悬挂状态" 操作，用于检查管道文件的写端是否已经被关闭，效果等同于 !RingBuffer::is_write_wait
-fn pipe_read_is_hang_up(file: Arc<File>) -> bool {
-    let pipe_hang_up = pipe_exec(file, PipeFunc::Hangup(true));
-    pipe_hang_up
-}
-
-/// 管道文件的 "写端是否处于悬挂状态" 操作，用于检查管道文件的读端是否已经被关闭，效果等同于 !RingBuffer::is_read_wait
-fn pipe_write_is_hang_up(file: Arc<File>) -> bool {
-    pipe_exec(file, PipeFunc::Hangup(false))
-}
-
-/// (待实现)用于移动管道文件的文件指针，目前仅返回错误
-fn pipe_llseek(_file: Arc<File>, _whence: SeekFrom) -> StrResult<u64> {
-    Err("ESPIPE")
+impl Drop for PipeFile {
+    fn drop(&mut self) {
+        let data = self.inode_copy.data.lock();
+        let is_reader = data.is_read_wait();
+        let is_sender = data.is_write_wait();
+        if !is_reader && !is_sender {
+            let name = self.dentry.name();
+            let root = PIPE_FS_ROOT.get().unwrap();
+            let root_inode = root
+                .inode()
+                .unwrap()
+                .downcast_arc::<PipeFsDirInodeImpl>()
+                .map_err(|_| VfsError::Invalid)
+                .unwrap();
+            root.remove(&name).unwrap();
+            root_inode.remove_manually(&name).unwrap();
+        }
+    }
 }

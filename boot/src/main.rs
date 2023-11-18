@@ -39,7 +39,6 @@ use kernel::board::init_dtb;
 use kernel::config::CPU_NUM;
 use kernel::device::init_device;
 use kernel::fs::init_filesystem;
-use kernel::fs::vfs::init_vfs;
 use kernel::interrupt::init_plic;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
@@ -104,8 +103,7 @@ pub fn main(_: usize, _: usize) -> ! {
         // init all device
         init_device();
         trap::init_trap_subsystem();
-        init_filesystem();
-        init_vfs();
+        init_filesystem().expect("Init filesystem failed");
         task::init_process();
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
@@ -123,7 +121,7 @@ pub fn main(_: usize, _: usize) -> ! {
         CPUS.fetch_add(1, Ordering::Release);
     }
     timer::set_next_trigger();
-    println!("begin run task...");
+    println!("Begin run task...");
     task::schedule::first_into_user();
 }
 
@@ -162,5 +160,5 @@ fn wait_all_cpu_start() {
     while CPUS.load(Ordering::Acquire) < cpu_num {
         spin_loop()
     }
-    println!("all cpu start");
+    println!("All cpu start");
 }

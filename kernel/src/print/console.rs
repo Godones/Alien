@@ -76,45 +76,14 @@ impl Write for Stdout {
     }
 }
 
-pub fn get_char() -> Option<u8> {
-    let uart = UART_DEVICE.get().unwrap();
-    uart.get()
-}
-
-pub fn check_have_char() -> bool {
-    let uart = UART_DEVICE.get().unwrap();
-    uart.have_data_to_get()
-}
-
-pub fn check_have_space() -> bool {
-    let uart = UART_DEVICE.get().unwrap();
-    uart.have_space_to_put()
-}
-
 /// 输出函数
 /// 对参数进行输出 主要使用在输出相关的宏中 如println
 pub fn __print(args: Arguments) {
-    STDOUT.lock().write_fmt(args).unwrap();
-}
-
-struct UStdout;
-
-impl Write for UStdout {
-    fn write_str(&mut self, out: &str) -> Result {
-        if UART_FLAG.load(Ordering::Relaxed) {
-            let uart = UART_DEVICE.get().unwrap();
-            uart.put_bytes(out.as_bytes());
-        } else {
-            out.as_bytes().iter().for_each(|x| {
-                console_putchar(*x);
-            });
-        }
-        Ok(())
-    }
+    Stdout.write_fmt(args).unwrap();
 }
 
 pub fn __uprint(args: Arguments) {
-    UStdout.write_fmt(args).unwrap();
+    Stdout.write_fmt(args).unwrap();
 }
 
 pub struct PrePrint;

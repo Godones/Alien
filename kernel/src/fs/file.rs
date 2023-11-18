@@ -1,274 +1,166 @@
-use alloc::string::{String, ToString};
-use alloc::sync::Arc;
-use core::fmt::Debug;
-use core::ops::{Deref, DerefMut};
-use rvfs::file::OpenFlags;
-
-use crate::ksync::{Mutex, MutexGuard};
-
-use crate::net::socket::SocketData;
-use crate::timer::TimeSpec;
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum FileState {
-    Valid,
-    Unlink(String),
-}
-
-/// like file descriptor in linux
-pub struct KFile {
-    file: Arc<rvfs::file::File>,
-    inner: Mutex<KFileInner>,
-}
-
-#[derive(Debug)]
-pub struct KFileInner {
-    pub flags: OpenFlags,
-    pub state: FileState,
-    pub atime: TimeSpec,
-    pub mtime: TimeSpec,
-    pub ctime: TimeSpec,
-    pub path: String,
-}
-
-impl KFile {
-    pub fn new(file: Arc<rvfs::file::File>) -> Arc<Self> {
-        let flags = file.access_inner().flags;
-        Arc::new(Self {
-            file,
-            inner: Mutex::new(KFileInner {
-                flags,
-                state: FileState::Valid,
-                atime: TimeSpec::now(),
-                mtime: TimeSpec::now(),
-                ctime: TimeSpec::now(),
-                path: "".to_string(),
-            }),
-        })
-    }
-    pub fn access_inner(&self) -> MutexGuard<KFileInner> {
-        self.inner.lock()
-    }
-    pub fn is_valid(&self) -> bool {
-        self.inner.lock().state == FileState::Valid
-    }
-    pub fn set_unlink(&self, path: String) {
-        self.inner.lock().state = FileState::Unlink(path);
-    }
-    pub fn is_unlink(&self) -> bool {
-        if let FileState::Unlink(_) = self.inner.lock().state {
-            true
-        } else {
-            false
-        }
-    }
-    pub fn get_file(&self) -> Arc<rvfs::file::File> {
-        self.file.clone()
-    }
-
-    pub fn unlink_path(&self) -> Option<String> {
-        match self.inner.lock().state {
-            FileState::Unlink(ref path) => Some(path.clone()),
-            _ => None,
-        }
-    }
-    pub fn set_nonblock(&self) {
-        self.get_file().access_inner().flags |= OpenFlags::O_NONBLOCK;
-    }
-    pub fn set_close_on_exec(&self) {
-        self.inner.lock().flags |= OpenFlags::O_CLOSEEXEC;
-    }
-}
-
-impl Debug for KFile {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("KFile")
-            .field("file", &self.file)
-            .field("state", &self.inner)
-            .finish()
-    }
-}
-
-impl Deref for KFile {
-    type Target = Arc<rvfs::file::File>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.file
-    }
-}
-
-impl DerefMut for KFile {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.file
-    }
-}
-
-pub trait FilePollExt {
-    /// 已准备好读。对于 pipe 来说，这意味着读端的buffer内有值
-    fn ready_to_read(&self) -> bool {
-        true
-    }
-    /// 已准备好写。对于 pipe 来说，这意味着写端的buffer未满
-    fn ready_to_write(&self) -> bool {
-        true
-    }
-    /// 是否已经终止。对于 pipe 来说，这意味着另一端已关闭
-    fn is_hang_up(&self) -> bool {
-        false
-    }
-    /// 处于“意外情况”。在 (p)select 和 (p)poll 中会使用到
-    #[allow(unused)]
-    fn in_exceptional_conditions(&self) -> bool {
-        false
-    }
-}
-
-impl FilePollExt for KFile {
-    /// 已准备好读。对于 pipe 来说，这意味着读端的buffer内有值
-    fn ready_to_read(&self) -> bool {
-        let file = self.file.clone();
-        let is_ready_read = file.access_inner().f_ops_ext.is_ready_read;
-        is_ready_read(file)
-    }
-    /// 已准备好写。对于 pipe 来说，这意味着写端的buffer未满
-    fn ready_to_write(&self) -> bool {
-        let file = self.file.clone();
-        let is_ready_write = file.access_inner().f_ops_ext.is_ready_write;
-        is_ready_write(file)
-    }
-    /// 是否已经终止。对于 pipe 来说，这意味着另一端已关闭
-    fn is_hang_up(&self) -> bool {
-        let file = self.file.clone();
-        let is_hang_up = file.access_inner().f_ops_ext.is_hang_up;
-        is_hang_up(file)
-    }
-    /// 处于“意外情况”。在 (p)select 和 (p)poll 中会使用到
-    #[allow(unused)]
-    fn in_exceptional_conditions(&self) -> bool {
-        let file = self.file.clone();
-        let is_ready_exception = file.access_inner().f_ops_ext.is_ready_exception;
-        is_ready_exception(file)
-    }
-}
-
-pub trait FileIoctlExt {
-    fn ioctl(&self, cmd: u32, arg: usize) -> isize;
-}
-
-impl FileIoctlExt for KFile {
-    fn ioctl(&self, cmd: u32, arg: usize) -> isize {
-        let file = self.file.clone();
-        let ioctl = file.access_inner().f_ops_ext.ioctl;
-        ioctl(file, cmd, arg)
-    }
-}
-
-pub trait FileSocketExt {
-    fn get_socketdata_mut(&self) -> &mut SocketData;
-    fn get_socketdata(&self) -> &SocketData;
-}
-
-impl FileSocketExt for KFile {
-    fn get_socketdata_mut(&self) -> &mut SocketData {
-        let file = self.get_file();
-        let dentry_inner = file.f_dentry.access_inner();
-        let inode_inner = dentry_inner.d_inode.access_inner();
-        let data = inode_inner.data.as_ref().unwrap();
-        SocketData::from_ptr(data.data())
-    }
-
-    fn get_socketdata(&self) -> &SocketData {
-        self.get_socketdata_mut()
-    }
-}
+pub use kernel_file::{File, KernelFile};
+use pconst::io::DirentType;
+use vfscore::utils::VfsNodeType;
 
 mod kernel_file {
-    use alloc::sync::Arc;
-    use vfscore::dentry::VfsDentry;
-
+    use super::vfsnodetype2dirent64;
+    use crate::error::AlienResult;
     use crate::ksync::Mutex;
-    use pconst::io::{OpenFlags, SeekFrom};
+    use alloc::sync::Arc;
+    use core::fmt::{Debug, Formatter};
+    use downcast_rs::{impl_downcast, DowncastSync};
+    use pconst::io::{Dirent64, OpenFlags, PollEvents, SeekFrom};
+    use pconst::LinuxErrno;
+    use vfscore::dentry::VfsDentry;
     use vfscore::error::VfsError;
-    use vfscore::utils::FileStat;
-    use vfscore::VfsResult;
-
-    struct KernelFile {
+    use vfscore::inode::VfsInode;
+    use vfscore::path::VfsPath;
+    use vfscore::utils::{VfsFileStat, VfsPollEvents};
+    pub struct KernelFile {
         pos: Mutex<u64>,
         open_flag: Mutex<OpenFlags>,
         dentry: Arc<dyn VfsDentry>,
     }
 
+    impl Debug for KernelFile {
+        fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+            f.debug_struct("KernelFile")
+                .field("pos", &self.pos)
+                .field("open_flag", &self.open_flag)
+                .field("name", &self.dentry.name())
+                .finish()
+        }
+    }
+
     impl KernelFile {
         pub fn new(dentry: Arc<dyn VfsDentry>, open_flag: OpenFlags) -> Self {
+            let pos = if open_flag.contains(OpenFlags::O_APPEND) {
+                dentry.inode().unwrap().get_attr().unwrap().st_size
+            } else {
+                0
+            };
             Self {
-                pos: Mutex::new(0),
+                pos: Mutex::new(pos),
                 open_flag: Mutex::new(open_flag),
                 dentry,
             }
         }
     }
 
-    pub trait File {
-        fn read(&self, buf: &mut [u8]) -> VfsResult<usize>;
-        fn write(&self, buf: &[u8]) -> VfsResult<usize>;
-        fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize>;
-        fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize>;
-        fn flush(&self) -> VfsResult<()>;
-        fn fsync(&self) -> VfsResult<()>;
-        fn seek(&self, pos: SeekFrom) -> VfsResult<u64>;
+    pub trait File: DowncastSync + Debug {
+        fn read(&self, buf: &mut [u8]) -> AlienResult<usize>;
+        fn write(&self, buf: &[u8]) -> AlienResult<usize>;
+        fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> AlienResult<usize> {
+            Err(LinuxErrno::ENOSYS)
+        }
+        fn write_at(&self, _offset: u64, _buf: &[u8]) -> AlienResult<usize> {
+            Err(LinuxErrno::ENOSYS)
+        }
+        fn flush(&self) -> AlienResult<()> {
+            Ok(())
+        }
+        fn fsync(&self) -> AlienResult<()> {
+            Ok(())
+        }
+        fn seek(&self, pos: SeekFrom) -> AlienResult<u64>;
         /// Gets the file attributes.
-        fn get_attr(&self) -> VfsResult<FileStat>;
+        fn get_attr(&self) -> AlienResult<VfsFileStat>;
+        fn ioctl(&self, _cmd: u32, _arg: usize) -> AlienResult<usize> {
+            Err(LinuxErrno::ENOSYS)
+        }
+        fn set_open_flag(&self, _flag: OpenFlags) {}
+        fn get_open_flag(&self) -> OpenFlags {
+            OpenFlags::O_RDONLY
+        }
+        fn dentry(&self) -> Arc<dyn VfsDentry>;
+        fn inode(&self) -> Arc<dyn VfsInode>;
+        fn readdir(&self, _buf: &mut [u8]) -> AlienResult<usize> {
+            Err(LinuxErrno::ENOSYS)
+        }
+        fn truncate(&self, _len: u64) -> AlienResult<()> {
+            Err(LinuxErrno::ENOSYS)
+        }
+        fn is_readable(&self) -> bool;
+        fn is_writable(&self) -> bool;
+        fn is_append(&self) -> bool;
+        fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
+            Err(LinuxErrno::ENOSYS)
+        }
     }
 
+    impl_downcast!(sync  File);
+
+    // todo! permission check
     impl File for KernelFile {
-        fn read(&self, buf: &mut [u8]) -> VfsResult<usize> {
-            let mut pos = self.pos.lock();
-            let read = self.read_at(*pos, buf)?;
-            *pos += read as u64;
+        fn read(&self, buf: &mut [u8]) -> AlienResult<usize> {
+            if buf.len() == 0 {
+                return Ok(0);
+            }
+            // warn!("[read] is_interrupt_enable:{}",is_interrupt_enable());
+            let pos = *self.pos.lock();
+            // warn!("[read] is_interrupt_enable:{}",is_interrupt_enable());
+            let read = self.read_at(pos, buf)?;
+            *self.pos.lock() += read as u64;
             Ok(read)
         }
-
-        fn write(&self, buf: &[u8]) -> VfsResult<usize> {
+        fn write(&self, buf: &[u8]) -> AlienResult<usize> {
+            if buf.len() == 0 {
+                return Ok(0);
+            }
             let mut pos = self.pos.lock();
             let write = self.write_at(*pos, buf)?;
             *pos += write as u64;
             Ok(write)
         }
-        fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-            let open_flag = self.open_flag.lock();
-            if !open_flag.contains(OpenFlags::O_RDONLY | OpenFlags::O_RDWR) {
-                return Err(VfsError::PermissionDenied);
+        fn read_at(&self, offset: u64, buf: &mut [u8]) -> AlienResult<usize> {
+            if buf.len() == 0 {
+                return Ok(0);
             }
+            let open_flag = self.open_flag.lock();
+            if !open_flag.contains(OpenFlags::O_RDONLY)&& !open_flag.contains(OpenFlags::O_RDWR) {
+                return Err(LinuxErrno::EPERM);
+            }
+            drop(open_flag);
             let inode = self.dentry.inode()?;
             let read = inode.read_at(offset, buf)?;
             Ok(read)
         }
-        fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
+
+        fn write_at(&self, _offset: u64, buf: &[u8]) -> AlienResult<usize> {
+            if buf.len() == 0 {
+                return Ok(0);
+            }
             let open_flag = self.open_flag.lock();
-            if !open_flag.contains(OpenFlags::O_WRONLY | OpenFlags::O_RDWR) {
-                return Err(VfsError::PermissionDenied);
+            if !open_flag.contains(OpenFlags::O_WRONLY) && !open_flag.contains(OpenFlags::O_RDWR) {
+                return Err(LinuxErrno::EPERM);
             }
             let inode = self.dentry.inode()?;
-            let write = inode.write_at(offset, buf)?;
+            let write = inode.write_at(_offset, buf)?;
             Ok(write)
         }
-        fn flush(&self) -> VfsResult<()> {
+
+        fn flush(&self) -> AlienResult<()> {
             let open_flag = self.open_flag.lock();
-            if !open_flag.contains(OpenFlags::O_WRONLY | OpenFlags::O_RDWR) {
-                return Err(VfsError::PermissionDenied);
+            if !open_flag.contains(OpenFlags::O_WRONLY) & !open_flag.contains(OpenFlags::O_RDWR) {
+                return Err(LinuxErrno::EPERM);
             }
             let inode = self.dentry.inode()?;
-            inode.flush()
+            inode.flush()?;
+            Ok(())
         }
-        fn fsync(&self) -> VfsResult<()> {
+
+        fn fsync(&self) -> AlienResult<()> {
             let open_flag = self.open_flag.lock();
-            if !open_flag.contains(OpenFlags::O_WRONLY | OpenFlags::O_RDWR) {
-                return Err(VfsError::PermissionDenied);
+            if !open_flag.contains(OpenFlags::O_WRONLY)&& !open_flag.contains(OpenFlags::O_RDWR) {
+                return Err(LinuxErrno::EPERM);
             }
             let inode = self.dentry.inode()?;
-            inode.fsync()
+            inode.fsync()?;
+            Ok(())
         }
-        fn seek(&self, pos: SeekFrom) -> VfsResult<u64> {
+
+        // check for special file
+        fn seek(&self, pos: SeekFrom) -> AlienResult<u64> {
             let mut spos = self.pos.lock();
             let size = self.get_attr()?.st_size;
             let new_offset = match pos {
@@ -280,9 +172,109 @@ mod kernel_file {
             *spos = new_offset;
             Ok(new_offset)
         }
+
         /// Gets the file attributes.
-        fn get_attr(&self) -> VfsResult<FileStat> {
-            self.dentry.inode()?.get_attr()
+        fn get_attr(&self) -> AlienResult<VfsFileStat> {
+            self.dentry.inode()?.get_attr().map_err(Into::into)
         }
+
+        fn ioctl(&self, _cmd: u32, _arg: usize) -> AlienResult<usize> {
+            let inode = self.dentry.inode().unwrap();
+            inode.ioctl(_cmd, _arg).map_err(Into::into)
+        }
+
+        fn set_open_flag(&self, flag: OpenFlags) {
+            *self.open_flag.lock() = flag;
+        }
+
+        fn get_open_flag(&self) -> OpenFlags {
+            *self.open_flag.lock()
+        }
+        fn dentry(&self) -> Arc<dyn VfsDentry> {
+            self.dentry.clone()
+        }
+        fn inode(&self) -> Arc<dyn VfsInode> {
+            self.dentry.inode().unwrap()
+        }
+        fn readdir(&self, buf: &mut [u8]) -> AlienResult<usize> {
+            let inode = self.inode();
+            let mut pos = self.pos.lock();
+            let mut count = 0;
+            let mut ptr = buf.as_mut_ptr();
+            loop {
+                let dirent = inode.readdir(*pos as usize).map_err(|e| {
+                    *pos = 0;
+                    e
+                })?;
+                match dirent {
+                    Some(d) => {
+                        let dirent64 =
+                            Dirent64::new(&d.name, d.ino, *pos as i64, vfsnodetype2dirent64(d.ty));
+                        if count + dirent64.len() <= buf.len() {
+                            let dirent_ptr = unsafe { &mut *(ptr as *mut Dirent64) };
+                            *dirent_ptr = dirent64;
+                                let name_ptr = dirent_ptr.name.as_mut_ptr();
+                            unsafe {
+                                let mut name = d.name.clone();
+                                name.push('\0');
+                                let len = name.len();
+                                name_ptr.copy_from(name.as_ptr(), len);
+                                ptr = ptr.add(dirent_ptr.len());
+                            }
+                            count += dirent_ptr.len();
+                        } else {
+                            break;
+                        } // Buf is small
+                    }
+                    None => {
+                        break;
+                    } // EOF
+                }
+                *pos += 1;
+            }
+            Ok(count)
+        }
+        fn truncate(&self, len: u64) -> AlienResult<()> {
+            let open_flag = self.open_flag.lock();
+            if !open_flag
+                .contains(OpenFlags::O_WRONLY) & !open_flag.contains(OpenFlags::O_RDWR)
+            {
+                return Err(LinuxErrno::EINVAL);
+            }
+            let dt = self.dentry();
+            VfsPath::new(dt).truncate(len).map_err(Into::into)
+        }
+        fn is_readable(&self) -> bool {
+            let open_flag = self.open_flag.lock();
+            open_flag.contains(OpenFlags::O_RDONLY) | open_flag.contains(OpenFlags::O_RDWR)
+        }
+        fn is_writable(&self) -> bool {
+            let open_flag = self.open_flag.lock();
+            open_flag.contains(OpenFlags::O_WRONLY) | open_flag.contains(OpenFlags::O_RDWR)
+        }
+
+        fn is_append(&self) -> bool {
+            let open_flag = self.open_flag.lock();
+            open_flag.contains(OpenFlags::O_APPEND)
+        }
+
+        fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
+            let inode = self.dentry.inode()?;
+            let res = inode
+                .poll(VfsPollEvents::from_bits_truncate(_event.bits()))
+                .map(|e| PollEvents::from_bits_truncate(e.bits()));
+            res.map_err(Into::into)
+        }
+    }
+}
+
+fn vfsnodetype2dirent64(ty: VfsNodeType) -> DirentType {
+    DirentType::from_u8(ty as u8)
+}
+
+impl Drop for KernelFile {
+    fn drop(&mut self) {
+        let _ = self.flush();
+        let _ = self.fsync();
     }
 }

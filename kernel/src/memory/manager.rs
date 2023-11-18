@@ -29,7 +29,7 @@ impl FrameRefManager {
             let now_count = *count;
             if *count == 0 {
                 self.record.remove(&id);
-                info!("free frame:{:#x}", id);
+                trace!("free frame:{:#x}", id);
                 FRAME_ALLOCATOR.lock().free(id, 0).unwrap();
             }
             return Some(now_count);

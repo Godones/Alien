@@ -3,7 +3,7 @@
 //! Test filesystem of throughput
 use Mstd::fs::{close, open, read, write, OpenFlags};
 use Mstd::println;
-use Mstd::time::{get_time_ms, get_time_of_day, TimeVal};
+use Mstd::time::{get_time_ms};
 
 const FILE_SIZE: usize = 1024 * 1024 * 10;
 
@@ -21,7 +21,7 @@ const BLOCK_SIZE: usize = 256;
 // generate a file with FILE_SIZE
 
 fn generate_file(path: &str) {
-    let mut file = open(path, OpenFlags::O_RDWR | OpenFlags::O_CREAT);
+    let file = open(path, OpenFlags::O_RDWR | OpenFlags::O_CREAT);
     assert_ne!(file, -1);
     let mut buf = [0u8; BLOCK_SIZE];
     // fill data
@@ -36,7 +36,7 @@ fn generate_file(path: &str) {
 }
 
 fn test_throughput(path: &str) {
-    let mut file = open(path, OpenFlags::O_RDONLY);
+    let file = open(path, OpenFlags::O_RDONLY);
     assert_ne!(file, -1);
     let mut buf = [0u8; BLOCK_SIZE];
     let mut total = 0;
