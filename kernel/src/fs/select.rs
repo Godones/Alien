@@ -1,16 +1,14 @@
+use crate::config::MAX_FD_NUM;
+use crate::error::AlienResult;
+use crate::task::{current_task, do_suspend};
+use crate::timer::TimeSpec;
 use alloc::vec::Vec;
-use core::cmp::min;
-
 use bit_field::BitField;
-
+use core::cmp::min;
+use pconst::io::PollEvents;
 use pconst::signal::{SignalNumber, SimpleBitSet};
 use pconst::LinuxErrno;
 use syscall_table::syscall_func;
-
-use crate::config::MAX_FD_NUM;
-use crate::fs::file::FilePollExt;
-use crate::task::{current_task, do_suspend};
-use crate::timer::TimeSpec;
 
 /// 一个系统调用，实现 IO 端口的复用。一般用于用户程序的一段循环体中，
 /// 用于周期性检测一组关注的文件描述符集里是否有需要进行处理的IO事件发生。
@@ -51,25 +49,25 @@ pub fn pselect6(
     exceptfds: usize,
     timeout: usize, // pselect 不会更新 timeout 的值，而 select 会
     sigmask: usize,
-) -> isize {
+) -> AlienResult<isize> {
     if nfds >= MAX_FD_NUM {
-        return LinuxErrno::EINVAL as isize;
+        return Err(LinuxErrno::EINVAL);
     }
-    warn!("pselect6: nfds = {}, readfds = {:#x}, writefds = {:#x}, exceptfds = {:#x}, timeout = {:#x}, sigmask = {:#x}",
+    info!("pselect6: nfds = {}, readfds = {:#x}, writefds = {:#x}, exceptfds = {:#x}, timeout = {:#x}, sigmask = {:#x}",
         nfds, readfds, writefds, exceptfds, timeout, sigmask);
 
     // 注意 pselect 不会修改用户空间中的 timeout，所以需要内核自己记录
-    let task = current_task().unwrap().clone();
+    let task = current_task().unwrap();
 
     if sigmask != 0 {
         let mask = task.access_inner().transfer_raw_ptr(sigmask as *mut usize);
         let mask_num: Vec<SignalNumber> = SimpleBitSet(*mask).into();
-        error!("pselect6: sigmask = {} ---> {:?}, ", *mask, mask_num);
+        info!("pselect6: sigmask = {} ---> {:?}, ", *mask, mask_num);
     }
 
     let (wait_time, time_spec) = if timeout != 0 {
         let time_spec = task.transfer_raw_ptr(timeout as *mut TimeSpec);
-        warn!("pselect6: timeout = {:#x} ---> {:?}", timeout, time_spec);
+        info!("pselect6: timeout = {:#x} ---> {:?}", timeout, time_spec);
         (
             Some(time_spec.to_clock() + TimeSpec::now().to_clock()),
             Some(time_spec.clone()),
@@ -81,7 +79,6 @@ pub fn pselect6(
     let nfds = min(nfds, 64);
 
     // 这里暂时不考虑 sigmask 的问题
-
     let ori_readfds = if readfds != 0 {
         let readfds = task.transfer_raw_ptr(readfds as *mut u64);
         *readfds
@@ -104,12 +101,13 @@ pub fn pselect6(
     // at iperf test, if readfds hav one fd is ok, but writefds is empty,
     // it still return 1 and cause recursion error
     do_suspend();
+
     loop {
         let mut set = 0;
         // 如果设置了监视是否可读的 fd
         if readfds != 0 {
             let readfds = task.transfer_raw_ptr(readfds as *mut u64);
-            warn!(
+            trace!(
                 "[tid:{}]pselect6: readfds = {:#b}",
                 task.get_tid(),
                 ori_readfds
@@ -117,15 +115,16 @@ pub fn pselect6(
             for i in 0..nfds {
                 if ori_readfds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
-                        if fd.ready_to_read() {
-                            warn!("pselect6: fd {} ready to read", i);
+                        let event = fd.poll(PollEvents::IN).expect("poll error");
+                        if event.contains(PollEvents::IN) {
+                            info!("pselect6: fd {} ready to read", i);
                             readfds.set_bit(i, true);
                             set += 1;
                         } else {
                             readfds.set_bit(i, false);
                         }
                     } else {
-                        return LinuxErrno::EBADF as isize;
+                        return Err(LinuxErrno::EBADF.into());
                     }
                 }
             }
@@ -133,7 +132,7 @@ pub fn pselect6(
         // 如果设置了监视是否可写的 fd
         if writefds != 0 {
             let writefds = task.transfer_raw_ptr(writefds as *mut u64);
-            warn!(
+            trace!(
                 "[tid:{}]pselect6: writefds = {:#b}",
                 task.get_tid(),
                 ori_writefds
@@ -141,15 +140,16 @@ pub fn pselect6(
             for i in 0..nfds {
                 if ori_writefds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
-                        if fd.ready_to_write() {
-                            warn!("pselect6: fd {} ready to write", i);
+                        let event = fd.poll(PollEvents::OUT).expect("poll error");
+                        if event.contains(PollEvents::OUT) {
+                            info!("pselect6: fd {} ready to write", i);
                             writefds.set_bit(i, true);
                             set += 1;
                         } else {
                             writefds.set_bit(i, false);
                         }
                     } else {
-                        return LinuxErrno::EBADF as isize;
+                        return Err(LinuxErrno::EBADF.into());
                     }
                 }
             }
@@ -157,7 +157,7 @@ pub fn pselect6(
         // 如果设置了监视是否异常的 fd
         if exceptfds != 0 {
             let exceptfds = task.transfer_raw_ptr(exceptfds as *mut u64);
-            warn!(
+            trace!(
                 "[tid:{}]pselect6: exceptfds = {:#b}",
                 task.get_tid(),
                 ori_exceptfds
@@ -165,15 +165,16 @@ pub fn pselect6(
             for i in 0..nfds {
                 if ori_exceptfds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
-                        if fd.in_exceptional_conditions() {
-                            warn!("pselect6: fd {} in exceptional conditions", i);
+                        let event = fd.poll(PollEvents::ERR).expect("poll error");
+                        if event.contains(PollEvents::ERR) {
+                            info!("pselect6: fd {} in exceptional conditions", i);
                             exceptfds.set_bit(i, true);
                             set += 1;
                         } else {
                             exceptfds.set_bit(i, false);
                         }
                     } else {
-                        return LinuxErrno::EBADF as isize;
+                        return Err(LinuxErrno::EBADF.into());
                     }
                 }
             }
@@ -183,13 +184,13 @@ pub fn pselect6(
             // let readfds = task.transfer_raw_ptr(readfds as *mut u64);
             // error!("pselect6: readfds = {:#b}", *readfds);
             // 如果找到满足条件的 fd，则返回找到的 fd 数量
-            return set;
+            return Ok(set as isize);
         }
 
         if let Some(time_spec) = time_spec {
-            if time_spec.tv_sec == 0 && time_spec.tv_nsec == 0 {
+            if time_spec == TimeSpec::new(0, 0) {
                 // 不阻塞
-                return 0;
+                return Ok(0);
             }
         }
 
@@ -198,12 +199,12 @@ pub fn pselect6(
 
         if let Some(wait_time) = wait_time {
             if wait_time <= TimeSpec::now().to_clock() {
-                error!(
+                info!(
                     "select timeout, wait_time = {:#x}, now = {:#x}",
                     wait_time,
                     TimeSpec::now().to_clock()
                 );
-                return 0;
+                return Ok(0);
             }
         }
 
@@ -212,7 +213,7 @@ pub fn pselect6(
         let receiver = task_inner.signal_receivers.lock();
         let res = receiver.have_signal_with_number();
         if res.is_some() && res.unwrap() == SignalNumber::SIGKILL as usize {
-            return LinuxErrno::EINTR as isize;
+            return Err(LinuxErrno::EINTR.into());
         }
     }
 }

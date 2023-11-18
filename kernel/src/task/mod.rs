@@ -15,9 +15,8 @@ use spin::Lazy;
 pub use cpu::*;
 pub use task::{StatisticalData, Task, TaskState};
 
-use crate::fs::vfs;
-use crate::fs::vfs::{TMP_DIR, TMP_MNT};
-use crate::task::task::FsContext;
+use crate::fs::{read_all, SYSTEM_ROOT_FS};
+pub use crate::task::task::FsContext;
 
 mod context;
 mod cpu;
@@ -29,8 +28,9 @@ mod task;
 /// 初始进程（0号进程）
 pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
     let mut data = Vec::new();
-    vfs::read_all("/bin/init", &mut data);
+    read_all("/bin/init", &mut data);
     // let data = INIT;
+    assert!(data.len()>0);
     let task = Task::from_elf("/bin/init", data.as_slice()).unwrap();
     Arc::new(task)
 });
@@ -38,12 +38,11 @@ pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
 /// 将初始进程加入进程池中进行调度
 pub fn init_process() {
     let task = INIT_PROCESS.clone();
-    let dir = TMP_DIR.lock().clone();
-    let mnt = TMP_MNT.lock().clone();
-    task.access_inner().fs_info =
-        FsContext::new(dir.clone(), dir.clone(), mnt.clone(), mnt.clone());
+    let cwd = SYSTEM_ROOT_FS.get().unwrap().clone();
+    let root = cwd.clone();
+    task.access_inner().fs_info = FsContext::new(root, cwd);
     GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
-    println!("init process success");
+    println!("Init process success");
 }
 // online test has no sort.src
 // pub static SORT_SRC: &[u8] = include_bytes!("../../../sdcard/sort.src");

@@ -141,10 +141,10 @@ impl TrapHandler for Trap {
                         self, stval, sepc
                     );
                     let err = res.err().unwrap();
-                    if err == AlienError::ThreadNeedWait {
+                    if err == AlienError::EAGAIN {
                         // println!("thread need wait");
                         do_suspend();
-                    } else if err == AlienError::ThreadNeedExit {
+                    } else if err == AlienError::ETMP {
                         do_exit(-1);
                     } else {
                         send_signal(tid as usize, SignalNumber::SIGSEGV as usize)

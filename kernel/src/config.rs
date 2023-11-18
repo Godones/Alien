@@ -38,6 +38,8 @@ pub const TIMER_FREQ: usize = CLOCK_FREQ;
 /// 可配置的启动cpu数量
 pub const CPU_NUM: usize = 1;
 
+pub const AT_FDCWD: isize = -100isize;
+
 ///qemu的设备地址空间
 #[cfg(feature = "qemu")]
 pub const MMIO: &[(usize, usize)] = &[

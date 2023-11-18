@@ -15,11 +15,10 @@ use alloc::vec;
 use core::fmt::Debug;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+use crate::error::AlienResult;
+use crate::task::current_task;
 use pconst::net::Domain;
 use pconst::LinuxErrno;
-
-use crate::error_unwrap;
-use crate::task::current_task;
 
 /// 用于存储套接字通信地址的结构，分为本地路径地址和网络套接字地址。
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -93,13 +92,12 @@ impl From<SocketAddr> for RawIpV4Addr {
 ///
 /// 对于`AF_INET`将解析成SocketAddrExt::SocketAddr(SocketAddr)，
 /// 对于`AF_UNIX`将解析成ocketAddrExt::LocalPath(String)，详情可见[`SocketAddrExt`]。
-pub fn socket_addr_resolution(family_user_addr: usize, len: usize) -> Result<SocketAddrExt, isize> {
+pub fn socket_addr_resolution(family_user_addr: usize, len: usize) -> AlienResult<SocketAddrExt> {
     let task = current_task().unwrap();
     let family = task
         .access_inner()
         .transfer_raw_ptr(family_user_addr as *const u16);
-    let domain = Domain::try_from(*family as usize);
-    error_unwrap!(domain, Err(LinuxErrno::EINVAL.into()));
+    let domain = Domain::try_from(*family as usize).map_err(|_| LinuxErrno::EINVAL)?;
     match domain {
         Domain::AF_INET => {
             let mut ip_addr = RawIpV4Addr::default();

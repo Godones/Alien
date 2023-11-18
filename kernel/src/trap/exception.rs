@@ -3,16 +3,12 @@
 //! 目前包括系统调用异常处理 [`syscall_exception_handler`]、页错误异常处理 [`page_exception_handler`] (包括
 //! 指令页错误异常处理 [`instruction_page_fault_exception_handler`]、 加载页错误异常处理[`load_page_fault_exception_handler`]、
 //! 储存页错误异常处理 [`store_page_fault_exception_handler`]) 和 文件读入异常处理 [`trap_common_read_file`]。
-use alloc::sync::Arc;
-
-use riscv::register::scause::{Exception, Trap};
-use rvfs::file::vfs_read_file;
-
-use crate::arch::interrupt_enable;
+use crate::arch::{interrupt_enable};
 use crate::error::{AlienError, AlienResult};
-use crate::fs::file::KFile;
-use crate::fs::vfs::VfsProvider;
+use crate::fs::file::File;
 use crate::task::{current_task, current_trap_frame};
+use alloc::sync::Arc;
+use riscv::register::scause::{Exception, Trap};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {
@@ -30,7 +26,7 @@ pub fn syscall_exception_handler() {
     let pid = current_task().unwrap().get_pid();
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         // ignore shell and init
-        warn!(
+        info!(
             "[pid:{}, tid: {}][p_name: {}] syscall: [{}] {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
             pid,
             tid,
@@ -60,7 +56,7 @@ pub fn syscall_exception_handler() {
     cx = current_trap_frame();
 
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
-        warn!(
+        info!(
             "[pid:{}, tid: {}] syscall: [{}] result: {:?}, tp: {:#x}",
             pid,
             tid,
@@ -69,7 +65,6 @@ pub fn syscall_exception_handler() {
             cx.regs()[4]
         );
     }
-
     cx.update_res(result.unwrap() as usize);
 }
 
@@ -90,7 +85,7 @@ pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {
             instruction_page_fault_exception_handler(addr)?
         }
         _ => {
-            return Err(AlienError::Other);
+            return Err(AlienError::ENOSYS);
         }
     }
     Ok(())
@@ -148,13 +143,14 @@ pub fn store_page_fault_exception_handler(addr: usize) -> AlienResult<()> {
 }
 
 /// 文件读入异常处理
-pub fn trap_common_read_file(file: Arc<KFile>, buf: &mut [u8], offset: u64) {
+pub fn trap_common_read_file(file: Arc<dyn File>, buf: &mut [u8], offset: u64) {
     error!(
         "trap_common_read_file buf.len: {}, offset:{:#x}",
         buf.len(),
         offset
     );
-    let r = vfs_read_file::<VfsProvider>(file.get_file(), buf, offset);
+    // let r = vfs_read_file::<VfsProvider>(file.get_file(), buf, offset);
+    let r = file.read_at(offset, buf);
     if r.is_err() {
         error!("load page fault: read file error");
     }

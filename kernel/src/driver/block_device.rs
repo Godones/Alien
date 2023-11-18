@@ -1,17 +1,16 @@
 use alloc::boxed::Box;
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::num::NonZeroUsize;
 use core::ptr::NonNull;
+use pconst::LinuxErrno;
 
 use lru::LruCache;
-use rvfs::info::VfsError;
-use rvfs::superblock::Device;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
+use crate::error::AlienResult;
 use crate::ksync::Mutex;
 
 use crate::config::BLOCK_CACHE_FRAMES;
@@ -45,8 +44,6 @@ impl GenericBlockDevice {
     }
 }
 
-impl BlockDevice for GenericBlockDevice {}
-
 impl DeviceBase for GenericBlockDevice {
     fn hand_irq(&self) {
         unimplemented!()
@@ -59,8 +56,8 @@ impl Debug for GenericBlockDevice {
     }
 }
 
-impl Device for GenericBlockDevice {
-    fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, VfsError> {
+impl BlockDevice for GenericBlockDevice {
+    fn read(&self, buf: &mut [u8], offset: usize) -> AlienResult<usize> {
         let mut page_id = offset / PAGE_CACHE_SIZE;
         let mut offset = offset % PAGE_CACHE_SIZE;
 
@@ -100,7 +97,7 @@ impl Device for GenericBlockDevice {
         }
         Ok(buf.len())
     }
-    fn write(&self, buf: &[u8], offset: usize) -> Result<usize, VfsError> {
+    fn write(&self, buf: &[u8], offset: usize) -> AlienResult<usize> {
         let mut page_id = offset / PAGE_CACHE_SIZE;
         let mut offset = offset % PAGE_CACHE_SIZE;
 
@@ -146,7 +143,7 @@ impl Device for GenericBlockDevice {
     fn size(&self) -> usize {
         self.device.lock().capacity() * 512
     }
-    fn flush(&self) {
+    fn flush(&self) -> AlienResult<()> {
         // let mut device = self.device.lock();
         // let mut lru = self.cache.lock();
         // self.dirty.lock().iter().for_each(|id|{
@@ -160,12 +157,13 @@ impl Device for GenericBlockDevice {
         //     }
         // });
         // self.dirty.lock().clear();
+        Ok(())
     }
 }
 
 pub trait LowBlockDriver {
-    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError>;
-    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError>;
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()>;
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()>;
     fn capacity(&self) -> usize;
     fn flush(&mut self) {}
 }
@@ -187,17 +185,17 @@ impl VirtIOBlkWrapper {
 }
 
 impl LowBlockDriver for VirtIOBlkWrapper {
-    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError> {
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
         let res = self
             .device
             .read_block(block_id, buf)
-            .map_err(|_| VfsError::DiskFsError("read block error".to_string()));
+            .map_err(|_| LinuxErrno::EIO.into());
         res
     }
-    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError> {
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
         self.device
             .write_block(block_id, buf)
-            .map_err(|_| VfsError::DiskFsError("write block error".to_string()))
+            .map_err(|_| LinuxErrno::EIO.into())
     }
 
     fn capacity(&self) -> usize {
@@ -210,13 +208,13 @@ pub struct MemoryFat32Img {
 }
 
 impl LowBlockDriver for MemoryFat32Img {
-    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<(), VfsError> {
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
         let start = block_id * 512;
         let end = start + 512;
         buf.copy_from_slice(&self.data[start..end]);
         Ok(())
     }
-    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<(), VfsError> {
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
         let start = block_id * 512;
         let end = start + 512;
         self.data[start..end].copy_from_slice(buf);

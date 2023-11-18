@@ -15,10 +15,8 @@ use pconst::task::{CloneFlags, WaitOptions};
 use pconst::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
-use crate::arch;
-use crate::arch::hart_id;
+use crate::arch::{hart_id};
 use crate::config::CPU_NUM;
-use crate::fs::vfs;
 use crate::ipc::{futex, global_logoff_signals};
 use crate::sbi::system_shutdown;
 use crate::task::context::Context;
@@ -26,6 +24,7 @@ use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
 use crate::task::INIT_PROCESS;
 use crate::trap::{check_task_timer_expired, TrapFrame};
+use crate::{arch, fs};
 
 /// 记录当前 CPU 上正在执行的线程 和 线程上下文
 #[derive(Debug, Clone)]
@@ -153,7 +152,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     let task = current_task().unwrap();
     let exit_code = (exit_code & 0xff) << 8;
     if task.get_pid() == 0 {
-        println!("init process exit with code {}", exit_code);
+        println!("Init process exit with code {}", exit_code);
         system_shutdown();
     }
     {
@@ -344,20 +343,21 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
             new_path.push('\0');
             args.insert(0, new_path);
         }
-        path_str = "busybox".to_string();
+        path_str = "/bin/busybox".to_string();
         args.insert(0, "sh\0".to_string());
     }
     let mut data = Vec::new();
     if path_str.contains("libc-bench") {
         path_str = path_str.replace("libc-bench", "libc-bench2");
     }
-    if vfs::read_all(&path_str, &mut data) {
+    if fs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
             return res.err().unwrap();
         }
         return 0;
     } else {
+        println!("exec {} failed", path_str);
         -1
     }
 }
@@ -374,7 +374,7 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
 /// Reference:[wait](https://man7.org/linux/man-pages/man2/wait.2.html)
 #[syscall_func(260)]
 pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
-    let process = current_task().unwrap().clone();
+    let process = current_task().unwrap();
     loop {
         if process
             .children()

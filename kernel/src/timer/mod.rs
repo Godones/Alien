@@ -21,6 +21,7 @@ use pconst::LinuxErrno;
 use smpscheduler::FifoTask;
 use spin::Lazy;
 use syscall_table::syscall_func;
+use vfscore::utils::VfsTimeSpec;
 
 use crate::arch;
 use crate::config::CLOCK_FREQ;
@@ -111,7 +112,7 @@ impl TimeFromFreq for TimeVal {
 
 /// 更精细的时间，秒(s)+纳秒(ns)
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct TimeSpec {
     pub tv_sec: usize,
     pub tv_nsec: usize, //0~999999999
@@ -150,6 +151,11 @@ impl TimeFromFreq for TimeSpec {
     }
 }
 
+impl Into<VfsTimeSpec> for TimeSpec {
+    fn into(self) -> VfsTimeSpec {
+        VfsTimeSpec::new(self.tv_sec as u64, self.tv_nsec as u64)
+    }
+}
 /// [`getitimer`] / [`setitimer`] 指定的类型，用户执行系统调用时获取和输入的计时器
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]

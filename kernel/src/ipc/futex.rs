@@ -145,7 +145,7 @@ impl FutexWaitManager {
             Ok(min_index)
         } else {
             error!("futex {} not found", futex);
-            Err(AlienError::Other)
+            Err(AlienError::EINVAL)
         }
     }
 

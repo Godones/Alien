@@ -9,7 +9,7 @@ use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{FileStat, VfsNodeType};
+use vfscore::utils::{VfsFileStat, VfsNodeType};
 use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
@@ -70,8 +70,8 @@ impl VfsInode for RTCDevice {
         Ok(())
     }
 
-    fn get_attr(&self) -> VfsResult<FileStat> {
-        Ok(FileStat {
+    fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        Ok(VfsFileStat {
             st_rdev: self.device_id.id(),
             ..Default::default()
         })

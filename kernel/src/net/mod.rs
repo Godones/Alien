@@ -5,21 +5,16 @@
 //! [`socket`] 子模块指明了Alien 内核中使用的套接字。
 //! [`unix`] 子模块指明了有关 Unix 协议族下的套接字结构。(目前有关的功能有待支持)
 //!
+use crate::error::AlienResult;
+use crate::net::addr::{socket_addr_resolution, RawIpV4Addr};
+use crate::net::socket::{SocketData, SocketFile, SocketFileExt};
+use crate::task::{current_task, do_suspend};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
-
-use pconst::net::{
-    Domain, ShutdownFlag, SocketLevel, SocketOption, SocketType, TcpSocketOption, SOCKET_TYPE_MASK,
-};
+use pconst::net::*;
 use pconst::LinuxErrno;
 use syscall_table::syscall_func;
-
-use crate::fs::file::{FileSocketExt, KFile};
-use crate::net::addr::{socket_addr_resolution, RawIpV4Addr};
-use crate::net::socket::SocketData;
-use crate::task::{current_task, do_suspend};
-use crate::{error_unwrap, option_unwrap};
 
 pub mod addr;
 pub mod port;
@@ -34,28 +29,23 @@ mod unix;
 ///
 /// 如果创建套接字成功则返回一个能在之后使用的文件描述符，否则返回错误信息。
 #[syscall_func(198)]
-pub fn socket(domain: usize, s_type: usize, protocol: usize) -> isize {
-    let domain = Domain::try_from(domain);
-    error_unwrap!(domain, LinuxErrno::EAFNOSUPPORT.into());
-    let socket_type = SocketType::try_from(s_type & SOCKET_TYPE_MASK as usize);
-    error_unwrap!(socket_type, LinuxErrno::EBADF.into());
+pub fn socket(domain: usize, s_type: usize, protocol: usize) -> AlienResult<isize> {
+    let domain = Domain::try_from(domain).map_err(|_| LinuxErrno::EINVAL)?;
+    let socket_type =
+        SocketType::try_from(s_type & SOCKET_TYPE_MASK as usize).map_err(|_| LinuxErrno::EINVAL)?;
     let task = current_task().unwrap();
-    let socket = SocketData::new(domain, socket_type, protocol);
-    error_unwrap!(socket, socket.err().unwrap().into());
-    warn!("socket domain: {:?}, type: {:?}", domain, socket_type);
-    let file = KFile::new(socket);
+    let file = SocketData::new(domain, socket_type, protocol)?;
+    info!("socket domain: {:?}, type: {:?}", domain, socket_type);
     if s_type & SocketType::SOCK_NONBLOCK as usize != 0 {
-        file.set_nonblock();
-        let socket = file.get_socketdata();
+        let socket = file.get_socketdata()?;
         socket.set_socket_nonblock(true);
-        warn!("socket with nonblock");
+        info!("socket with nonblock");
     }
     if s_type & SocketType::SOCK_CLOEXEC as usize != 0 {
         file.set_close_on_exec();
     }
-    let fd = task.add_file(file);
-    error_unwrap!(fd, LinuxErrno::EMFILE.into());
-    fd as isize
+    let fd = task.add_file(file).map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(fd as isize)
 }
 
 /// 一个系统调用，用于绑定socket的地址和端口。
@@ -66,22 +56,20 @@ pub fn socket(domain: usize, s_type: usize, protocol: usize) -> isize {
 ///
 /// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(200)]
-pub fn bind(socketfd: usize, sockaddr: usize, len: usize) -> isize {
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket_addr = socket_addr_resolution(sockaddr, len);
-    error_unwrap!(socket_addr, socket_addr.err().unwrap());
-    let socket = socket_fd.get_socketdata_mut();
+pub fn bind(socketfd: usize, sockaddr: usize, len: usize) -> AlienResult<isize> {
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket_addr = socket_addr_resolution(sockaddr, len)?;
+    let socket = socket_fd.get_socketdata()?;
     match socket.bind(socket_addr.clone()) {
         Ok(()) => {
             let local_addr = socket.local_addr();
-            warn!(
+            info!(
                 "[{:?}] {:?} connect to ip: {:?}",
                 socket.s_type, local_addr, socket_addr
             );
-            0
+            Ok(0)
         }
-        Err(e) => e.into(),
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -92,16 +80,15 @@ pub fn bind(socketfd: usize, sockaddr: usize, len: usize) -> isize {
 ///
 /// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(201)]
-pub fn listening(socketfd: usize, backlog: usize) -> isize {
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket = socket_fd.get_socketdata();
+pub fn listening(socketfd: usize, backlog: usize) -> AlienResult<isize> {
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket = socket_fd.get_socketdata()?;
     match socket.listening(backlog) {
         Ok(_) => {
-            warn!("socket {:?} listening", socket.local_addr());
-            0
+            info!("socket {:?} listening", socket.local_addr());
+            Ok(0)
         }
-        Err(e) => e.into(),
+        Err(e) => Err(e),
     }
 }
 
@@ -114,20 +101,18 @@ pub fn listening(socketfd: usize, backlog: usize) -> isize {
 ///
 /// 执行成功则返回新的套接字的文件描述符，否则返回错误信息.
 #[syscall_func(202)]
-pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> isize {
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket = socket_fd.get_socketdata();
+pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> AlienResult<isize> {
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket = socket_fd.get_socketdata()?;
     match socket.accept() {
         Ok(file) => {
-            let file = KFile::new(file);
+            let task = current_task().unwrap();
             // get peer addr
             if socket_addr != 0 {
-                let socket = file.get_socketdata();
+                let socket = file.get_socketdata()?;
                 let peer_addr = socket.peer_addr().unwrap();
-                warn!("accept peer addr: {:?}", peer_addr);
+                info!("accept peer addr: {:?}", peer_addr);
                 let raw_ip_addr = RawIpV4Addr::from(peer_addr);
-                let task = current_task().unwrap();
                 let addr_len_ref = task
                     .access_inner()
                     .transfer_raw_ptr_mut(addr_len as *mut u32);
@@ -135,12 +120,10 @@ pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> isize {
                 task.access_inner()
                     .copy_to_user(&raw_ip_addr, socket_addr as *mut RawIpV4Addr);
             }
-            let task = current_task().unwrap();
-            let fd = task.add_file(file);
-            error_unwrap!(fd, LinuxErrno::EMFILE.into());
-            fd as isize
+            let fd = task.add_file(file).map_err(|_| LinuxErrno::EMFILE)?;
+            Ok(fd as isize)
         }
-        Err(e) => e.into(),
+        Err(e) => Err(e),
     }
 }
 
@@ -155,36 +138,34 @@ pub fn accept(socketfd: usize, socket_addr: usize, addr_len: usize) -> isize {
 /// Note: For netperf_test, the server may be run after client, so we nedd allow
 /// client retry once
 #[syscall_func(203)]
-pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> isize {
-    let socket_addr = socket_addr_resolution(socket_addr, len);
-    error_unwrap!(socket_addr, socket_addr.err().unwrap());
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket = socket_fd.get_socketdata();
+pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> AlienResult<isize> {
+    let socket_addr = socket_addr_resolution(socket_addr, len)?;
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket = socket_fd.get_socketdata()?;
     let mut retry = 1;
     while retry >= 0 {
         match socket.connect(socket_addr.clone()) {
             Ok(_) => {
                 let local_addr = socket.local_addr();
-                warn!(
+                info!(
                     "[{:?}] {:?} connect to ip: {:?}",
                     socket.s_type, local_addr, socket_addr
                 );
-                return 0;
+                return Ok(0);
             }
             Err(e) => {
                 if retry == 0 {
-                    return e.into();
+                    return Err(e.into());
                 }
                 if e == LinuxErrno::EAGAIN {
-                    return LinuxErrno::EINPROGRESS.into();
+                    return Err(LinuxErrno::EINPROGRESS.into());
                 }
                 retry -= 1;
                 do_suspend();
             }
         }
     }
-    0
+    Ok(0)
 }
 
 /// 一个系统调用，查询一个套接字本地bind()的相关信息。
@@ -195,20 +176,18 @@ pub fn connect(socketfd: usize, socket_addr: usize, len: usize) -> isize {
 ///
 /// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(204)]
-pub fn getsockname(socketfd: usize, socket_addr: usize, len: usize) -> isize {
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket = socket_fd.get_socketdata();
-    let local_addr = socket.local_addr();
-    option_unwrap!(local_addr, LinuxErrno::EINVAL.into());
-    warn!("getsockname: {:?}", local_addr);
+pub fn getsockname(socketfd: usize, socket_addr: usize, len: usize) -> AlienResult<isize> {
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket = socket_fd.get_socketdata()?;
+    let local_addr = socket.local_addr().ok_or(LinuxErrno::EINVAL)?;
+    info!("getsockname: {:?}", local_addr);
     let raw_ip_addr = RawIpV4Addr::from(local_addr);
     let task = current_task().unwrap();
     task.access_inner()
         .copy_to_user(&raw_ip_addr, socket_addr as *mut RawIpV4Addr);
     let len_ref = task.access_inner().transfer_raw_ptr_mut(len as *mut u32);
     *len_ref = core::mem::size_of::<RawIpV4Addr>() as u32;
-    0
+    Ok(0)
 }
 
 /// 一个系统调用，用于获取一个本地套接字所连接的远程服务器的信息。
@@ -219,20 +198,18 @@ pub fn getsockname(socketfd: usize, socket_addr: usize, len: usize) -> isize {
 ///
 /// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(205)]
-pub fn get_peer_name(socketfd: usize, sockaddr: usize, len: usize) -> isize {
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket = socket_fd.get_socketdata();
-    let socket_addr = socket.peer_addr();
-    option_unwrap!(socket_addr, LinuxErrno::EINVAL.into());
-    warn!("get_peer_name: {:?}", socket_addr);
+pub fn get_peer_name(socketfd: usize, sockaddr: usize, len: usize) -> AlienResult<isize> {
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket = socket_fd.get_socketdata()?;
+    let socket_addr = socket.peer_addr().ok_or(LinuxErrno::EINVAL)?;
+    info!("get_peer_name: {:?}", socket_addr);
     let raw_ip_addr = RawIpV4Addr::from(socket_addr);
     let task = current_task().unwrap();
     task.access_inner()
         .copy_to_user(&raw_ip_addr, sockaddr as *mut RawIpV4Addr);
     let len_ref = task.access_inner().transfer_raw_ptr_mut(len as *mut u32);
     *len_ref = core::mem::size_of::<RawIpV4Addr>() as u32;
-    0
+    Ok(0)
 }
 
 /// 一个系统调用，用于发送消息。当面向连接时，dest_addr被忽略；当非面向连接时，消息发送给dest_addr。
@@ -253,10 +230,9 @@ pub fn sendto(
     flags: usize,
     dest_addr: usize,
     dest_len: usize,
-) -> isize {
+) -> AlienResult<isize> {
     assert_eq!(flags, 0);
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
+    let socket_fd = common_socket_syscall(socketfd)?;
     let task = current_task().unwrap();
     let message = task.transfer_buffer(message, length);
     // to vec<u8>
@@ -266,32 +242,30 @@ pub fn sendto(
         .map(|buf| buf.to_vec())
         .flatten()
         .collect::<Vec<u8>>();
-    let socket = socket_fd.get_socketdata();
+    let socket = socket_fd.get_socketdata()?;
     match socket.socket_type() {
         SocketType::SOCK_STREAM | SocketType::SOCK_SEQPACKET => {
             if dest_addr != 0 {
-                return LinuxErrno::EISCONN.into();
+                return Err(LinuxErrno::EISCONN.into());
             }
         }
         _ => {}
     }
     let socket_addr = if dest_addr != 0 {
-        let res = socket_addr_resolution(dest_addr, dest_len);
-        error_unwrap!(res, res.err().unwrap());
+        let res = socket_addr_resolution(dest_addr, dest_len)?;
         Some(res)
     } else {
         None
     };
-    warn!(
+    info!(
         "sendto: {:?}, local_addr: {:?}, message len: {}",
         socket_addr,
         socket.local_addr(),
         message.len()
     );
-    let send = socket.send_to(message.as_slice(), flags, socket_addr);
-    error_unwrap!(send, send.err().unwrap().into());
+    let send = socket.send_to(message.as_slice(), flags, socket_addr)?;
     do_suspend();
-    send as isize
+    Ok(send as isize)
 }
 
 /// 一个系统调用，用于接收消息。消息源地址的相关信息将会保存在src_addr所指向的位置处。
@@ -312,19 +286,17 @@ pub fn recvfrom(
     flags: usize,
     src_addr: usize,
     addr_len: usize,
-) -> isize {
+) -> AlienResult<isize> {
     assert_eq!(flags, 0);
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket = socket_fd.get_socketdata();
-    warn!(
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket = socket_fd.get_socketdata()?;
+    info!(
         "recvfrom: {:?}, local_addr: {:?}",
         socket.peer_addr(),
         socket.local_addr()
     );
     let mut tmp_buffer = vec![0u8; length];
-    let recv_info = socket.recvfrom(tmp_buffer.as_mut_slice(), flags);
-    error_unwrap!(recv_info, recv_info.err().unwrap().into());
+    let recv_info = socket.recvfrom(tmp_buffer.as_mut_slice(), flags)?;
     let task = current_task().unwrap();
     task.access_inner()
         .copy_to_user_buffer(tmp_buffer.as_ptr(), buffer, recv_info.0);
@@ -337,7 +309,7 @@ pub fn recvfrom(
             .transfer_raw_ptr_mut(addr_len as *mut u32);
         *addr_len_ref = core::mem::size_of::<RawIpV4Addr>() as u32;
     }
-    recv_info.0 as isize
+    Ok(recv_info.0 as isize)
 }
 
 /// (待完成)一个系统调用函数，用于设置套接字的选项。
@@ -356,26 +328,22 @@ pub fn setsockopt(
     opt_name: usize,
     _opt_value: usize,
     _opt_len: u32,
-) -> isize {
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let _socket = socket_fd.get_socketdata();
-    let level = SocketLevel::try_from(level);
-    error_unwrap!(level, LinuxErrno::EINVAL.into());
+) -> AlienResult<isize> {
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let _socket = socket_fd.get_socketdata()?;
+    let level = SocketLevel::try_from(level).map_err(|_| LinuxErrno::EINVAL)?;
     match level {
         SocketLevel::Ip => {}
         SocketLevel::Socket => {
-            let opt_name = SocketOption::try_from(opt_name);
-            error_unwrap!(opt_name, LinuxErrno::EINVAL.into());
-            warn!("[setsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
+            let opt_name = SocketOption::try_from(opt_name).map_err(|_| LinuxErrno::EINVAL)?;
+            info!("[setsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
         }
         SocketLevel::Tcp => {
-            let opt_name = TcpSocketOption::try_from(opt_name);
-            error_unwrap!(opt_name, LinuxErrno::EINVAL.into());
-            warn!("[setsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
+            let opt_name = TcpSocketOption::try_from(opt_name).map_err(|_| LinuxErrno::EINVAL)?;
+            info!("[setsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
         }
     }
-    0
+    Ok(0)
 }
 
 /// 一个系统调用函数，用于获取套接字的选项。
@@ -394,72 +362,62 @@ pub fn getsockopt(
     opt_name: usize,
     opt_value: usize,
     opt_len: usize,
-) -> isize {
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let _socket = socket_fd.get_socketdata();
-    let level = SocketLevel::try_from(level);
-    error_unwrap!(level, LinuxErrno::EINVAL.into());
+) -> AlienResult<isize> {
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let _socket = socket_fd.get_socketdata()?;
+    let level = SocketLevel::try_from(level).map_err(|_| LinuxErrno::EINVAL)?;
     match level {
         SocketLevel::Ip => {}
         SocketLevel::Socket => {
-            let opt_name = SocketOption::try_from(opt_name);
-            error_unwrap!(opt_name, LinuxErrno::EINVAL.into());
-            warn!("[getsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
+            let opt_name = SocketOption::try_from(opt_name).map_err(|_| LinuxErrno::EINVAL)?;
+            info!("[getsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
             match opt_name {
                 SocketOption::SO_RCVBUF => {
                     let opt_value_ref = current_task()
                         .unwrap()
-                        .access_inner()
-                        .transfer_raw_ptr_mut(opt_value as *mut u32);
+                        .transfer_raw_ptr(opt_value as *mut u32);
                     *opt_value_ref = simple_net::common::SOCKET_RECV_BUFFER_SIZE as u32;
                 }
                 SocketOption::SO_SNDBUF => {
                     let opt_value_ref = current_task()
                         .unwrap()
-                        .access_inner()
-                        .transfer_raw_ptr_mut(opt_value as *mut u32);
+                        .transfer_raw_ptr(opt_value as *mut u32);
                     *opt_value_ref = simple_net::common::SOCKET_SEND_BUFFER_SIZE as u32;
                 }
                 SocketOption::SO_ERROR => {
                     let opt_value_ref = current_task()
                         .unwrap()
-                        .access_inner()
-                        .transfer_raw_ptr_mut(opt_value as *mut u32);
+                        .transfer_raw_ptr(opt_value as *mut u32);
                     *opt_value_ref = 0;
                 }
                 _ => {}
             }
             let opt_len_ref = current_task()
                 .unwrap()
-                .access_inner()
-                .transfer_raw_ptr_mut(opt_len as *mut u32);
+                .transfer_raw_ptr(opt_len as *mut u32);
             *opt_len_ref = core::mem::size_of::<u32>() as u32;
         }
         SocketLevel::Tcp => {
-            let opt_name = TcpSocketOption::try_from(opt_name);
-            error_unwrap!(opt_name, LinuxErrno::EINVAL.into());
-            warn!("[getsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
+            let opt_name = TcpSocketOption::try_from(opt_name).map_err(|_| LinuxErrno::EINVAL)?;
+            info!("[getsockopt] level: {:?}, opt_name: {:?}", level, opt_name);
             match opt_name {
                 TcpSocketOption::TCP_MAXSEG => {
                     let opt_value_ref = current_task()
                         .unwrap()
-                        .access_inner()
-                        .transfer_raw_ptr_mut(opt_value as *mut u32);
+                        .transfer_raw_ptr(opt_value as *mut u32);
                     *opt_value_ref = simple_net::common::MAX_SEGMENT_SIZE as u32;
                 }
                 TcpSocketOption::TCP_NODELAY => {
                     let opt_value_ref = current_task()
                         .unwrap()
-                        .access_inner()
-                        .transfer_raw_ptr_mut(opt_value as *mut u32);
+                        .transfer_raw_ptr(opt_value as *mut u32);
                     *opt_value_ref = 0;
                 }
                 _ => {}
             }
         }
     }
-    0
+    Ok(0)
 }
 
 /// 一个系统调用，用于关闭一个socket的发送操作或接收操作。
@@ -469,21 +427,16 @@ pub fn getsockopt(
 ///
 /// 执行成功则返回0，否则返回错误信息。
 #[syscall_func(210)]
-pub fn shutdown(socketfd: usize, how: usize) -> isize {
-    let flag = ShutdownFlag::try_from(how);
-    error_unwrap!(flag, LinuxErrno::EBADF.into());
-    let socket_fd = common_socket_syscall(socketfd);
-    error_unwrap!(socket_fd, socket_fd.err().unwrap());
-    let socket = socket_fd.get_socketdata();
-    warn!(
+pub fn shutdown(socketfd: usize, how: usize) -> AlienResult<()> {
+    let flag = ShutdownFlag::try_from(how).map_err(|_| LinuxErrno::EINVAL)?;
+    let socket_fd = common_socket_syscall(socketfd)?;
+    let socket = socket_fd.get_socketdata()?;
+    info!(
         "shutdown: {:?}, local_addr: {:?}",
         flag,
         socket.local_addr()
     );
-    match socket.shutdown(flag) {
-        Ok(_) => 0,
-        Err(e) => e.into(),
-    }
+    socket.shutdown(flag)
 }
 
 /// (待实现)一个系统调用，创建一对未绑定的socket套接字，该对套接字可以用于全双工通信，或者用于父子进程之间的通信。
@@ -497,23 +450,24 @@ pub fn shutdown(socketfd: usize, how: usize) -> isize {
 ///
 /// 如果创建成功则返回0，否则返回错误信息。
 #[syscall_func(199)]
-pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> isize {
-    let domain = Domain::try_from(domain);
-    error_unwrap!(domain, LinuxErrno::EINVAL.into());
-    let c_type = SocketType::try_from(c_type);
-    error_unwrap!(c_type, LinuxErrno::EINVAL.into());
-    warn!(
+pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> AlienResult<isize> {
+    let domain = Domain::try_from(domain).map_err(|_| LinuxErrno::EINVAL)?;
+    let c_type = SocketType::try_from(c_type).map_err(|_| LinuxErrno::EINVAL)?;
+    info!(
         "socketpair: {:?}, {:?}, {:?}, {:?}",
         domain, c_type, proto, sv
     );
     // panic!("socketpair");
-    LinuxErrno::EAFNOSUPPORT.into()
+    Err(LinuxErrno::EAFNOSUPPORT.into())
 }
 
 /// 通过socket文件描述符fd获取对应的文件
-fn common_socket_syscall(sockfd: usize) -> Result<Arc<KFile>, isize> {
+fn common_socket_syscall(socket_fd: usize) -> AlienResult<Arc<SocketFile>> {
     let task = current_task().unwrap();
-    let socket_fd = task.get_file(sockfd);
-    option_unwrap!(socket_fd, Err(LinuxErrno::EBADF.into()));
-    Ok(socket_fd)
+    let socket_fd = task.get_file(socket_fd).ok_or(LinuxErrno::EBADF)?;
+    let socket_file = socket_fd
+        .downcast_arc::<SocketFile>()
+        .map_err(|_| LinuxErrno::EINVAL)
+        .expect("socket_fd is not a socket file");
+    Ok(socket_file)
 }

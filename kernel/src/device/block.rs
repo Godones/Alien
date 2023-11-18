@@ -1,25 +1,29 @@
 use alloc::sync::Arc;
 
 use crate::driver::GenericBlockDevice;
+use crate::error::AlienResult;
 use crate::fs::dev::DeviceId;
-use rvfs::superblock::Device;
 use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{FileStat, PollEvents, VfsNodeType};
+use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
-
-pub trait BlockDevice: Device + DeviceBase {}
 
 pub static BLOCK_DEVICE: Once<Arc<GenericBlockDevice>> = Once::new();
 
 pub fn init_block_device(block_device: Arc<GenericBlockDevice>) {
     // BLOCK_DEVICE.lock().push(block_device);
     BLOCK_DEVICE.call_once(|| block_device);
+}
+
+pub trait BlockDevice: Send + Sync + DeviceBase {
+    fn read(&self, buf: &mut [u8], offset: usize) -> AlienResult<usize>;
+    fn write(&self, buf: &[u8], offset: usize) -> AlienResult<usize>;
+    fn size(&self) -> usize;
+    fn flush(&self) -> AlienResult<()>;
 }
 
 pub struct BLKDevice {
@@ -47,10 +51,10 @@ impl VfsFile for BLKDevice {
             .write(buf, offset as usize)
             .map_err(|_| VfsError::IoError)
     }
-    fn poll(&self, _event: PollEvents) -> VfsResult<PollEvents> {
+    fn poll(&self, _event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
         todo!()
     }
-    fn ioctl(&self, _cmd: u32, _arg: u64) -> VfsResult<Option<u64>> {
+    fn ioctl(&self, _cmd: u32, _arg: usize) -> VfsResult<usize> {
         todo!()
     }
     fn flush(&self) -> VfsResult<()> {
@@ -62,21 +66,16 @@ impl VfsFile for BLKDevice {
 }
 
 impl VfsInode for BLKDevice {
-    fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
-        Err(VfsError::NoSys)
-    }
-
     fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
         Ok(())
     }
-
-    fn get_attr(&self) -> VfsResult<FileStat> {
-        Ok(FileStat {
+    fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        Ok(VfsFileStat {
             st_rdev: self.device_id.id(),
+            st_size: self.device.size() as u64,
             ..Default::default()
         })
     }
-
     fn inode_type(&self) -> VfsNodeType {
         VfsNodeType::BlockDevice
     }

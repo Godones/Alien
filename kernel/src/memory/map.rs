@@ -11,7 +11,7 @@ use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::config::{FRAME_SIZE, PROCESS_HEAP_MAX};
-use crate::fs::file::KFile;
+use crate::fs::file::File;
 use crate::task::current_task;
 
 bitflags! {
@@ -61,7 +61,7 @@ pub struct MMapRegion {
     /// The flags of the mapping
     pub flags: MapFlags,
     /// The file descriptor to map
-    pub fd: Option<Arc<KFile>>,
+    pub fd: Option<Arc<dyn File>>,
     /// The offset in the file to start from
     pub offset: usize,
 }
@@ -123,7 +123,7 @@ impl MMapRegion {
         map_len: usize,
         prot: ProtFlags,
         flags: MapFlags,
-        fd: Option<Arc<KFile>>,
+        fd: Option<Arc<dyn File>>,
         offset: usize,
     ) -> Self {
         Self {
