@@ -343,7 +343,7 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
             new_path.push('\0');
             args.insert(0, new_path);
         }
-        path_str = "/bin/busybox".to_string();
+        path_str = "./busybox".to_string();
         args.insert(0, "sh\0".to_string());
     }
     let mut data = Vec::new();
