@@ -1,6 +1,7 @@
 use alloc::format;
 use alloc::sync::Arc;
 use core::cmp::min;
+use pconst::io::TeletypeCommand;
 use rtc::RtcTime;
 
 use crate::fs::dev::DeviceId;
@@ -13,6 +14,7 @@ use vfscore::utils::{VfsFileStat, VfsNodeType};
 use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
+use crate::task::current_task;
 
 pub static RTC_DEVICE: Once<Arc<dyn RtcDevice>> = Once::new();
 
@@ -52,6 +54,30 @@ impl VfsFile for RTCDevice {
     }
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
         todo!()
+    }
+    fn ioctl(&self, cmd: u32, arg: usize) -> VfsResult<usize> {
+        let task = current_task().unwrap();
+        let mut task_inner = task.access_inner();
+        let cmd = TeletypeCommand::try_from(cmd).map_err(|_| VfsError::Invalid)?;
+        match cmd {
+            TeletypeCommand::RTC_RD_TIME => {
+                let time = self.device.read_time_fmt();
+                let c_rtc_time = pconst::io::RtcTime{
+                    sec: time.second as u32,
+                    min: time.minute as u32,
+                    hour: time.hour as u32,
+                    mday: time.day as u32,
+                    mon: time.month as u32,
+                    year: time.year,
+                    wday: 0,
+                    yday: 0,
+                    isdst: 0,
+                };
+                task_inner.copy_to_user(&c_rtc_time, arg as *mut pconst::io::RtcTime);
+            }
+            _ => return Err(VfsError::Invalid),
+        }
+        Ok(0)
     }
     fn flush(&self) -> VfsResult<()> {
         Ok(())

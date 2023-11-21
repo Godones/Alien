@@ -177,14 +177,13 @@ fn user_path_at(fd: isize, path: &str) -> AlienResult<VfsPath> {
 }
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
-    // let task = current_task();
-    // let cwd = if task.is_some(){
-    //     task.unwrap().access_inner().cwd().cwd
-    // }else {
-    //
-    // };
-
-    let path = VfsPath::new( SYSTEM_ROOT_FS.get().unwrap().clone())
+    let task = current_task();
+    let cwd = if task.is_some(){
+        task.unwrap().access_inner().cwd().cwd
+    }else {
+        SYSTEM_ROOT_FS.get().unwrap().clone()
+    };
+    let path = VfsPath::new( cwd)
         .join(file_name)
         .unwrap();
     let dentry = path.open(None);

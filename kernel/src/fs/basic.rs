@@ -88,7 +88,7 @@ pub fn sys_openat(dirfd: isize, path: *const u8, flag: usize, mode: u32) -> Alie
 
     let path = process.transfer_str(path);
     let path = user_path_at(dirfd, &path)?;
-    info!(
+    warn!(
         "open file: {:?},flag:{:?}, mode:{:?}",
         path, flag, file_mode
     );
@@ -97,7 +97,7 @@ pub fn sys_openat(dirfd: isize, path: *const u8, flag: usize, mode: u32) -> Alie
     let file = KernelFile::new(dentry, flag);
 
     let fd = process.add_file(Arc::new(file));
-    info!("openat fd: {:?}", fd);
+    warn!("openat fd: {:?}", fd);
     if fd.is_err() {
         let error = ManagerError::from((fd.unwrap_err()) as usize);
         info!("[vfs] openat error: {:?}", error);
@@ -576,7 +576,6 @@ pub fn sys_renameat2(
     let process = current_task().unwrap();
     let old_path = process.transfer_str(old_path);
     let new_path = process.transfer_str(new_path);
-
     let flag = Renameat2Flags::from_bits_truncate(flag);
     info!(
         "renameat2: {:?} {:?} {:?} {:?}, flag: {:?}",
