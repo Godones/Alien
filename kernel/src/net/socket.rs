@@ -7,29 +7,147 @@
 //! 的规定，我们只需为套接字文件规定好 [`socket_file_release`]、[`socket_file_write`]、[`socket_file_read`]、
 //! [`socket_ready_to_read`]、[`socket_ready_to_write`] 几个操作函数，即可快速的创建套接字文件，并将其放入进程的文件描述
 //! 符表中，具体有关套接字文件的创建，可见 [`SocketData::new`] 的实现。
+use super::ShutdownFlag;
+use crate::error::AlienResult;
+use crate::fs::file::File;
+use crate::ksync::{Mutex, MutexGuard};
+use crate::net::addr::SocketAddrExt;
+use crate::net::port::neterror2alien;
+use crate::net::unix::UnixSocket;
+// use crate::task::do_suspend;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
 use core::net::SocketAddr;
-
-use rvfs::dentry::DirEntry;
-use rvfs::file::{File, FileExtOps, FileMode, FileOps, OpenFlags};
-use rvfs::inode::SpecialData;
-use rvfs::mount::VfsMount;
-use rvfs::superblock::{DataOps, Device};
-use rvfs::StrResult;
-
+use pconst::io::{OpenFlags, PollEvents, SeekFrom};
+use pconst::net::{Domain, SocketType};
+use pconst::LinuxErrno;
 use simple_net::tcp::TcpSocket;
 use simple_net::udp::UdpSocket;
-use syscall_define::net::{Domain, SocketType};
-use syscall_define::LinuxErrno;
+use vfscore::dentry::VfsDentry;
+use vfscore::inode::VfsInode;
+use vfscore::utils::VfsFileStat;
 
-use crate::net::addr::SocketAddrExt;
-use crate::net::port::neterror2linux;
-use crate::net::unix::UnixSocket;
-use crate::task::do_suspend;
+// Only for simplify the modification of the old code
+pub trait SocketFileExt {
+    fn get_socketdata(&self) -> AlienResult<MutexGuard<Box<SocketData>>>;
+}
 
-use super::ShutdownFlag;
+pub struct SocketFile {
+    open_flag: Mutex<OpenFlags>,
+    node: Mutex<Box<SocketData>>,
+}
+
+impl Debug for SocketFile {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SocketFile")
+            .field("open_flag", &self.open_flag)
+            .field("node", &self.node)
+            .finish()
+    }
+}
+
+impl SocketFile {
+    pub fn new(socket_data: SocketData) -> Self {
+        Self {
+            open_flag: Mutex::new(OpenFlags::O_RDWR),
+            node: Mutex::new(Box::new(socket_data)),
+        }
+    }
+
+    pub fn set_close_on_exec(&self) {
+        *self.open_flag.lock() |= OpenFlags::O_CLOEXEC;
+    }
+}
+
+impl SocketFileExt for SocketFile {
+    fn get_socketdata(&self) -> AlienResult<MutexGuard<Box<SocketData>>> {
+        let r = self.node.lock();
+        Ok(r)
+    }
+}
+
+impl File for SocketFile {
+    fn read(&self, buf: &mut [u8]) -> AlienResult<usize> {
+        if buf.len()==0{
+            return Ok(0)
+        }
+        simple_net::poll_interfaces();
+        let socket = self.get_socketdata().unwrap();
+        let res = socket.recvfrom(buf, 0).map(|x| x.0).map_err(|x| {
+            info!("socket_file_read: {:?}", x);
+            x
+        });
+        info!("socket_file_read: {:?}, indeed {:?}", buf.len(), res);
+        res
+    }
+
+    fn write(&self, buf: &[u8]) -> AlienResult<usize> {
+        if buf.len()==0{
+            return Ok(0)
+        }
+        info!("socket_file_write: buf_len:{:?}", buf.len());
+        simple_net::poll_interfaces();
+        let socket = self.get_socketdata().unwrap();
+        let res = socket.send_to(buf, 0, None).map_err(|x| {
+            info!("socket_file_write: {:?}", x);
+            x
+        });
+        // do_suspend();
+        res
+    }
+
+    fn seek(&self, _pos: SeekFrom) -> AlienResult<u64> {
+        Err(LinuxErrno::ESPIPE)
+    }
+
+    fn get_attr(&self) -> AlienResult<VfsFileStat> {
+        Err(LinuxErrno::ENOSYS)
+    }
+
+    fn dentry(&self) -> Arc<dyn VfsDentry> {
+        panic!("dentry in socket file is not supported")
+    }
+
+    fn inode(&self) -> Arc<dyn VfsInode> {
+        panic!("inode in socket file is not supported")
+    }
+
+    fn is_readable(&self) -> bool {
+        true
+    }
+
+    fn is_writable(&self) -> bool {
+        true
+    }
+
+    fn is_append(&self) -> bool {
+        false
+    }
+
+    fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
+        let mut res = PollEvents::empty();
+        simple_net::poll_interfaces();
+        let socket = self.get_socketdata().unwrap();
+        if _event.contains(PollEvents::IN) {
+            if socket.ready_read() {
+                res |= PollEvents::IN;
+            }
+        }
+        if _event.contains(PollEvents::OUT) {
+            if socket.ready_write() {
+                res |= PollEvents::OUT;
+            }
+        }
+        Ok(res)
+    }
+    fn get_open_flag(&self) -> OpenFlags {
+        *self.open_flag.lock()
+    }
+    fn set_open_flag(&self, flag: OpenFlags) {
+        *self.open_flag.lock() = flag;
+    }
+}
 
 /// Alien 内核中对于每一个套接字所存储的相关信息。所有系统调用最后都要归到该结构的操作。
 #[derive(Debug)]
@@ -74,15 +192,6 @@ impl Debug for Socket {
     }
 }
 
-impl DataOps for SocketData {
-    fn device(&self, _name: &str) -> Option<Arc<dyn Device>> {
-        None
-    }
-    fn data(&self) -> *const u8 {
-        self as *const _ as *const u8
-    }
-}
-
 impl SocketData {
     pub fn from_ptr(ptr: *const u8) -> &'static mut Self {
         unsafe { &mut *(ptr as *mut Self) }
@@ -98,7 +207,7 @@ impl SocketData {
         domain: Domain,
         s_type: SocketType,
         protocol: usize,
-    ) -> Result<Arc<File>, LinuxErrno> {
+    ) -> AlienResult<Arc<SocketFile>> {
         let raw_socket = match domain {
             Domain::AF_UNIX => {
                 error!("AF_UNIX is not supported");
@@ -109,80 +218,27 @@ impl SocketData {
                 SocketType::SOCK_DGRAM => Socket::Udp(UdpSocket::new()),
                 _ => {
                     error!("unsupported socket type: {:?}", s_type);
-                    return Err(LinuxErrno::EPROTONOSUPPORT);
+                    return Err(LinuxErrno::EPROTONOSUPPORT.into());
                 }
             },
         };
-
         let socket_data = Self {
             domain,
             s_type,
             protocol,
             socket: raw_socket,
         };
-
-        let socket_data = Box::new(socket_data);
-        let mut file_ops = FileOps::empty();
-        file_ops.release = socket_file_release;
-        file_ops.write = socket_file_write;
-        file_ops.read = socket_file_read;
-        let file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_RDWR,
-            FileMode::FMODE_RDWR,
-            file_ops,
-        );
-        file.access_inner().f_ops_ext = {
-            let mut file_ext_ops = FileExtOps::empty();
-            file_ext_ops.is_ready_read = socket_ready_to_read;
-            file_ext_ops.is_ready_write = socket_ready_to_write;
-            file_ext_ops
-        };
-        file.f_dentry
-            .access_inner()
-            .d_inode
-            .access_inner()
-            .special_data = Some(SpecialData::Socket);
-        file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket_data);
-        Ok(Arc::new(file))
+        Ok(Arc::new(SocketFile::new(socket_data)))
     }
-
     /// 用于对一个已经存在的 tcp_socket 创建对应的套接字文件。一般在 accept 成功接受一个 client 后被调用。
-    ///
-    /// 对于 `Alien` 中对文件的相关定义可见 `rvfs` 模块中的 `File` 结构。
-    fn new_connected(&self, tcp_socket: TcpSocket) -> Arc<File> {
+    fn new_connected(&self, tcp_socket: TcpSocket) -> Arc<SocketFile> {
         let socket_data = Self {
             domain: self.domain,
             s_type: self.s_type,
             protocol: self.protocol,
             socket: Socket::Tcp(tcp_socket),
         };
-        let socket_data = Box::new(socket_data);
-        let mut file_ops = FileOps::empty();
-        file_ops.release = socket_file_release;
-        file_ops.write = socket_file_write;
-        file_ops.read = socket_file_read;
-        let file = File::new(
-            Arc::new(DirEntry::empty()),
-            Arc::new(VfsMount::empty()),
-            OpenFlags::O_RDWR,
-            FileMode::FMODE_RDWR,
-            file_ops,
-        );
-        file.access_inner().f_ops_ext = {
-            let mut file_ext_ops = FileExtOps::empty();
-            file_ext_ops.is_ready_read = socket_ready_to_read;
-            file_ext_ops.is_ready_write = socket_ready_to_write;
-            file_ext_ops
-        };
-        file.f_dentry
-            .access_inner()
-            .d_inode
-            .access_inner()
-            .special_data = Some(SpecialData::Socket);
-        file.f_dentry.access_inner().d_inode.access_inner().data = Some(socket_data);
-        Arc::new(file)
+        Arc::new(SocketFile::new(socket_data))
     }
 
     /// 返回套接字的类型
@@ -206,15 +262,15 @@ impl SocketData {
     }
 
     /// 用于绑定套接字端口，tcp 和 udp 可用。被系统调用 [`bind`] 调用。
-    pub fn bind(&self, socket_addr: SocketAddrExt) -> Result<(), LinuxErrno> {
+    pub fn bind(&self, socket_addr: SocketAddrExt) -> AlienResult<()> {
         match &self.socket {
             Socket::Tcp(tcp) => {
                 tcp.bind(socket_addr.get_socketaddr())
-                    .map_err(neterror2linux)?;
+                    .map_err(neterror2alien)?;
             }
             Socket::Udp(udp) => {
                 udp.bind(socket_addr.get_socketaddr())
-                    .map_err(neterror2linux)?;
+                    .map_err(neterror2alien)?;
             }
             _ => {
                 panic!("bind is not supported")
@@ -226,34 +282,34 @@ impl SocketData {
     /// 用于处理一个 client 的连接请求，仅限于 Tcp 套接字。被系统调用 [`accept`] 调用。
     ///
     /// 如果该套接字不是 Tcp 套接字，将直接返回 Err。
-    pub fn accept(&self) -> Result<Arc<File>, LinuxErrno> {
+    pub fn accept(&self) -> AlienResult<Arc<SocketFile>> {
         match &self.socket {
             Socket::Tcp(tcp) => tcp
                 .accept()
                 .map(|socket| Ok(self.new_connected(socket)))
-                .map_err(neterror2linux)?,
-            _ => Err(LinuxErrno::EOPNOTSUPP),
+                .map_err(neterror2alien)?,
+            _ => Err(LinuxErrno::EOPNOTSUPP.into()),
         }
     }
 
     /// 用于监听一个端口，仅限于 Tcp 套接字。被系统调用 [`listening`] 调用。
     ///
     /// 如果该套接字不是 Tcp 套接字，将直接返回 Err。
-    pub fn listening(&self, _back_log: usize) -> Result<(), LinuxErrno> {
+    pub fn listening(&self, _back_log: usize) -> AlienResult<()> {
         match &self.socket {
-            Socket::Tcp(tcp) => tcp.listen().map_err(neterror2linux),
-            _ => Err(LinuxErrno::EOPNOTSUPP),
+            Socket::Tcp(tcp) => tcp.listen().map_err(neterror2alien),
+            _ => Err(LinuxErrno::EOPNOTSUPP.into()),
         }
     }
 
     /// 用于连接一个套接字。被系统调用 [`connect`] 调用。
-    pub fn connect(&self, ip: SocketAddrExt) -> Result<(), LinuxErrno> {
+    pub fn connect(&self, ip: SocketAddrExt) -> AlienResult<()> {
         match &self.socket {
             Socket::Tcp(tcp) => {
-                tcp.connect(ip.get_socketaddr()).map_err(neterror2linux)?;
+                tcp.connect(ip.get_socketaddr()).map_err(neterror2alien)?;
             }
             Socket::Udp(udp) => {
-                udp.connect(ip.get_socketaddr()).map_err(neterror2linux)?;
+                udp.connect(ip.get_socketaddr()).map_err(neterror2alien)?;
             }
             Socket::Unix(unix) => unix.connect(ip.get_local_path())?,
             _ => {
@@ -269,15 +325,15 @@ impl SocketData {
         message: &[u8],
         _flags: usize,
         dest_addr: Option<SocketAddrExt>,
-    ) -> Result<usize, LinuxErrno> {
+    ) -> AlienResult<usize> {
         match &self.socket {
-            Socket::Tcp(tcp) => tcp.send(message).map_err(|x| neterror2linux(x)),
+            Socket::Tcp(tcp) => tcp.send(message).map_err(|x| neterror2alien(x)),
             Socket::Udp(udp) => {
                 if let Some(dest_addr) = dest_addr {
                     udp.send_to(message, dest_addr.get_socketaddr())
-                        .map_err(neterror2linux)
+                        .map_err(neterror2alien)
                 } else {
-                    udp.send(message).map_err(neterror2linux)
+                    udp.send(message).map_err(neterror2alien)
                 }
             }
             _ => {
@@ -287,19 +343,15 @@ impl SocketData {
     }
 
     /// 用于从一个套接字中接收消息，接收成功则返回接受的消息长度。被系统调用 [`recvfrom`] 调用。
-    pub fn recvfrom(
-        &self,
-        message: &mut [u8],
-        _flags: usize,
-    ) -> Result<(usize, SocketAddr), LinuxErrno> {
+    pub fn recvfrom(&self, message: &mut [u8], _flags: usize) -> AlienResult<(usize, SocketAddr)> {
         match &self.socket {
             Socket::Tcp(tcp) => {
-                let recv = tcp.recv(message).map_err(neterror2linux)?;
-                let peer_addr = tcp.peer_addr().map_err(neterror2linux)?;
+                let recv = tcp.recv(message).map_err(neterror2alien)?;
+                let peer_addr = tcp.peer_addr().map_err(neterror2alien)?;
                 Ok((recv, peer_addr))
             }
             Socket::Udp(udp) => {
-                let recv = udp.recv_from(message).map_err(neterror2linux)?;
+                let recv = udp.recv_from(message).map_err(neterror2alien)?;
                 // let peer_addr = udp.peer_addr().map_err(neterror2linux)?;
                 Ok((recv.0, recv.1))
             }
@@ -310,10 +362,10 @@ impl SocketData {
     }
 
     /// 用于关闭套接字的读功能或写功能。被系统调用 [`shutdown`] 调用。
-    pub fn shutdown(&self, _sdflag: ShutdownFlag) -> Result<(), LinuxErrno> {
+    pub fn shutdown(&self, _sdflag: ShutdownFlag) -> AlienResult<()> {
         match &self.socket {
-            Socket::Tcp(tcp) => tcp.shutdown().map_err(neterror2linux),
-            Socket::Udp(udp) => udp.shutdown().map_err(neterror2linux),
+            Socket::Tcp(tcp) => tcp.shutdown().map_err(neterror2alien),
+            Socket::Udp(udp) => udp.shutdown().map_err(neterror2alien),
             _ => {
                 panic!("bind is not supported")
             }
@@ -373,7 +425,7 @@ impl SocketData {
         match &self.socket {
             Socket::Tcp(tcp) => {
                 let res = tcp.poll();
-                warn!("Tcp ready_read: {:?}", res);
+                info!("Tcp ready_read: {:?}", res);
                 if let Ok(res) = res {
                     res.readable
                 } else {
@@ -382,7 +434,7 @@ impl SocketData {
             }
             Socket::Udp(udp) => {
                 let res = udp.poll();
-                warn!("Udp ready_read: {:?}", res);
+                info!("Udp ready_read: {:?}", res);
                 if let Ok(res) = res {
                     res.readable
                 } else {
@@ -419,82 +471,4 @@ impl SocketData {
             }
         }
     }
-}
-
-/// 套接字文件的释放操作，会使得对应的套接字数据的 socket 字段置为 (Socket::None)。
-///
-/// 有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
-fn socket_file_release(file: Arc<File>) -> StrResult<()> {
-    error!("socket file release");
-    let dentry_inner = file.f_dentry.access_inner();
-    let inode_inner = dentry_inner.d_inode.access_inner();
-    let data = inode_inner.data.as_ref().unwrap();
-    let data = SocketData::from_ptr(data.data());
-    data.socket = Socket::None;
-    Ok(())
-}
-
-/// 套接字文件的读就绪操作，效果等同于 ready_read。当套接字中有未接收的数据时，会返回 true；否则返回 false。
-///
-/// 会调用 simple_net::poll_interfaces()。有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
-fn socket_ready_to_read(file: Arc<File>) -> bool {
-    let dentry_inner = file.f_dentry.access_inner();
-    let inode_inner = dentry_inner.d_inode.access_inner();
-    let data = inode_inner.data.as_ref().unwrap();
-    let socket = SocketData::from_ptr(data.data());
-    simple_net::poll_interfaces();
-    socket.ready_read()
-}
-
-/// 套接字文件的写就绪操作，效果等同于 ready_write。当套接字中有未发送的数据时，会返回 true；否则返回 false。
-///
-/// 会调用 simple_net::poll_interfaces()。有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
-fn socket_ready_to_write(file: Arc<File>) -> bool {
-    let dentry_inner = file.f_dentry.access_inner();
-    let inode_inner = dentry_inner.d_inode.access_inner();
-    let data = inode_inner.data.as_ref().unwrap();
-    let socket = SocketData::from_ptr(data.data());
-    simple_net::poll_interfaces();
-    socket.ready_write()
-}
-
-/// 套接字文件的写操作，效果等同于 send_to。
-///
-/// 有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
-fn socket_file_write(file: Arc<File>, buf: &[u8], _offset: u64) -> StrResult<usize> {
-    let dentry_inner = file.f_dentry.access_inner();
-    let inode_inner = dentry_inner.d_inode.access_inner();
-    let data = inode_inner.data.as_ref().unwrap();
-    let socket = SocketData::from_ptr(data.data());
-    warn!("socket_file_write: {:?}", buf.len());
-    simple_net::poll_interfaces();
-    let res = socket.send_to(buf, 0, None).map_err(|x| {
-        error!("socket_file_write: {:?}", x);
-        match x {
-            LinuxErrno::EAGAIN => "Try Again",
-            _ => "Net Error",
-        }
-    });
-    do_suspend();
-    res
-}
-
-/// 套接字文件的读操作，效果等同于 recvfrom。
-///
-/// 有关文件操作的定义可见 `rvfs` 模块中的 `File` 结构。
-fn socket_file_read(file: Arc<File>, buf: &mut [u8], _offset: u64) -> StrResult<usize> {
-    let dentry_inner = file.f_dentry.access_inner();
-    let inode_inner = dentry_inner.d_inode.access_inner();
-    let data = inode_inner.data.as_ref().unwrap();
-    let socket = SocketData::from_ptr(data.data());
-    simple_net::poll_interfaces();
-    let res = socket.recvfrom(buf, 0).map(|x| x.0).map_err(|x| {
-        error!("socket_file_read: {:?}", x);
-        match x {
-            LinuxErrno::EAGAIN => "Try Again",
-            _ => "Net Error",
-        }
-    });
-    warn!("socket_file_read: {:?}, indeed {:?}", buf.len(), res);
-    res
 }

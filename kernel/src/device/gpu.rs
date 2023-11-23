@@ -6,8 +6,7 @@ use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{FileStat, VfsNodeType};
+use vfscore::utils::{VfsFileStat, VfsNodeType};
 use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
@@ -61,16 +60,12 @@ impl VfsFile for GPUDevice {
 }
 
 impl VfsInode for GPUDevice {
-    fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
-        Err(VfsError::NoSys)
-    }
-
     fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
         Ok(())
     }
 
-    fn get_attr(&self) -> VfsResult<FileStat> {
-        Ok(FileStat {
+    fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        Ok(VfsFileStat {
             st_rdev: self.device_id.id(),
             ..Default::default()
         })

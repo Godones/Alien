@@ -7,15 +7,15 @@
 
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicI32, Ordering};
+use spin::Lazy;
 
-use lazy_static::lazy_static;
-
+use crate::error::AlienResult;
 use crate::ksync::Mutex;
+use pconst::ipc::{FutexOp, RobustList};
+use pconst::LinuxErrno;
 pub use pipe::*;
 pub use shm::*;
 pub use signal::*;
-use syscall_define::ipc::{FutexOp, RobustList};
-use syscall_define::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::fs::sys_close;
@@ -29,10 +29,9 @@ mod pipe;
 pub mod shm;
 pub mod signal;
 
-lazy_static! {
-    /// 一个全局变量，用于记录和管理 futex 的等待队列
-    pub static ref FUTEX_WAITER: Mutex<FutexWaitManager> = Mutex::new(FutexWaitManager::new());
-}
+/// 一个全局变量，用于记录和管理 futex 的等待队列
+pub static FUTEX_WAITER: Lazy<Mutex<FutexWaitManager>> =
+    Lazy::new(|| Mutex::new(FutexWaitManager::new()));
 
 /// 一对文件描述符。用于创建管道时，返回管道两个端口的文件描述符。
 #[repr(C)]
@@ -50,24 +49,18 @@ struct FdPair {
 ///
 /// 若创建管道成功，则会返回 0；若发生创建管道错误，或 `pipe == 0` 会导致函数返回 -1。
 #[syscall_func(59)]
-pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
+pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> AlienResult<isize> {
     if pipe.is_null() {
-        return -1;
+        return Err(LinuxErrno::EINVAL);
     }
     let process = current_task().unwrap();
     let fd_pair = process.transfer_raw_ptr(pipe as *mut FdPair);
-    let (read, write) = pipe::Pipe::new();
-    let read_fd = process.add_file(read);
-    if read_fd.is_err() {
-        return -1;
-    }
-    let write_fd = process.add_file(write);
-    if write_fd.is_err() {
-        return -1;
-    }
-    fd_pair.fd[0] = read_fd.unwrap() as u32;
-    fd_pair.fd[1] = write_fd.unwrap() as u32;
-    0
+    let (read, write) = make_pipe_file()?;
+    let read_fd = process.add_file(read).map_err(|_| LinuxErrno::EMFILE)?;
+    let write_fd = process.add_file(write).map_err(|_| LinuxErrno::EMFILE)?;
+    fd_pair.fd[0] = read_fd as u32;
+    fd_pair.fd[1] = write_fd as u32;
+    Ok(0)
 }
 
 /// 一个系统调用，将进程中一个已经打开的文件复制一份并分配到一个新的文件描述符中。可以用于IO重定向。
@@ -79,18 +72,13 @@ pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> isize {
 ///
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(23)]
-pub fn sys_dup(old_fd: usize) -> isize {
+pub fn sys_dup(old_fd: usize) -> AlienResult<isize> {
     let process = current_task().unwrap();
-    let file = process.get_file(old_fd);
-    if file.is_none() {
-        return -1;
-    }
-    let file = file.unwrap();
-    let new_fd = process.add_file(file.clone());
-    if new_fd.is_err() {
-        return LinuxErrno::EMFILE as isize;
-    }
-    new_fd.unwrap() as isize
+    let file = process.get_file(old_fd).ok_or(LinuxErrno::EBADF)?;
+    let new_fd = process
+        .add_file(file.clone())
+        .map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(new_fd as isize)
 }
 
 /// 一个系统调用，将进程中一个已经打开的文件复制一份并分配到一个新的文件描述符中。功能上与 `sys_dup` 大致相同。
@@ -104,22 +92,17 @@ pub fn sys_dup(old_fd: usize) -> isize {
 ///
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(24)]
-pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
+pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> AlienResult<isize> {
     let process = current_task().unwrap();
-    let file = process.get_file(old_fd);
-    if file.is_none() {
-        return -1;
-    }
-    let file = file.unwrap();
+    let file = process.get_file(old_fd).ok_or(LinuxErrno::EBADF)?;
     let new_file = process.get_file(new_fd);
     if new_file.is_some() {
-        sys_close(new_fd);
+        let _ = sys_close(new_fd);
     }
-    let result = process.add_file_with_fd(file.clone(), new_fd);
-    if result.is_err() {
-        return -1;
-    }
-    new_fd as isize
+    process
+        .add_file_with_fd(file.clone(), new_fd)
+        .map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(new_fd as isize)
 }
 
 static FCOUNT: Mutex<usize> = Mutex::new(0);

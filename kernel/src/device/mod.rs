@@ -72,7 +72,7 @@ fn init_rtc() {
         let current_time = rtc.read_time_fmt();
         rtc::init_rtc(rtc.clone());
         register_device_to_plic(irq, rtc.clone());
-        println!("init rtc success, current time: {:?}", current_time);
+        println!("Init rtc success, current time: {:?}", current_time);
     }
     #[cfg(feature = "vf2")]
     {
@@ -108,7 +108,7 @@ fn init_uart() {
         register_device_to_plic(irq, uart);
     }
     UART_FLAG.store(true, Ordering::Relaxed);
-    println!("init uart success");
+    println!("Init uart success");
 }
 
 fn init_gpu() {
@@ -126,7 +126,7 @@ fn init_gpu() {
         let gpu = Arc::new(gpu);
         gpu::init_gpu(gpu.clone());
         // let _ = register_device_to_plic(irq, gpu);
-        println!("init gpu success");
+        println!("Init gpu success");
     }
 }
 
@@ -146,14 +146,14 @@ fn init_block_device() {
         let block_device = Arc::new(block_device);
         block::init_block_device(block_device);
         // register_device_to_plic(irq, block_device);
-        println!("init block device success");
+        println!("Init block device success");
     }
     #[cfg(any(feature = "vf2", feature = "hifive"))]
     {
         use crate::board::checkout_fs_img;
         checkout_fs_img();
         init_fake_disk();
-        println!("init fake disk success");
+        println!("Init fake disk success");
     }
 }
 
@@ -188,7 +188,7 @@ fn init_keyboard_input_device() {
         let input_device = Arc::new(input_device);
         input::init_keyboard_input_device(input_device.clone());
         let _ = register_device_to_plic(irq, input_device);
-        println!("init keyboard input device success");
+        println!("Init keyboard input device success");
     }
 }
 
@@ -211,7 +211,7 @@ fn init_mouse_input_device() {
         let input_device = Arc::new(input_device);
         input::init_mouse_input_device(input_device.clone());
         let _ = register_device_to_plic(irq, input_device);
-        println!("init mouse input device success");
+        println!("Init mouse input device success");
     }
 }
 
@@ -240,7 +240,7 @@ fn init_net() {
             false,
             true,
         );
-        println!("init net device success");
+        println!("Init net device success");
         println!("test echo-server");
         #[cfg(feature = "net_test")]
         net::nettest::accept_loop();
@@ -258,5 +258,5 @@ fn init_loop_device() {
         false,
         true,
     );
-    println!("init net device success");
+    println!("Init net device success");
 }

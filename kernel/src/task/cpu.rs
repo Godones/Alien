@@ -8,17 +8,16 @@ use core::ops::{Index, IndexMut};
 use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::Lazy;
 
+use crate::error::{AlienError, AlienResult};
 use crate::ksync::Mutex;
-use syscall_define::ipc::FutexOp;
-use syscall_define::signal::SignalNumber;
-use syscall_define::task::{CloneFlags, WaitOptions};
-use syscall_define::{PrLimit, PrLimitRes};
+use pconst::ipc::FutexOp;
+use pconst::signal::SignalNumber;
+use pconst::task::{CloneFlags, WaitOptions};
+use pconst::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
-use crate::arch;
 use crate::arch::hart_id;
 use crate::config::CPU_NUM;
-use crate::fs::vfs;
 use crate::ipc::{futex, global_logoff_signals};
 use crate::sbi::system_shutdown;
 use crate::task::context::Context;
@@ -26,6 +25,7 @@ use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
 use crate::task::INIT_PROCESS;
 use crate::trap::{check_task_timer_expired, TrapFrame};
+use crate::{arch, fs};
 
 /// 记录当前 CPU 上正在执行的线程 和 线程上下文
 #[derive(Debug, Clone)]
@@ -153,7 +153,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     let task = current_task().unwrap();
     let exit_code = (exit_code & 0xff) << 8;
     if task.get_pid() == 0 {
-        println!("init process exit with code {}", exit_code);
+        println!("Init process exit with code {}", exit_code);
         system_shutdown();
     }
     {
@@ -331,7 +331,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 ///
 /// 成功执行文件后会返回0；否则会返回-1或错误类型。
 #[syscall_func(221)]
-pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
+pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> AlienResult<isize> {
     let task = current_task().unwrap();
     let mut path_str = task.transfer_str(path);
     // get the args and push them into the new process stack
@@ -344,21 +344,22 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
             new_path.push('\0');
             args.insert(0, new_path);
         }
-        path_str = "busybox".to_string();
+        path_str = "./busybox".to_string();
         args.insert(0, "sh\0".to_string());
     }
     let mut data = Vec::new();
     if path_str.contains("libc-bench") {
-        path_str = path_str.replace("libc-bench", "libc-bench2");
+        path_str = "libc-bench2".to_string();
     }
-    if vfs::read_all(&path_str, &mut data) {
+    if fs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
-            return res.err().unwrap();
+            return Err(AlienError::ENOEXEC);
         }
-        return 0;
+        Ok(0)
     } else {
-        -1
+        info!("exec {} failed", path_str);
+        Err(AlienError::ENOENT)
     }
 }
 
@@ -374,7 +375,7 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
 /// Reference:[wait](https://man7.org/linux/man-pages/man2/wait.2.html)
 #[syscall_func(260)]
 pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
-    let process = current_task().unwrap().clone();
+    let process = current_task().unwrap();
     loop {
         if process
             .children()

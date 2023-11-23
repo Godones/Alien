@@ -8,11 +8,11 @@ use alloc::vec::Vec;
 use core::mem::size_of;
 
 use crate::ksync::Mutex;
-use syscall_define::signal::{
+use pconst::signal::{
     SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
     SignalReceivers, SignalUserContext, SimpleBitSet,
 };
-use syscall_define::LinuxErrno;
+use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, do_exit, do_suspend};

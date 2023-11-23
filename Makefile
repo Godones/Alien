@@ -104,6 +104,7 @@ user:
 	@cd apps && make all
 
 sdcard:fat32 testelf user
+	@sudo umount /fat
 
 run:sdcard install compile
 	@echo qemu booot $(SMP)
@@ -153,11 +154,10 @@ f_test:
 	    -device virtio-net-device,netdev=net -netdev user,id=net
 
 testelf:
-	if [ -d "sdcard" ]; then \
+	@if [ -d "sdcard" ]; then \
 		sudo cp sdcard/* /fat -r; \
-		sudo cp sdcard/* /fat/bin -r;\
+#		sudo cp sdcard/* /fat/bin -r;\
 	fi
-	@sync
 
 dtb:
 	$(call boot_qemu, -machine dumpdtb=riscv.dtb)
@@ -177,10 +177,7 @@ ZeroFile:
 	@dd if=/dev/zero of=$(IMG) bs=1M count=64
 
 fat32:
-	if [ -f "$(IMG)" ]; then \
-		rm $(IMG); \
-		touch $(IMG); \
-	fi
+	@-touch $(IMG)
 	@dd if=/dev/zero of=$(IMG) bs=1M count=72
 	@mkfs.fat -F 32 $(IMG)
 	@if mountpoint -q /fat; then \
@@ -190,7 +187,7 @@ fat32:
 	@sudo cp tools/f1.txt /fat
 	@sudo mkdir /fat/folder
 	@sudo cp tools/f1.txt /fat/folder
-	@sync
+	@echo fat32 has been created
 
 
 img-hex:
@@ -225,5 +222,8 @@ clean:
 	@rm kernel-qemu
 	@rm alien-*
 
+
+check:
+	cargo check --target riscv64gc-unknown-none-elf --features $(FEATURES)
 
 .PHONY: all install build run clean fake_run sdcard vf2 unmatched gdb-client gdb-server kernel_asm docs

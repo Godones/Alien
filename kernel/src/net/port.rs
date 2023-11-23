@@ -1,10 +1,11 @@
 //! 现为将网络异常类型 [`NetError`] 转为 系统异常类型 [`LinuxErrno`]的模块。原为定义端口全局变量和操作的模块。
 
+use crate::error::AlienError;
+use pconst::LinuxErrno;
 use simple_net::common::NetError;
-use syscall_define::LinuxErrno;
 
 /// 现为将网络异常类型 [`NetError`] 转为 系统异常类型 [`LinuxErrno`]。
-pub fn neterror2linux(error: NetError) -> LinuxErrno {
+pub fn neterror2alien(error: NetError) -> AlienError {
     match error {
         NetError::AddrInUse => LinuxErrno::EADDRINUSE,
         NetError::InvalidInput => LinuxErrno::EINVAL,
@@ -17,4 +18,5 @@ pub fn neterror2linux(error: NetError) -> LinuxErrno {
         NetError::ConnectionReset => LinuxErrno::ECONNRESET,
         NetError::Interrupted => LinuxErrno::EINTR,
     }
+    .into()
 }

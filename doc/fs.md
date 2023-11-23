@@ -131,3 +131,34 @@ There are some applications in the `app` directory to test the system calls.
 6. **环境变量和全局脚本**：`/etc/profile` 和 `/etc/environment` 等文件包含全局的环境变量设置，影响所有用户的命令行环境。
 
 总之，`/etc` 目录用于存储系统范围的配置文件，这些文件定义了系统的各种属性、服务和应用程序的行为。这些文件通常由管理员进行编辑和管理，以确保系统按照所需的方式运行。
+
+
+
+## 命名管道与匿名管道
+
+匿名管道最常见的形态就是我们在shell操作中最常用的”|”。它的特点是只能在父子进程中使用，父进程在产生子进程前必须打开一个管道文件，然后fork产生子进程，这样子进程通过拷贝父进程的进程地址空间获得同一个管道文件的描述符，以达到使用同一个管道通信的目的。此时除了父子进程外，没人知道这个管道文件的描述符，所以通过这个管道中的信息无法传递给其他进程。这保证了传输数据的安全性，当然也降低了管道了通用性，于是系统还提供了命名管道。
+
+通常可以在命令行使用`mkfifo` 命令创建一个`pipe`文件, 或者在程序中使用`mknod` 系统调用来创建。
+
+在具体实现中，我们遵守一切皆文件的原则，创建了一个内部的`pipefs`来管理所有的匿名管道文件，当然，而对于有名管道，则是各个文件系统来进行具体实现。
+
+对于`pipe` 文件来说，其需要在读写的时候检查读者和写者的存在与否，因此相比普通的文件，需要在进行读写的时候处理这一需求。
+
+![image-20231108170039387](./assert/image-20231108170039387.png)
+
+
+
+## utimensat
+
+```
+int utimensat(int dirfd, const char *pathname,
+                     const struct timespec times[_Nullable 2], int flags);
+int futimens(int fd, const struct timespec times[_Nullable 2]);
+```
+
+时间戳可以按下列四种方式之一进行指定。
+
+1. 如果times参数是一个空指针，则访问时间和修改时间两者都设置为当前时间。
+2. 如果times参数指向两个timespec结构的数组，任一数组元素的tv_nsec字段的值为UTIME_NOW， 相应的时间戳就设置为当前时间，忽略相应的tv_sec字段。
+3. 如果times参数指向两个timespec结构的数组， 任一数组元素的tv_nsec字段的值为UTIME_OMIT， 相应的时间戳保持不变，忽略相应的tv_sec字段。
+4. 如果times参数指向两个timespec结构的数组，且tv_nsec字段的值既不是UTIME_NOW也不是UTIME_OMIT， 在这种情况下，相应的时间戳设置为相应的tv_sec和tv_nsec字段的值

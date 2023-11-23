@@ -1,8 +1,9 @@
-use crate::error_unwrap;
+use crate::error::AlienResult;
 use crate::task::current_task;
 use crate::timer::TimeFromFreq;
-use syscall_define::sys::{Rusage, RusageFlag, TimeVal};
-use syscall_define::LinuxErrno;
+use pconst::sys::{Rusage, RusageFlag, TimeVal};
+use pconst::LinuxErrno;
+
 /// (待完善)一个系统调用，用于获取对系统资源的使用量信息。获取的信息将保存到`usage`所指向的[`Rusage`]结构中。
 ///
 /// 可以通过`who`修改获取信息的对象，包括:
@@ -14,10 +15,9 @@ use syscall_define::LinuxErrno;
 ///
 /// 正确执行后返回0。
 #[syscall_func(165)]
-pub fn getrusage(who: isize, usage: usize) -> isize {
-    let who = RusageFlag::try_from(who);
-    error_unwrap!(who, LinuxErrno::EINVAL as isize);
-    warn!("getrusage: who: {:?}, usage: {}", who, usage);
+pub fn getrusage(who: isize, usage: usize) -> AlienResult<isize> {
+    let who = RusageFlag::try_from(who).map_err(|_| LinuxErrno::EINVAL)?;
+    info!("getrusage: who: {:?}, usage: {}", who, usage);
     let task = current_task().unwrap();
     let static_info = task.access_inner().statistical_data().clone();
     let mut task_usage = Rusage::new();
@@ -25,5 +25,5 @@ pub fn getrusage(who: isize, usage: usize) -> isize {
     task_usage.ru_stime = TimeVal::from_freq(static_info.tms_stime);
     task.access_inner()
         .copy_to_user(&task_usage, usage as *mut Rusage);
-    0
+    Ok(0)
 }

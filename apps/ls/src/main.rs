@@ -4,7 +4,6 @@
 extern crate alloc;
 
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 
 use Mstd::fs::{getdents, open, Dirent64, DirentType, OpenFlags};
@@ -21,27 +20,29 @@ fn main(_: usize, argv: Vec<String>) -> isize {
     }
     0
 }
-
+const BUF_SIZE:usize = 512;
 fn parse_args(path: &str) {
     let fd = open(path, OpenFlags::O_RDONLY);
     assert!(fd >= 0, "open failed");
-    let size = getdents(fd as usize, &mut []);
-    assert!(size >= 0, "getdents failed");
-    if size == 0 {
-        return;
-    }
-    let mut buf = vec![0u8; size as usize];
-    let size = getdents(fd as usize, buf.as_mut_slice());
-    let mut ptr = buf.as_ptr() as *const u8;
-    let mut count = 0;
+    let mut buf = [0u8; BUF_SIZE];
     loop {
-        let dirent = unsafe { &*(ptr as *const Dirent64) };
-        println!("{}  {}", trans(dirent.type_), dirent.get_name());
-        count += dirent.len();
-        if count >= size as usize {
+        let size = getdents(fd as usize, &mut buf);
+        // assert!(size >= 0, "getdents failed");
+        if size == 0 || size == -1 {
             break;
         }
-        ptr = unsafe { ptr.add(dirent.len()) };
+        let mut ptr = buf.as_ptr();
+        let mut count = 0;
+        loop {
+            let dirent = unsafe { &*(ptr as *const Dirent64) };
+            println!("{} {}", trans(dirent.type_), dirent.get_name());
+            count += dirent.len();
+            if count >= size as usize {
+                break;
+            }
+            ptr = unsafe { ptr.add(dirent.len()) };
+        }
+        buf.fill(0);
     }
 }
 

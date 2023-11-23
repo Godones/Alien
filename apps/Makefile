@@ -8,8 +8,7 @@ GUI ?=n
 
 all:build
 	@echo "Moving apps to /fat32/bin"
-	@$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) /fat/bin/$(dir););)
-	@sync
+	@$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) /fat/$(dir););)
 
 
 build:

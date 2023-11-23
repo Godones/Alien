@@ -7,9 +7,9 @@ use riscv::register::{sepc, sscratch, stval};
 
 pub use context::TrapFrame;
 pub use exception::trap_common_read_file;
-use syscall_define::signal::SignalNumber;
-use syscall_define::signal::SIGNAL_RETURN_TRAP;
-use syscall_define::time::TimerType;
+use pconst::signal::SignalNumber;
+use pconst::signal::SIGNAL_RETURN_TRAP;
+use pconst::time::TimerType;
 
 use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
 use crate::arch::riscv::register::stvec;
@@ -141,10 +141,10 @@ impl TrapHandler for Trap {
                         self, stval, sepc
                     );
                     let err = res.err().unwrap();
-                    if err == AlienError::ThreadNeedWait {
+                    if err == AlienError::EAGAIN {
                         // println!("thread need wait");
                         do_suspend();
-                    } else if err == AlienError::ThreadNeedExit {
+                    } else if err == AlienError::ETMP {
                         do_exit(-1);
                     } else {
                         send_signal(tid as usize, SignalNumber::SIGSEGV as usize)
