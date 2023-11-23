@@ -8,6 +8,7 @@ use core::ops::{Index, IndexMut};
 use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::Lazy;
 
+use crate::error::{AlienError, AlienResult};
 use crate::ksync::Mutex;
 use pconst::ipc::FutexOp;
 use pconst::signal::SignalNumber;
@@ -15,7 +16,7 @@ use pconst::task::{CloneFlags, WaitOptions};
 use pconst::{PrLimit, PrLimitRes};
 use syscall_table::syscall_func;
 
-use crate::arch::{hart_id};
+use crate::arch::hart_id;
 use crate::config::CPU_NUM;
 use crate::ipc::{futex, global_logoff_signals};
 use crate::sbi::system_shutdown;
@@ -330,7 +331,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
 ///
 /// 成功执行文件后会返回0；否则会返回-1或错误类型。
 #[syscall_func(221)]
-pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
+pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> AlienResult<isize> {
     let task = current_task().unwrap();
     let mut path_str = task.transfer_str(path);
     // get the args and push them into the new process stack
@@ -348,17 +349,17 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> isize {
     }
     let mut data = Vec::new();
     if path_str.contains("libc-bench") {
-        path_str = path_str.replace("libc-bench", "libc-bench2");
+        path_str = "libc-bench2".to_string();
     }
     if fs::read_all(&path_str, &mut data) {
         let res = task.exec(&path_str, data.as_slice(), args, envs);
         if res.is_err() {
-            return res.err().unwrap();
+            return Err(AlienError::ENOEXEC);
         }
-        return 0;
+        Ok(0)
     } else {
-        println!("exec {} failed", path_str);
-        -1
+        info!("exec {} failed", path_str);
+        Err(AlienError::ENOENT)
     }
 }
 

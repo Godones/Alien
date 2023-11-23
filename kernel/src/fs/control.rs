@@ -1,3 +1,4 @@
+use crate::config::AT_FDCWD;
 use crate::error::AlienResult;
 use crate::fs::user_path_at;
 use crate::task::current_task;
@@ -116,14 +117,38 @@ pub fn utimensat(
     times: *const u8,
     _flags: usize,
 ) -> AlienResult<isize> {
+    if fd as isize != AT_FDCWD && (fd as isize) < 0 {
+        return Err(LinuxErrno::EBADF.into());
+    }
     let task = current_task().unwrap();
-    let path = task.transfer_str(path);
-    let path = user_path_at(fd as isize, &path)?;
-    let dt = path.open(None)?;
+
+    let dt = if fd as isize > 0 {
+        let file = task.get_file(fd).ok_or(LinuxErrno::EBADF)?;
+        file.dentry()
+    } else {
+        let path = task.transfer_str(path);
+        let path = user_path_at(fd as isize, &path)?;
+        let dt = path.open(None)?;
+        dt
+    };
 
     let mut inner = task.access_inner();
-    let (atime, mtime) = if times.is_null() {
-        (TimeSpec::now(), TimeSpec::now())
+    if times.is_null() {
+        warn!(
+            "utimensat: {:?} {:?} {:?} {:?}",
+            fd as isize,
+            path,
+            TimeSpec::now(),
+            TimeSpec::now()
+        );
+        dt.inode()?.update_time(
+            VfsTime::AccessTime(TimeSpec::now().into()),
+            TimeSpec::now().into(),
+        )?;
+        dt.inode()?.update_time(
+            VfsTime::AccessTime(TimeSpec::now().into()),
+            TimeSpec::now().into(),
+        )?;
     } else {
         let mut atime = TimeSpec::new(0, 0);
         let mut mtime = TimeSpec::new(0, 0);
@@ -131,26 +156,34 @@ pub fn utimensat(
         unsafe {
             inner.copy_from_user((times as *const TimeSpec).add(1), &mut mtime);
         }
-        (atime, mtime)
+        warn!(
+            "utimensat: {:?} {:?} {:?} {:?}",
+            fd as isize, path, atime, mtime
+        );
+        if atime.tv_nsec == UTIME_NOW {
+            dt.inode()?.update_time(
+                VfsTime::AccessTime(TimeSpec::now().into()),
+                TimeSpec::now().into(),
+            )?;
+        } else if atime.tv_nsec == UTIME_OMIT {
+            // do nothing
+        } else {
+            dt.inode()?
+                .update_time(VfsTime::AccessTime(atime.into()), TimeSpec::now().into())?;
+        };
+        if mtime.tv_nsec == UTIME_NOW {
+            dt.inode()?.update_time(
+                VfsTime::ModifiedTime(TimeSpec::now().into()),
+                TimeSpec::now().into(),
+            )?;
+        } else if mtime.tv_nsec == UTIME_OMIT {
+            // do nothing
+        } else {
+            dt.inode()?
+                .update_time(VfsTime::ModifiedTime(mtime.into()), TimeSpec::now().into())?;
+        };
     };
-    info!(
-        "utimensat: {:?} {:?} {:?} {:?}",
-        fd as isize, path, atime, mtime
-    );
-    let atime = if atime.tv_nsec == UTIME_NOW {
-        TimeSpec::now()
-    } else {
-        atime
-    };
-    let mtime = if mtime.tv_nsec == UTIME_NOW {
-        TimeSpec::now()
-    } else {
-        mtime
-    };
-    dt.inode()?
-        .update_time(VfsTime::AccessTime(atime.into()), TimeSpec::now().into())?;
-    dt.inode()?
-        .update_time(VfsTime::AccessTime(mtime.into()), TimeSpec::now().into())?;
+
     Ok(0)
 }
 

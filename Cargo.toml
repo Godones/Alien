@@ -15,19 +15,12 @@ members = [
     "apps/printdemo",
     "apps/egui",
     "apps/sysinfo",
-    #    "apps/dbfs",
     "apps/init",
     "apps/ls",
     "apps/mkdir",
     "apps/pwd",
     "apps/shell",
-    "apps/filetest_simple",
-    "apps/hugewrite",
-    "apps/hugeread",
     "apps/touch",
-    "apps/throughput",
-    "apps/randrw",
-    "apps/sequencewr",
     "apps/run_test",
     "apps/guitest",
     "apps/slint",
@@ -35,7 +28,7 @@ members = [
     "apps/tests",
     "apps/memory-game",
     "apps/print",
-    "apps/final_test"
+    "apps/final_test",
 ]
 
 
