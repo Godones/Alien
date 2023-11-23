@@ -72,18 +72,13 @@ pub fn sys_pipe(pipe: *mut u32, _flag: u32) -> AlienResult<isize> {
 ///
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(23)]
-pub fn sys_dup(old_fd: usize) -> isize {
+pub fn sys_dup(old_fd: usize) -> AlienResult<isize> {
     let process = current_task().unwrap();
-    let file = process.get_file(old_fd);
-    if file.is_none() {
-        return -1;
-    }
-    let file = file.unwrap();
-    let new_fd = process.add_file(file.clone());
-    if new_fd.is_err() {
-        return LinuxErrno::EMFILE as isize;
-    }
-    new_fd.unwrap() as isize
+    let file = process.get_file(old_fd).ok_or(LinuxErrno::EBADF)?;
+    let new_fd = process
+        .add_file(file.clone())
+        .map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(new_fd as isize)
 }
 
 /// 一个系统调用，将进程中一个已经打开的文件复制一份并分配到一个新的文件描述符中。功能上与 `sys_dup` 大致相同。
@@ -97,22 +92,17 @@ pub fn sys_dup(old_fd: usize) -> isize {
 ///
 /// Reference: https://man7.org/linux/man-pages/man2/dup.2.html
 #[syscall_func(24)]
-pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> isize {
+pub fn sys_dup2(old_fd: usize, new_fd: usize, _flag: usize) -> AlienResult<isize> {
     let process = current_task().unwrap();
-    let file = process.get_file(old_fd);
-    if file.is_none() {
-        return -1;
-    }
-    let file = file.unwrap();
+    let file = process.get_file(old_fd).ok_or(LinuxErrno::EBADF)?;
     let new_file = process.get_file(new_fd);
     if new_file.is_some() {
         let _ = sys_close(new_fd);
     }
-    let result = process.add_file_with_fd(file.clone(), new_fd);
-    if result.is_err() {
-        return -1;
-    }
-    new_fd as isize
+    process
+        .add_file_with_fd(file.clone(), new_fd)
+        .map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(new_fd as isize)
 }
 
 static FCOUNT: Mutex<usize> = Mutex::new(0);

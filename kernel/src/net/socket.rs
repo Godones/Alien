@@ -141,6 +141,12 @@ impl File for SocketFile {
         }
         Ok(res)
     }
+    fn get_open_flag(&self) -> OpenFlags {
+        *self.open_flag.lock()
+    }
+    fn set_open_flag(&self, flag: OpenFlags) {
+        *self.open_flag.lock() = flag;
+    }
 }
 
 /// Alien 内核中对于每一个套接字所存储的相关信息。所有系统调用最后都要归到该结构的操作。

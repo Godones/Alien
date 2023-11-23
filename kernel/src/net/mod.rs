@@ -6,12 +6,14 @@
 //! [`unix`] 子模块指明了有关 Unix 协议族下的套接字结构。(目前有关的功能有待支持)
 //!
 use crate::error::AlienResult;
+use crate::fs::file::File;
 use crate::net::addr::{socket_addr_resolution, RawIpV4Addr};
 use crate::net::socket::{SocketData, SocketFile, SocketFileExt};
 use crate::task::{current_task, do_suspend};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
+use pconst::io::OpenFlags;
 use pconst::net::*;
 use pconst::LinuxErrno;
 use syscall_table::syscall_func;
@@ -30,7 +32,7 @@ mod unix;
 /// 如果创建套接字成功则返回一个能在之后使用的文件描述符，否则返回错误信息。
 #[syscall_func(198)]
 pub fn socket(domain: usize, s_type: usize, protocol: usize) -> AlienResult<isize> {
-    let domain = Domain::try_from(domain).map_err(|_| LinuxErrno::EINVAL)?;
+    let domain = Domain::try_from(domain).map_err(|_| LinuxErrno::EAFNOSUPPORT)?;
     let socket_type =
         SocketType::try_from(s_type & SOCKET_TYPE_MASK as usize).map_err(|_| LinuxErrno::EINVAL)?;
     let task = current_task().unwrap();
@@ -38,11 +40,13 @@ pub fn socket(domain: usize, s_type: usize, protocol: usize) -> AlienResult<isiz
     info!("socket domain: {:?}, type: {:?}", domain, socket_type);
     if s_type & SocketType::SOCK_NONBLOCK as usize != 0 {
         let socket = file.get_socketdata()?;
+        file.set_open_flag(file.get_open_flag() | OpenFlags::O_NONBLOCK);
         socket.set_socket_nonblock(true);
         info!("socket with nonblock");
     }
     if s_type & SocketType::SOCK_CLOEXEC as usize != 0 {
         file.set_close_on_exec();
+        info!("socket with cloexec");
     }
     let fd = task.add_file(file).map_err(|_| LinuxErrno::EMFILE)?;
     Ok(fd as isize)

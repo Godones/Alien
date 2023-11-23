@@ -86,11 +86,11 @@ pub fn sys_openat(dirfd: isize, path: *const u8, flag: usize, mode: u32) -> Alie
     .map(|x| im2vim(x));
     let process = current_task().unwrap();
 
-    let path = process.transfer_str(path);
-    let path = user_path_at(dirfd, &path)?;
+    let _path = process.transfer_str(path);
+    let path = user_path_at(dirfd, &_path)?;
     warn!(
-        "open file: {:?},flag:{:?}, mode:{:?}",
-        path, flag, file_mode
+        "open file: dirfd:[{}], {:?},flag:{:?}, mode:{:?}",
+        dirfd, path, flag, file_mode
     );
 
     let dentry = path.open(file_mode)?;
@@ -137,7 +137,7 @@ pub fn sys_close(fd: usize) -> AlienResult<isize> {
 /// Reference: [sys_getdents](https://man7.org/linux/man-pages/man2/getdents.2.html)
 #[syscall_func(61)]
 pub fn sys_getdents(fd: usize, buf: *mut u8, len: usize) -> AlienResult<isize> {
-    info!("[getdents] fd: {}, buf size: {}",fd,len);
+    info!("[getdents] fd: {}, buf size: {}", fd, len);
     let process = current_task().unwrap();
     let file = process.get_file(fd).ok_or(LinuxErrno::EBADF)?;
     let user_bufs = process.transfer_buffer(buf, len);
@@ -209,6 +209,9 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> AlienResult<isize> {
     for b in buf.iter_mut() {
         let r = file.read(b)?;
         count += r;
+        if r != b.len() {
+            break;
+        }
     }
 
     Ok(count as _)
@@ -227,8 +230,11 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> AlienResult<isize> {
     let mut buf = process.transfer_buffer(buf, len);
     let mut count = 0;
     for b in buf.iter_mut() {
-        let r = file.write(b)?;
-        count += r;
+        let w = file.write(b)?;
+        count += w;
+        if w != b.len() {
+            break;
+        }
     }
     Ok(count as _)
 }
@@ -273,7 +279,12 @@ pub fn sys_chdir(path: *const u8) -> AlienResult<isize> {
         return Err(LinuxErrno::ENOTDIR);
     }
     let fs = dt.inode()?.get_super_block()?.fs_type();
-    info!("chdir: {:?} fs: {}, parent:{:?}", dt.name(), fs.fs_name(),dt.parent().is_some());
+    info!(
+        "chdir: {:?} fs: {}, parent:{:?}",
+        dt.name(),
+        fs.fs_name(),
+        dt.parent().is_some()
+    );
     process.access_inner().fs_info.cwd = dt;
     Ok(0)
 }
@@ -453,7 +464,7 @@ pub fn sys_fstateat(
     let process = current_task().unwrap();
     let path = process.transfer_str(path);
     let flag = StatFlags::from_bits_truncate(flag as u32);
-    info!("sys_fstateat: path: {:?}, flag: {:?}", path, flag);
+    warn!("sys_fstateat: path: {:?}, flag: {:?}", path, flag);
     let path = user_path_at(dir_fd, &path)?;
 
     let dt = path.open(None)?;
@@ -463,7 +474,7 @@ pub fn sys_fstateat(
     unsafe {
         (&mut file_stat as *mut FileStat as *mut usize as *mut VfsFileStat).write(attr);
     }
-    info!("sys_fstateat: res: {:?}", file_stat);
+    warn!("sys_fstateat: res: {:?}", file_stat);
     process
         .access_inner()
         .copy_to_user(&file_stat, stat as *mut FileStat);
@@ -485,7 +496,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> AlienResult<isize> {
     unsafe {
         (&mut file_stat as *mut FileStat as *mut usize as *mut VfsFileStat).write(attr);
     }
-    info!("sys_fstat: {:?}, res: {:?}", fd, file_stat);
+    warn!("sys_fstat: {:?}, res: {:?}", fd, file_stat);
     process
         .access_inner()
         .copy_to_user(&file_stat, stat as *mut FileStat);
@@ -506,7 +517,7 @@ pub fn sys_fstatfs(fd: isize, buf: *mut u8) -> AlienResult<isize> {
     unsafe {
         (&mut *buf as *mut FsStat as *mut usize as *mut VfsFsStat).write(fs_stat);
     }
-    info!("sys_fstatfs: res: {:#x?}", fs_stat);
+    warn!("sys_fstatfs: res: {:#x?}", fs_stat);
     Ok(0)
 }
 
@@ -530,7 +541,7 @@ pub fn sys_statfs(path: *const u8, statfs: *const u8) -> AlienResult<isize> {
         (&mut *buf as *mut FsStat as *mut usize as *mut VfsFsStat).write(fs_stat);
     }
 
-    info!("sys_statfs: res: {:#x?}", fs_stat);
+    warn!("sys_statfs: [{:?}] res: {:#x?}", path, fs_stat);
     Ok(0)
 }
 

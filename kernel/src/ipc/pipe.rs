@@ -253,7 +253,7 @@ impl PipeInode {
 
 impl VfsFile for PipeInode {
     fn read_at(&self, _offset: u64, user_buf: &mut [u8]) -> VfsResult<usize> {
-        info!("pipe_read: {:?}", user_buf.len());
+        info!("pipe_read: user_buf's len {:?}", user_buf.len());
         let mut count = 0;
         loop {
             let mut buf = self.data.lock();
