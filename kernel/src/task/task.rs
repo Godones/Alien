@@ -3,63 +3,47 @@
 //! Alien 中对于进程\线程的相关概念的设计与 Linux 类似，进程和线程共用一个控制块结构。
 //! 使用 `clone` 创建新的进程(线程)时，会根据 flag 指明父子进程之间资源共享的程度。
 //! tid 是标识不同任务的唯一标识。
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::sync::{Arc, Weak};
-use alloc::vec::Vec;
-use alloc::{format, vec};
-use core::fmt::Debug;
-use core::ops::Range;
-
-use bit_field::BitField;
-use lazy_static::lazy_static;
-use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
-use page_table::pte::MappingFlags;
-use page_table::table::Sv39PageTable;
-use rvfs::dentry::DirEntry;
-use rvfs::file::{vfs_close_file, File};
-use rvfs::info::ProcessFsInfo;
-use rvfs::link::vfs_unlink;
-use rvfs::mount::VfsMount;
-
-use crate::ksync::{Mutex, MutexGuard};
-use gmanager::MinimalManager;
-use syscall_define::aux::{
-    AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_PAGESZ, AT_PHDR, AT_PHENT, AT_PHNUM,
-    AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
-};
-use syscall_define::io::MapFlags;
-use syscall_define::ipc::RobustList;
-use syscall_define::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
-use syscall_define::sys::TimeVal;
-use syscall_define::task::CloneFlags;
-use syscall_define::time::TimerType;
-use syscall_define::{LinuxErrno, PrLimit, PrLimitRes};
-
-use crate::config::{CPU_NUM, FRAME_BITS, MAX_FD_NUM, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use crate::config::{FRAME_SIZE, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
+use crate::config::*;
 use crate::error::{AlienError, AlienResult};
-use crate::fs::file::KFile;
-use crate::fs::vfs::VfsProvider;
-use crate::fs::{STDIN, STDOUT};
+use crate::fs::file::File;
+use crate::fs::{STDIN, STDOUT, SYSTEM_ROOT_FS};
 use crate::ipc::{global_register_signals, ShmInfo};
-use crate::memory::{
-    build_cow_address_space, build_elf_address_space, build_thread_address_space, kernel_satp,
-    MMapInfo, MMapRegion, PageAllocator, ProtFlags, UserStack, FRAME_REF_MANAGER,
-};
+use crate::ksync::{Mutex, MutexGuard};
+use crate::memory::*;
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
 use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
 use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
+use alloc::collections::BTreeMap;
+use alloc::string::{String, ToString};
+use alloc::sync::{Arc, Weak};
+use alloc::vec::Vec;
+use alloc::{format, vec};
+use bit_field::BitField;
+use core::fmt::{Debug, Formatter};
+use core::ops::Range;
+use gmanager::MinimalManager;
+use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
+use page_table::pte::MappingFlags;
+use page_table::table::Sv39PageTable;
+use pconst::aux::*;
+use pconst::io::MapFlags;
+use pconst::ipc::RobustList;
+use pconst::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
+use pconst::sys::TimeVal;
+use pconst::task::CloneFlags;
+use pconst::time::TimerType;
+use pconst::{LinuxErrno, PrLimit, PrLimitRes};
+use spin::Lazy;
+use vfscore::dentry::VfsDentry;
 
-type FdManager = MinimalManager<Arc<KFile>>;
+type FdManager = MinimalManager<Arc<dyn File>>;
 
-lazy_static! {
-    /// 这里把MinimalManager复用为tid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
-    /// 但tid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
-    pub static ref TID_MANAGER:Mutex<MinimalManager<u8>> = Mutex::new(MinimalManager::new(MAX_THREAD_NUM));
-}
+/// 这里把MinimalManager复用为tid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
+/// 但tid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
+pub static TID_MANAGER: Lazy<Mutex<MinimalManager<u8>>> =
+    Lazy::new(|| Mutex::new(MinimalManager::new(MAX_THREAD_NUM)));
 
 /// 用于存储线程的tid
 #[derive(Debug)]
@@ -248,53 +232,29 @@ impl StatisticalData {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FsContext {
     /// 当前工作目录
-    pub cwd: Arc<DirEntry>,
+    pub cwd: Arc<dyn VfsDentry>,
     /// 根目录
-    pub root: Arc<DirEntry>,
-    /// 当前挂载点
-    pub cmnt: Arc<VfsMount>,
-    /// 根挂载点
-    pub rmnt: Arc<VfsMount>,
+    pub root: Arc<dyn VfsDentry>,
+}
+
+impl Debug for FsContext {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        let cwd = self.cwd.path();
+        let root = self.root.path();
+        f.debug_struct("FsContext")
+            .field("cwd", &cwd)
+            .field("root", &root)
+            .finish()
+    }
 }
 
 impl FsContext {
-    /// 返回一个空的 `FsContext` 结构
-    pub fn empty() -> Self {
-        FsContext {
-            cwd: Arc::new(DirEntry::empty()),
-            root: Arc::new(DirEntry::empty()),
-            cmnt: Arc::new(VfsMount::empty()),
-            rmnt: Arc::new(VfsMount::empty()),
-        }
-    }
-
     /// 创建一个新的 `FsContext` 结构
-    pub fn new(
-        root: Arc<DirEntry>,
-        cwd: Arc<DirEntry>,
-        cmnt: Arc<VfsMount>,
-        rmnt: Arc<VfsMount>,
-    ) -> Self {
-        FsContext {
-            cwd,
-            root,
-            cmnt,
-            rmnt,
-        }
-    }
-}
-
-impl Into<ProcessFsInfo> for FsContext {
-    fn into(self) -> ProcessFsInfo {
-        ProcessFsInfo {
-            root_mount: self.rmnt.clone(),
-            root_dir: self.root.clone(),
-            current_dir: self.cwd.clone(),
-            current_mount: self.cmnt.clone(),
-        }
+    pub fn new(root: Arc<dyn VfsDentry>, cwd: Arc<dyn VfsDentry>) -> Self {
+        FsContext { cwd, root }
     }
 }
 
@@ -490,14 +450,14 @@ impl Task {
     }
 
     /// 用于判断一个文件是否存在在该进程的文件描述符表中，如果存在返回该文件描述符
-    pub fn file_existed(&self, file: Arc<File>) -> Option<Arc<KFile>> {
+    pub fn file_existed(&self, file: Arc<dyn File>) -> Option<Arc<dyn File>> {
         let inner = self.inner.lock();
         let fd_table = inner.fd_table.lock();
         let fds = fd_table.data();
         fds.iter().find_map(|f| {
             if f.is_some() {
                 let f = f.as_ref().unwrap();
-                if Arc::ptr_eq(&f.get_file(), &file) {
+                if Arc::ptr_eq(f, &file) {
                     Some(f.clone())
                 } else {
                     None
@@ -509,14 +469,14 @@ impl Task {
     }
 
     /// 用于获取文件描述符id号为 fd 的 文件描述符
-    pub fn get_file(&self, fd: usize) -> Option<Arc<KFile>> {
+    pub fn get_file(&self, fd: usize) -> Option<Arc<dyn File>> {
         let inner = self.inner.lock();
         let file = inner.fd_table.lock().get(fd);
         return if file.is_err() { None } else { file.unwrap() };
     }
 
     /// 在进程的文件描述符表中加入 file 文件
-    pub fn add_file(&self, file: Arc<KFile>) -> Result<usize, isize> {
+    pub fn add_file(&self, file: Arc<dyn File>) -> Result<usize, isize> {
         self.access_inner()
             .fd_table
             .lock()
@@ -525,14 +485,14 @@ impl Task {
     }
 
     /// 指定文件描述符表中的一个id，在该处加入一个 file 文件
-    pub fn add_file_with_fd(&self, file: Arc<KFile>, fd: usize) -> Result<(), ()> {
+    pub fn add_file_with_fd(&self, file: Arc<dyn File>, fd: usize) -> Result<(), ()> {
         let inner = self.access_inner();
         let mut fd_table = inner.fd_table.lock();
         fd_table.insert_with_index(fd, file).map_err(|_| {})
     }
 
     /// 指明文件描述符表中的一个id，删除并返回该处的 file 文件
-    pub fn remove_file(&self, fd: usize) -> Result<Arc<KFile>, ()> {
+    pub fn remove_file(&self, fd: usize) -> Result<Arc<dyn File>, ()> {
         let inner = self.inner.lock();
         let file = inner.fd_table.lock().get(fd);
         if file.is_err() {
@@ -1272,7 +1232,7 @@ impl TaskInner {
     pub fn do_load_page_fault(
         &mut self,
         addr: usize,
-    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
+    ) -> AlienResult<Option<(Option<Arc<dyn File>>, &'static mut [u8], u64)>> {
         // check whether the addr is in mmap
         let addr = align_down_4k(addr);
         let (_phy, flags, page_size) = self
@@ -1293,7 +1253,7 @@ impl TaskInner {
 
         let x = self.mmap.get_region(addr);
         if x.is_none() {
-            return Err(AlienError::Other);
+            return Err(AlienError::EINVAL);
         }
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
         let region = x.unwrap();
@@ -1322,7 +1282,7 @@ impl TaskInner {
     fn invalid_page_solver(
         &mut self,
         addr: usize,
-    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
+    ) -> AlienResult<Option<(Option<Arc<dyn File>>, &'static mut [u8], u64)>> {
         trace!("invalid page fault at {:#x}", addr);
         let is_mmap = self.mmap.get_region(addr);
         let is_heap = self.heap.lock().contains(addr);
@@ -1330,8 +1290,8 @@ impl TaskInner {
         let is_stack = self.stack.contains(&addr);
 
         if is_mmap.is_none() && !is_heap && !is_stack {
-            error!("invalid page fault at {:#x}", addr);
-            return Err(AlienError::Other);
+            warn!("invalid page fault at {:#x}", addr);
+            return Err(AlienError::EINVAL);
         }
         if is_heap {
             trace!("invalid page fault in heap");
@@ -1346,7 +1306,7 @@ impl TaskInner {
             // update page table
             let mut map_flags = region.prot.into();
             map_flags |= "VAD".into();
-            error!(
+            warn!(
                 "invalid page fault at {:#x}, flag is :{:?}",
                 addr, map_flags
             );
@@ -1366,7 +1326,7 @@ impl TaskInner {
             let read_offset = region.offset + (addr - region.start);
             return Ok(Some((file.clone(), buf, read_offset as u64)));
         } else {
-            error!("invalid page fault in stack, addr: {:#x}", addr);
+            warn!("invalid page fault in stack, addr: {:#x}", addr);
             let map_flags = "RWUVAD".into();
             self.address_space
                 .lock()
@@ -1380,13 +1340,13 @@ impl TaskInner {
     pub fn do_instruction_page_fault(
         &mut self,
         addr: usize,
-    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
+    ) -> AlienResult<Option<(Option<Arc<dyn File>>, &'static mut [u8], u64)>> {
         let addr = align_down_4k(addr);
         let (_phy, flags, page_size) = self
             .address_space
             .lock()
             .query(VirtAddr::from(addr))
-            .map_err(|_| AlienError::Other)?;
+            .map_err(|_| AlienError::EINVAL)?;
         //
         trace!(
             "do store page fault:{:#x}, flags:{:?}, page_size:{:?}",
@@ -1404,7 +1364,7 @@ impl TaskInner {
     pub fn do_store_page_fault(
         &mut self,
         o_addr: usize,
-    ) -> AlienResult<Option<(Option<Arc<KFile>>, &'static mut [u8], u64)>> {
+    ) -> AlienResult<Option<(Option<Arc<dyn File>>, &'static mut [u8], u64)>> {
         let addr = align_down_4k(o_addr);
         let (phy, flags, page_size) = self
             .address_space
@@ -1413,10 +1373,10 @@ impl TaskInner {
             .map_err(|_x| {
                 if self.need_wait < 5 {
                     self.need_wait += 1;
-                    AlienError::ThreadNeedWait
+                    AlienError::EAGAIN
                 } else {
-                    error!("do_store_page_fault panic :{}", o_addr);
-                    AlienError::ThreadNeedExit
+                    error!("do_store_page_fault panic :{:#x}", o_addr);
+                    AlienError::ETMP
                 }
             })?;
         // .expect(format!("addr:{:#x}", addr).as_str());
@@ -1477,24 +1437,8 @@ impl Task {
         inner.children.clear();
         let thread_number = inner.thread_number;
         if thread_number == 0 {
-            let fd = inner.fd_table.lock().clear();
+            let _ = inner.fd_table.lock().clear();
             drop(inner);
-            for f in fd {
-                let real_file = f.get_file();
-                if f.is_unlink() {
-                    let path = f.unlink_path().unwrap();
-                    drop(f);
-                    warn!("unlink path :{}", path);
-                    let _ = vfs_unlink::<VfsProvider>(&path);
-                    continue;
-                }
-                info!("close file ,ref count:{:#x}", Arc::strong_count(&real_file));
-                if real_file.is_pipe() {
-                    drop(f);
-                    let res = vfs_close_file::<VfsProvider>(real_file);
-                    warn!("close pipe {:?}", res);
-                }
-            }
         }
     }
 
@@ -1509,7 +1453,7 @@ impl Task {
         let pid = tid.0;
         // 创建进程地址空间
         let mut args = vec![];
-        let elf_info = build_elf_address_space(elf, &mut args, "/bin/initproc");
+        let elf_info = build_elf_address_space(elf, &mut args, "/bin/init");
         if elf_info.is_err() {
             return None;
         }
@@ -1518,6 +1462,8 @@ impl Task {
         let k_stack = Stack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE)?;
         let k_stack_top = k_stack.top();
         let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
+        let cwd = SYSTEM_ROOT_FS.get().unwrap().clone();
+
         let process = Task {
             tid,
             kernel_stack: k_stack,
@@ -1532,13 +1478,13 @@ impl Task {
                 children: Vec::new(),
                 fd_table: {
                     let mut fd_table = FdManager::new(MAX_FD_NUM);
-                    fd_table.insert(KFile::new(STDIN.clone())).unwrap();
-                    fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
-                    fd_table.insert(KFile::new(STDOUT.clone())).unwrap();
+                    fd_table.insert(STDIN.clone()).unwrap();
+                    fd_table.insert(STDOUT.clone()).unwrap();
+                    fd_table.insert(STDOUT.clone()).unwrap();
                     Arc::new(Mutex::new(fd_table))
                 },
                 context: Context::new(trap_return as usize, k_stack_top),
-                fs_info: FsContext::empty(),
+                fs_info: FsContext::new(cwd.clone(), cwd),
                 statistical_data: StatisticalData::new(),
                 timer: TaskTimer::default(),
                 exit_code: 0,

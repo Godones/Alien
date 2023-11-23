@@ -6,7 +6,6 @@ authors = ["chen linfeng"]
 
 [dependencies]
 log = "0.4.14"
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 spin = "0.9.2"
 riscv = "0.10.0"
 bit_field = "0.10.1"
@@ -18,22 +17,24 @@ embedded-graphics-core = "0.3.3"
 tinybmp = "0.4.0"
 rtc = { git = "https://github.com/os-module/rtc.git" }
 lru = "0.10.0"
-core2 = { version = "0.4.0", default-features = false, features = ["alloc"] }
+
 cfg-if = "1.0.0"
 page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
-rvfs = { git = "https://github.com/Godones/rvfs.git" }
-fat32-vfs = { git = "https://github.com/Godones/fat32-vfs.git" }
+
 visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git", optional = true }
 tracer = { git = "https://github.com/os-module/tracer" }
 preprint = "0.1.0"
 rslab = { version = "0.2.1" ,optional = true}
+
 syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
+#syscall-table = {path = "../../os-modules/syscall-table",features = []}
 plic = { git = "https://github.com/os-module/plic" }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
 gmanager = { path = "../modules/gmanager" }
 kernel-sync = { git = "https://github.com/os-module/kernel-sync.git" }
 
-syscall_define = { git = "https://github.com/os-module/pconst.git", package = "pconst" }
+pconst = { git = "https://github.com/os-module/pconst.git",features = ["trick"] }
+#pconst = { path = "../../os-modules/pconst",features = ["trick"]}
 
 basemachine = { path = "../modules/basemachine" }
 uart16550 = { version = "0.0.1", optional = true }
@@ -42,11 +43,19 @@ smpscheduler = {git = "https://github.com/os-module/smpscheduler.git" }
 talc = { version = "1.0", optional = true }
 buddy_system_allocator = { version = "0.9.0", optional = true }
 
-vfscore = {git = "https://github.com/os-module/rvfs.git"}
-devfs = {git = "https://github.com/os-module/rvfs.git"}
-dynfs =  {git = "https://github.com/os-module/rvfs.git"}
-ramfs =  {git = "https://github.com/os-module/rvfs.git"}
-fat-vfs =  {git = "https://github.com/os-module/rvfs.git"}
+downcast-rs = { version = "1.2.0", default-features = false }
+
+#vfscore = {git = "https://github.com/os-module/rvfs.git",features = ["linux_error"]}
+#devfs = {git = "https://github.com/os-module/rvfs.git"}
+#dynfs =  {git = "https://github.com/os-module/rvfs.git"}
+#ramfs =  {git = "https://github.com/os-module/rvfs.git"}
+#fat-vfs =  {git = "https://github.com/os-module/rvfs.git"}
+
+vfscore = {path = "../../os-modules/rvfs/vfscore",features = ["linux_error"]}
+devfs = {path = "../../os-modules/rvfs/devfs"}
+dynfs =  {path = "../../os-modules/rvfs/dynfs"}
+ramfs =  {path = "../../os-modules/rvfs/ramfs"}
+fat-vfs =  {path = "../../os-modules/rvfs/fat-vfs"}
 
 simple-net = { path = "../modules/simple-net" }
 [dependencies.smoltcp]

@@ -1,7 +1,7 @@
 use crate::config::{RTC_TIME, UTC};
 use alloc::sync::Arc;
 use vfscore::dentry::VfsDentry;
-use vfscore::fstype::{MountFlags, VfsFsType};
+use vfscore::fstype::VfsFsType;
 use vfscore::utils::VfsNodeType;
 
 ///
@@ -21,12 +21,13 @@ use vfscore::utils::VfsNodeType;
 /// |-- proc (procfs)
 /// |-- sys  (sysfs)
 /// |-- bin  (fat32)
+/// |-- tmp   (ramfs)
 /// ```
 pub fn init_ramfs(ramfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
-    let root_dt = ramfs.i_mount(MountFlags::empty(), None, &[]).unwrap();
+    let root_dt = ramfs.i_mount(0, "/", None, &[]).unwrap();
     let root_inode = root_dt.inode().unwrap();
-    root_inode
-        .create("root", VfsNodeType::Dir, "rwx------".into(), None)
+    let root = root_inode
+        .create("root", VfsNodeType::Dir, "rwxr-xr-x".into(), None)
         .unwrap();
     let var = root_inode
         .create("var", VfsNodeType::Dir, "rwxr-xr-x".into(), None)
@@ -68,7 +69,13 @@ pub fn init_ramfs(ramfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
     root_inode
         .create("bin", VfsNodeType::Dir, "rwxr-xr-x".into(), None)
         .unwrap();
-    println!("ramfs init success");
+    root_inode
+        .create("tmp", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
+        .unwrap();
 
+    let _bashrc = root.create(".bashrc", VfsNodeType::File, "rwxrwxrwx".into(), None)
+        .unwrap();
+
+    println!("ramfs init success");
     root_dt
 }

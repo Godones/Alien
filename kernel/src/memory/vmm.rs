@@ -1,3 +1,11 @@
+use crate::config::*;
+use crate::fs;
+use crate::ipc::ShmInfo;
+use crate::ksync::RwLock;
+use crate::memory::elf::{ELFError, ELFInfo, ELFReader};
+use crate::memory::frame::{addr_to_frame, frame_alloc};
+use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
+use crate::trap::TrapFrame;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
@@ -6,30 +14,17 @@ use alloc::vec::Vec;
 use core::cmp::min;
 use core::fmt::Debug;
 use core::intrinsics::forget;
-
-use lazy_static::lazy_static;
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::{PagingIf, Sv39PageTable};
+use spin::Lazy;
 use xmas_elf::program::{SegmentData, Type};
 
-use crate::ksync::RwLock;
-
-use crate::config::{
-    ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, MMIO, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
-};
-use crate::fs::vfs;
-use crate::ipc::ShmInfo;
-use crate::memory::elf::{ELFError, ELFInfo, ELFReader};
-use crate::memory::frame::{addr_to_frame, frame_alloc};
-use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
-use crate::trap::TrapFrame;
-
-lazy_static! {
-    pub static ref KERNEL_SPACE: Arc<RwLock<Sv39PageTable<PageAllocator>>> = Arc::new(RwLock::new(
-        Sv39PageTable::<PageAllocator>::try_new().unwrap()
-    ));
-}
+pub static KERNEL_SPACE: Lazy<Arc<RwLock<Sv39PageTable<PageAllocator>>>> = Lazy::new(|| {
+    Arc::new(RwLock::new(
+        Sv39PageTable::<PageAllocator>::try_new().unwrap(),
+    ))
+});
 
 #[allow(unused)]
 extern "C" {
@@ -341,7 +336,7 @@ pub fn build_elf_address_space(
         // load interpreter
         let mut data = vec![];
         warn!("load interpreter: {}, new_args:{:?}", path, args);
-        if vfs::read_all("libc.so", &mut data) {
+        if fs::read_all("libc.so", &mut data) {
             return build_elf_address_space(&data, args, "libc.so");
         } else {
             error!("[map_elf] Found interpreter path: {}", path);
@@ -431,23 +426,23 @@ pub fn build_elf_address_space(
         });
 
     // 地址向上取整对齐4
-    let ceil_addr = align_up_4k(break_addr);
+    let ceil_addr = align_up_4k(break_addr+FRAME_SIZE);
     // 留出一个用户栈的位置+隔离页
     let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE;
-    // 8k +4k
-    warn!("user stack: {:#x} - {:#x}", top - USER_STACK_SIZE, top);
+    warn!("user stack: {:#x} - {:#x}", top - USER_STACK_SIZE - FRAME_SIZE, top-FRAME_SIZE);
     // map user stack
     address_space
         .map_region_no_target(
-            VirtAddr::from(top - USER_STACK_SIZE),
+            VirtAddr::from(top - USER_STACK_SIZE - FRAME_SIZE),
             USER_STACK_SIZE,
             "RWUAD".into(),
             false,
             true,
         )
         .unwrap();
+    // 初始化一个有效页
     address_space
-        .validate(VirtAddr::from(top - FRAME_SIZE), "RWUVAD".into())
+        .validate(VirtAddr::from(top - FRAME_SIZE * 2 ), "RWUVAD".into())
         .unwrap();
     let heap_bottom = top;
     // align to 4k
@@ -510,7 +505,7 @@ pub fn build_elf_address_space(
     Ok(ELFInfo {
         address_space,
         entry: elf.header.pt2.entry_point() as usize + bias,
-        stack_top: top,
+        stack_top: top - FRAME_SIZE,
         heap_bottom,
         ph_num: elf.header.pt2.ph_count() as usize,
         ph_entry_size: elf.header.pt2.ph_entry_size() as usize,

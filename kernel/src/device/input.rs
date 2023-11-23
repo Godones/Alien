@@ -8,7 +8,7 @@ use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{FileStat, PollEvents, VfsNodeType};
+use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
@@ -48,7 +48,7 @@ impl VfsFile for INPUTDevice {
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
         Err(VfsError::NoSys)
     }
-    fn poll(&self, _event: PollEvents) -> VfsResult<PollEvents> {
+    fn poll(&self, _event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
         todo!()
     }
 }
@@ -60,8 +60,8 @@ impl VfsInode for INPUTDevice {
     fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
         Ok(())
     }
-    fn get_attr(&self) -> VfsResult<FileStat> {
-        Ok(FileStat {
+    fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        Ok(VfsFileStat {
             st_rdev: self.device_id.id(),
             ..Default::default()
         })

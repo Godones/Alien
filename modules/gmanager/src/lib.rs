@@ -182,11 +182,7 @@ impl From<usize> for ManagerError {
 
 #[cfg(test)]
 mod tests {
-    extern crate std;
-    use std::println;
-
     use crate::MinimalManager;
-
     #[test]
     pub fn test_gmanager() {
         let mut manager = MinimalManager::<usize>::new(10);
@@ -201,6 +197,5 @@ mod tests {
         let _ans = manager.remove(1).unwrap();
         let index = manager.insert(10).unwrap();
         assert_eq!(index, 1);
-        println!("gmanager test passed");
     }
 }

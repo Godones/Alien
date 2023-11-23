@@ -10,7 +10,7 @@ use alloc::sync::Arc;
 use devfs::DevKernelProvider;
 use spin::Lazy;
 use vfscore::dentry::VfsDentry;
-use vfscore::fstype::{MountFlags, VfsFsType};
+use vfscore::fstype::VfsFsType;
 use vfscore::inode::VfsInode;
 use vfscore::utils::{VfsNodeType, VfsTimeSpec};
 
@@ -125,7 +125,7 @@ impl DevKernelProvider for DevFsProviderImpl {
 ///    |-- rtc
 /// ```
 pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
-    let root = devfs.i_mount(MountFlags::empty(), None, &[]).unwrap();
+    let root = devfs.i_mount(0, "/dev", None, &[]).unwrap();
     let root_inode = root.inode().unwrap();
 
     let null_device = Arc::new(NullDevice::new(alloc_device_id(VfsNodeType::CharDevice)));
@@ -186,7 +186,7 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
 
 fn scan_system_devices(root: Arc<dyn VfsInode>) {
     BLOCK_DEVICE.get().map(|blk| {
-        let block_device = BLKDevice::new(alloc_device_id(VfsNodeType::BlockDevice), blk.clone());
+        let block_device = Arc::new(BLKDevice::new(alloc_device_id(VfsNodeType::BlockDevice), blk.clone()));
         root.create(
             "sda",
             VfsNodeType::BlockDevice,
@@ -194,9 +194,10 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
             Some(block_device.device_id().id()),
         )
         .unwrap();
+        register_device(block_device);
     });
     GPU_DEVICE.get().map(|gpu| {
-        let gpu_device = GPUDevice::new(alloc_device_id(VfsNodeType::CharDevice), gpu.clone());
+        let gpu_device = Arc::new(GPUDevice::new(alloc_device_id(VfsNodeType::CharDevice), gpu.clone()));
         root.create(
             "gpu",
             VfsNodeType::BlockDevice,
@@ -204,13 +205,14 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
             Some(gpu_device.device_id().id()),
         )
         .unwrap();
+        register_device(gpu_device);
     });
     KEYBOARD_INPUT_DEVICE.get().map(|input| {
-        let input_device = INPUTDevice::new(
+        let input_device = Arc::new(INPUTDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
             input.clone(),
             false,
-        );
+        ));
         root.create(
             "keyboard",
             VfsNodeType::BlockDevice,
@@ -218,13 +220,14 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
             Some(input_device.device_id().id()),
         )
         .unwrap();
+        register_device(input_device);
     });
     MOUSE_INPUT_DEVICE.get().map(|input| {
-        let input_device = INPUTDevice::new(
+        let input_device = Arc::new(INPUTDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
             input.clone(),
             true,
-        );
+        ));
         root.create(
             "mouse",
             VfsNodeType::BlockDevice,
@@ -232,9 +235,10 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
             Some(input_device.device_id().id()),
         )
         .unwrap();
+        register_device(input_device);
     });
     RTC_DEVICE.get().map(|rtc| {
-        let rtc_device = RTCDevice::new(alloc_device_id(VfsNodeType::CharDevice), rtc.clone());
+        let rtc_device = Arc::new(RTCDevice::new(alloc_device_id(VfsNodeType::CharDevice), rtc.clone()));
         root.create(
             "rtc",
             VfsNodeType::BlockDevice,
@@ -242,9 +246,10 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
             Some(rtc_device.device_id().id()),
         )
         .unwrap();
+        register_device(rtc_device);
     });
     UART_DEVICE.get().map(|uart| {
-        let uart_device = UARTDevice::new(alloc_device_id(VfsNodeType::CharDevice), uart.clone());
+        let uart_device = Arc::new(UARTDevice::new(alloc_device_id(VfsNodeType::CharDevice), uart.clone()));
         root.create(
             "tty",
             VfsNodeType::BlockDevice,
@@ -252,5 +257,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
             Some(uart_device.device_id().id()),
         )
         .unwrap();
+        info!("uart device id: {}", uart_device.device_id().id());
+        register_device(uart_device);
     });
 }

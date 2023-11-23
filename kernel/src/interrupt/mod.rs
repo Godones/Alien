@@ -1,8 +1,6 @@
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
-
 use cfg_if::cfg_if;
-use lazy_static::lazy_static;
 use spin::Once;
 
 use crate::ksync::Mutex;
@@ -19,10 +17,7 @@ mod timer;
 
 pub static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 
-lazy_static! {
-    pub static ref DEVICE_TABLE: Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>> =
-        Mutex::new(BTreeMap::new());
-}
+pub static DEVICE_TABLE: Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>> = Mutex::new(BTreeMap::new());
 
 pub trait DeviceBase: Sync + Send {
     fn hand_irq(&self);
@@ -37,7 +32,7 @@ pub fn init_plic() {
             let privileges = [2;CPU_NUM];
             let plic = PLIC::new(addr, privileges);
             PLIC.call_once(|| plic);
-            println!("init qemu plic success");
+            println!("Init qemu plic success");
         }else if #[cfg(any(feature = "vf2", feature = "hifive"))]{
             let mut privileges = [2u8;CPU_NUM];
             // core 0 don't have S mode
@@ -45,7 +40,7 @@ pub fn init_plic() {
             println!("PLIC context: {:?}",privileges);
             let plic = PLIC::new(addr, privileges);
             PLIC.call_once(|| plic);
-            println!("init hifive or vf2 plic success");
+            println!("Init hifive or vf2 plic success");
         }
     }
 }
