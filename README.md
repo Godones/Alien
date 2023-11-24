@@ -2,7 +2,7 @@
 
 A simple operating system implemented in rust. The purpose is to explore how to use modules to build a complete os, so the system is composed of a series of independent modules. At present, the system already supports user-mode programs and some simple functions.
 
-![image-20230815132104606](assert/image-20230815132104606.png)
+<img src="assert/image-20230815132104606.png" alt="image-20230815132104606" style="zoom:50%;" />
 
 ## Project Structure
 
@@ -42,10 +42,9 @@ A simple operating system implemented in rust. The purpose is to explore how to 
         ├── timer           (计时器)
         ├── trace           (堆栈回溯)
         └── trap            (异常处理)
-├── modules                 (独立模块)
+├── modules                 (内核模块)
 ├── rust-toolchain.toml		
-├── sdcard                  (测试程序)
-├── test                    (初赛测试)
+├── tests                   (测试程序)
 ├── tools                   (一些dts文件)
 └── userlibc                (rust lib库)
 ```
@@ -78,6 +77,7 @@ make fake_run SMP=1
 运行测试(in bash)
 
 ```
+> cd bin
 > final_test
 ```
 
@@ -128,7 +128,7 @@ make unmatched LOG= UNMATCHED=y SMP=2
 1. `gdb-server`
 2. `gdb-client`
 
-## [Doc](./doc/doc.md)
+## [Doc](docs/doc/doc.md)
 
 
 ## App/Test
@@ -156,13 +156,9 @@ make unmatched LOG= UNMATCHED=y SMP=2
 - [ ] 重构重要子模块
   - [x] pager
   - [x] tracer
-  - [ ] vfs
+  - [x] vfs
   - [ ] vmm
   - [ ] task
-- [ ] 使用或修改社区已有模块
-  - [x] uart
-
-
 
 ## Reference
 

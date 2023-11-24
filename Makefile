@@ -104,7 +104,7 @@ user:
 	@cd apps && make all
 
 sdcard:fat32 testelf user
-	@sudo umount /fat
+	@#sudo umount /fat
 
 run:sdcard install compile
 	@echo qemu booot $(SMP)
@@ -154,9 +154,8 @@ f_test:
 	    -device virtio-net-device,netdev=net -netdev user,id=net
 
 testelf:
-	@if [ -d "sdcard" ]; then \
-		sudo cp sdcard/* /fat -r; \
-#		sudo cp sdcard/* /fat/bin -r;\
+	@if [ -d "tests/testbin-second-stage" ]; then \
+		sudo cp tests/testbin-second-stage/* /fat -r; \
 	fi
 
 dtb:
