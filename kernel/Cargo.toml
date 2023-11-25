@@ -11,7 +11,7 @@ riscv = "0.10.0"
 bit_field = "0.10.1"
 xmas-elf = "0.9.0"
 bitflags = "1.3.2"
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", rev = "de1c3b130e507702f13d142b9bee55670a4a2858" }
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "4b60f5d"}
 fdt = "0.1.3"
 embedded-graphics-core = "0.3.3"
 tinybmp = "0.4.0"
@@ -27,17 +27,15 @@ preprint = "0.1.0"
 rslab = { version = "0.2.1", optional = true }
 
 syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
-#syscall-table = {path = "../../os-modules/syscall-table",features = []}
 plic = { git = "https://github.com/os-module/plic" }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
-gmanager = { path = "../modules/gmanager" }
 kernel-sync = { git = "https://github.com/os-module/kernel-sync.git" }
-
 pconst = { git = "https://github.com/os-module/pconst.git", features = [
     "trick",
 ] }
-#pconst = { path = "../../os-modules/pconst",features = ["trick"]}
 
+#pconst = { path = "../../os-modules/pconst",features = ["trick"]}
+gmanager = { path = "../modules/gmanager" }
 basemachine = { path = "../modules/basemachine" }
 uart16550 = { version = "0.0.1", optional = true }
 uart8250 = { git = "https://github.com/os-module/uart-rs.git", optional = true }
@@ -61,7 +59,14 @@ fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
 # ramfs = { path = "../../os-modules/rvfs/ramfs" }
 # fat-vfs = { path = "../../os-modules/rvfs/fat-vfs" }
 
-simple-net = { path = "../modules/simple-net" }
+#loopback = {path = "../../os-modules/simple-net/loopback", optional = true}
+#virtio-net = {path = "../../os-modules/simple-net/virtio-net"}
+#netcore = {path = "../../os-modules/simple-net/netcore"}
+
+loopback = {git = "https://github.com/os-module/simple-net",optional = true}
+virtio-net = {git = "https://github.com/os-module/simple-net"}
+netcore = {git = "https://github.com/os-module/simple-net"}
+
 [dependencies.smoltcp]
 git = "https://github.com/rcore-os/smoltcp.git"
 rev = "2ade274"
@@ -79,7 +84,7 @@ features = [
 ]
 
 [features]
-default = ["pager_bitmap"]
+default = ["pager_bitmap","test"]
 vf2 = ["visionfive2-sd", "uart8250"]
 cv1811h = []
 hifive = ["uart16550"]
@@ -92,3 +97,5 @@ buddy = ["buddy_system_allocator"]
 
 pager_buddy = ["pager/buddy"]
 pager_bitmap = ["pager/bitmap"]
+
+test = ["loopback"]

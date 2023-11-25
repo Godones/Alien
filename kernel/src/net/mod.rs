@@ -380,13 +380,13 @@ pub fn getsockopt(
                     let opt_value_ref = current_task()
                         .unwrap()
                         .transfer_raw_ptr(opt_value as *mut u32);
-                    *opt_value_ref = simple_net::common::SOCKET_RECV_BUFFER_SIZE as u32;
+                    *opt_value_ref = netcore::common::SOCKET_RECV_BUFFER_SIZE as u32;
                 }
                 SocketOption::SO_SNDBUF => {
                     let opt_value_ref = current_task()
                         .unwrap()
                         .transfer_raw_ptr(opt_value as *mut u32);
-                    *opt_value_ref = simple_net::common::SOCKET_SEND_BUFFER_SIZE as u32;
+                    *opt_value_ref = netcore::common::SOCKET_SEND_BUFFER_SIZE as u32;
                 }
                 SocketOption::SO_ERROR => {
                     let opt_value_ref = current_task()
@@ -409,7 +409,7 @@ pub fn getsockopt(
                     let opt_value_ref = current_task()
                         .unwrap()
                         .transfer_raw_ptr(opt_value as *mut u32);
-                    *opt_value_ref = simple_net::common::MAX_SEGMENT_SIZE as u32;
+                    *opt_value_ref = netcore::common::MAX_SEGMENT_SIZE as u32;
                 }
                 TcpSocketOption::TCP_NODELAY => {
                     let opt_value_ref = current_task()

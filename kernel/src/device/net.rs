@@ -1,4 +1,4 @@
-use simple_net::{KernelNetFunc, NetInstant};
+use netcore::{KernelNetFunc, NetInstant};
 
 use crate::interrupt::DeviceBase;
 
@@ -12,7 +12,7 @@ pub mod nettest {
     use alloc::vec::Vec;
     use core::net::{IpAddr, SocketAddr};
 
-    use simple_net::tcp::TcpSocket;
+    use netcore::tcp::TcpSocket;
 
     use crate::error::{AlienError, AlienResult};
 

@@ -22,8 +22,8 @@ use core::net::SocketAddr;
 use pconst::io::{OpenFlags, PollEvents, SeekFrom};
 use pconst::net::{Domain, SocketType};
 use pconst::LinuxErrno;
-use simple_net::tcp::TcpSocket;
-use simple_net::udp::UdpSocket;
+use netcore::tcp::TcpSocket;
+use netcore::udp::UdpSocket;
 use vfscore::dentry::VfsDentry;
 use vfscore::inode::VfsInode;
 use vfscore::utils::VfsFileStat;
@@ -72,7 +72,7 @@ impl File for SocketFile {
         if buf.len()==0{
             return Ok(0)
         }
-        simple_net::poll_interfaces();
+        netcore::poll_interfaces();
         let socket = self.get_socketdata().unwrap();
         let res = socket.recvfrom(buf, 0).map(|x| x.0).map_err(|x| {
             info!("socket_file_read: {:?}", x);
@@ -87,7 +87,7 @@ impl File for SocketFile {
             return Ok(0)
         }
         info!("socket_file_write: buf_len:{:?}", buf.len());
-        simple_net::poll_interfaces();
+        netcore::poll_interfaces();
         let socket = self.get_socketdata().unwrap();
         let res = socket.send_to(buf, 0, None).map_err(|x| {
             info!("socket_file_write: {:?}", x);
@@ -105,6 +105,14 @@ impl File for SocketFile {
         Err(LinuxErrno::ENOSYS)
     }
 
+    fn set_open_flag(&self, flag: OpenFlags) {
+        *self.open_flag.lock() = flag;
+    }
+
+    fn get_open_flag(&self) -> OpenFlags {
+        *self.open_flag.lock()
+    }
+
     fn dentry(&self) -> Arc<dyn VfsDentry> {
         panic!("dentry in socket file is not supported")
     }
@@ -120,14 +128,12 @@ impl File for SocketFile {
     fn is_writable(&self) -> bool {
         true
     }
-
     fn is_append(&self) -> bool {
         false
     }
-
     fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
         let mut res = PollEvents::empty();
-        simple_net::poll_interfaces();
+        netcore::poll_interfaces();
         let socket = self.get_socketdata().unwrap();
         if _event.contains(PollEvents::IN) {
             if socket.ready_read() {
@@ -140,12 +146,6 @@ impl File for SocketFile {
             }
         }
         Ok(res)
-    }
-    fn get_open_flag(&self) -> OpenFlags {
-        *self.open_flag.lock()
-    }
-    fn set_open_flag(&self, flag: OpenFlags) {
-        *self.open_flag.lock() = flag;
     }
 }
 

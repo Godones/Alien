@@ -2,7 +2,7 @@
 
 use crate::error::AlienError;
 use pconst::LinuxErrno;
-use simple_net::common::NetError;
+use netcore::common::NetError;
 
 /// 现为将网络异常类型 [`NetError`] 转为 系统异常类型 [`LinuxErrno`]。
 pub fn neterror2alien(error: NetError) -> AlienError {
@@ -17,6 +17,8 @@ pub fn neterror2alien(error: NetError) -> AlienError {
         NetError::ConnectionRefused => LinuxErrno::ECONNREFUSED,
         NetError::ConnectionReset => LinuxErrno::ECONNRESET,
         NetError::Interrupted => LinuxErrno::EINTR,
+        NetError::DeviceError => LinuxErrno::EIO,
+        NetError::Again => LinuxErrno::EAGAIN,
     }
     .into()
 }
