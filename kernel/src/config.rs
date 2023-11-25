@@ -36,7 +36,7 @@ pub const STACK_SIZE_BITS: usize = 16;
 /// equal to CLOCK_FREQ
 pub const TIMER_FREQ: usize = CLOCK_FREQ;
 /// 可配置的启动cpu数量
-pub const CPU_NUM: usize = 2;
+pub const CPU_NUM: usize = 1;
 
 pub const AT_FDCWD: isize = -100isize;
 
@@ -188,16 +188,7 @@ Hugepagesize:       2048 kB
 Hugetlb:               0 kB
 ";
 
-/// password文件中保存的内容
-pub const PASSWORD: &str = r"
-root:x:0:0:root:/root:/bin/bash
-";
-
-/// 记录interrupts文件中保存的内容
-///
-/// 0：时钟中断
-/// 10：串口中断
-/// 11：块设备中断
-pub const INTERRUPT_RECORD: &str = r"
-1: 0
-";
+// QEMU user networking default IP
+pub const QEMU_IP: &str = "10.0.2.15";
+// QEMU user networking gateway
+pub const QEMU_GATEWAY: &str = "10.0.2.2";
