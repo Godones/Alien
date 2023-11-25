@@ -61,7 +61,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcb2392079bf27198570d6af79ecbd9ec7d8f16d3ec6b60933922fdb66287127"
 dependencies = [
  "heapless 0.5.6",
- "nom 4.2.3",
+ "nom",
 ]
 
 [[package]]
@@ -1446,7 +1446,9 @@ dependencies = [
  "gmanager",
  "kernel-sync",
  "log",
+ "loopback",
  "lru",
+ "netcore",
  "page-table",
  "pager",
  "pconst",
@@ -1456,18 +1458,18 @@ dependencies = [
  "riscv",
  "rslab",
  "rtc",
- "simple-net",
  "smoltcp",
  "smpscheduler",
  "spin",
  "syscall-table",
  "talc 1.0.0",
- "tinybmp 0.4.0",
+ "tinybmp",
  "tracer",
  "uart16550",
  "uart8250",
  "vfscore",
- "virtio-drivers",
+ "virtio-drivers 0.7.1",
+ "virtio-net",
  "visionfive2-sd",
  "xmas-elf",
 ]
@@ -1563,9 +1565,9 @@ source = "git+https://github.com/rcore-os/arceos#51a42ea4d65a53bf6b43fc35a27a3ff
 
 [[package]]
 name = "lock_api"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1cc9717a20b1bb222f333e6a92fd32f7d8a18ddc5a3191a11af45dcbf4dcd16"
+checksum = "3c168f8615b12bc01f9c17e2eb0cc07dcae1940121185446edc3744920e8ef45"
 dependencies = [
  "autocfg",
  "scopeguard",
@@ -1576,6 +1578,14 @@ name = "log"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+
+[[package]]
+name = "loopback"
+version = "0.1.0"
+source = "git+https://github.com/os-module/simple-net#379cb4a1713d5126437020e57b15b7dcf73e2e32"
+dependencies = [
+ "netcore",
+]
 
 [[package]]
 name = "lru"
@@ -1780,6 +1790,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "netcore"
+version = "0.1.0"
+source = "git+https://github.com/os-module/simple-net#379cb4a1713d5126437020e57b15b7dcf73e2e32"
+dependencies = [
+ "kernel-sync",
+ "log",
+ "preprint",
+ "smoltcp",
+ "spin",
+ "virtio-drivers 0.5.0",
+]
+
+[[package]]
 name = "nix"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1800,16 +1823,6 @@ checksum = "2ad2a91a8e869eeb30b9cb3119ae87773a8f4ae617f41b1eb9c154b2905f7bd6"
 dependencies = [
  "memchr",
  "version_check 0.1.5",
-]
-
-[[package]]
-name = "nom"
-version = "6.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6a7a9657c84d5814c6196b68bb4429df09c18b1573806259fba397ea4ad0d44"
-dependencies = [
- "memchr",
- "version_check 0.9.4",
 ]
 
 [[package]]
@@ -2483,18 +2496,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d66dc143e6b11c1eddc06d5c423cfc97062865baf299914ab64caa38182078fe"
 
 [[package]]
-name = "simple-net"
-version = "0.1.0"
-dependencies = [
- "kernel-sync",
- "log",
- "preprint",
- "smoltcp",
- "spin",
- "virtio-drivers",
-]
-
-[[package]]
 name = "simplecss"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2512,7 +2513,7 @@ dependencies = [
  "log",
  "oorandom",
  "spin",
- "tinybmp 0.3.3",
+ "tinybmp",
  "virtio-input-decoder",
 ]
 
@@ -2942,16 +2943,6 @@ dependencies = [
 
 [[package]]
 name = "tinybmp"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44873aee48dd30712dc2610209902a78b9033a0148ac03c6c3e73e4ca2f49838"
-dependencies = [
- "embedded-graphics",
- "nom 6.2.2",
-]
-
-[[package]]
-name = "tinybmp"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e959c507975d768a226a08227d56791f6e60bddcf714ad7ef67ae2d20bae743"
@@ -3256,13 +3247,32 @@ source = "git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b130e507702f13
 dependencies = [
  "bitflags 2.4.0",
  "log",
- "zerocopy",
+ "zerocopy 0.6.4",
+]
+
+[[package]]
+name = "virtio-drivers"
+version = "0.7.1"
+source = "git+https://github.com/rcore-os/virtio-drivers?rev=4b60f5d#4b60f5d341a7211dfec7382062f965c5433c51c2"
+dependencies = [
+ "bitflags 2.4.0",
+ "log",
+ "zerocopy 0.7.26",
 ]
 
 [[package]]
 name = "virtio-input-decoder"
 version = "0.1.3"
 source = "git+https://github.com/os-module/virtio-input-decoder.git#10c726892cb2a8a1fccf045b3e4f4cc1b2e35771"
+
+[[package]]
+name = "virtio-net"
+version = "0.1.0"
+source = "git+https://github.com/os-module/simple-net#379cb4a1713d5126437020e57b15b7dcf73e2e32"
+dependencies = [
+ "netcore",
+ "virtio-drivers 0.7.1",
+]
 
 [[package]]
 name = "visionfive2-sd"
@@ -3725,7 +3735,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20707b61725734c595e840fb3704378a0cd2b9c74cc9e6e20724838fc6a1e2f9"
 dependencies = [
  "byteorder",
- "zerocopy-derive",
+ "zerocopy-derive 0.6.4",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.7.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e97e415490559a91254a2979b4829267a57d2fcd741a98eee8b722fb57289aa0"
+dependencies = [
+ "byteorder",
+ "zerocopy-derive 0.7.26",
 ]
 
 [[package]]
@@ -3733,6 +3753,17 @@ name = "zerocopy-derive"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56097d5b91d711293a42be9289403896b68654625021732067eac7a4ca388a1f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.37",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.7.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd7e48ccf166952882ca8bd778a43502c64f33bf94c12ebe2a7f08e5a0f6689f"
 dependencies = [
  "proc-macro2",
  "quote",

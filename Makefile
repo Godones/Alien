@@ -104,7 +104,7 @@ user:
 	@cd apps && make all
 
 sdcard:fat32 testelf user
-	@#sudo umount /fat
+	@sudo umount /fat
 
 run:sdcard install compile
 	@echo qemu booot $(SMP)

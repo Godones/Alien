@@ -1,29 +1,16 @@
 use core::ptr::NonNull;
 
-use virtio_drivers::device::net::VirtIONet;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use virtio_net::VirtIONetDeviceWrapper;
 
 use crate::driver::hal::HalImpl;
 
-pub const NET_BUFFER_LEN: usize = 65536 / 2;
-pub const NET_QUEUE_SIZE: usize = 64;
+pub const NET_BUFFER_LEN: usize = 4096;
+pub const NET_QUEUE_SIZE: usize = 128;
 
-type VirtIONetDevice = VirtIONet<HalImpl, MmioTransport, NET_QUEUE_SIZE>;
-
-pub struct VirtIONetDeviceWrapper {
-    net: Option<VirtIONetDevice>,
-}
-
-impl VirtIONetDeviceWrapper {
-    pub fn from_addr(addr: usize) -> Self {
-        let header = NonNull::new(addr as *mut VirtIOHeader).unwrap();
-        let transport = unsafe { MmioTransport::new(header) }.unwrap();
-        let net =
-            VirtIONet::<HalImpl, MmioTransport, NET_QUEUE_SIZE>::new(transport, NET_BUFFER_LEN)
-                .expect("failed to create net driver");
-        Self { net: Some(net) }
-    }
-    pub fn take(&mut self) -> Option<VirtIONetDevice> {
-        self.net.take()
-    }
+pub fn make_virtio_net_device(addr:usize) -> VirtIONetDeviceWrapper<HalImpl, MmioTransport, NET_QUEUE_SIZE> {
+    let header = NonNull::new(addr as *mut VirtIOHeader).unwrap();
+    let transport = unsafe { MmioTransport::new(header) }.unwrap();
+    let device = VirtIONetDeviceWrapper::new(transport, NET_BUFFER_LEN);
+    device
 }

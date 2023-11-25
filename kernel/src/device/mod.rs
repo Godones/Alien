@@ -1,7 +1,6 @@
 pub use self::rtc::{get_rtc_time, RTCDevice, RtcDevice, RTC_DEVICE};
 pub use self::uart::{UARTDevice, UartDevice, UART_DEVICE};
 use crate::board::{get_rtc_info, probe_devices_from_dtb};
-use crate::driver::hal::HalImpl;
 use crate::driver::uart::Uart;
 use crate::driver::GenericBlockDevice;
 use crate::interrupt::register_device_to_plic;
@@ -10,11 +9,12 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 pub use block::{BLKDevice, BlockDevice, BLOCK_DEVICE};
 use core::sync::atomic::Ordering;
+use smoltcp::wire::IpAddress;
 pub use gpu::{GPUDevice, GpuDevice, GPU_DEVICE};
 pub use input::{
     sys_event_get, INPUTDevice, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE,
 };
-use virtio_drivers::transport::mmio::MmioTransport;
+
 mod block;
 mod gpu;
 mod input;
@@ -216,47 +216,60 @@ fn init_mouse_input_device() {
 }
 
 fn init_net() {
-    let res = crate::board::get_net_device_info();
-    if res.is_none() {
-        init_loop_device();
-        println!("There is no net device");
-        return;
-    }
-    let (base_addr, irq) = res.unwrap();
-    println!("Init net device, base_addr:{:#x},irq:{}", base_addr, irq);
-    #[cfg(feature = "qemu")]
+    // If we need run test, we should only init loop device because no we can't route packet
+    #[cfg(feature = "test")]
     {
-        use crate::device::net::NetNeedFunc;
-        use crate::driver::net::VirtIONetDeviceWrapper;
-        let mut net_device = VirtIONetDeviceWrapper::from_addr(base_addr);
-        // let _ = register_device_to_plic(irq, net_device);
-        let net_device = net_device.take().unwrap();
-        // use default ip and gateway for qemu
-        simple_net::init_net(
-            Some(net_device),
-            Arc::new(NetNeedFunc),
-            None,
-            None,
-            false,
-            true,
-        );
-        println!("Init net device success");
-        println!("test echo-server");
-        #[cfg(feature = "net_test")]
-        net::nettest::accept_loop();
+        init_loop_device();
+    }
+    #[cfg(not(feature = "test"))]
+    {
+        let res = crate::board::get_net_device_info();
+        if res.is_none() {
+            println!("There is no net device");
+            return;
+        }
+        let (base_addr, irq) = res.unwrap();
+        println!("Init net device, base_addr:{:#x},irq:{}", base_addr, irq);
+
+        #[cfg(feature = "qemu")]
+        {
+            use crate::device::net::NetNeedFunc;
+            use crate::driver::net::make_virtio_net_device;
+            let virtio_net = make_virtio_net_device(base_addr);
+            use core::str::FromStr;
+            use crate::config::{QEMU_GATEWAY, QEMU_IP};
+            let device = Box::new(virtio_net);
+            netcore::init_net(
+                device,
+                Arc::new(NetNeedFunc),
+                IpAddress::from_str(QEMU_IP).unwrap(),
+            IpAddress::from_str(QEMU_GATEWAY).unwrap(),
+                true
+            );
+            println!("Init net device success");
+            #[cfg(feature = "net_test")]
+            {
+                println!("test echo-server");
+                net::nettest::accept_loop();
+            }
+        }
     }
 }
-
+#[cfg(feature = "test")]
 fn init_loop_device() {
     use crate::device::net::NetNeedFunc;
+    use loopback::LoopbackDev;
     // use default ip and gateway for qemu
-    simple_net::init_net::<HalImpl, MmioTransport, 64>(
-        None,
+    let ip = IpAddress::v4(127,0,0,1);
+    let gate_way = IpAddress::v4(127,0,0,1);
+    let loopback = Box::new(LoopbackDev::new());
+    netcore::init_net(
+        loopback,
         Arc::new(NetNeedFunc),
-        None,
-        None,
+        ip,
+        gate_way,
         false,
-        true,
     );
     println!("Init net device success");
 }
+
