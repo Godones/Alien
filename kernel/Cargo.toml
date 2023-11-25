@@ -33,8 +33,6 @@ kernel-sync = { git = "https://github.com/os-module/kernel-sync.git" }
 pconst = { git = "https://github.com/os-module/pconst.git", features = [
     "trick",
 ] }
-
-#pconst = { path = "../../os-modules/pconst",features = ["trick"]}
 gmanager = { path = "../modules/gmanager" }
 basemachine = { path = "../modules/basemachine" }
 uart16550 = { version = "0.0.1", optional = true }
@@ -52,17 +50,6 @@ devfs = { git = "https://github.com/os-module/rvfs.git" }
 dynfs = { git = "https://github.com/os-module/rvfs.git" }
 ramfs = { git = "https://github.com/os-module/rvfs.git" }
 fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
-
-# vfscore = { path = "../../os-modules/rvfs/vfscore", features = ["linux_error"] }
-# devfs = { path = "../../os-modules/rvfs/devfs" }
-# dynfs = { path = "../../os-modules/rvfs/dynfs" }
-# ramfs = { path = "../../os-modules/rvfs/ramfs" }
-# fat-vfs = { path = "../../os-modules/rvfs/fat-vfs" }
-
-#loopback = {path = "../../os-modules/simple-net/loopback", optional = true}
-#virtio-net = {path = "../../os-modules/simple-net/virtio-net"}
-#netcore = {path = "../../os-modules/simple-net/netcore"}
-
 loopback = {git = "https://github.com/os-module/simple-net",optional = true}
 virtio-net = {git = "https://github.com/os-module/simple-net"}
 netcore = {git = "https://github.com/os-module/simple-net"}
