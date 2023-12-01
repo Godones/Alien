@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 Mstd = { path = "../../userlib", features = ["gui"] }
-simplegui = { path = "../../../os-modules/simplegui" }
+simplegui = { git = "https://github.com/os-module/simplegui" }

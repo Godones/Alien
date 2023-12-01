@@ -67,8 +67,8 @@ fn init_rtc() {
     #[cfg(feature = "qemu")]
     {
         use crate::driver::rtc::GoldFishRtc;
-        let rtc: Arc<dyn RtcDevice>;
-        rtc = Arc::new(GoldFishRtc::new(base_addr));
+        use ::rtc::{LowRtcDeviceExt};
+        let rtc = Arc::new(GoldFishRtc::new(base_addr));
         let current_time = rtc.read_time_fmt();
         rtc::init_rtc(rtc.clone());
         register_device_to_plic(irq, rtc.clone());
@@ -111,25 +111,6 @@ fn init_uart() {
     println!("Init uart success");
 }
 
-fn init_gpu() {
-    let res = crate::board::get_gpu_info();
-    if res.is_none() {
-        println!("There is no gpu device");
-        return;
-    }
-    let (base_addr, irq) = res.unwrap();
-    println!("Init gpu, base_addr:{:#x},irq:{}", base_addr, irq);
-    #[cfg(feature = "qemu")]
-    {
-        use crate::driver::gpu::VirtIOGpuWrapper;
-        let gpu = VirtIOGpuWrapper::new(base_addr);
-        let gpu = Arc::new(gpu);
-        gpu::init_gpu(gpu.clone());
-        // let _ = register_device_to_plic(irq, gpu);
-        println!("Init gpu success");
-    }
-}
-
 fn init_block_device() {
     #[cfg(feature = "qemu")]
     {
@@ -167,6 +148,26 @@ fn init_fake_disk() {
     let device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
     let device = Arc::new(device);
     block::init_block_device(device.clone());
+}
+
+
+fn init_gpu() {
+    let res = crate::board::get_gpu_info();
+    if res.is_none() {
+        println!("There is no gpu device");
+        return;
+    }
+    let (base_addr, irq) = res.unwrap();
+    println!("Init gpu, base_addr:{:#x},irq:{}", base_addr, irq);
+    #[cfg(feature = "qemu")]
+    {
+        use crate::driver::gpu::VirtIOGpuWrapper;
+        let gpu = VirtIOGpuWrapper::new(base_addr);
+        let gpu = Arc::new(gpu);
+        gpu::init_gpu(gpu.clone());
+        // let _ = register_device_to_plic(irq, gpu);
+        println!("Init gpu success");
+    }
 }
 
 fn init_keyboard_input_device() {

@@ -31,10 +31,9 @@ BUILD_CRATES := \
 
 ifeq ($(GUI),y)
 	BUILD_CRATES += sysinfo \
+					todo \
 					slint \
 					memory-game \
 					printdemo \
-					todo \
 					egui \
-					guitest
 endif

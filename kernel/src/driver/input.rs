@@ -59,14 +59,15 @@ impl InputDevice for VirtIOInputDriver {
 
     fn read_event_with_block(&self) -> u64 {
         loop {
-            let mut inner = self.inner.lock();
-            if let Some(event) = inner.events.pop_front() {
-                return event;
-            }
-            let process = current_task().unwrap();
-            process.update_state(TaskState::Waiting);
-            inner.wait_queue.push_back(process.clone());
-            drop(inner);
+            {
+                let mut inner = self.inner.lock();
+                if let Some(event) = inner.events.pop_front() {
+                    return event;
+                }
+                let process = current_task().unwrap();
+                process.update_state(TaskState::Waiting);
+                inner.wait_queue.push_back(process.clone());
+            } // drop the lock
             schedule();
         }
     }
@@ -85,7 +86,7 @@ impl DeviceBase for VirtIOInputDriver {
         while let Some(event) = inner.driver.pop_pending_event() {
             let result =
                 (event.event_type as u64) << 48 | (event.code as u64) << 32 | (event.value) as u64;
-            warn!("event: {:x}", result);
+            info!("event: {:?}", event);
             if inner.events.len() >= inner.max_events as usize {
                 // remove the first event
                 inner.events.pop_front();
@@ -99,5 +100,6 @@ impl DeviceBase for VirtIOInputDriver {
             GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(process)));
             count -= 1;
         }
+        info!("read {} events", count);
     }
 }

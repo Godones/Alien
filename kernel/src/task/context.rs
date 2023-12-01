@@ -38,6 +38,7 @@ extern "C" {
 }
 
 /// 交换前后两个线程的上下文，调用 `switch.asm` 中的 `__switch`
+#[inline(always)]
 pub fn switch(current_task_cx_ptr: *mut Context, next_task_cx_ptr: *const Context) {
     unsafe {
         __switch(current_task_cx_ptr, next_task_cx_ptr);

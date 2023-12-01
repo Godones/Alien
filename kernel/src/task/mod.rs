@@ -46,4 +46,3 @@ pub fn init_process() {
 }
 // online test has no sort.src
 // pub static SORT_SRC: &[u8] = include_bytes!("../../../sdcard/sort.src");
-// pub static UNIXBENCH: &[u8] = include_bytes!("../../../sdcard/unixbench_testcode.sh");

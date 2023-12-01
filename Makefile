@@ -35,8 +35,8 @@ CARGO_FLAGS := -Zbuild-std=core,compiler_builtins,alloc \
 
 ifeq ($(GUI),y)
 QEMU_ARGS += -device virtio-gpu-device \
-			 -device virtio-keyboard-device \
-			 -device virtio-mouse-device
+			 -device virtio-tablet-device \
+			 -device virtio-keyboard-device
 else
 QEMU_ARGS += -nographic
 endif
@@ -83,8 +83,12 @@ endef
 all:
 
 install:
-	@#cargo install --git  https://github.com/os-module/elfinfo
-	@#cd $(TRACE_EXE_PATH) && cargo build --release
+ifeq (, $(shell which $(TRACE_EXE)))
+	@cargo install --git https://github.com/os-module/elfinfo
+else
+	@echo "elfinfo has been installed"
+endif
+
 
 build:install compile
 

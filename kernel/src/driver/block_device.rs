@@ -188,13 +188,13 @@ impl LowBlockDriver for VirtIOBlkWrapper {
     fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
         let res = self
             .device
-            .read_blocks(block_id, buf)
+            .read_block(block_id, buf)
             .map_err(|_| LinuxErrno::EIO.into());
         res
     }
     fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
         self.device
-            .write_blocks(block_id, buf)
+            .write_block(block_id, buf)
             .map_err(|_| LinuxErrno::EIO.into())
     }
 

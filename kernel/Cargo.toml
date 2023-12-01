@@ -11,10 +11,8 @@ riscv = "0.10.0"
 bit_field = "0.10.1"
 xmas-elf = "0.9.0"
 bitflags = "1.3.2"
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "4b60f5d"}
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
 fdt = "0.1.3"
-embedded-graphics-core = "0.3.3"
-tinybmp = "0.4.0"
 rtc = { git = "https://github.com/os-module/rtc.git" }
 lru = "0.10.0"
 
@@ -99,3 +97,6 @@ pager_buddy = ["pager/buddy"]
 pager_bitmap = ["pager/bitmap"]
 
 test = ["loopback"]
+
+debug-eh-frame = []
+debug-frame-pointer = []

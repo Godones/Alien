@@ -8,13 +8,11 @@ pub trait NetDevice: DeviceBase {}
 
 #[cfg(feature = "net_test")]
 pub mod nettest {
-
     use alloc::vec::Vec;
     use core::net::{IpAddr, SocketAddr};
-
     use netcore::tcp::TcpSocket;
-
-    use crate::error::{AlienError, AlienResult};
+    use crate::error::{AlienResult};
+    use crate::net::port::neterror2alien;
 
     /// A TCP stream between a local and a remote socket.
     pub struct TcpStream(TcpSocket);
@@ -24,27 +22,27 @@ pub mod nettest {
 
     impl TcpStream {
         pub fn read(&mut self, buf: &mut [u8]) -> AlienResult<usize> {
-            self.0.recv(buf).map_err(|_| AlienError::Other)
+            self.0.recv(buf).map_err(neterror2alien)
         }
-        pub fn write_all(&mut self, buf: &[u8]) -> AlienResult<()> {
-            self.0.send(buf).map_err(|_| AlienError::Other).map(|_| ())
+        pub fn write_all(&mut self, buf: &[u8]) -> AlienResult<usize> {
+            self.0.send(buf).map_err(neterror2alien)
         }
     }
 
     impl TcpListener {
         pub fn bind(addr: SocketAddr) -> AlienResult<TcpListener> {
             let socket = TcpSocket::new();
-            socket.bind(addr).map_err(|_| AlienError::Other)?;
-            socket.listen().map_err(|_| AlienError::Other)?;
+            socket.bind(addr).map_err(neterror2alien)?;
+            socket.listen().map_err(neterror2alien)?;
             Ok(TcpListener(socket))
         }
         pub fn local_addr(&self) -> AlienResult<SocketAddr> {
-            self.0.local_addr().map_err(|_| AlienError::Other)
+            self.0.local_addr().map_err(neterror2alien)
         }
 
         pub fn accept(&self) -> AlienResult<(TcpStream, SocketAddr)> {
-            let socket = self.0.accept().map_err(|_| AlienError::Other)?;
-            let addr = socket.peer_addr().map_err(|_| AlienError::Other)?;
+            let socket = self.0.accept().map_err(neterror2alien)?;
+            let addr = socket.peer_addr().map_err(neterror2alien)?;
             Ok((TcpStream(socket), addr))
         }
     }
@@ -66,19 +64,18 @@ pub mod nettest {
     fn echo_server(mut stream: TcpStream) -> AlienResult<()> {
         let mut buf = [0u8; 1024];
         loop {
-            let n = stream.read(&mut buf).map_err(|_| AlienError::Other)?;
+            let n = stream.read(&mut buf).unwrap();
             if n == 0 {
                 return Ok(());
             }
             stream
-                .write_all(reverse(&buf[..n]).as_slice())
-                .map_err(|_| AlienError::Other)?;
+                .write_all(reverse(&buf[..n]).as_slice()).unwrap();
         }
     }
 
     pub fn accept_loop() {
         let local_addr = SocketAddr::new(
-            IpAddr::parse_ascii(LOCAL_IP.as_bytes()).unwrap(),
+            IpAddr::V4(LOCAL_IP.parse().unwrap()),
             LOCAL_PORT,
         );
         let listener = TcpListener::bind(local_addr).unwrap();

@@ -7,8 +7,8 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use slint::platform::WindowEvent;
+use virt2slint::Converter;
 
-use input2event::input2event;
 use slint_helper::{MyPlatform, SwapBuffer};
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 
@@ -37,10 +37,11 @@ fn main() {
     let mut swap_buffer = SwapBuffer::new();
     let mut x = 0;
     let mut y = 0;
+    let mut converter = Converter::new(32767, VIRTGPU_XRES as isize, VIRTGPU_YRES as isize);
     loop {
         // Let Slint run the timer hooks and update animations.
         slint::platform::update_timers_and_animations();
-        let events = checkout_event(&mut x, &mut y);
+        let events = checkout_event(&mut converter,&mut x, &mut y);
         events.iter().for_each(|event| {
             window.dispatch_event(event.clone());
         });
@@ -54,14 +55,17 @@ fn main() {
     }
 }
 
-fn checkout_event(x: &mut i32, y: &mut i32) -> Vec<WindowEvent> {
+fn checkout_event(converter: &mut Converter,x: &mut isize, y: &mut isize) -> Vec<WindowEvent> {
     let mut events = [0; 100];
     let event_num = keyboard_or_mouse_event(&mut events);
     let mut res = Vec::new();
     for i in 0..event_num as usize {
         let event = events[i];
-        let window_event = input2event(event, x, y).unwrap();
-        res.push(window_event);
+        // let window_event = input2event(event, x, y);
+        let window_event = converter.convert(event, x, y);
+        window_event.map(|e|{
+            res.push(e);
+        });
     }
     res
 }

@@ -13,7 +13,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::fmt::Debug;
-use core::intrinsics::forget;
+use core::mem::forget;
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::{PagingIf, Sv39PageTable};
