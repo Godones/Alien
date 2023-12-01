@@ -3,15 +3,10 @@
 //! 通过导出子模块，boot模块可以调用内核的各个子模块完成初始化工作
 
 #![no_std]
-#![feature(core_intrinsics)]
 #![feature(error_in_core)]
 #![feature(panic_info_message)]
 #![feature(atomic_from_mut)]
 #![feature(ip_in_core)]
-#![feature(stmt_expr_attributes)]
-#![feature(addr_parse_ascii)]
-#![feature(let_chains)]
-#![feature(trait_upcasting)]
 // #![deny(missing_docs)]
 
 extern crate alloc;

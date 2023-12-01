@@ -19,7 +19,6 @@ pub trait GpuDevice: Send + Sync + Any + DeviceBase {
 
 pub static GPU_DEVICE: Once<Arc<dyn GpuDevice>> = Once::new();
 
-#[allow(unused)]
 pub fn init_gpu(gpu: Arc<dyn GpuDevice>) {
     GPU_DEVICE.call_once(|| gpu);
 }

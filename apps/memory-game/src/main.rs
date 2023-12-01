@@ -13,8 +13,7 @@ use rand::prelude::{SliceRandom, SmallRng};
 use rand::SeedableRng;
 use slint::platform::WindowEvent;
 use slint::{Model, VecModel};
-
-use input2event::input2event;
+use virt2slint::Converter;
 use slint_helper::{MyPlatform, SwapBuffer};
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 use Mstd::time::get_time_ms;
@@ -83,14 +82,14 @@ fn main() {
     let mut swap_buffer = SwapBuffer::new();
     let mut x = 0;
     let mut y = 0;
+    let mut converter = Converter::new(32767, VIRTGPU_XRES as isize, VIRTGPU_YRES as isize);
     loop {
         // Let Slint run the timer hooks and update animations.
         slint::platform::update_timers_and_animations();
-        let event = checkout_event(&mut x, &mut y);
-        // println!("event: {:?}", event);
-        if let Some(event) = event {
-            window.dispatch_event(event);
-        }
+        let events = checkout_event(&mut converter,&mut x, &mut y);
+        events.iter().for_each(|event| {
+            window.dispatch_event(event.clone());
+        });
         window.draw_if_needed(|render| {
             let work_buffer = swap_buffer.work_buffer();
             // Do the rendering!
@@ -100,25 +99,17 @@ fn main() {
         });
     }
 }
-
-static mut EVENTS: &'static mut [u64] = &mut [0; 100];
-static mut COUNT: usize = 0;
-static mut LAST_READ: usize = 0;
-
-fn checkout_event(x: &mut i32, y: &mut i32) -> Option<WindowEvent> {
-    unsafe {
-        if COUNT == 0 {
-            COUNT = keyboard_or_mouse_event(&mut EVENTS) as usize;
-            LAST_READ = 0;
-        }
-        return if COUNT > 0 {
-            let event = EVENTS[LAST_READ];
-            LAST_READ += 1;
-            COUNT -= 1;
-            let window_event = input2event(event, x, y).unwrap();
-            Some(window_event)
-        } else {
-            None
-        };
+fn checkout_event(converter: &mut Converter,x: &mut isize, y: &mut isize) -> Vec<WindowEvent> {
+    let mut events = [0; 100];
+    let event_num = keyboard_or_mouse_event(&mut events);
+    let mut res = Vec::new();
+    for i in 0..event_num as usize {
+        let event = events[i];
+        // let window_event = input2event(event, x, y);
+        let window_event = converter.convert(event, x, y);
+        window_event.map(|e|{
+            res.push(e);
+        });
     }
+    res
 }

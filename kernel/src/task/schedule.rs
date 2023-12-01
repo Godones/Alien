@@ -54,19 +54,19 @@ pub fn first_into_user() -> ! {
             }
         }
         let cpu = current_cpu();
-        if let Some(process) = GLOBAL_TASK_MANAGER.pick_next_task() {
+        if let Some(task) = GLOBAL_TASK_MANAGER.pick_next_task() {
             // if process.get_tid() >= 1 {
             //     warn!("switch to task {}", process.get_tid());
             // }
             // update state to running
-            process.update_state(TaskState::Running);
+            task.update_state(TaskState::Running);
             // get the process context
-            let context = process.get_context_raw_ptr();
-            cpu.task = Some(process.inner().clone());
+            let context = task.get_context_raw_ptr();
+            cpu.task = Some(task.inner().clone());
             // switch to the process context
             let cpu_context = cpu.get_context_mut_raw_ptr();
             // warn!("switch to task {}", process.get_tid());
-            drop(process);
+            drop(task);
             switch(cpu_context, context);
         } else {
             unsafe { asm!("wfi") }

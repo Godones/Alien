@@ -22,7 +22,6 @@ pub trait InputDevice: Send + Sync + DeviceBase {
 
 pub struct INPUTDevice {
     device_id: DeviceId,
-    #[allow(unused)]
     device: Arc<dyn InputDevice>,
     #[allow(unused)]
     is_keyboard: bool,
@@ -42,14 +41,26 @@ impl INPUTDevice {
 }
 
 impl VfsFile for INPUTDevice {
-    fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> VfsResult<usize> {
-        todo!()
+    fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
+        if buf.len() != 8{
+            return Err(VfsError::Invalid);
+        }
+        let buf = unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u64, 1) };
+        let event = self.device.read_event_with_block();
+        buf[0] = event;
+        Ok(1)
     }
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
-        Err(VfsError::NoSys)
+        Err(VfsError::Invalid)
     }
-    fn poll(&self, _event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
-        todo!()
+    fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
+        let mut res = VfsPollEvents::empty();
+        if event.contains(VfsPollEvents::IN) {
+            if self.device.is_empty() {
+                res |= VfsPollEvents::IN;
+            }
+        }
+        Ok(res)
     }
 }
 
@@ -74,12 +85,12 @@ impl VfsInode for INPUTDevice {
 pub static KEYBOARD_INPUT_DEVICE: Once<Arc<dyn InputDevice>> = Once::new();
 pub static MOUSE_INPUT_DEVICE: Once<Arc<dyn InputDevice>> = Once::new();
 
-#[allow(unused)]
+
 pub fn init_keyboard_input_device(input_device: Arc<dyn InputDevice>) {
     KEYBOARD_INPUT_DEVICE.call_once(|| input_device);
 }
 
-#[allow(unused)]
+
 pub fn init_mouse_input_device(input_device: Arc<dyn InputDevice>) {
     MOUSE_INPUT_DEVICE.call_once(|| input_device);
 }
@@ -114,8 +125,8 @@ pub fn sys_event_get(event_buf: *mut u64, len: usize) -> isize {
 
 fn read_event() -> u64 {
     let (keyboard, mouse) = {
-        let kb = KEYBOARD_INPUT_DEVICE.get().unwrap().clone();
-        let mouse = MOUSE_INPUT_DEVICE.get().unwrap().clone();
+        let kb = KEYBOARD_INPUT_DEVICE.get().unwrap();
+        let mouse = MOUSE_INPUT_DEVICE.get().unwrap();
         (kb, mouse)
     };
     if !keyboard.is_empty() {

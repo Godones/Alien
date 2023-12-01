@@ -61,7 +61,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcb2392079bf27198570d6af79ecbd9ec7d8f16d3ec6b60933922fdb66287127"
 dependencies = [
  "heapless 0.5.6",
- "nom",
+ "nom 4.2.3",
 ]
 
 [[package]]
@@ -1050,14 +1050,6 @@ name = "gmanager"
 version = "0.1.0"
 
 [[package]]
-name = "guitest"
-version = "0.1.0"
-dependencies = [
- "Mstd",
- "embedded-graphics",
-]
-
-[[package]]
 name = "half"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1342,14 +1334,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "input2event"
-version = "0.1.0"
-dependencies = [
- "slint 1.2.1",
- "virtio-input-decoder",
-]
-
-[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1440,7 +1424,6 @@ dependencies = [
  "devfs",
  "downcast-rs",
  "dynfs",
- "embedded-graphics-core",
  "fat-vfs",
  "fdt",
  "gmanager",
@@ -1463,12 +1446,11 @@ dependencies = [
  "spin",
  "syscall-table",
  "talc 1.0.0",
- "tinybmp",
  "tracer",
  "uart16550",
  "uart8250",
  "vfscore",
- "virtio-drivers 0.7.1",
+ "virtio-drivers 0.5.0 (git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b1)",
  "virtio-net",
  "visionfive2-sd",
  "xmas-elf",
@@ -1477,11 +1459,10 @@ dependencies = [
 [[package]]
 name = "kernel-sync"
 version = "0.1.0"
-source = "git+https://github.com/os-module/kernel-sync.git#4a1472b78fea052408adbadce705aec7a78e7b65"
+source = "git+https://github.com/os-module/kernel-sync.git#e7e366d8ae91ba6c008708ab6689fd25c08880d6"
 dependencies = [
  "cfg-if",
  "lock_api",
- "riscv",
 ]
 
 [[package]]
@@ -1582,7 +1563,7 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 [[package]]
 name = "loopback"
 version = "0.1.0"
-source = "git+https://github.com/os-module/simple-net#379cb4a1713d5126437020e57b15b7dcf73e2e32"
+source = "git+https://github.com/os-module/simple-net#9201deb305a2f93c9914af0d4742d580a9ce9b37"
 dependencies = [
  "netcore",
 ]
@@ -1714,12 +1695,12 @@ name = "memory-game"
 version = "0.1.0"
 dependencies = [
  "Mstd",
- "input2event",
  "libm",
  "rand",
  "slint 1.2.1",
  "slint-build",
  "slint-helper",
+ "virt2slint",
 ]
 
 [[package]]
@@ -1792,14 +1773,14 @@ dependencies = [
 [[package]]
 name = "netcore"
 version = "0.1.0"
-source = "git+https://github.com/os-module/simple-net#379cb4a1713d5126437020e57b15b7dcf73e2e32"
+source = "git+https://github.com/os-module/simple-net#9201deb305a2f93c9914af0d4742d580a9ce9b37"
 dependencies = [
  "kernel-sync",
  "log",
  "preprint",
  "smoltcp",
  "spin",
- "virtio-drivers 0.5.0",
+ "virtio-drivers 0.5.0 (git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b130e507702f13d142b9bee55670a4a2858)",
 ]
 
 [[package]]
@@ -1823,6 +1804,16 @@ checksum = "2ad2a91a8e869eeb30b9cb3119ae87773a8f4ae617f41b1eb9c154b2905f7bd6"
 dependencies = [
  "memchr",
  "version_check 0.1.5",
+]
+
+[[package]]
+name = "nom"
+version = "6.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6a7a9657c84d5814c6196b68bb4429df09c18b1573806259fba397ea4ad0d44"
+dependencies = [
+ "memchr",
+ "version_check 0.9.4",
 ]
 
 [[package]]
@@ -2148,11 +2139,11 @@ name = "printdemo"
 version = "1.1.0"
 dependencies = [
  "Mstd",
- "input2event",
  "libm",
  "slint 1.2.1",
  "slint-build",
  "slint-helper",
+ "virt2slint",
 ]
 
 [[package]]
@@ -2507,6 +2498,7 @@ dependencies = [
 [[package]]
 name = "simplegui"
 version = "0.1.0"
+source = "git+https://github.com/os-module/simplegui#89c290daaed73418b4a9a66edbbb16e4b9a3de55"
 dependencies = [
  "embedded-graphics",
  "embedded-text",
@@ -2544,10 +2536,10 @@ name = "slint"
 version = "0.1.0"
 dependencies = [
  "Mstd",
- "input2event",
  "slint 1.2.1",
  "slint-build",
  "slint-helper",
+ "virt2slint",
 ]
 
 [[package]]
@@ -2792,10 +2784,10 @@ name = "sysinfo"
 version = "0.1.0"
 dependencies = [
  "Mstd",
- "input2event",
  "slint 1.2.1",
  "slint-build",
  "slint-helper",
+ "virt2slint",
 ]
 
 [[package]]
@@ -2943,11 +2935,12 @@ dependencies = [
 
 [[package]]
 name = "tinybmp"
-version = "0.4.0"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e959c507975d768a226a08227d56791f6e60bddcf714ad7ef67ae2d20bae743"
+checksum = "44873aee48dd30712dc2610209902a78b9033a0148ac03c6c3e73e4ca2f49838"
 dependencies = [
  "embedded-graphics",
+ "nom 6.2.2",
 ]
 
 [[package]]
@@ -2970,10 +2963,10 @@ name = "todo"
 version = "0.1.0"
 dependencies = [
  "Mstd",
- "input2event",
  "slint 1.2.1",
  "slint-build",
  "slint-helper",
+ "virt2slint",
 ]
 
 [[package]]
@@ -3241,23 +3234,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "virt2slint"
+version = "0.1.0"
+source = "git+https://github.com/os-module/virt2slint#57bded036c809db27aff54c506e5f12a16c92fe3"
+dependencies = [
+ "slint 1.2.1",
+ "virtio-input-decoder",
+]
+
+[[package]]
+name = "virtio-drivers"
+version = "0.5.0"
+source = "git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b1#de1c3b130e507702f13d142b9bee55670a4a2858"
+dependencies = [
+ "bitflags 2.4.0",
+ "log",
+ "zerocopy",
+]
+
+[[package]]
 name = "virtio-drivers"
 version = "0.5.0"
 source = "git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b130e507702f13d142b9bee55670a4a2858#de1c3b130e507702f13d142b9bee55670a4a2858"
 dependencies = [
  "bitflags 2.4.0",
  "log",
- "zerocopy 0.6.4",
-]
-
-[[package]]
-name = "virtio-drivers"
-version = "0.7.1"
-source = "git+https://github.com/rcore-os/virtio-drivers?rev=4b60f5d#4b60f5d341a7211dfec7382062f965c5433c51c2"
-dependencies = [
- "bitflags 2.4.0",
- "log",
- "zerocopy 0.7.26",
+ "zerocopy",
 ]
 
 [[package]]
@@ -3268,10 +3270,10 @@ source = "git+https://github.com/os-module/virtio-input-decoder.git#10c726892cb2
 [[package]]
 name = "virtio-net"
 version = "0.1.0"
-source = "git+https://github.com/os-module/simple-net#379cb4a1713d5126437020e57b15b7dcf73e2e32"
+source = "git+https://github.com/os-module/simple-net#9201deb305a2f93c9914af0d4742d580a9ce9b37"
 dependencies = [
  "netcore",
- "virtio-drivers 0.7.1",
+ "virtio-drivers 0.5.0 (git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b1)",
 ]
 
 [[package]]
@@ -3735,17 +3737,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20707b61725734c595e840fb3704378a0cd2b9c74cc9e6e20724838fc6a1e2f9"
 dependencies = [
  "byteorder",
- "zerocopy-derive 0.6.4",
-]
-
-[[package]]
-name = "zerocopy"
-version = "0.7.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e97e415490559a91254a2979b4829267a57d2fcd741a98eee8b722fb57289aa0"
-dependencies = [
- "byteorder",
- "zerocopy-derive 0.7.26",
+ "zerocopy-derive",
 ]
 
 [[package]]
@@ -3753,17 +3745,6 @@ name = "zerocopy-derive"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56097d5b91d711293a42be9289403896b68654625021732067eac7a4ca388a1f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.37",
-]
-
-[[package]]
-name = "zerocopy-derive"
-version = "0.7.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd7e48ccf166952882ca8bd778a43502c64f33bf94c12ebe2a7f08e5a0f6689f"
 dependencies = [
  "proc-macro2",
  "quote",

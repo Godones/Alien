@@ -1,10 +1,8 @@
 //! Alien 中有关进程的系统调用 和 多核的相关支持。
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use alloc::vec;
 use alloc::vec::Vec;
-use core::cell::UnsafeCell;
-use core::ops::{Index, IndexMut};
+use core::cell::{UnsafeCell};
 use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::Lazy;
 
@@ -34,36 +32,6 @@ pub struct CPU {
     pub task: Option<Arc<Task>>,
     /// 当前线程的上下文
     pub context: Context,
-}
-
-/// 记录一组 CPU 的相关信息
-pub struct CpuManager<const CPUS: usize> {
-    cpus: Vec<CPU>,
-}
-
-impl<const CPUS: usize> CpuManager<CPUS> {
-    /// 创建一个 `CpuManager` 结构
-    pub fn new() -> Self {
-        Self {
-            cpus: vec![CPU::empty(); CPUS],
-        }
-    }
-}
-
-impl<const CPUS: usize> Index<usize> for CpuManager<CPUS> {
-    type Output = CPU;
-
-    /// 用于快捷取出 hartid 为 index 的 CPU 的一个不可变引用
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.cpus[index]
-    }
-}
-
-impl<const CPUS: usize> IndexMut<usize> for CpuManager<CPUS> {
-    /// 用于快捷取出 hartid 为 index 的 CPU 的一个可变引用
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.cpus[index]
-    }
 }
 
 impl CPU {
@@ -375,9 +343,9 @@ pub fn do_exec(path: *const u8, args_ptr: usize, env: usize) -> AlienResult<isiz
 /// Reference:[wait](https://man7.org/linux/man-pages/man2/wait.2.html)
 #[syscall_func(260)]
 pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) -> isize {
-    let process = current_task().unwrap();
     loop {
-        if process
+        let task = current_task().unwrap();
+        if task
             .children()
             .iter()
             .find(|child| child.get_pid() == pid || pid == -1)
@@ -385,20 +353,20 @@ pub fn wait4(pid: isize, exit_code: *mut i32, options: u32, _rusage: *const u8) 
         {
             return -1;
         }
-        let res = process.check_child(pid);
+        let res = task.check_child(pid);
         if let Some(index) = res {
-            let child = process.remove_child(index);
+            let child = task.remove_child(index);
             assert_eq!(
                 Arc::strong_count(&child),
                 1,
                 "Father is [{}-{}], wait task is [{}-{}]",
-                process.get_pid(),
-                process.get_tid(),
+                task.get_pid(),
+                task.get_tid(),
                 child.get_pid(),
                 child.get_tid()
             );
             if !exit_code.is_null() {
-                let exit_code_ref = process.transfer_raw_ptr(exit_code);
+                let exit_code_ref = task.transfer_raw_ptr(exit_code);
                 *exit_code_ref = child.exit_code();
             }
             return child.get_tid();
