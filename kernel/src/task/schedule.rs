@@ -59,9 +59,9 @@ pub fn first_into_user() -> ! {
             //     warn!("switch to task {}", process.get_tid());
             // }
             // update state to running
-            task.update_state(TaskState::Running);
+            task.inner().update_state(TaskState::Running);
             // get the process context
-            let context = task.get_context_raw_ptr();
+            let context = task.inner().get_context_raw_ptr();
             cpu.task = Some(task.inner().clone());
             // switch to the process context
             let cpu_context = cpu.get_context_mut_raw_ptr();

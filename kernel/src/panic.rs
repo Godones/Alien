@@ -1,5 +1,5 @@
 //! panic 处理
-use crate::sbi::system_shutdown;
+use crate::sbi::{system_shutdown};
 use crate::trace::find_symbol_with_addr;
 use core::panic::PanicInfo;
 use core::sync::atomic::AtomicBool;
@@ -19,19 +19,19 @@ static RECURSION: AtomicBool = AtomicBool::new(false);
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     if let Some(p) = info.location() {
-        println!(
+        mprintln!(
             "line {}, file {}: {}",
             p.line(),
             p.file(),
             info.message().unwrap()
         );
     } else {
-        println!("no location information available");
+        mprintln!("no location information available");
     }
     if !RECURSION.swap(true, core::sync::atomic::Ordering::SeqCst) {
         back_trace();
     }
-    println!("!TEST FINISH!");
+    mprintln!("!TEST FINISH!");
     system_shutdown();
     loop {}
 }

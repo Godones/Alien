@@ -27,12 +27,12 @@ rslab = { version = "0.2.1", optional = true }
 syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
 plic = { git = "https://github.com/os-module/plic" }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
-kernel-sync = { git = "https://github.com/os-module/kernel-sync.git" }
+kernel-sync = { git = "https://github.com/os-module/kernel-sync.git",features = ["lock_api","riscv"] }
 pconst = { git = "https://github.com/os-module/pconst.git", features = [
     "trick",
 ] }
-gmanager = { path = "../modules/gmanager" }
-basemachine = { path = "../modules/basemachine" }
+gmanager = { path = "../dep/gmanager" }
+basemachine = { path = "../dep/basemachine" }
 uart16550 = { version = "0.0.1", optional = true }
 uart8250 = { git = "https://github.com/os-module/uart-rs.git", optional = true }
 smpscheduler = { git = "https://github.com/os-module/smpscheduler.git" }

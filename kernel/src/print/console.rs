@@ -76,6 +76,38 @@ impl Write for Stdout {
     }
 }
 
+struct MStdout;
+impl Write for MStdout{
+    fn write_str(&mut self, s: &str) -> Result {
+        s.as_bytes().iter().for_each(|x| {
+            console_putchar(*x);
+        });
+        Ok(())
+    }
+}
+
+pub fn __mprint(args: Arguments) {
+    MStdout.write_fmt(args).unwrap();
+}
+
+#[macro_export]
+macro_rules! mprint {
+    ($($arg:tt)*) => {
+        let hard_id = $crate::arch::hart_id();
+        // [hart_id] xxx
+        $crate::print::console::__mprint(format_args!("[{}] {}", hard_id, format_args!($($arg)*)))
+    };
+}
+
+#[macro_export]
+macro_rules! mprintln {
+    () => ($crate::mprint!("\n"));
+    ($fmt:expr) => ($crate::mprint!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::mprint!(
+        concat!($fmt, "\n"), $($arg)*));
+}
+
+
 /// 输出函数
 /// 对参数进行输出 主要使用在输出相关的宏中 如println
 pub fn __print(args: Arguments) {

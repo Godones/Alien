@@ -35,5 +35,5 @@ ifeq ($(GUI),y)
 					slint \
 					memory-game \
 					printdemo \
-					egui \
+					egui
 endif

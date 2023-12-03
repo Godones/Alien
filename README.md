@@ -100,15 +100,6 @@ make vf2 LOG=WARN VF2=y SMP=2
 // 这里smp=2 表示的是单核启动，对于u74-mc处理器，0号核不会被启动，从1号开始。
 ```
 
-### Run cv1811h
-
-```
-make sdcard 
-// 制作fat32
-make vf2 LOG=WARN CV1811h=y SMP=1 
-// 等待修复
-```
-
 ## Run Unmatched
 
 ```
@@ -118,10 +109,6 @@ make unmatched LOG= UNMATCHED=y SMP=2
 // 生成testos.bin
 // 这里smp=2 表示的是单核启动，对于u74-mc处理器，0号核不会被启动，从1号开始。
 ```
-
-目前cv1811h开发板可以上板启动，但是我们暂时没有处理其需要的特殊页表项。对于visionfive2和unmatched，可以启动并运行bash。
-
-
 
 ## GDB
 

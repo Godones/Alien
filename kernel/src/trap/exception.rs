@@ -152,6 +152,6 @@ pub fn trap_common_read_file(file: Arc<dyn File>, buf: &mut [u8], offset: u64) {
     // let r = vfs_read_file::<VfsProvider>(file.get_file(), buf, offset);
     let r = file.read_at(offset, buf);
     if r.is_err() {
-        error!("load page fault: read file error");
+        error!("page fault: read file error");
     }
 }
