@@ -11,6 +11,7 @@ use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::config::{FRAME_SIZE, PROCESS_HEAP_MAX};
+use crate::error::AlienResult;
 use crate::fs::file::File;
 use crate::task::current_task;
 
@@ -182,7 +183,7 @@ pub fn do_munmap(start: usize, len: usize) -> isize {
 /// 函数成功执行后将返回所创建的内存映射区的首地址；否则返回错误类型。
 /// Reference: [do_mmap](https://man7.org/linux/man-pages/man2/mmap.2.html)
 #[syscall_func(222)]
-pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> isize {
+pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> AlienResult<isize> {
     let process = current_task().unwrap();
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
@@ -191,11 +192,7 @@ pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offse
         "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
         start, len, prot, flags, fd, offset
     );
-    let res = process_inner.add_mmap(start, len, prot, flags, fd, offset);
-    if res.is_err() {
-        return res.err().unwrap();
-    }
-    res.unwrap() as isize
+    process_inner.add_mmap(start, len, prot, flags, fd, offset).map(|addr| addr as isize)
 }
 
 /// 一个系统调用，用于修改内存映射的保护位，从而修改对内存映射的访问权限。
@@ -203,7 +200,7 @@ pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offse
 ///
 /// 如果函数正常执行，则返回0；如果`start`和`len`所指示的内存映射区未已经处于被映射状态，函数将返回-1。
 #[syscall_func(226)]
-pub fn map_protect(start: usize, len: usize, prot: u32) -> isize {
+pub fn map_protect(start: usize, len: usize, prot: u32) -> AlienResult<isize> {
     let process = current_task().unwrap();
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
@@ -211,11 +208,8 @@ pub fn map_protect(start: usize, len: usize, prot: u32) -> isize {
         "mprotect: start: {:#x}, len: {:#x}, prot: {:?}",
         start, len, prot
     );
-    let res = process_inner.map_protect(start, len, prot);
-    if res.is_err() {
-        return -1;
-    }
-    0
+    process_inner.map_protect(start, len, prot)?;
+    Ok(0)
 }
 
 /// (待实现)一个系统调用，用于同步文件在内存映射中的修改。一个文件通过[`do_mmap`]映射到内存中，可以在内存中对其进行快速的读写。
@@ -232,7 +226,6 @@ pub fn msync(addr: usize, len: usize, flags: usize) -> isize {
     let task = current_task().unwrap();
     let address_space = &task.access_inner().address_space;
     let res = address_space.lock().query(VirtAddr::from(addr));
-    // warn!("msync: res: {:?}", res);
     if res.is_err() {
         return LinuxErrno::EFAULT as isize;
     }

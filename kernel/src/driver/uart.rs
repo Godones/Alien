@@ -164,14 +164,14 @@ impl UartDevice for Uart {
 
 impl DeviceBase for Uart {
     fn hand_irq(&self) {
-        let mut inner = self.inner.lock();
         loop {
+            let mut inner = self.inner.lock();
             if let Some(c) = inner.0._read() {
                 inner.1.rx_buf.push_back(c);
                 if !inner.1.wait_queue.is_empty() {
-                    let process = inner.1.wait_queue.pop_front().unwrap();
-                    process.update_state(TaskState::Ready);
-                    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(process)));
+                    let task = inner.1.wait_queue.pop_front().unwrap();
+                    task.update_state(TaskState::Ready);
+                    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
                 }
             } else {
                 break;

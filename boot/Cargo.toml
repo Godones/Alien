@@ -9,7 +9,7 @@ edition = "2021"
 cfg-if = "1.0.0"
 riscv = "0.10.0"
 preprint = "0.1.0"
-basemachine = { path = "../modules/basemachine" }
+basemachine = { path = "../dep/basemachine" }
 kernel = { version = "0.1.0", path = "../kernel" }
 
 

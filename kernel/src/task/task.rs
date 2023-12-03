@@ -1070,10 +1070,10 @@ impl TaskInner {
         flags: MapFlags,
         fd: usize,
         offset: usize,
-    ) -> Result<usize, isize> {
+    ) -> AlienResult<usize> {
         // start == 0 表明需要OS为其找一段内存，而 MAP_FIXED 表明必须 mmap 在固定位置。两者是冲突的
         if start == 0 && flags.contains(MapFlags::MAP_FIXED) {
-            return Err(LinuxErrno::EINVAL as isize);
+            return Err(LinuxErrno::EINVAL);
         }
 
         // if the map in heap, now we ignore it
@@ -1085,11 +1085,10 @@ impl TaskInner {
         let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
             None
         } else {
-            let file = self.fd_table.lock().get(fd).map_err(|_| -1isize)?;
-            if file.is_none() {
-                return Err(LinuxErrno::EBADF.into());
-            }
-            file
+            let file = self.fd_table.lock().get(fd)
+                .map_err(|_| LinuxErrno::EBADF)?
+                .ok_or(LinuxErrno::EBADF)?; // EBADF
+            Some(file)
         };
         // todo!
         // for dynamic link, the linker will map the elf file to the same address
@@ -1099,10 +1098,10 @@ impl TaskInner {
             let len = align_up_4k(len);
             if start > self.heap.lock().start {
                 // the mmap region is in heap
-                return Err(-1);
+                return Err(LinuxErrno::EINVAL);
             }
             if let Some(_region) = self.mmap.get_region(start) {
-                return Err(-1);
+                return Err(LinuxErrno::EINVAL);
             }
             if start == 0 {
                 start = 0x1000;
@@ -1112,7 +1111,7 @@ impl TaskInner {
             let len = align_up_4k(len);
             if start > self.heap.lock().start {
                 error!("mmap fixed address conflict with heap");
-                return Err(-1);
+                return Err(LinuxErrno::EINVAL);
             }
             // check if the region is already mapped
             if let Some(region) = self.mmap.get_region(start) {
@@ -1207,13 +1206,13 @@ impl TaskInner {
     }
 
     /// 设置内存映射的保护位，函数会检查传入的`start`和`len`所指示的内存映射区是否已经处于被映射状态，如果是，则将对应内存映射区的保护位与`prot`做或运算。
-    pub fn map_protect(&mut self, start: usize, len: usize, prot: ProtFlags) -> Result<(), isize> {
+    pub fn map_protect(&mut self, start: usize, len: usize, prot: ProtFlags) -> AlienResult<()> {
         // check whether the start is in mmap
         let x = self.mmap.get_region_mut(start);
         if x.is_none() {
             let res = self.address_space.lock().query(VirtAddr::from(start));
             return if res.is_err() {
-                Err(LinuxErrno::EINVAL as isize)
+                Err(LinuxErrno::EINVAL)
             } else {
                 Ok(())
             };
@@ -1222,7 +1221,7 @@ impl TaskInner {
         let region = x.unwrap();
         if start + len > region.start + region.len {
             error!("start+len > region.start + region.len");
-            return Err(LinuxErrno::EINVAL.into());
+            return Err(LinuxErrno::EINVAL);
         }
         region.prot |= prot;
         Ok(())
@@ -1251,13 +1250,8 @@ impl TaskInner {
         }
         assert!(!flags.contains(MappingFlags::RSD));
 
-        let x = self.mmap.get_region(addr);
-        if x.is_none() {
-            return Err(AlienError::EINVAL);
-        }
+        let region = self.mmap.get_region(addr).ok_or(AlienError::EINVAL)?;
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
-        let region = x.unwrap();
-        assert_eq!(addr % FRAME_SIZE, 0);
         // update page table
         let mut map_flags = region.prot.into();
         map_flags |= "V".into();

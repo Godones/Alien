@@ -24,7 +24,7 @@ cd ./redis-3.2.9 && make CC=$(CC) MALLOC=libc # 编译redis
 ## Run
 
 ```
-server: redis-server redis.conf &
+server: redis-server ./bin/redis.conf &
 bench : redis-benchmark -n 1000 -c 1
 
 client: redis-cli

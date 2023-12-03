@@ -1463,6 +1463,7 @@ source = "git+https://github.com/os-module/kernel-sync.git#e7e366d8ae91ba6c00870
 dependencies = [
  "cfg-if",
  "lock_api",
+ "riscv",
 ]
 
 [[package]]

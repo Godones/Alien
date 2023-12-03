@@ -41,7 +41,7 @@ pub fn set_timer(time: usize) {
 /// 一个系统调用，通过调用 SBI_SHUTDOWN 来关闭操作系统（直接退出 QEMU）
 #[syscall_func(2003)]
 pub fn system_shutdown() -> isize {
-    println!("shutdown...");
+    mprintln!("shutdown...");
     sbi_call(SBI_SHUTDOWN, 0, 0, 0);
     0
 }
