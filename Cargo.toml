@@ -1,0 +1,17 @@
+[workspace]
+members = [
+    "domain-tools/libsyscall",
+    "domain-tools/malloc",
+    "kernel",
+    "subsystems/arch",
+    "subsystems/config",
+    "domains/drivers/blk",
+    "subsystems/ksync",
+    "subsystems/mem",
+    "subsystems/platform"
+, "domain-tools/interface",
+    "domain-tools/rref", "domains/generated/gblk", "subsystems/domain-loader", "subsystems/error", "subsystems/domain-helper"]
+
+resolver = "2"
+
+
