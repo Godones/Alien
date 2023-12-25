@@ -1,5 +1,5 @@
 [package]
-name = "gblk"
+name = "gfatfs"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,4 +10,4 @@ libsyscall = { path = "../../../domain-tools/libsyscall" }
 rref = { path = "../../../domain-tools/rref" }
 interface = { path = "../../../domain-tools/interface" }
 
-blk = { path = "../../drivers/blk" }
+fatfs = { path = "../../fatfs" }

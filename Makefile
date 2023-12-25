@@ -5,6 +5,7 @@ NET ?=n
 IMG := /tmp/fat32.img
 SMP ?= 1
 MEMORY_SIZE := 1024M
+LOG ?=INFO
 
 QEMU_ARGS += -nographic
 ifeq ($(NET),y)
@@ -17,11 +18,12 @@ all:run
 
 build:
 	@echo "Building..."
-	@cargo build --release -p kernel --target $(TARGET)
+	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET)
 
 domains:
-	make -C domains
+	make -C domains LOG=$(LOG)
 	cp target/$(TARGET)/$(PROFILE)/gblk ./build/blk_domain.bin
+	cp target/$(TARGET)/$(PROFILE)/gfatfs ./build/fatfs_domain.bin
 
 run:domains build img
 	qemu-system-riscv64 \
@@ -41,9 +43,11 @@ img:
 	fi
 	@mkfs.fat -F 32 $(IMG)
 	@-mkdir -p mnt
-	@sudo mount $(IMG) mnt
+	@-sudo mount $(IMG) mnt
+	@sudo touch mnt/empty
+	@sudo mkdir -p mnt/EFI/BOOT
 	@sudo umount mnt
-	@rm -rf mnt
+	@sudo rm -rf mnt
 
 gdb-server: domains build img
 	@qemu-system-riscv64 \
@@ -61,4 +65,4 @@ gdb-client:
 
 
 
-.PHONY:build domains
+.PHONY:build domains gdb-client gdb-server img

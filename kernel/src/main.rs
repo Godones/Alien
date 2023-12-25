@@ -10,7 +10,6 @@ extern crate platform;
 use basemachine::machine_info_from_dtb;
 use info::kernel_info;
 
-
 #[no_mangle]
 fn main(hart_id: usize, dtree: usize) -> ! {
     println!("{}", config::ALIEN_FLAG);
@@ -20,7 +19,8 @@ fn main(hart_id: usize, dtree: usize) -> ! {
     println!("{:#x?}", machine_info);
     platform::platform_init();
     mem::init_memory_system(memory_start, machine_info.memory.end, true);
-    domain_loader::test_domain_loader().unwrap();
+    println!("memory init success");
+    domain_loader::test_domain();
     println!("shutdown");
     platform::system_shutdown()
 }

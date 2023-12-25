@@ -1,16 +1,16 @@
 use crate::frame::{alloc_frames, VmmPageAllocator};
 use alloc::sync::Arc;
-use core::sync::atomic::AtomicUsize;
 use config::{FRAME_SIZE, MMIO};
+use core::sync::atomic::AtomicUsize;
 use ksync::RwLock;
 use page_table::riscv::Sv39PageTable;
 use spin::Lazy;
 
-pub use page_table::{MappingFlags};
-pub use memory_addr::{VirtAddr,PhysAddr};
+pub use memory_addr::{PhysAddr, VirtAddr};
+pub use page_table::MappingFlags;
 use page_table::PageSize;
 
-pub static KERNEL_SPACE: Lazy<Arc<RwLock<Sv39PageTable<VmmPageAllocator>>>> = Lazy::new (|| {
+pub static KERNEL_SPACE: Lazy<Arc<RwLock<Sv39PageTable<VmmPageAllocator>>>> = Lazy::new(|| {
     Arc::new(RwLock::new(
         Sv39PageTable::<VmmPageAllocator>::try_new().unwrap(),
     ))
@@ -22,7 +22,6 @@ extern "C" {
     fn sdata();
     fn sbss();
     fn ekernel();
-    fn strampoline();
     // fn kernel_eh_frame();
     // fn kernel_eh_frame_end();
     // fn kernel_eh_frame_hdr();
@@ -34,7 +33,7 @@ pub fn kernel_pgd() -> usize {
     KERNEL_SPACE.read().root_paddr().as_usize()
 }
 
-static KERNEL_MAP_MAX:AtomicUsize = AtomicUsize::new(0);
+static KERNEL_MAP_MAX: AtomicUsize = AtomicUsize::new(0);
 pub fn build_kernel_address_space(memory_end: usize) {
     let mut kernel_space = KERNEL_SPACE.write();
     kernel_space
@@ -110,7 +109,11 @@ pub fn alloc_free_region(size: usize) -> Option<usize> {
     Some(KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::SeqCst))
 }
 
-pub fn map_region_to_kernel(addr: usize, size: usize, flags: MappingFlags) -> Result<(), &'static str> {
+pub fn map_region_to_kernel(
+    addr: usize,
+    size: usize,
+    flags: MappingFlags,
+) -> Result<(), &'static str> {
     assert!(size > 0 && size % FRAME_SIZE == 0);
     assert_eq!(addr % FRAME_SIZE, 0);
     let mut kernel_space = KERNEL_SPACE.write();
@@ -144,5 +147,8 @@ pub fn unmap_region_from_kernel(addr: usize, size: usize) -> Result<(), &'static
 
 pub fn query_kernel_space(addr: usize) -> Option<usize> {
     let kernel_space = KERNEL_SPACE.read();
-    kernel_space.query(VirtAddr::from(addr)).ok().map(|(x,_,_)| x.as_usize())
+    kernel_space
+        .query(VirtAddr::from(addr))
+        .ok()
+        .map(|(x, _, _)| x.as_usize())
 }

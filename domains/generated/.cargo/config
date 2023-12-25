@@ -1,13 +1,20 @@
 [build]
 target = "riscv64gc-unknown-none-elf"
+
+[target.riscv64gc-unknown-none-elf]
 rustflags = [
-#    "-Zemit-stack-sizes",
-#    "-Zmacro-backtrace",
     # build/domain.ld
     "-Clink-arg=-Tbuild/domain.ld",
     # pie
     "-Clink-arg=-pie",
+    # no dynamic linking
+#    "-Clink-arg=--no-dynamic-linker",
+#    "-Clink-arg=--gc-sections",
+#    "-Clink-arg=--emit-relocs",
 ]
+
+linker = "riscv64-linux-gnu-gcc"
+
 
 [profile.release]
 panic = "abort"

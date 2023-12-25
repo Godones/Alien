@@ -5,7 +5,6 @@ extern "C" {
     fn sdata();
     fn sbss();
     fn ekernel();
-    fn strampoline();
     fn sinit();
     fn einit();
     // fn kernel_eh_frame();

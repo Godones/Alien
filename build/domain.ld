@@ -5,24 +5,12 @@ BASE_ADDRESS = 0;
 SECTIONS
 {
     . = BASE_ADDRESS;
-    skernel = .;
-
-    .text : ALIGN(4096){
+    .text :{
         stext = .;
-        *(.text.entry)
-        . = ALIGN(4K);
-        strampoline = . ;
-        *(.text.trampoline)
-        . = ALIGN(4K);
-        etrampoline = . ;
-        *(.text.startup)
-        *(.text .text.*)
-        *(.plt)
+        *(.text .text.*);
         . = ALIGN(4K);
         etext = .;
     }
-
-
 
     .rodata : ALIGN(4096){
         srodata = .;
@@ -33,21 +21,21 @@ SECTIONS
         erodata = .;
     }
 
-
     .data : ALIGN(4096){
         sdata = .;
-        sinit = .;
-        *(.init_array .init_array.*)
-        einit = .;
         *(.data .data.*)
         *(.sdata .sdata.*)
         . = ALIGN(4K);
         edata = .;
     }
 
+    .rela.dyn : ALIGN(4096) {
+        __rela_dyn_start = .;
+        *(.rela.dyn .rela.dyn*)
+        __rela_dyn_end = .;
+    }
+
     .bss :  ALIGN(4096){
-        . = ALIGN(4K);
-        *(.bss.stack)
         . = ALIGN(4K);
         sbss = .;
         *(.bss .bss.*)
@@ -56,7 +44,15 @@ SECTIONS
         ebss = .;
     }
 
-
+    /* If we're on a newer compiler */
+    /DISCARD/ :
+    {
+        *(.interp)
+        *(.dynstr)
+        *(.hash)
+        *(.gnu.hash)
+        *(.header)
+    } : phdr
 
 /*    .eh_frame_hdr : ALIGN(4K){*/
 /*        kernel_eh_frame_hdr = .;*/
@@ -65,6 +61,5 @@ SECTIONS
 /*        kernel_eh_frame_hdr_end = .;*/
 /*    }*/
 
-    ekernel = .;
     PROVIDE(end = .);
 }

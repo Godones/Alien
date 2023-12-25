@@ -7,9 +7,12 @@ edition = "2021"
 
 [dependencies]
 config = {path = "../config"}
-libsyscall = {path = "../../domain-tools/libsyscall"}
 mem = {path = "../mem"}
 ksync = {path = "../ksync"}
 spin = "0"
 platform = {path = "../platform"}
 arch = {path = "../arch"}
+log = "0"
+
+libsyscall = {path = "../../domain-tools/libsyscall"}
+rref = {path = "../../domain-tools/rref"}

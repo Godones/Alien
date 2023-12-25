@@ -1,11 +1,12 @@
 TARGET := riscv64gc-unknown-none-elf
 PROFILE := release
+LOG ?=INFO
 
 all:
-	cd generated/gblk && cargo build --release -p gblk
+	$(foreach dir, $(domains), (cd generated/$(dir) && LOG=$(LOG) cargo build --release -p $(dir) && cd ../..);)
 
 
-
-domains = gblk \
+domains = 	gblk \
+			gfatfs \
 
 .PHONY: $(domains)

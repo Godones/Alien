@@ -1,44 +1,66 @@
+//! This crate should implement the block device driver according to the VirtIO specification.
+//! The [virtio-blk](virtio_blk) crate provides the safety abstraction for the VirtIO registers and buffers.
+//! So this crate should only implement the driver logic with safe Rust code.
 #![no_std]
 #![deny(unsafe_code)]
 extern crate alloc;
 extern crate malloc;
 
 use alloc::boxed::Box;
-use alloc::vec;
-use alloc::vec::Vec;
+use interface::Basic;
+use libsyscall::println;
+use log::info;
 use rref::RpcResult;
+use virtio_blk::VirtIoBlk;
 
-pub fn main() -> Box<dyn interface::BlkDevice> {
-    Box::new(NullDev::new())
+pub fn main(virtio_blk_addr: usize) -> Box<dyn interface::BlkDevice> {
+    println!("virtio_blk_addr: {:#x}", virtio_blk_addr);
+    Box::new(VirtIOBlk::new(virtio_blk_addr))
 }
 
-pub struct NullDev{
-    data:Vec<u8>
+pub struct VirtIOBlk {
+    driver: VirtIoBlk,
 }
 
-impl NullDev{
-    pub fn new() -> Self {
+impl VirtIOBlk {
+    pub fn new(virtio_blk_addr: usize) -> Self {
         Self {
-            data: vec![0; 4096],
+            driver: VirtIoBlk::new(virtio_blk_addr),
         }
     }
 }
 
-
-impl interface::BlkDevice for NullDev {
-    fn read(
-        &self,
-        _block: u32,
-        data: rref::RRef<[u8; 4096]>,
-    ) -> RpcResult<rref::RRef<[u8; 4096]>> {
-        Ok(data)
+impl Basic for VirtIOBlk {
+    fn drop_self(self: Box<Self>) {
+        info!("Drop VirtIOBlk");
+        drop(self);
     }
+}
 
-    fn write(&self, _block: u32, data: &rref::RRef<[u8; 4096]>) -> rref::RpcResult<usize> {
+impl interface::BlkDevice for VirtIOBlk {
+    fn read(
+        &mut self,
+        block: u32,
+        data: rref::RRef<[u8; 512]>,
+    ) -> RpcResult<rref::RRef<[u8; 512]>> {
+        let mut buf = data;
+        self.driver
+            .read_block(block as usize, buf.as_mut())
+            .unwrap();
+        Ok(buf)
+    }
+    fn write(&mut self, block: u32, data: &rref::RRef<[u8; 512]>) -> RpcResult<usize> {
+        self.driver
+            .write_block(block as usize, data.as_ref())
+            .unwrap();
         Ok(data.len())
     }
 
     fn get_capacity(&self) -> RpcResult<u64> {
-        Ok(self.data.len() as u64)
+        Ok(self.driver.capacity() as u64)
+    }
+
+    fn flush(&self) -> RpcResult<()> {
+        Ok(())
     }
 }

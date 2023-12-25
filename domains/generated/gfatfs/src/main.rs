@@ -6,7 +6,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use core::panic::PanicInfo;
-use interface::BlkDevice;
+use interface::{BlkDevice, Fs};
 use libsyscall::{println, Syscall};
 use rref::SharedHeap;
 
@@ -15,14 +15,13 @@ fn main(
     sys: Box<dyn Syscall>,
     domain_id: u64,
     shared_heap: Box<dyn SharedHeap>,
-    virtio_blk_addr: usize,
-) -> Box<dyn BlkDevice> {
+    blk_device: Box<dyn BlkDevice>,
+) -> Box<dyn Fs> {
     // init libsyscall
     libsyscall::init(sys, domain_id);
-    // init rref's shared heap
     rref::init(shared_heap);
-    // call the real blk driver
-    blk::main(virtio_blk_addr)
+    // call the real fatfs
+    fatfs::main(blk_device)
 }
 
 #[panic_handler]

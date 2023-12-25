@@ -17,6 +17,13 @@ macro_rules! println {
         concat!($fmt, "\n"), $($arg)*));
 }
 
+#[macro_export]
+macro_rules! iprint {
+    ($($arg:tt)*) => {
+        $crate::console::__print(format_args!("{}", format_args!($($arg)*)))
+    };
+}
+
 pub struct Stdout;
 
 pub static UART_FLAG: AtomicBool = AtomicBool::new(false);

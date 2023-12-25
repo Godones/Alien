@@ -8,9 +8,17 @@ members = [
     "domains/drivers/blk",
     "subsystems/ksync",
     "subsystems/mem",
-    "subsystems/platform"
-, "domain-tools/interface",
-    "domain-tools/rref", "domains/generated/gblk", "subsystems/domain-loader", "subsystems/error", "subsystems/domain-helper"]
+    "subsystems/platform",
+    "domain-tools/interface",
+    "domain-tools/rref",
+    "domains/generated/gblk",
+    "subsystems/domain-loader",
+    "subsystems/error",
+    "subsystems/domain-helper",
+    "domains/fatfs",
+    "domains/generated/gfatfs",
+    "subsystems/safety-abstraction/virtio-blk",
+]
 
 resolver = "2"
 

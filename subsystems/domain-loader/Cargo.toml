@@ -10,6 +10,10 @@ mem = {path = "../mem"}
 config = {path = "../config"}
 xmas-elf = "0.9"
 log = "0"
-libsyscall = {path = "../../domain-tools/libsyscall"}
 domain-helper = {path = "../domain-helper"}
+platform = {path = "../platform"}
+
+libsyscall = {path = "../../domain-tools/libsyscall"}
 interface = {path = "../../domain-tools/interface"}
+rref = {path = "../../domain-tools/rref"}
+

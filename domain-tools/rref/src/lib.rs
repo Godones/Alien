@@ -22,6 +22,7 @@ pub trait TypeIdentifiable {
     fn type_id() -> u64;
 }
 
+#[allow(unused)]
 pub struct RRef<T>
 where
     T: 'static + RRefable,
@@ -33,11 +34,12 @@ where
 
 unsafe impl<T: RRefable> RRefable for RRef<T> {}
 unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
+
 impl<T: RRefable> RRef<T>
 where
     T: TypeIdentifiable,
 {
-    pub(crate) unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
+    unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         let type_id = T::type_id();
         let allocation = match unsafe {
             HEAP.get()
@@ -80,6 +82,12 @@ impl<T: RRefable> DerefMut for RRef<T> {
     }
 }
 
+impl TypeIdentifiable for [u8; 512] {
+    fn type_id() -> u64 {
+        5u64
+    }
+}
+
 /// Shared heap interface
 #[derive(Copy, Clone)]
 pub struct SharedHeapAllocation {
@@ -92,7 +100,7 @@ pub struct SharedHeapAllocation {
 
 unsafe impl Send for SharedHeapAllocation {}
 
-pub trait SharedHeap {
+pub trait SharedHeap: Send + Sync {
     unsafe fn alloc(&self, layout: Layout, type_id: u64) -> Option<SharedHeapAllocation>;
     unsafe fn dealloc(&self, ptr: *mut u8);
 }
@@ -113,8 +121,8 @@ impl Display for RpcError {
 
 impl Error for RpcError {}
 
-static HEAP: Once<Box<dyn SharedHeap + Send + Sync>> = Once::new();
+static HEAP: Once<Box<dyn SharedHeap>> = Once::new();
 
-pub fn init(heap: Box<dyn SharedHeap + Send + Sync>) {
+pub fn init(heap: Box<dyn SharedHeap>) {
     HEAP.call_once(|| heap);
 }
