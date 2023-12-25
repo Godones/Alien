@@ -43,7 +43,14 @@ impl Syscall for DomainSyscall {
     }
 
     fn backtrace(&self, domain_id: u64) {
-        println!("[Domain: {}] backtrace:", domain_id);
+        println!("[Domain: {}] panic, resource should recycle.", domain_id);
+        let mut binding = DOMAIN_PAGE_MAP.lock();
+        if let Some(vec) = binding.remove(&domain_id) {
+            println!("[Domain: {}] free {:?} pages", domain_id, vec.len());
+            for page in vec {
+                mem::free_frames((page << FRAME_BITS) as *mut u8, 1);
+            }
+        }
         platform::system_shutdown();
     }
 }

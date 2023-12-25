@@ -17,7 +17,7 @@ members = [
     "subsystems/domain-helper",
     "domains/fatfs",
     "domains/generated/gfatfs",
-    "subsystems/safety-abstraction/virtio-blk",
+    "subsystems/safety-abstraction/virtio-blk", "domain-tools/proxy",
 ]
 
 resolver = "2"
