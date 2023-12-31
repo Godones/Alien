@@ -20,7 +20,13 @@ fn main(
     // init libsyscall
     libsyscall::init(sys, domain_id);
     rref::init(shared_heap);
+    // activate the domain
+    interface::activate_domain();
     // call the real fatfs
+
+    let mut blk_device = blk_device;
+    let res = blk_device.read(0, rref::RRef::new([0; 512]));
+    println!("read res is err: {:?}?", res.err());
     fatfs::main(blk_device)
 }
 
@@ -36,6 +42,8 @@ fn panic(info: &PanicInfo) -> ! {
     } else {
         println!("no location information available");
     }
+    // deactivate the domain
+    interface::deactivate_domain();
     libsyscall::backtrace();
     loop {}
 }

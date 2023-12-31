@@ -12,6 +12,8 @@ xmas-elf = "0.9"
 log = "0"
 domain-helper = {path = "../domain-helper"}
 platform = {path = "../platform"}
+proxy = { path = "../proxy" }
+
 
 libsyscall = {path = "../../domain-tools/libsyscall"}
 interface = {path = "../../domain-tools/interface"}

@@ -21,6 +21,8 @@ fn main(
     libsyscall::init(sys, domain_id);
     // init rref's shared heap
     rref::init(shared_heap);
+    // activate the domain
+    interface::activate_domain();
     // call the real blk driver
     blk::main(virtio_blk_addr)
 }
@@ -37,6 +39,7 @@ fn panic(info: &PanicInfo) -> ! {
     } else {
         println!("no location information available");
     }
+    interface::deactivate_domain();
     libsyscall::backtrace();
     loop {}
 }

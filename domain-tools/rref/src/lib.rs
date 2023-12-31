@@ -22,7 +22,7 @@ pub trait TypeIdentifiable {
     fn type_id() -> u64;
 }
 
-#[allow(unused)]
+#[repr(C)]
 pub struct RRef<T>
 where
     T: 'static + RRefable,

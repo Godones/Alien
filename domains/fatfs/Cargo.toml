@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 malloc = {path = "../../domain-tools/malloc"}
-interface = {path = "../../domain-tools/interface" }
+interface = {path = "../../domain-tools/interface",default-features = false,features = ["fs","blk"] }
 rref = {path = "../../domain-tools/rref"}
 libsyscall = {path = "../../domain-tools/libsyscall"}
 

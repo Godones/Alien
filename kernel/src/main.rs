@@ -19,7 +19,6 @@ fn main(hart_id: usize, dtree: usize) -> ! {
     println!("{:#x?}", machine_info);
     platform::platform_init();
     mem::init_memory_system(memory_start, machine_info.memory.end, true);
-    println!("memory init success");
     domain_loader::test_domain();
     println!("shutdown");
     platform::system_shutdown()

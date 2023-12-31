@@ -7,6 +7,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use spin::Once;
+
 static SYSCALL: Once<Box<dyn Syscall>> = Once::new();
 static CRATE_DOMAIN_ID: Once<u64> = Once::new();
 

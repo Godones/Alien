@@ -5,11 +5,13 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use config::FRAME_SIZE;
+use core::mem::forget;
 use domain_helper::{alloc_domain_id, DomainSyscall, SharedHeapAllocator};
 use interface::{BlkDevice, Fs};
 use libsyscall::Syscall;
 use log::{info, trace, warn};
 use mem::{alloc_free_region, map_region_to_kernel, query_kernel_space, MappingFlags, VirtAddr};
+use proxy::{BlkDomainProxy, FsDomainProxy};
 use rref::SharedHeap;
 use xmas_elf::program::Type;
 use xmas_elf::sections::{Rela, SectionData};
@@ -30,10 +32,12 @@ pub fn test_domain() {
     warn!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
     let entry = test_domain_loader(FATFS_DOMAIN).unwrap();
     warn!("Load fatfs domain done, entry: {:#x}", entry);
-    fatfs_domain(entry, dev);
+    let fs = fatfs_domain(entry, dev);
+    forget(fs);
+    // fs.drop_self();
 }
 
-fn fatfs_domain(entry: usize, dev: Box<dyn BlkDevice>) {
+fn fatfs_domain(entry: usize, dev: Box<dyn BlkDevice>) -> Box<dyn Fs> {
     type F = fn(
         Box<dyn Syscall>,
         domain_id: u64,
@@ -41,21 +45,24 @@ fn fatfs_domain(entry: usize, dev: Box<dyn BlkDevice>) {
         Box<dyn BlkDevice>,
     ) -> Box<dyn Fs>;
     let f: F = unsafe { core::mem::transmute::<*const (), F>(entry as *const ()) };
+    let id = alloc_domain_id();
     let fatfs = f(
         Box::new(DomainSyscall),
-        alloc_domain_id(),
+        id,
         Box::new(SharedHeapAllocator),
         dev,
     );
-    fatfs.drop_self();
+    // fatfs.drop_self();
+    Box::new(FsDomainProxy::new(id, fatfs))
 }
 
 fn blk_domain(entry: usize) -> Box<dyn BlkDevice> {
     type F = fn(Box<dyn Syscall>, domain_id: u64, Box<dyn SharedHeap>, usize) -> Box<dyn BlkDevice>;
     let f: F = unsafe { core::mem::transmute::<*const (), F>(entry as *const ()) };
+    let id = alloc_domain_id();
     let dev = f(
         Box::new(DomainSyscall),
-        alloc_domain_id(),
+        id,
         Box::new(SharedHeapAllocator),
         0x10008000,
     );
@@ -64,7 +71,8 @@ fn blk_domain(entry: usize) -> Box<dyn BlkDevice> {
         dev.get_capacity().unwrap() / 1024 / 1024
     );
     // dev.drop_self();
-    dev
+    Box::new(BlkDomainProxy::new(id, dev))
+    // dev
 }
 
 pub fn test_domain_loader(elf: &[u8]) -> Result<usize, &'static str> {

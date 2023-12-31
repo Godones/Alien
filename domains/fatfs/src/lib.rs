@@ -11,19 +11,22 @@ use fat_vfs::{FatFs, FatFsProvider};
 use interface::{Basic, BlkDevice, Fs};
 use ksync::Mutex;
 use libsyscall::println;
-use log::info;
+use log::{info, warn};
 use rref::{RRef, RpcResult};
+use vfscore::dentry::VfsDentry;
 use vfscore::file::VfsFile;
 use vfscore::fstype::VfsFsType;
 use vfscore::inode::VfsInode;
 use vfscore::utils::{VfsFileStat, VfsNodePerm, VfsNodeType, VfsTimeSpec};
 use vfscore::VfsResult;
 
-pub struct FatFsDomain {}
+pub struct FatFsDomain {
+    root: Arc<dyn VfsDentry>,
+}
 
 impl FatFsDomain {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(root: Arc<dyn VfsDentry>) -> Self {
+        Self { root }
     }
 }
 
@@ -120,6 +123,7 @@ impl VfsInode for FakeInode {
         VfsNodePerm::from_bits_truncate(0x777)
     }
     fn get_attr(&self) -> VfsResult<VfsFileStat> {
+        warn!("get_attr");
         Ok(VfsFileStat {
             st_dev: 0,
             st_ino: 0,
@@ -151,8 +155,9 @@ pub fn main(blk_device: Box<dyn BlkDevice>) -> Box<dyn Fs> {
         .mount(0, "/", Some(Arc::new(FakeInode::new(blk_device))), &[])
         .unwrap();
     println!("****Files In Root****");
-    vfscore::path::print_fs_tree(&mut FakeOut, root, "".to_string(), true).unwrap();
-    Box::new(FatFsDomain::new())
+    vfscore::path::print_fs_tree(&mut FakeOut, root.clone(), "".to_string(), true).unwrap();
+    println!("List all file passed");
+    Box::new(FatFsDomain::new(root))
 }
 
 struct FakeOut;

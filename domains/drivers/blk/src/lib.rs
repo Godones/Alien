@@ -47,7 +47,9 @@ impl interface::BlkDevice for VirtIOBlk {
         self.driver
             .read_block(block as usize, buf.as_mut())
             .unwrap();
-        Ok(buf)
+        // warn!("read block: {}, buf:{:#x}", block, buf[0]);
+        panic!("read block: {}, buf:{:#x}", block, buf[0]);
+        // Ok(buf)
     }
     fn write(&mut self, block: u32, data: &rref::RRef<[u8; 512]>) -> RpcResult<usize> {
         self.driver

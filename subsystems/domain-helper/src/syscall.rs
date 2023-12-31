@@ -1,6 +1,7 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use config::{FRAME_BITS, FRAME_SIZE};
+use core::arch::global_asm;
 use ksync::Mutex;
 use libsyscall::Syscall;
 use log::info;
@@ -51,6 +52,64 @@ impl Syscall for DomainSyscall {
                 mem::free_frames((page << FRAME_BITS) as *mut u8, 1);
             }
         }
-        platform::system_shutdown();
+        drop(binding); // release lock
+        unwind();
+        // platform::system_shutdown();
     }
 }
+
+fn unwind() -> ! {
+    let continuation = proxy::pop_continuation().unwrap();
+    println!("unwind, continuation: {:#x?}", &continuation);
+    unsafe { __unwind(&continuation) }
+}
+
+extern "C" {
+    fn __unwind(continuation: &continuation::Continuation) -> !;
+}
+
+global_asm!(
+    r#"
+    .section .text
+    .global __unwind
+    .type __unwind, @function
+__unwind:
+    ld x1, 1*8(a0)
+    ld x2, 2*8(a0)
+    ld x3, 3*8(a0)
+    ld x4, 4*8(a0)
+    ld x5, 5*8(a0)
+    ld x6, 6*8(a0)
+    ld x7, 7*8(a0)
+    ld x8, 8*8(a0)
+    ld x9, 9*8(a0)
+    # ld x10, 10*8(a0)
+    ld x11, 11*8(a0)
+    ld x12, 12*8(a0)
+    ld x13, 13*8(a0)
+    ld x14, 14*8(a0)
+    ld x15, 15*8(a0)
+    ld x16, 16*8(a0)
+    ld x17, 17*8(a0)
+    ld x18, 18*8(a0)
+    ld x19, 19*8(a0)
+    ld x20, 20*8(a0)
+    ld x21, 21*8(a0)
+    ld x22, 22*8(a0)
+    ld x23, 23*8(a0)
+    ld x24, 24*8(a0)
+    ld x25, 25*8(a0)
+    ld x26, 26*8(a0)
+    ld x27, 27*8(a0)
+    ld x28, 28*8(a0)
+    ld x29, 29*8(a0)
+    ld x30, 30*8(a0)
+    ld x31, 31*8(a0)
+    
+    mv gp, a0
+    ld a0, 10*8(gp)  # a0==x10
+    ld gp, 32*8(gp)  # gp -> func
+    jr gp
+   
+    "#
+);
