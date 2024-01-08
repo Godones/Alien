@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use preprint::Print;
 
-use crate::ksync::Mutex;
+use ksync::Mutex;
 
 use crate::device::UART_DEVICE;
 use crate::sbi::console_putchar;
@@ -11,7 +11,7 @@ use crate::sbi::console_putchar;
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
-        let hard_id = $crate::arch::hart_id();
+        let hard_id = arch::hart_id();
         // [hart_id] xxx
         $crate::print::console::__print(format_args!("[{}] {}", hard_id, format_args!($($arg)*)))
     };
@@ -77,7 +77,7 @@ impl Write for Stdout {
 }
 
 struct MStdout;
-impl Write for MStdout{
+impl Write for MStdout {
     fn write_str(&mut self, s: &str) -> Result {
         s.as_bytes().iter().for_each(|x| {
             console_putchar(*x);
@@ -93,7 +93,7 @@ pub fn __mprint(args: Arguments) {
 #[macro_export]
 macro_rules! mprint {
     ($($arg:tt)*) => {
-        let hard_id = $crate::arch::hart_id();
+        let hard_id = arch::hart_id();
         // [hart_id] xxx
         $crate::print::console::__mprint(format_args!("[{}] {}", hard_id, format_args!($($arg)*)))
     };
@@ -106,7 +106,6 @@ macro_rules! mprintln {
     ($fmt:expr, $($arg:tt)*) => ($crate::mprint!(
         concat!($fmt, "\n"), $($arg)*));
 }
-
 
 /// 输出函数
 /// 对参数进行输出 主要使用在输出相关的宏中 如println

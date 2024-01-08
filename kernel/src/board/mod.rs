@@ -2,7 +2,7 @@ use alloc::collections::BTreeMap;
 
 use cfg_if::cfg_if;
 
-use crate::ksync::Mutex;
+use ksync::Mutex;
 
 use crate::device::{DeviceInfo, DeviceType};
 
@@ -63,9 +63,6 @@ cfg_if! {
     if #[cfg(feature="qemu")]{
         mod qemu;
         pub use qemu::*;
-    }else if #[cfg(feature="cv1811")]{
-        mod cv1811;
-        pub use cv1811::*;
     }else if #[cfg(feature="hifive")]{
         mod unmatched;
         pub use unmatched::*;

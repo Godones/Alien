@@ -2,7 +2,7 @@ use core::ptr::NonNull;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
-use crate::ksync::Mutex;
+use ksync::Mutex;
 
 use crate::device::GpuDevice;
 use crate::driver::hal::HalImpl;
@@ -35,7 +35,7 @@ impl VirtIOGpuWrapper {
             Self {
                 gpu: Mutex::new(gpu),
                 fb,
-                resolution
+                resolution,
             }
         }
     }

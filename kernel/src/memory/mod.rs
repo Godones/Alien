@@ -3,21 +3,19 @@ use core::alloc::GlobalAlloc;
 #[cfg(feature = "buddy")]
 use buddy_system_allocator::LockedHeap;
 use cfg_if::cfg_if;
-use riscv::asm::sfence_vma_all;
-use riscv::register::satp;
 #[cfg(feature = "talloc")]
 use talc::{Talc, Talck};
 
-use crate::ksync::Mutex;
 pub use frame::*;
+use ksync::Mutex;
 pub use map::*;
 use syscall_table::syscall_func;
 pub use vmm::*;
 
-use crate::arch::hart_id;
 use crate::config::FRAME_SIZE;
 #[cfg(any(feature = "talloc", feature = "buddy"))]
 use crate::config::KERNEL_HEAP_SIZE;
+use arch::{activate_paging_mode, hart_id};
 
 mod elf;
 mod frame;
@@ -49,24 +47,10 @@ pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
         }
         build_kernel_address_space(memory_end);
         println!("build kernel address space success");
-        activate_paging_mode();
+        activate_paging_mode(kernel_space_root_ppn());
         println!("activate paging mode success");
     } else {
-        activate_paging_mode();
-    }
-}
-
-/// 激活页表模式
-pub fn activate_paging_mode() {
-    // let ppn = KERNEL_SPACE.read().root_ppn().unwrap().0;
-    unsafe {
-        sfence_vma_all();
-        satp::set(
-            satp::Mode::Sv39,
-            0,
-            KERNEL_SPACE.read().root_paddr().as_usize() >> 12,
-        );
-        sfence_vma_all();
+        activate_paging_mode(kernel_space_root_ppn());
     }
 }
 

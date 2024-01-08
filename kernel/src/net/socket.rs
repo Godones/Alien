@@ -8,20 +8,20 @@
 //! [`socket_ready_to_read`]、[`socket_ready_to_write`] 几个操作函数，即可快速的创建套接字文件，并将其放入进程的文件描述
 //! 符表中，具体有关套接字文件的创建，可见 [`SocketData::new`] 的实现。
 use super::ShutdownFlag;
-use crate::error::AlienResult;
 use crate::fs::file::File;
-use crate::ksync::{Mutex, MutexGuard};
 use crate::net::addr::SocketAddrExt;
 use crate::net::port::neterror2alien;
 use crate::net::unix::UnixSocket;
+use constants::AlienResult;
+use ksync::{Mutex, MutexGuard};
 // use crate::task::do_suspend;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use constants::io::{OpenFlags, PollEvents, SeekFrom};
+use constants::net::{Domain, SocketType};
+use constants::LinuxErrno;
 use core::fmt::{Debug, Formatter};
 use core::net::SocketAddr;
-use pconst::io::{OpenFlags, PollEvents, SeekFrom};
-use pconst::net::{Domain, SocketType};
-use pconst::LinuxErrno;
 use netcore::tcp::TcpSocket;
 use netcore::udp::UdpSocket;
 use vfscore::dentry::VfsDentry;
@@ -69,8 +69,8 @@ impl SocketFileExt for SocketFile {
 
 impl File for SocketFile {
     fn read(&self, buf: &mut [u8]) -> AlienResult<usize> {
-        if buf.len()==0{
-            return Ok(0)
+        if buf.len() == 0 {
+            return Ok(0);
         }
         netcore::poll_interfaces();
         let socket = self.get_socketdata().unwrap();
@@ -83,8 +83,8 @@ impl File for SocketFile {
     }
 
     fn write(&self, buf: &[u8]) -> AlienResult<usize> {
-        if buf.len()==0{
-            return Ok(0)
+        if buf.len() == 0 {
+            return Ok(0);
         }
         info!("socket_file_write: buf_len:{:?}", buf.len());
         netcore::poll_interfaces();

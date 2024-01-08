@@ -5,7 +5,7 @@ use core::ptr::NonNull;
 use virtio_drivers::device::input::VirtIOInput;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
-use crate::ksync::Mutex;
+use ksync::Mutex;
 use smpscheduler::FifoTask;
 
 use crate::device::InputDevice;

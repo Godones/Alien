@@ -12,7 +12,7 @@ pub struct MemInfo;
 
 impl VfsFile for MemInfo {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let min_len = min(buf.len(), MEMINFO.as_bytes().len()-offset as usize);
+        let min_len = min(buf.len(), MEMINFO.as_bytes().len() - offset as usize);
         buf[..min_len].copy_from_slice(&MEMINFO.as_bytes()[..min_len]);
         Ok(min_len)
     }

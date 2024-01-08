@@ -9,10 +9,10 @@ use alloc::sync::Arc;
 use core::sync::atomic::{AtomicI32, Ordering};
 use spin::Lazy;
 
-use crate::error::AlienResult;
-use crate::ksync::Mutex;
-use pconst::ipc::{FutexOp, RobustList};
-use pconst::LinuxErrno;
+use constants::ipc::{FutexOp, RobustList};
+use constants::AlienResult;
+use constants::LinuxErrno;
+use ksync::Mutex;
 pub use pipe::*;
 pub use shm::*;
 pub use signal::*;

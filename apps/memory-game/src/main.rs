@@ -13,8 +13,8 @@ use rand::prelude::{SliceRandom, SmallRng};
 use rand::SeedableRng;
 use slint::platform::WindowEvent;
 use slint::{Model, VecModel};
-use virt2slint::Converter;
 use slint_helper::{MyPlatform, SwapBuffer};
+use virt2slint::Converter;
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 use Mstd::time::get_time_ms;
 
@@ -86,7 +86,7 @@ fn main() {
     loop {
         // Let Slint run the timer hooks and update animations.
         slint::platform::update_timers_and_animations();
-        let events = checkout_event(&mut converter,&mut x, &mut y);
+        let events = checkout_event(&mut converter, &mut x, &mut y);
         events.iter().for_each(|event| {
             window.dispatch_event(event.clone());
         });
@@ -99,7 +99,7 @@ fn main() {
         });
     }
 }
-fn checkout_event(converter: &mut Converter,x: &mut isize, y: &mut isize) -> Vec<WindowEvent> {
+fn checkout_event(converter: &mut Converter, x: &mut isize, y: &mut isize) -> Vec<WindowEvent> {
     let mut events = [0; 100];
     let event_num = keyboard_or_mouse_event(&mut events);
     let mut res = Vec::new();
@@ -107,7 +107,7 @@ fn checkout_event(converter: &mut Converter,x: &mut isize, y: &mut isize) -> Vec
         let event = events[i];
         // let window_event = input2event(event, x, y);
         let window_event = converter.convert(event, x, y);
-        window_event.map(|e|{
+        window_event.map(|e| {
             res.push(e);
         });
     }

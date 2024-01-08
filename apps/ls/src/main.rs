@@ -20,7 +20,7 @@ fn main(_: usize, argv: Vec<String>) -> isize {
     }
     0
 }
-const BUF_SIZE:usize = 512;
+const BUF_SIZE: usize = 512;
 fn parse_args(path: &str) {
     let fd = open(path, OpenFlags::O_RDONLY);
     assert!(fd >= 0, "open failed");

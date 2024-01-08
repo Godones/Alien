@@ -1,7 +1,7 @@
 use crate::fs::file::KernelFile;
 use crate::fs::SYSTEM_ROOT_FS;
 use alloc::sync::Arc;
-use pconst::io::OpenFlags;
+use constants::io::OpenFlags;
 use spin::Lazy;
 use vfscore::path::VfsPath;
 

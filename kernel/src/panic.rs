@@ -1,15 +1,15 @@
 //! panic 处理
-use crate::sbi::{system_shutdown};
+use crate::sbi::system_shutdown;
 use crate::trace::find_symbol_with_addr;
 use core::panic::PanicInfo;
 use core::sync::atomic::AtomicBool;
-use tracer::{Tracer, TracerProvider};
 #[cfg(all(not(feature = "debug-eh-frame"), not(feature = "debug-frame-point")))]
 use tracer::CompilerTracer;
-#[cfg(feature = "debug-frame-point")]
-use tracer::FramePointTracer;
 #[cfg(feature = "debug-eh-frame")]
 use tracer::DwarfTracer;
+#[cfg(feature = "debug-frame-point")]
+use tracer::FramePointTracer;
+use tracer::{Tracer, TracerProvider};
 /// 递归标志
 static RECURSION: AtomicBool = AtomicBool::new(false);
 
@@ -44,7 +44,6 @@ impl TracerProvider for TracerProviderImpl {
         find_symbol_with_addr(addr)
     }
 }
-
 
 #[cfg(feature = "debug-eh-frame")]
 extern "C" {
@@ -84,7 +83,7 @@ fn back_trace() {
     #[cfg(feature = "debug-frame-point")]
     let tracer = FramePointTracer::new(TracerProviderImpl);
     #[cfg(feature = "debug-eh-frame")]
-    let tracer = DwarfTracer::new(DwarfProviderImpl,TracerProviderImpl);
+    let tracer = DwarfTracer::new(DwarfProviderImpl, TracerProviderImpl);
     for x in tracer.trace() {
         println!("[{:#x}] (+{:0>4x}) {}", x.func_addr, x.bias, x.func_name);
     }

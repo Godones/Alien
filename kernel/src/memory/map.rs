@@ -6,14 +6,14 @@ use bitflags::bitflags;
 use page_table::addr::{align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 
-use pconst::io::MapFlags;
-use pconst::LinuxErrno;
+use constants::io::MapFlags;
+use constants::LinuxErrno;
 use syscall_table::syscall_func;
 
 use crate::config::{FRAME_SIZE, PROCESS_HEAP_MAX};
-use crate::error::AlienResult;
 use crate::fs::file::File;
 use crate::task::current_task;
+use constants::AlienResult;
 
 bitflags! {
     pub struct ProtFlags: u32 {
@@ -183,7 +183,14 @@ pub fn do_munmap(start: usize, len: usize) -> isize {
 /// 函数成功执行后将返回所创建的内存映射区的首地址；否则返回错误类型。
 /// Reference: [do_mmap](https://man7.org/linux/man-pages/man2/mmap.2.html)
 #[syscall_func(222)]
-pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offset: usize) -> AlienResult<isize> {
+pub fn do_mmap(
+    start: usize,
+    len: usize,
+    prot: u32,
+    flags: u32,
+    fd: usize,
+    offset: usize,
+) -> AlienResult<isize> {
     let process = current_task().unwrap();
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
@@ -192,7 +199,9 @@ pub fn do_mmap(start: usize, len: usize, prot: u32, flags: u32, fd: usize, offse
         "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
         start, len, prot, flags, fd, offset
     );
-    process_inner.add_mmap(start, len, prot, flags, fd, offset).map(|addr| addr as isize)
+    process_inner
+        .add_mmap(start, len, prot, flags, fd, offset)
+        .map(|addr| addr as isize)
 }
 
 /// 一个系统调用，用于修改内存映射的保护位，从而修改对内存映射的访问权限。

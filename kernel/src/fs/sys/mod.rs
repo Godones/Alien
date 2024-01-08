@@ -1,7 +1,7 @@
 use crate::fs::CommonFsProviderImpl;
-use crate::ksync::Mutex;
 use alloc::sync::Arc;
 use dynfs::DynFsDirInode;
+use ksync::Mutex;
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 

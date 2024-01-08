@@ -25,8 +25,8 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use cfg_if::cfg_if;
 use kernel::init_init_array;
 
+use arch::hart_id;
 use basemachine::machine_info_from_dtb;
-use kernel::arch::hart_id;
 #[cfg(not(feature = "qemu"))]
 use kernel::board;
 #[cfg(any(
@@ -43,7 +43,7 @@ use kernel::interrupt::init_plic;
 use kernel::memory::{init_memory_system, kernel_info};
 use kernel::print::init_print;
 use kernel::sbi::hart_start;
-use kernel::{config, init_machine_info, println, task, thread_local_init, timer, trap};
+use kernel::{config, init_machine_info, println, task, timer, trap};
 
 mod entry;
 
@@ -92,7 +92,7 @@ pub fn main(_: usize, _: usize) -> ! {
         init_machine_info(machine_info.clone());
         kernel_info(machine_info.memory.end);
         init_memory_system(machine_info.memory.end, true);
-        thread_local_init();
+        arch::allow_access_user_memory();
         // init device tree
         #[cfg(feature = "qemu")]
         init_dtb(Some(device_tree_addr));
@@ -114,7 +114,7 @@ pub fn main(_: usize, _: usize) -> ! {
         while !STARTED.load(Ordering::Relaxed) {
             spin_loop();
         }
-        thread_local_init();
+        arch::allow_access_user_memory();
         println!("hart {:#x} start", hart_id());
         init_memory_system(0, false);
         trap::init_trap_subsystem();

@@ -14,18 +14,16 @@ use alloc::collections::BinaryHeap;
 use alloc::sync::Arc;
 use core::cmp::Ordering;
 
-use crate::ksync::Mutex;
-use pconst::sys::TimeVal;
-use pconst::time::{ClockId, TimerType};
-use pconst::LinuxErrno;
+use crate::config::CLOCK_FREQ;
+use crate::task::{current_task, do_suspend, StatisticalData, Task, GLOBAL_TASK_MANAGER};
+use constants::sys::TimeVal;
+use constants::time::{ClockId, TimerType};
+use constants::LinuxErrno;
+use ksync::Mutex;
 use smpscheduler::FifoTask;
 use spin::Lazy;
 use syscall_table::syscall_func;
 use vfscore::utils::VfsTimeSpec;
-
-use crate::arch;
-use crate::config::CLOCK_FREQ;
-use crate::task::{current_task, do_suspend, StatisticalData, Task, GLOBAL_TASK_MANAGER};
 
 /// 每秒包含的 时间片 数，每隔一个时间片，就会产生一个时钟中断
 const TICKS_PER_SEC: usize = 10;
@@ -376,7 +374,7 @@ pub fn getitimer(_which: usize, current_value: usize) -> isize {
 pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize {
     let which = TimerType::try_from(which).unwrap();
     assert_ne!(which, TimerType::NONE);
-    warn!(
+    info!(
         "setitimer: which {:?} ,curret_value {:#x}, old_value {:#x}",
         which, current_value, old_value
     );
@@ -394,7 +392,7 @@ pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize 
     let mut itimer = ITimerVal::default();
     task.access_inner()
         .copy_from_user(current_value as *const ITimerVal, &mut itimer);
-    error!("setitimer: itimer {:x?}", itimer);
+    info!("setitimer: itimer {:x?}", itimer);
     task.access_inner().set_timer(itimer, which);
     0
 }
@@ -406,7 +404,7 @@ pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize 
 #[syscall_func(114)]
 pub fn clock_getres(id: usize, res: usize) -> isize {
     let id = ClockId::from_raw(id).unwrap();
-    warn!("clock_getres: id {:?} ,res {:#x}", id, res);
+    info!("clock_getres: id {:?} ,res {:#x}", id, res);
     let task = current_task().unwrap();
     let time_res = match id {
         ClockId::Monotonic => {
@@ -434,7 +432,7 @@ pub fn clock_getres(id: usize, res: usize) -> isize {
 pub fn clock_nanosleep(clock_id: usize, flags: usize, req: usize, remain: usize) -> isize {
     const TIMER_ABSTIME: usize = 1;
     let id = ClockId::from_raw(clock_id).unwrap();
-    warn!(
+    info!(
         "clock_nanosleep: id {:?} ,flags {:#x}, req {:#x}, remain {:#x}",
         id, flags, req, remain
     );

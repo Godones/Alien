@@ -30,7 +30,7 @@ pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
     let mut data = Vec::new();
     read_all("/bin/init", &mut data);
     // let data = INIT;
-    assert!(data.len()>0);
+    assert!(data.len() > 0);
     let task = Task::from_elf("/bin/init", data.as_slice()).unwrap();
     Arc::new(task)
 });

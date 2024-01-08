@@ -13,6 +13,8 @@ basemachine = { path = "../dep/basemachine" }
 kernel = { version = "0.1.0", path = "../kernel" }
 
 
+arch = { path = "../subsystems/arch" }
+
 [features]
 default = []
 vf2 = ["kernel/vf2"]

@@ -3,13 +3,13 @@ use alloc::sync::Arc;
 use cfg_if::cfg_if;
 use spin::Once;
 
-use crate::ksync::Mutex;
 pub use ext_interrupt::external_interrupt_handler;
+use ksync::Mutex;
 use plic::{Mode, PLIC};
 
-use crate::arch::hart_id;
 use crate::config::CPU_NUM;
 use crate::MACHINE_INFO;
+use arch::hart_id;
 
 mod ext_interrupt;
 pub mod record;

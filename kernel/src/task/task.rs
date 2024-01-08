@@ -4,11 +4,9 @@
 //! 使用 `clone` 创建新的进程(线程)时，会根据 flag 指明父子进程之间资源共享的程度。
 //! tid 是标识不同任务的唯一标识。
 use crate::config::*;
-use crate::error::{AlienError, AlienResult};
 use crate::fs::file::File;
 use crate::fs::{STDIN, STDOUT, SYSTEM_ROOT_FS};
 use crate::ipc::{global_register_signals, ShmInfo};
-use crate::ksync::{Mutex, MutexGuard};
 use crate::memory::*;
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
@@ -21,20 +19,22 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use bit_field::BitField;
+use constants::aux::*;
+use constants::io::MapFlags;
+use constants::ipc::RobustList;
+use constants::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
+use constants::sys::TimeVal;
+use constants::task::CloneFlags;
+use constants::time::TimerType;
+use constants::{AlienError, AlienResult};
+use constants::{LinuxErrno, PrLimit, PrLimitRes};
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 use gmanager::MinimalManager;
+use ksync::{Mutex, MutexGuard};
 use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
-use pconst::aux::*;
-use pconst::io::MapFlags;
-use pconst::ipc::RobustList;
-use pconst::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
-use pconst::sys::TimeVal;
-use pconst::task::CloneFlags;
-use pconst::time::TimerType;
-use pconst::{LinuxErrno, PrLimit, PrLimitRes};
 use spin::Lazy;
 use vfscore::dentry::VfsDentry;
 
@@ -1085,7 +1085,10 @@ impl TaskInner {
         let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
             None
         } else {
-            let file = self.fd_table.lock().get(fd)
+            let file = self
+                .fd_table
+                .lock()
+                .get(fd)
                 .map_err(|_| LinuxErrno::EBADF)?
                 .ok_or(LinuxErrno::EBADF)?; // EBADF
             Some(file)
@@ -1512,7 +1515,7 @@ impl Task {
         let argc_ptr = user_stack.push(0).unwrap();
 
         let trap_frame = process.trap_frame();
-        *trap_frame = TrapFrame::from_app_info(
+        *trap_frame = TrapFrame::init_for_task(
             elf_info.entry,
             argc_ptr,
             kernel_satp(),
@@ -1850,7 +1853,7 @@ impl Task {
             .query(VirtAddr::from(TRAP_CONTEXT_BASE))
             .unwrap();
         let trap_frame = TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame);
-        *trap_frame = TrapFrame::from_app_info(
+        *trap_frame = TrapFrame::init_for_task(
             elf_info.entry,
             user_sp,
             kernel_satp(),

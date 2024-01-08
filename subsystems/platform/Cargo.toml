@@ -1,0 +1,21 @@
+[package]
+name = "platform"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0"
+arch = { path = "../arch" }
+config = { path = "../config" }
+ksync = { path = "../ksync" }
+
+
+
+[features]
+default = ["qemu_riscv"]
+
+qemu_riscv = []
+starfive2_riscv = []
+hifive_riscv = []

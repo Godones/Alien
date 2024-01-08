@@ -1,10 +1,10 @@
 use crate::config::AT_FDCWD;
-use crate::error::AlienResult;
 use crate::fs::user_path_at;
 use crate::task::current_task;
 use crate::timer::TimeSpec;
-use pconst::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, OpenFlags, TeletypeCommand};
-use pconst::LinuxErrno;
+use constants::io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, OpenFlags, TeletypeCommand};
+use constants::AlienResult;
+use constants::LinuxErrno;
 use syscall_table::syscall_func;
 use vfscore::utils::*;
 

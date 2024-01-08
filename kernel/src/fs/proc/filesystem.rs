@@ -1,14 +1,14 @@
+use crate::fs::FS;
 use alloc::string::String;
 use alloc::sync::Arc;
 use core::cmp::min;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
-use vfscore::fstype::{FileSystemFlags};
+use vfscore::fstype::FileSystemFlags;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
 use vfscore::utils::{VfsFileStat, VfsNodePerm, VfsNodeType};
 use vfscore::VfsResult;
-use crate::fs::FS;
 
 pub struct SystemSupportFS;
 
@@ -19,7 +19,7 @@ impl SystemSupportFS {
     pub fn serialize(&self) -> String {
         let mut res = String::new();
         let fs = FS.lock();
-        for (_,fs) in fs.iter() {
+        for (_, fs) in fs.iter() {
             let flag = fs.fs_flag();
             if !flag.contains(FileSystemFlags::REQUIRES_DEV) {
                 res.push_str("nodev ")
@@ -36,7 +36,7 @@ impl SystemSupportFS {
 impl VfsFile for SystemSupportFS {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let info = self.serialize();
-        let min_len = min(buf.len(), info.as_bytes().len()-offset as usize);
+        let min_len = min(buf.len(), info.as_bytes().len() - offset as usize);
         buf[..min_len].copy_from_slice(&info.as_bytes()[..min_len]);
         Ok(min_len)
     }
