@@ -23,7 +23,7 @@ impl GpuDevice {
     }
 }
 
-impl GPUDevice for GpuDevice{
+impl GPUDevice for GpuDevice {
     fn flush(&self) {
         flush_frame_buffer();
     }
@@ -37,7 +37,6 @@ impl GPUDevice for GpuDevice{
         fb[offset + 3] = 0xff;
     }
 }
-
 
 #[no_mangle]
 fn main() {

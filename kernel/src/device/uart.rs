@@ -1,6 +1,6 @@
 use crate::fs::dev::DeviceId;
 use alloc::sync::Arc;
-use pconst::io::{LocalModes, TeletypeCommand, Termios, WinSize};
+use constants::io::{LocalModes, TeletypeCommand, Termios, WinSize};
 use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
@@ -10,8 +10,8 @@ use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 use vfscore::VfsResult;
 
 use crate::interrupt::DeviceBase;
-use crate::ksync::Mutex;
 use crate::task::current_task;
+use ksync::Mutex;
 
 pub trait UartDevice: Send + Sync + DeviceBase {
     fn put(&self, c: u8);

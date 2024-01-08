@@ -1,7 +1,7 @@
 use plic::Mode;
 
-use crate::arch::hart_id;
 use crate::interrupt::{DEVICE_TABLE, PLIC};
+use arch::hart_id;
 
 pub fn external_interrupt_handler() {
     let plic = PLIC.get().unwrap();

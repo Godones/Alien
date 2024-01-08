@@ -11,19 +11,19 @@
 //! 符表中。
 
 use crate::config::PIPE_BUF;
-use crate::error::AlienResult;
 use crate::fs::file::File;
 use crate::fs::CommonFsProviderImpl;
-use crate::ksync::Mutex;
 use crate::task::{current_task, do_suspend};
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
+use constants::io::{MountFlags, OpenFlags, PollEvents, SeekFrom};
+use constants::AlienResult;
+use constants::LinuxErrno;
 use core::fmt::{Debug, Formatter};
 use core::sync::atomic::AtomicUsize;
 use dynfs::DynFsDirInode;
-use pconst::io::{MountFlags, OpenFlags, PollEvents, SeekFrom};
-use pconst::LinuxErrno;
+use ksync::Mutex;
 use spin::Once;
 use vfscore::dentry::VfsDentry;
 use vfscore::error::VfsError;
@@ -105,13 +105,13 @@ pub fn make_pipe_file() -> VfsResult<(Arc<PipeFile>, Arc<PipeFile>)> {
 impl File for PipeFile {
     fn read(&self, buf: &mut [u8]) -> AlienResult<usize> {
         if buf.len() == 0 {
-            return Ok(0)
+            return Ok(0);
         }
         self.dentry.inode()?.read_at(0, buf).map_err(|e| e.into())
     }
     fn write(&self, buf: &[u8]) -> AlienResult<usize> {
         if buf.len() == 0 {
-            return Ok(0)
+            return Ok(0);
         }
         self.dentry.inode()?.write_at(0, buf).map_err(|e| e.into())
     }

@@ -38,11 +38,7 @@ pub fn probe_devices_from_dtb() {
 pub fn probe_rtc() -> Option<DeviceInfo> {
     let fdt = DTB.get().unwrap();
     let res = get_device_info(fdt, "rtc");
-    if res.is_none() {
-        return None;
-    }
-    let (base_addr, irq) = res.unwrap();
-    Some(DeviceInfo::new(base_addr, irq))
+    res.map(|(base_addr, irq)| DeviceInfo::new(base_addr, irq))
 }
 
 /// Get the base address and irq number of the uart device from the device tree.
@@ -100,7 +96,7 @@ fn virtio_probe(node: &FdtNode) -> Option<(DeviceType, DeviceInfo)> {
                     transport.read_device_features(),
                 );
                 info!("Probe virtio device: {:?}", transport.device_type());
-                match transport.device_type() {
+                return match transport.device_type() {
                     VirtDeviceType::Input => {
                         let device_info = DeviceInfo::new(paddr, irq);
                         let res = if paddr == VIRTIO5 {
@@ -110,22 +106,22 @@ fn virtio_probe(node: &FdtNode) -> Option<(DeviceType, DeviceInfo)> {
                         } else {
                             None
                         };
-                        return res;
+                        res
                     }
                     VirtDeviceType::Block => {
                         let device_info = DeviceInfo::new(paddr, irq);
-                        return Some((DeviceType::Block, device_info));
+                        Some((DeviceType::Block, device_info))
                     }
                     VirtDeviceType::GPU => {
                         let device_info = DeviceInfo::new(paddr, irq);
-                        return Some((DeviceType::GPU, device_info));
+                        Some((DeviceType::GPU, device_info))
                     }
                     VirtDeviceType::Network => {
                         let device_info = DeviceInfo::new(paddr, irq);
-                        return Some((DeviceType::Network, device_info));
+                        Some((DeviceType::Network, device_info))
                     }
-                    _ => return None,
-                }
+                    _ => None,
+                };
             }
         }
     }

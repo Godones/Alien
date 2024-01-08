@@ -1,7 +1,7 @@
 //! 进程内核栈空间
 use alloc::vec::Vec;
 
-use crate::ksync::Mutex;
+use ksync::Mutex;
 
 use crate::config::FRAME_BITS;
 use crate::memory::{frame_alloc_contiguous, FrameTracker};

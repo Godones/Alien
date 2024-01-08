@@ -1,7 +1,6 @@
 //！ Trap 上下文 (Trap帧) 的定义和相关操作
-use bit_field::BitField;
-
-use crate::arch::riscv::sstatus::{self, Sstatus, SPP};
+use arch::ExtSstatus;
+use riscv::register::sstatus::SPP;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -19,7 +18,7 @@ pub struct TrapFrame {
     /// 记录所在的核
     hart_id: usize,
     /// 给出 Trap 发生之前 CPU 处在哪个特权级等信息
-    sstatus: Sstatus,
+    sstatus: ExtSstatus,
     fg: [usize; 2],
 }
 
@@ -32,13 +31,13 @@ impl TrapFrame {
             k_sp: 0,
             trap_handler: 0,
             hart_id: 0,
-            sstatus: Sstatus::default(),
+            sstatus: ExtSstatus::default(),
             fg: [0; 2],
         }
     }
 
     /// 获取当前的 Trap 帧下的 sstatus 寄存器的值
-    pub fn get_status(&self) -> Sstatus {
+    pub fn get_status(&self) -> ExtSstatus {
         self.sstatus
     }
 
@@ -47,9 +46,8 @@ impl TrapFrame {
         self.sepc += 4;
     }
 
-    ///
     pub fn from_raw_ptr(ptr: *mut TrapFrame) -> &'static mut Self {
-        unsafe { &mut *(ptr as *mut Self) }
+        unsafe { &mut *(ptr) }
     }
 
     /// 更新 Trap 帧中的内核栈地址
@@ -68,16 +66,16 @@ impl TrapFrame {
     }
 
     /// 用一个从文件系统中读取到的相关app数据，初始化一个 Trap 帧，使通过其创建的进程在初次进入用户态时能正常运行
-    pub fn from_app_info(
+    pub fn init_for_task(
         entry: usize,
         sp: usize,
         k_satp: usize,
         k_sp: usize,
         trap_handler: usize,
     ) -> Self {
-        let mut sstatus = sstatus::read();
+        let mut sstatus = ExtSstatus::read();
         sstatus.set_spie();
-        assert!(sstatus.0.get_bit(5)); //spie == 1
+        // assert!(sstatus.0.get_bit(5)); //spie == 1
         sstatus.set_spp(SPP::User);
         sstatus.set_sie(false);
         let mut res = Self {

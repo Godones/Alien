@@ -15,10 +15,10 @@ use alloc::vec;
 use core::fmt::Debug;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use crate::error::AlienResult;
 use crate::task::current_task;
-use pconst::net::Domain;
-use pconst::LinuxErrno;
+use constants::net::Domain;
+use constants::AlienResult;
+use constants::LinuxErrno;
 
 /// 用于存储套接字通信地址的结构，分为本地路径地址和网络套接字地址。
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]

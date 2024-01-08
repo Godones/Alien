@@ -1,7 +1,7 @@
 use alloc::format;
 use alloc::sync::Arc;
+use constants::io::TeletypeCommand;
 use core::cmp::min;
-use pconst::io::TeletypeCommand;
 use rtc::RtcTime;
 
 use crate::fs::dev::DeviceId;
@@ -62,7 +62,7 @@ impl VfsFile for RTCDevice {
         match cmd {
             TeletypeCommand::RTC_RD_TIME => {
                 let time = self.device.read_time_fmt();
-                let c_rtc_time = pconst::io::RtcTime{
+                let c_rtc_time = constants::io::RtcTime {
                     sec: time.second as u32,
                     min: time.minute as u32,
                     hour: time.hour as u32,
@@ -73,7 +73,7 @@ impl VfsFile for RTCDevice {
                     yday: 0,
                     isdst: 0,
                 };
-                task_inner.copy_to_user(&c_rtc_time, arg as *mut pconst::io::RtcTime);
+                task_inner.copy_to_user(&c_rtc_time, arg as *mut constants::io::RtcTime);
             }
             _ => return Err(VfsError::Invalid),
         }

@@ -1,7 +1,6 @@
 use crate::config::*;
 use crate::fs;
 use crate::ipc::ShmInfo;
-use crate::ksync::RwLock;
 use crate::memory::elf::{ELFError, ELFInfo, ELFReader};
 use crate::memory::frame::{addr_to_frame, frame_alloc};
 use crate::memory::{frame_alloc_contiguous, FRAME_REF_MANAGER};
@@ -14,6 +13,7 @@ use alloc::vec::Vec;
 use core::cmp::min;
 use core::fmt::Debug;
 use core::mem::forget;
+use ksync::RwLock;
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::{PagingIf, Sv39PageTable};
@@ -25,6 +25,10 @@ pub static KERNEL_SPACE: Lazy<Arc<RwLock<Sv39PageTable<PageAllocator>>>> = Lazy:
         Sv39PageTable::<PageAllocator>::try_new().unwrap(),
     ))
 });
+
+pub fn kernel_space_root_ppn() -> usize {
+    KERNEL_SPACE.read().root_paddr().as_usize() >> FRAME_BITS
+}
 
 #[allow(unused)]
 extern "C" {
@@ -381,8 +385,6 @@ pub fn build_elf_address_space(
         .for_each(|ph| {
             let start_addr = ph.virtual_addr() as usize + bias;
             let end_addr = start_addr + ph.mem_size() as usize;
-            // 记录程序地址空间的最大地址
-            break_addr = end_addr;
             let mut permission: MappingFlags = "UVAD".into();
             let ph_flags = ph.flags();
             if ph_flags.is_read() {
@@ -396,6 +398,8 @@ pub fn build_elf_address_space(
             }
             let vaddr = VirtAddr::from(start_addr).align_down_4k();
             let end_vaddr = VirtAddr::from(end_addr).align_up_4k();
+            // 记录程序地址空间的最大地址
+            break_addr = end_addr;
             let len = end_vaddr.as_usize() - vaddr.as_usize();
             warn!(
                 "load segment: {:#x} - {:#x} -> {:#x}-{:#x}, permission: {:?}",
@@ -412,24 +416,30 @@ pub fn build_elf_address_space(
                 .unwrap();
             // copy data
             let mut page_offset = start_addr & (FRAME_SIZE - 1);
+            let mut count = 0;
             map_info
                 .into_iter()
-                .for_each(|(vir, phy, page_size)| unsafe {
-                    trace!("{:#x} {:#x} {:#x?}", vir, phy, page_size);
+                .for_each(|(_vir, phy, page_size)| unsafe {
                     let size: usize = page_size.into();
                     let min = min(size - page_offset, data.len());
                     let dst = (phy.as_usize() + page_offset) as *mut u8;
                     core::ptr::copy(data.as_ptr(), dst, min);
                     data = &data[min..];
-                    page_offset = (page_offset + min) & (FRAME_SIZE - 1);
+                    count += min;
+                    page_offset = 0;
                 });
+            assert_eq!(count, ph.file_size() as usize);
         });
 
     // 地址向上取整对齐4
-    let ceil_addr = align_up_4k(break_addr+FRAME_SIZE);
+    let ceil_addr = align_up_4k(break_addr + FRAME_SIZE);
     // 留出一个用户栈的位置+隔离页
     let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE;
-    warn!("user stack: {:#x} - {:#x}", top - USER_STACK_SIZE - FRAME_SIZE, top-FRAME_SIZE);
+    warn!(
+        "user stack: {:#x} - {:#x}",
+        top - USER_STACK_SIZE - FRAME_SIZE,
+        top - FRAME_SIZE
+    );
     // map user stack
     address_space
         .map_region_no_target(
@@ -442,7 +452,7 @@ pub fn build_elf_address_space(
         .unwrap();
     // 初始化一个有效页
     address_space
-        .validate(VirtAddr::from(top - FRAME_SIZE * 2 ), "RWUVAD".into())
+        .validate(VirtAddr::from(top - FRAME_SIZE * 2), "RWUVAD".into())
         .unwrap();
     let heap_bottom = top;
     // align to 4k

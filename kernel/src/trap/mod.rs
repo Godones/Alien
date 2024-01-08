@@ -3,30 +3,28 @@ use core::arch::{asm, global_asm};
 use bit_field::BitField;
 use page_table::addr::VirtAddr;
 use riscv::register::sstatus::SPP;
-use riscv::register::{sepc, sscratch, stval};
+use riscv::register::{sepc, sscratch, sstatus, stval, stvec};
 
+use constants::signal::SignalNumber;
+use constants::signal::SIGNAL_RETURN_TRAP;
+use constants::time::TimerType;
 pub use context::TrapFrame;
 pub use exception::trap_common_read_file;
-use pconst::signal::SignalNumber;
-use pconst::signal::SIGNAL_RETURN_TRAP;
-use pconst::time::TimerType;
 
-use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
-use crate::arch::riscv::register::stvec;
-use crate::arch::riscv::register::stvec::TrapMode;
-use crate::arch::riscv::sstatus;
-use crate::arch::{
-    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
-    timer_interrupt_enable,
-};
 use crate::config::TRAMPOLINE;
-use crate::error::AlienError;
 use crate::interrupt::external_interrupt_handler;
 use crate::interrupt::record::write_irq_info;
 use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::memory::KERNEL_SPACE;
 use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
 use crate::timer::{check_timer_queue, set_next_trigger, set_next_trigger_in_kernel};
+use arch::{
+    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
+    timer_interrupt_enable,
+};
+use constants::AlienError;
+use riscv::register::scause::{Exception, Interrupt, Trap};
+use riscv::register::stvec::TrapMode;
 
 mod context;
 mod exception;
@@ -102,7 +100,7 @@ pub fn init_trap_subsystem() {
 
 pub trait TrapHandler {
     fn do_user_handle(&self);
-    fn do_kernel_handle(&self,sp:usize);
+    fn do_kernel_handle(&self, sp: usize);
 }
 
 impl TrapHandler for Trap {
@@ -193,7 +191,7 @@ impl TrapHandler for Trap {
     }
 
     /// 内核态下的 trap 例程
-    fn do_kernel_handle(&self,sp:usize) {
+    fn do_kernel_handle(&self, sp: usize) {
         let stval = stval::read();
         let sepc = sepc::read();
         match self {
@@ -219,7 +217,7 @@ impl TrapHandler for Trap {
             Trap::Exception(_) => {
                 panic!(
                     "unhandled trap: {:?}, stval: {:#x?}, sepc: {:#x}, sp: {:#x}",
-                    self, stval, sepc,sp
+                    self, stval, sepc, sp
                 )
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -305,7 +303,7 @@ pub fn check_task_timer_expired() {
 /// 只有在内核态下才能进入这个函数
 /// 避免嵌套中断发生这里不会再开启中断
 #[no_mangle]
-pub fn kernel_trap_vector(sp:usize) {
+pub fn kernel_trap_vector(sp: usize) {
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::User {

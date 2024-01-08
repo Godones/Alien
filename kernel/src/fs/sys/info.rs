@@ -1,9 +1,9 @@
 use crate::task::current_task;
 use crate::timer::get_time_ms;
 use crate::MACHINE_INFO;
+use constants::sys::{Sysinfo, SyslogAction};
+use constants::LinuxErrno;
 use core::cmp::min;
-use pconst::sys::{Sysinfo, SyslogAction};
-use pconst::LinuxErrno;
 
 const LOG_BUF_LEN: usize = 4096;
 const LOG: &str = r"

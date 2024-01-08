@@ -9,11 +9,11 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 pub use block::{BLKDevice, BlockDevice, BLOCK_DEVICE};
 use core::sync::atomic::Ordering;
-use smoltcp::wire::IpAddress;
 pub use gpu::{GPUDevice, GpuDevice, GPU_DEVICE};
 pub use input::{
     sys_event_get, INPUTDevice, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE,
 };
+use smoltcp::wire::IpAddress;
 
 mod block;
 mod gpu;
@@ -67,11 +67,11 @@ fn init_rtc() {
     #[cfg(feature = "qemu")]
     {
         use crate::driver::rtc::GoldFishRtc;
-        use ::rtc::{LowRtcDeviceExt};
+        use ::rtc::LowRtcDeviceExt;
         let rtc = Arc::new(GoldFishRtc::new(base_addr));
         let current_time = rtc.read_time_fmt();
         rtc::init_rtc(rtc.clone());
-        register_device_to_plic(irq, rtc.clone());
+        register_device_to_plic(irq, rtc);
         println!("Init rtc success, current time: {:?}", current_time);
     }
     #[cfg(feature = "vf2")]
@@ -149,7 +149,6 @@ fn init_fake_disk() {
     let device = Arc::new(device);
     block::init_block_device(device.clone());
 }
-
 
 fn init_gpu() {
     let res = crate::board::get_gpu_info();
@@ -237,15 +236,15 @@ fn init_net() {
             use crate::device::net::NetNeedFunc;
             use crate::driver::net::make_virtio_net_device;
             let virtio_net = make_virtio_net_device(base_addr);
-            use core::str::FromStr;
             use crate::config::{QEMU_GATEWAY, QEMU_IP};
+            use core::str::FromStr;
             let device = Box::new(virtio_net);
             netcore::init_net(
                 device,
                 Arc::new(NetNeedFunc),
                 IpAddress::from_str(QEMU_IP).unwrap(),
-            IpAddress::from_str(QEMU_GATEWAY).unwrap(),
-                true
+                IpAddress::from_str(QEMU_GATEWAY).unwrap(),
+                true,
             );
             println!("Init net device success");
             #[cfg(feature = "net_test")]
@@ -261,16 +260,9 @@ fn init_loop_device() {
     use crate::device::net::NetNeedFunc;
     use loopback::LoopbackDev;
     // use default ip and gateway for qemu
-    let ip = IpAddress::v4(127,0,0,1);
-    let gate_way = IpAddress::v4(127,0,0,1);
+    let ip = IpAddress::v4(127, 0, 0, 1);
+    let gate_way = IpAddress::v4(127, 0, 0, 1);
     let loopback = Box::new(LoopbackDev::new());
-    netcore::init_net(
-        loopback,
-        Arc::new(NetNeedFunc),
-        ip,
-        gate_way,
-        false,
-    );
+    netcore::init_net(loopback, Arc::new(NetNeedFunc), ip, gate_way, false);
     println!("Init net device success");
 }
-

@@ -26,7 +26,11 @@ members = [
     "apps/memory-game",
     "apps/print",
     "apps/final_test",
-]
+    "subsystems/arch",
+    "subsystems/config",
+    "subsystems/ksync",
+    "subsystems/constants"
+, "subsystems/mem", "subsystems/vfs", "subsystems/devices", "subsystems/drivers", "subsystems/interrupt", "subsystems/device_interface", "subsystems/timer"]
 
 
 [profile.release]

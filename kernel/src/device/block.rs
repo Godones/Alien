@@ -1,8 +1,8 @@
 use alloc::sync::Arc;
 
 use crate::driver::GenericBlockDevice;
-use crate::error::AlienResult;
 use crate::fs::dev::DeviceId;
+use constants::AlienResult;
 use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
@@ -52,10 +52,10 @@ impl VfsFile for BLKDevice {
             .map_err(|_| VfsError::IoError)
     }
     fn poll(&self, _event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
-        todo!()
+        unimplemented!()
     }
     fn ioctl(&self, _cmd: u32, _arg: usize) -> VfsResult<usize> {
-        todo!()
+        unimplemented!()
     }
     fn flush(&self) -> VfsResult<()> {
         Ok(())

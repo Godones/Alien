@@ -4,10 +4,10 @@ use crate::device::{
 };
 use crate::fs::dev::null::NullDevice;
 use crate::fs::dev::random::RandomDevice;
-use crate::ksync::Mutex;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use devfs::DevKernelProvider;
+use ksync::Mutex;
 use spin::Lazy;
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
@@ -186,7 +186,10 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
 
 fn scan_system_devices(root: Arc<dyn VfsInode>) {
     BLOCK_DEVICE.get().map(|blk| {
-        let block_device = Arc::new(BLKDevice::new(alloc_device_id(VfsNodeType::BlockDevice), blk.clone()));
+        let block_device = Arc::new(BLKDevice::new(
+            alloc_device_id(VfsNodeType::BlockDevice),
+            blk.clone(),
+        ));
         root.create(
             "sda",
             VfsNodeType::BlockDevice,
@@ -197,7 +200,10 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         register_device(block_device);
     });
     GPU_DEVICE.get().map(|gpu| {
-        let gpu_device = Arc::new(GPUDevice::new(alloc_device_id(VfsNodeType::CharDevice), gpu.clone()));
+        let gpu_device = Arc::new(GPUDevice::new(
+            alloc_device_id(VfsNodeType::CharDevice),
+            gpu.clone(),
+        ));
         root.create(
             "gpu",
             VfsNodeType::BlockDevice,
@@ -238,7 +244,10 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         register_device(input_device);
     });
     RTC_DEVICE.get().map(|rtc| {
-        let rtc_device = Arc::new(RTCDevice::new(alloc_device_id(VfsNodeType::CharDevice), rtc.clone()));
+        let rtc_device = Arc::new(RTCDevice::new(
+            alloc_device_id(VfsNodeType::CharDevice),
+            rtc.clone(),
+        ));
         root.create(
             "rtc",
             VfsNodeType::BlockDevice,
@@ -249,7 +258,10 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         register_device(rtc_device);
     });
     UART_DEVICE.get().map(|uart| {
-        let uart_device = Arc::new(UARTDevice::new(alloc_device_id(VfsNodeType::CharDevice), uart.clone()));
+        let uart_device = Arc::new(UARTDevice::new(
+            alloc_device_id(VfsNodeType::CharDevice),
+            uart.clone(),
+        ));
         root.create(
             "tty",
             VfsNodeType::BlockDevice,

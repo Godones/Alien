@@ -1,13 +1,13 @@
 use crate::config::MAX_FD_NUM;
-use crate::error::AlienResult;
 use crate::task::{current_task, do_suspend};
 use crate::timer::TimeSpec;
 use alloc::vec::Vec;
 use bit_field::BitField;
+use constants::io::PollEvents;
+use constants::signal::{SignalNumber, SimpleBitSet};
+use constants::AlienResult;
+use constants::LinuxErrno;
 use core::cmp::min;
-use pconst::io::PollEvents;
-use pconst::signal::{SignalNumber, SimpleBitSet};
-use pconst::LinuxErrno;
 use syscall_table::syscall_func;
 
 /// 一个系统调用，实现 IO 端口的复用。一般用于用户程序的一段循环体中，

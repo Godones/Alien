@@ -37,3 +37,10 @@ tools/sqlite-amalgamation-3410100
 alien-*
 alien.bin
 rust
+
+tests/testsuits-for-oskernel
+
+subsystems/devices
+subsystems/drivers
+subsystems/vfs
+subsystems/timer

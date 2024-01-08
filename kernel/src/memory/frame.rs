@@ -1,9 +1,9 @@
 use super::manager::FrameRefManager;
 use crate::config::{FRAME_BITS, FRAME_SIZE};
-use crate::ksync::Mutex;
 use alloc::format;
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
+use ksync::Mutex;
 use pager::{PageAllocator, PageAllocatorExt};
 use spin::Lazy;
 

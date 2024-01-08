@@ -1,9 +1,9 @@
+use constants::LinuxErrno;
 use core::cmp::min;
-use pconst::LinuxErrno;
 use vfscore::path::VfsPath;
 
-use crate::{config::AT_FDCWD, error::AlienResult, fs::user_path_at, task::current_task};
-
+use crate::{config::AT_FDCWD, fs::user_path_at, task::current_task};
+use constants::AlienResult;
 /// 一个系统调用，用于设置文件的 扩展属性(xattrs, Extended Attributes)。
 ///
 /// 扩展属性(xattrs)提供了一个机制用来将一个(键, 值)对永久地关联到文件，让现有的文件系统得以支持在原始设计中未提供的功能。扩展属性是文件系统不可知论者，

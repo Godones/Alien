@@ -1,17 +1,17 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use constants::LinuxErrno;
 use core::cmp::min;
 use core::fmt::{Debug, Formatter};
 use core::num::NonZeroUsize;
 use core::ptr::NonNull;
-use pconst::LinuxErrno;
 
 use lru::LruCache;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
-use crate::error::AlienResult;
-use crate::ksync::Mutex;
+use constants::AlienResult;
+use ksync::Mutex;
 
 use crate::config::BLOCK_CACHE_FRAMES;
 use crate::config::FRAME_SIZE;

@@ -42,7 +42,7 @@ impl INPUTDevice {
 
 impl VfsFile for INPUTDevice {
     fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        if buf.len() != 8{
+        if buf.len() != 8 {
             return Err(VfsError::Invalid);
         }
         let buf = unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u64, 1) };
@@ -85,11 +85,9 @@ impl VfsInode for INPUTDevice {
 pub static KEYBOARD_INPUT_DEVICE: Once<Arc<dyn InputDevice>> = Once::new();
 pub static MOUSE_INPUT_DEVICE: Once<Arc<dyn InputDevice>> = Once::new();
 
-
 pub fn init_keyboard_input_device(input_device: Arc<dyn InputDevice>) {
     KEYBOARD_INPUT_DEVICE.call_once(|| input_device);
 }
-
 
 pub fn init_mouse_input_device(input_device: Arc<dyn InputDevice>) {
     MOUSE_INPUT_DEVICE.call_once(|| input_device);

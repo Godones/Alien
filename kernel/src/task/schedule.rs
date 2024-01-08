@@ -3,7 +3,7 @@ use alloc::sync::Arc;
 use core::arch::asm;
 use smpscheduler::FifoTask;
 
-use pconst::signal::SignalNumber;
+use constants::signal::SignalNumber;
 
 use crate::ipc::send_signal;
 use crate::task::context::switch;

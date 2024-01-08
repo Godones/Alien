@@ -1,7 +1,7 @@
-use crate::ksync::Mutex;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use ksync::Mutex;
 use smpscheduler::FifoTask;
 
 #[cfg(not(feature = "vf2"))]

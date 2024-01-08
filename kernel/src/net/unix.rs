@@ -1,10 +1,10 @@
 //! 有关 Unix 协议族下的套接字结构。(目前有关的功能有待支持)
 use alloc::string::String;
 use alloc::sync::Arc;
-use pconst::LinuxErrno;
+use constants::LinuxErrno;
 
 use crate::fs::file::File;
-use crate::ksync::Mutex;
+use ksync::Mutex;
 
 /// Unix 协议族下的套接字结构
 #[allow(unused)]

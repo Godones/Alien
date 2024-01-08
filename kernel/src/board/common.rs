@@ -1,7 +1,6 @@
 use fdt::node::FdtNode;
 use fdt::Fdt;
 
-#[allow(unused)]
 pub fn get_device_info(fdt: &Fdt, device_name: &str) -> Option<(usize, usize)> {
     let res = fdt
         .all_nodes()
