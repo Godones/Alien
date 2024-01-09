@@ -57,36 +57,43 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 2. install rust nightly
 
 ```
-make run LOG= SMP=1
+# 一键运行
+# 可以指定LOG=ERROR/WARN/INFO/DEBUG/TRACE开启调式
+make run [LOG=] [SMP=]
+```
+
+构建测试程序镜像:
+
+```
+make sdcard [GUI=n/y]
 ```
 
 如果只想重新构建`kernel`而不改变测试程序，可以使用：
 
 ```
-make build LOG= SMP=1
+make build LOG= [LOG=] [SMP=]
 ```
 
 使用已经编译好的程序运行而不是再次编译可以使用：
 
 ```
-make fake_run SMP=1
+# 确保和make build的SMP一致
+make fake_run [SMP=]
 ```
-
-可以指定LOG=ERROR/WARN/INFO/DEBUG/TRACE开启调式
 
 运行测试(in bash)
 
 ```
 > cd bin
+> ls
 > final_test
 ```
 
-
-
-### Run with Gui
+### Run with GUI (QEMU)
 
 ```
-make run LOG= SMP=1 GUI=y
+make run GUI=y
+cd bin
 slint or guitest or todo or printdemo or memorygame or ...
 ```
 
@@ -112,8 +119,8 @@ make unmatched LOG= UNMATCHED=y SMP=2
 
 ## GDB
 
-1. `gdb-server`
-2. `gdb-client`
+1. `make gdb-server`
+2. `make gdb-client`
 
 ## [Doc](docs/doc/doc.md)
 
