@@ -105,13 +105,13 @@ pub fn make_pipe_file() -> VfsResult<(Arc<PipeFile>, Arc<PipeFile>)> {
 impl File for PipeFile {
     fn read(&self, buf: &mut [u8]) -> AlienResult<usize> {
         if buf.len() == 0 {
-            return Ok(0)
+            return Ok(0);
         }
         self.dentry.inode()?.read_at(0, buf).map_err(|e| e.into())
     }
     fn write(&self, buf: &[u8]) -> AlienResult<usize> {
         if buf.len() == 0 {
-            return Ok(0)
+            return Ok(0);
         }
         self.dentry.inode()?.write_at(0, buf).map_err(|e| e.into())
     }

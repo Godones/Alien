@@ -117,7 +117,7 @@ mod kernel_file {
                 return Ok(0);
             }
             let open_flag = self.open_flag.lock();
-            if !open_flag.contains(OpenFlags::O_RDONLY)&& !open_flag.contains(OpenFlags::O_RDWR) {
+            if !open_flag.contains(OpenFlags::O_RDONLY) && !open_flag.contains(OpenFlags::O_RDWR) {
                 return Err(LinuxErrno::EPERM);
             }
             drop(open_flag);
@@ -151,7 +151,7 @@ mod kernel_file {
 
         fn fsync(&self) -> AlienResult<()> {
             let open_flag = self.open_flag.lock();
-            if !open_flag.contains(OpenFlags::O_WRONLY)&& !open_flag.contains(OpenFlags::O_RDWR) {
+            if !open_flag.contains(OpenFlags::O_WRONLY) && !open_flag.contains(OpenFlags::O_RDWR) {
                 return Err(LinuxErrno::EPERM);
             }
             let inode = self.dentry.inode()?;
@@ -213,7 +213,7 @@ mod kernel_file {
                         if count + dirent64.len() <= buf.len() {
                             let dirent_ptr = unsafe { &mut *(ptr as *mut Dirent64) };
                             *dirent_ptr = dirent64;
-                                let name_ptr = dirent_ptr.name.as_mut_ptr();
+                            let name_ptr = dirent_ptr.name.as_mut_ptr();
                             unsafe {
                                 let mut name = d.name.clone();
                                 name.push('\0');
@@ -236,9 +236,7 @@ mod kernel_file {
         }
         fn truncate(&self, len: u64) -> AlienResult<()> {
             let open_flag = self.open_flag.lock();
-            if !open_flag
-                .contains(OpenFlags::O_WRONLY) & !open_flag.contains(OpenFlags::O_RDWR)
-            {
+            if !open_flag.contains(OpenFlags::O_WRONLY) & !open_flag.contains(OpenFlags::O_RDWR) {
                 return Err(LinuxErrno::EINVAL);
             }
             let dt = self.dentry();

@@ -19,11 +19,11 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
 use core::net::SocketAddr;
+use netcore::tcp::TcpSocket;
+use netcore::udp::UdpSocket;
 use pconst::io::{OpenFlags, PollEvents, SeekFrom};
 use pconst::net::{Domain, SocketType};
 use pconst::LinuxErrno;
-use netcore::tcp::TcpSocket;
-use netcore::udp::UdpSocket;
 use vfscore::dentry::VfsDentry;
 use vfscore::inode::VfsInode;
 use vfscore::utils::VfsFileStat;
@@ -69,8 +69,8 @@ impl SocketFileExt for SocketFile {
 
 impl File for SocketFile {
     fn read(&self, buf: &mut [u8]) -> AlienResult<usize> {
-        if buf.len()==0{
-            return Ok(0)
+        if buf.len() == 0 {
+            return Ok(0);
         }
         netcore::poll_interfaces();
         let socket = self.get_socketdata().unwrap();
@@ -83,8 +83,8 @@ impl File for SocketFile {
     }
 
     fn write(&self, buf: &[u8]) -> AlienResult<usize> {
-        if buf.len()==0{
-            return Ok(0)
+        if buf.len() == 0 {
+            return Ok(0);
         }
         info!("socket_file_write: buf_len:{:?}", buf.len());
         netcore::poll_interfaces();

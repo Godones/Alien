@@ -8,11 +8,11 @@ pub trait NetDevice: DeviceBase {}
 
 #[cfg(feature = "net_test")]
 pub mod nettest {
+    use crate::error::AlienResult;
+    use crate::net::port::neterror2alien;
     use alloc::vec::Vec;
     use core::net::{IpAddr, SocketAddr};
     use netcore::tcp::TcpSocket;
-    use crate::error::{AlienResult};
-    use crate::net::port::neterror2alien;
 
     /// A TCP stream between a local and a remote socket.
     pub struct TcpStream(TcpSocket);
@@ -68,16 +68,12 @@ pub mod nettest {
             if n == 0 {
                 return Ok(());
             }
-            stream
-                .write_all(reverse(&buf[..n]).as_slice()).unwrap();
+            stream.write_all(reverse(&buf[..n]).as_slice()).unwrap();
         }
     }
 
     pub fn accept_loop() {
-        let local_addr = SocketAddr::new(
-            IpAddr::V4(LOCAL_IP.parse().unwrap()),
-            LOCAL_PORT,
-        );
+        let local_addr = SocketAddr::new(IpAddr::V4(LOCAL_IP.parse().unwrap()), LOCAL_PORT);
         let listener = TcpListener::bind(local_addr).unwrap();
         println!("listen on: {}", listener.local_addr().unwrap());
         let mut i = 0;

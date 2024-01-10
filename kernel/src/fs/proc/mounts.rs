@@ -17,7 +17,7 @@ pub struct MountInfo;
 
 impl VfsFile for MountInfo {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let min_len = min(buf.len(), MOUNT_INFO.as_bytes().len()-offset as usize);
+        let min_len = min(buf.len(), MOUNT_INFO.as_bytes().len() - offset as usize);
         buf[..min_len].copy_from_slice(&MOUNT_INFO.as_bytes()[..min_len]);
         Ok(min_len)
     }

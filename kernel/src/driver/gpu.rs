@@ -35,7 +35,7 @@ impl VirtIOGpuWrapper {
             Self {
                 gpu: Mutex::new(gpu),
                 fb,
-                resolution
+                resolution,
             }
         }
     }

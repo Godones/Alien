@@ -426,10 +426,14 @@ pub fn build_elf_address_space(
         });
 
     // 地址向上取整对齐4
-    let ceil_addr = align_up_4k(break_addr+FRAME_SIZE);
+    let ceil_addr = align_up_4k(break_addr + FRAME_SIZE);
     // 留出一个用户栈的位置+隔离页
     let top = ceil_addr + USER_STACK_SIZE + FRAME_SIZE;
-    warn!("user stack: {:#x} - {:#x}", top - USER_STACK_SIZE - FRAME_SIZE, top-FRAME_SIZE);
+    warn!(
+        "user stack: {:#x} - {:#x}",
+        top - USER_STACK_SIZE - FRAME_SIZE,
+        top - FRAME_SIZE
+    );
     // map user stack
     address_space
         .map_region_no_target(
@@ -442,7 +446,7 @@ pub fn build_elf_address_space(
         .unwrap();
     // 初始化一个有效页
     address_space
-        .validate(VirtAddr::from(top - FRAME_SIZE * 2 ), "RWUVAD".into())
+        .validate(VirtAddr::from(top - FRAME_SIZE * 2), "RWUVAD".into())
         .unwrap();
     let heap_bottom = top;
     // align to 4k

@@ -7,7 +7,7 @@ mod process;
 use crate::fs::proc::filesystem::SystemSupportFS;
 use crate::fs::proc::interrupt::InterruptRecord;
 use crate::fs::proc::mounts::MountInfo;
-use crate::fs::{CommonFsProviderImpl};
+use crate::fs::CommonFsProviderImpl;
 use crate::ksync::Mutex;
 use alloc::sync::Arc;
 use dynfs::DynFsDirInode;
