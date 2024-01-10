@@ -102,7 +102,7 @@ pub fn init_trap_subsystem() {
 
 pub trait TrapHandler {
     fn do_user_handle(&self);
-    fn do_kernel_handle(&self,sp:usize);
+    fn do_kernel_handle(&self, sp: usize);
 }
 
 impl TrapHandler for Trap {
@@ -193,7 +193,7 @@ impl TrapHandler for Trap {
     }
 
     /// 内核态下的 trap 例程
-    fn do_kernel_handle(&self,sp:usize) {
+    fn do_kernel_handle(&self, sp: usize) {
         let stval = stval::read();
         let sepc = sepc::read();
         match self {
@@ -219,7 +219,7 @@ impl TrapHandler for Trap {
             Trap::Exception(_) => {
                 panic!(
                     "unhandled trap: {:?}, stval: {:#x?}, sepc: {:#x}, sp: {:#x}",
-                    self, stval, sepc,sp
+                    self, stval, sepc, sp
                 )
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -305,7 +305,7 @@ pub fn check_task_timer_expired() {
 /// 只有在内核态下才能进入这个函数
 /// 避免嵌套中断发生这里不会再开启中断
 #[no_mangle]
-pub fn kernel_trap_vector(sp:usize) {
+pub fn kernel_trap_vector(sp: usize) {
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::User {

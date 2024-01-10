@@ -1,11 +1,10 @@
-use kernel_sync::{LockAction, ticket::TicketMutexGuard};
-use core::cell::{RefCell, RefMut};
 use crate::arch::{hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable};
 use crate::config::CPU_NUM;
+use core::cell::{RefCell, RefMut};
+use kernel_sync::{ticket::TicketMutexGuard, LockAction};
 
-
-pub type SpinMutex<T> = kernel_sync::spin::SpinMutex<T,KernelLockAction>;
-pub type TicketMutex<T> = kernel_sync::ticket::TicketMutex<T,KernelLockAction>;
+pub type SpinMutex<T> = kernel_sync::spin::SpinMutex<T, KernelLockAction>;
+pub type TicketMutex<T> = kernel_sync::ticket::TicketMutex<T, KernelLockAction>;
 pub type RwLock<T> = kernel_sync::RwLock<T>;
 pub type Mutex<T> = TicketMutex<T>;
 pub type MutexGuard<'a, T> = TicketMutexGuard<'a, T, KernelLockAction>;

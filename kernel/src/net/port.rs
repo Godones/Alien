@@ -1,8 +1,8 @@
 //! 现为将网络异常类型 [`NetError`] 转为 系统异常类型 [`LinuxErrno`]的模块。原为定义端口全局变量和操作的模块。
 
 use crate::error::AlienError;
-use pconst::LinuxErrno;
 use netcore::common::NetError;
+use pconst::LinuxErrno;
 
 /// 现为将网络异常类型 [`NetError`] 转为 系统异常类型 [`LinuxErrno`]。
 pub fn neterror2alien(error: NetError) -> AlienError {

@@ -77,7 +77,7 @@ impl Write for Stdout {
 }
 
 struct MStdout;
-impl Write for MStdout{
+impl Write for MStdout {
     fn write_str(&mut self, s: &str) -> Result {
         s.as_bytes().iter().for_each(|x| {
             console_putchar(*x);
@@ -106,7 +106,6 @@ macro_rules! mprintln {
     ($fmt:expr, $($arg:tt)*) => ($crate::mprint!(
         concat!($fmt, "\n"), $($arg)*));
 }
-
 
 /// 输出函数
 /// 对参数进行输出 主要使用在输出相关的宏中 如println

@@ -1,8 +1,8 @@
+use crate::ksync::Mutex;
 use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::String;
-use spin::{Lazy};
-use crate::ksync::Mutex;
+use spin::Lazy;
 
 /// Record the number of interrupts
 pub static INTERRUPT_RECORD: Lazy<Mutex<BTreeMap<usize, usize>>> = Lazy::new(|| {

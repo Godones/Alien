@@ -9,11 +9,11 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 pub use block::{BLKDevice, BlockDevice, BLOCK_DEVICE};
 use core::sync::atomic::Ordering;
-use smoltcp::wire::IpAddress;
 pub use gpu::{GPUDevice, GpuDevice, GPU_DEVICE};
 pub use input::{
     sys_event_get, INPUTDevice, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE,
 };
+use smoltcp::wire::IpAddress;
 
 mod block;
 mod gpu;
@@ -32,18 +32,6 @@ pub enum DeviceType {
     Uart,
     Rtc,
 }
-
-pub struct DeviceInfo {
-    pub base_addr: usize,
-    pub irq: usize,
-}
-
-impl DeviceInfo {
-    pub fn new(base_addr: usize, irq: usize) -> Self {
-        Self { base_addr, irq }
-    }
-}
-
 pub fn init_device() {
     probe_devices_from_dtb();
     init_uart();
@@ -62,12 +50,13 @@ fn init_rtc() {
         println!("There is no rtc device");
         return;
     }
-    let (base_addr, irq) = res.unwrap();
+    let info = res.unwrap();
+    let (base_addr, irq) = (info.base_addr, info.irq);
     println!("Init rtc, base_addr:{:#x},irq:{}", base_addr, irq);
     #[cfg(feature = "qemu")]
     {
         use crate::driver::rtc::GoldFishRtc;
-        use ::rtc::{LowRtcDeviceExt};
+        use ::rtc::LowRtcDeviceExt;
         let rtc = Arc::new(GoldFishRtc::new(base_addr));
         let current_time = rtc.read_time_fmt();
         rtc::init_rtc(rtc.clone());
@@ -87,7 +76,8 @@ fn init_uart() {
         println!("There is no uart device");
         return;
     }
-    let (base_addr, irq) = res.unwrap();
+    let info = res.unwrap();
+    let (base_addr, irq) = (info.base_addr, info.irq);
     println!("Init uart, base_addr:{:#x},irq:{}", base_addr, irq);
     #[cfg(feature = "qemu")]
     {
@@ -120,7 +110,8 @@ fn init_block_device() {
             println!("There is no block device");
             return;
         }
-        let (base_addr, irq) = res.unwrap();
+        let info = res.unwrap();
+        let (base_addr, irq) = (info.base_addr, info.irq);
         println!("Init block device, base_addr:{:#x},irq:{}", base_addr, irq);
         let block_device = VirtIOBlkWrapper::new(base_addr);
         let block_device = GenericBlockDevice::new(Box::new(block_device));
@@ -150,14 +141,14 @@ fn init_fake_disk() {
     block::init_block_device(device.clone());
 }
 
-
 fn init_gpu() {
     let res = crate::board::get_gpu_info();
     if res.is_none() {
         println!("There is no gpu device");
         return;
     }
-    let (base_addr, irq) = res.unwrap();
+    let info = res.unwrap();
+    let (base_addr, irq) = (info.base_addr, info.irq);
     println!("Init gpu, base_addr:{:#x},irq:{}", base_addr, irq);
     #[cfg(feature = "qemu")]
     {
@@ -176,7 +167,8 @@ fn init_keyboard_input_device() {
         println!("There is no keyboard device");
         return;
     }
-    let (base_addr, irq) = res.unwrap();
+    let info = res.unwrap();
+    let (base_addr, irq) = (info.base_addr, info.irq);
     println!(
         "Init keyboard input device, base_addr:{:#x},irq:{}",
         base_addr, irq
@@ -199,7 +191,8 @@ fn init_mouse_input_device() {
         println!("There is no mouse device");
         return;
     }
-    let (base_addr, irq) = res.unwrap();
+    let info = res.unwrap();
+    let (base_addr, irq) = (info.base_addr, info.irq);
     println!(
         "Init mouse input device, base_addr:{:#x},irq:{}",
         base_addr, irq
@@ -229,7 +222,8 @@ fn init_net() {
             println!("There is no net device");
             return;
         }
-        let (base_addr, irq) = res.unwrap();
+        let info = res.unwrap();
+        let (base_addr, irq) = (info.base_addr, info.irq);
         println!("Init net device, base_addr:{:#x},irq:{}", base_addr, irq);
 
         #[cfg(feature = "qemu")]
@@ -237,15 +231,15 @@ fn init_net() {
             use crate::device::net::NetNeedFunc;
             use crate::driver::net::make_virtio_net_device;
             let virtio_net = make_virtio_net_device(base_addr);
-            use core::str::FromStr;
             use crate::config::{QEMU_GATEWAY, QEMU_IP};
+            use core::str::FromStr;
             let device = Box::new(virtio_net);
             netcore::init_net(
                 device,
                 Arc::new(NetNeedFunc),
                 IpAddress::from_str(QEMU_IP).unwrap(),
-            IpAddress::from_str(QEMU_GATEWAY).unwrap(),
-                true
+                IpAddress::from_str(QEMU_GATEWAY).unwrap(),
+                true,
             );
             println!("Init net device success");
             #[cfg(feature = "net_test")]
@@ -261,16 +255,9 @@ fn init_loop_device() {
     use crate::device::net::NetNeedFunc;
     use loopback::LoopbackDev;
     // use default ip and gateway for qemu
-    let ip = IpAddress::v4(127,0,0,1);
-    let gate_way = IpAddress::v4(127,0,0,1);
+    let ip = IpAddress::v4(127, 0, 0, 1);
+    let gate_way = IpAddress::v4(127, 0, 0, 1);
     let loopback = Box::new(LoopbackDev::new());
-    netcore::init_net(
-        loopback,
-        Arc::new(NetNeedFunc),
-        ip,
-        gate_way,
-        false,
-    );
+    netcore::init_net(loopback, Arc::new(NetNeedFunc), ip, gate_way, false);
     println!("Init net device success");
 }
-

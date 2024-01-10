@@ -1085,7 +1085,10 @@ impl TaskInner {
         let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
             None
         } else {
-            let file = self.fd_table.lock().get(fd)
+            let file = self
+                .fd_table
+                .lock()
+                .get(fd)
                 .map_err(|_| LinuxErrno::EBADF)?
                 .ok_or(LinuxErrno::EBADF)?; // EBADF
             Some(file)

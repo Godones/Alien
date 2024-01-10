@@ -85,9 +85,9 @@ pub fn sys_unlinkat(fd: isize, path: *const u8, flag: usize) -> AlienResult<isiz
     let flag = UnlinkatFlags::from_bits_truncate(flag as u32);
     info!("unlinkat path: {:?}, flag: {:?}", path, flag);
     let path = user_path_at(fd, &path)?;
-    if flag.contains(UnlinkatFlags::AT_REMOVEDIR){
+    if flag.contains(UnlinkatFlags::AT_REMOVEDIR) {
         path.rmdir()?;
-    }else{
+    } else {
         path.unlink()?;
     }
     Ok(0)

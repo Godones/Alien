@@ -13,7 +13,7 @@ pub struct InterruptRecord;
 impl VfsFile for InterruptRecord {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let info = interrupts_info();
-        let min_len = min(buf.len(), info.as_bytes().len()-offset as usize);
+        let min_len = min(buf.len(), info.as_bytes().len() - offset as usize);
         buf[..min_len].copy_from_slice(&info.as_bytes()[..min_len]);
         Ok(min_len)
     }

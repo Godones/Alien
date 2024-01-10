@@ -62,7 +62,7 @@ impl VfsFile for RTCDevice {
         match cmd {
             TeletypeCommand::RTC_RD_TIME => {
                 let time = self.device.read_time_fmt();
-                let c_rtc_time = pconst::io::RtcTime{
+                let c_rtc_time = pconst::io::RtcTime {
                     sec: time.second as u32,
                     min: time.minute as u32,
                     hour: time.hour as u32,

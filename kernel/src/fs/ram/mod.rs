@@ -73,7 +73,8 @@ pub fn init_ramfs(ramfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
         .create("tmp", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
         .unwrap();
 
-    let _bashrc = root.create(".bashrc", VfsNodeType::File, "rwxrwxrwx".into(), None)
+    let _bashrc = root
+        .create(".bashrc", VfsNodeType::File, "rwxrwxrwx".into(), None)
         .unwrap();
 
     println!("ramfs init success");

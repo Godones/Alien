@@ -1,71 +1,69 @@
+mod probe;
+
 use alloc::collections::BTreeMap;
 
 use cfg_if::cfg_if;
 
 use crate::ksync::Mutex;
 
-use crate::device::{DeviceInfo, DeviceType};
-
-mod common;
+use crate::device::DeviceType;
 
 pub static BOARD_DEVICES: Mutex<BTreeMap<DeviceType, DeviceInfo>> = Mutex::new(BTreeMap::new());
 
-pub fn get_rtc_info() -> Option<(usize, usize)> {
-    if let Some(rtc) = BOARD_DEVICES.lock().get(&DeviceType::Rtc) {
-        return Some((rtc.base_addr, rtc.irq));
-    }
-    None
+pub fn get_rtc_info() -> Option<DeviceInfo> {
+    BOARD_DEVICES
+        .lock()
+        .get(&DeviceType::Rtc)
+        .map(|rtc| rtc.clone())
 }
 
-pub fn get_uart_info() -> Option<(usize, usize)> {
-    if let Some(uart) = BOARD_DEVICES.lock().get(&DeviceType::Uart) {
-        return Some((uart.base_addr, uart.irq));
-    }
-    None
+pub fn get_uart_info() -> Option<DeviceInfo> {
+    BOARD_DEVICES
+        .lock()
+        .get(&DeviceType::Uart)
+        .map(|uart| uart.clone())
 }
 
-pub fn get_gpu_info() -> Option<(usize, usize)> {
-    if let Some(gpu) = BOARD_DEVICES.lock().get(&DeviceType::GPU) {
-        return Some((gpu.base_addr, gpu.irq));
-    }
-    None
+pub fn get_gpu_info() -> Option<DeviceInfo> {
+    BOARD_DEVICES
+        .lock()
+        .get(&DeviceType::GPU)
+        .map(|gpu| gpu.clone())
 }
 
-pub fn get_keyboard_info() -> Option<(usize, usize)> {
-    if let Some(keyboard) = BOARD_DEVICES.lock().get(&DeviceType::KeyBoardInput) {
-        return Some((keyboard.base_addr, keyboard.irq));
-    }
-    None
+pub fn get_keyboard_info() -> Option<DeviceInfo> {
+    BOARD_DEVICES
+        .lock()
+        .get(&DeviceType::KeyBoardInput)
+        .map(|keyboard| keyboard.clone())
 }
 
-pub fn get_mouse_info() -> Option<(usize, usize)> {
-    if let Some(mouse) = BOARD_DEVICES.lock().get(&DeviceType::MouseInput) {
-        return Some((mouse.base_addr, mouse.irq));
-    }
-    None
+pub fn get_mouse_info() -> Option<DeviceInfo> {
+    BOARD_DEVICES
+        .lock()
+        .get(&DeviceType::MouseInput)
+        .map(|mouse| mouse.clone())
 }
 
-pub fn get_block_device_info() -> Option<(usize, usize)> {
-    if let Some(block) = BOARD_DEVICES.lock().get(&DeviceType::Block) {
-        return Some((block.base_addr, block.irq));
-    }
-    None
+pub fn get_block_device_info() -> Option<DeviceInfo> {
+    BOARD_DEVICES
+        .lock()
+        .get(&DeviceType::Block)
+        .map(|block| block.clone())
 }
 
-pub fn get_net_device_info() -> Option<(usize, usize)> {
-    if let Some(net) = BOARD_DEVICES.lock().get(&DeviceType::Network) {
-        return Some((net.base_addr, net.irq));
-    }
-    None
+pub fn get_net_device_info() -> Option<DeviceInfo> {
+    BOARD_DEVICES
+        .lock()
+        .get(&DeviceType::Network)
+        .map(|net| net.clone())
 }
 
+use crate::board::probe::DeviceInfo;
 cfg_if! {
     if #[cfg(feature="qemu")]{
         mod qemu;
         pub use qemu::*;
-    }else if #[cfg(feature="cv1811")]{
-        mod cv1811;
-        pub use cv1811::*;
     }else if #[cfg(feature="hifive")]{
         mod unmatched;
         pub use unmatched::*;

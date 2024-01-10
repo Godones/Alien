@@ -37,3 +37,5 @@ tools/sqlite-amalgamation-3410100
 alien-*
 alien.bin
 rust
+
+subsystems
