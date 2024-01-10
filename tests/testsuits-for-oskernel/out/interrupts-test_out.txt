@@ -1,2 +1,0 @@
-interrupts-test: passed case 1
-interrupts-test: passed case 2
