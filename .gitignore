@@ -39,3 +39,5 @@ alien.bin
 rust
 
 subsystems
+
+tests/testsuits-for-oskernel
