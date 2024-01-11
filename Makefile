@@ -17,7 +17,7 @@ NET ?=y
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
 VF2 ?=n
-CV1811h ?=n
+UNMATCHED ?=n
 FEATURES :=
 QEMU_ARGS :=
 MEMORY_SIZE := 1024M
@@ -30,8 +30,6 @@ comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
-CARGO_FLAGS := -Zbuild-std=core,compiler_builtins,alloc \
-               -Zbuild-std-features=compiler-builtins-mem
 
 ifeq ($(GUI),y)
 QEMU_ARGS += -device virtio-gpu-device \
@@ -43,11 +41,9 @@ endif
 
 
 ifeq ($(VF2),y)
-FEATURES += vf2
-else ifeq ($(CV1811h),y)
-FEATURES += cv1811h
+FEATURES += vf2 ramfs
 else ifeq ($(UNMATCHED),y)
-FEATURES += hifive
+FEATURES += hifive ramfs
 else
 FEATURES += qemu
 endif
@@ -80,7 +76,7 @@ define boot_qemu
         -serial mon:stdio
 endef
 
-all:
+all:run
 
 install:
 ifeq (, $(shell which $(TRACE_EXE)))
@@ -104,10 +100,11 @@ compile:
 trace_info:
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 
-user:
-	@cd apps && make all
-
-sdcard:fat32 testelf user
+sdcard:fat32
+	@if [ -d "tests/testbin-second-stage" ]; then \
+    		sudo cp tests/testbin-second-stage/* /fat -r; \
+	fi
+	@make -C apps
 	@sudo umount /fat
 
 run:sdcard install compile
@@ -125,26 +122,26 @@ board:install compile
 	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
 	@cp $(OUTPUT)/testos.bin ./alien.bin
 
-qemu:
-	@rust-objcopy --strip-all $(OUTPUT)/boot -O binary $(OUTPUT)/testos.bin
-	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
-	@cp $(OUTPUT)/testos.bin ./alien.bin
+qemu:install compile
 
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
 	@rm ./kernel-qemu
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
+	@rm ./alien-vf2.itb
 
 
 cv1811h:board
 	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
 	@rm ./kernel-qemu
 	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
+	@rm ./alien-cv1811h.itb
 
 unmatched:board
 	@mkimage -f ./tools/fu740.its ./alien-unmatched.itb
 	@rm ./kernel-qemu
 	@cp ./alien-unmatched.itb /home/godones/projects/tftpboot/
+	@rm ./alien-unmatched.itb
 
 f_test:
 	qemu-system-riscv64 \
@@ -157,10 +154,6 @@ f_test:
 	    -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
 	    -device virtio-net-device,netdev=net -netdev user,id=net
 
-testelf:
-	@if [ -d "tests/testbin-second-stage" ]; then \
-		sudo cp tests/testbin-second-stage/* /fat -r; \
-	fi
 
 dtb:
 	$(call boot_qemu, -machine dumpdtb=riscv.dtb)
@@ -175,9 +168,7 @@ SecondFile:
 	#创建64MB大小空白文件
 	@dd if=/dev/zero of=$(IMG1) bs=1M count=64
 
-ZeroFile:
-	#创建空白文件
-	@dd if=/dev/zero of=$(IMG) bs=1M count=64
+
 
 fat32:
 	@-touch $(IMG)
@@ -217,11 +208,11 @@ kernel_asm:
 	@vim kernel.asm
 	@rm kernel.asm
 
+
 docs:
 	cargo doc --open -p  kernel --target riscv64gc-unknown-none-elf --features $(FEATURES)
 clean:
 	@cargo clean
-	@rm riscv.*
 	@rm kernel-qemu
 	@rm alien-*
 

@@ -73,9 +73,9 @@ cfg_if! {
     }
 }
 
-cfg_if! {
-    if #[cfg(any(feature = "vf2", feature = "hifive"))]{
-       core::arch::global_asm!(r#"
+#[cfg(feature = "ramfs")]
+core::arch::global_asm!(
+    r#"
             .section .data
             .global img_start
             .global img_end
@@ -83,19 +83,22 @@ cfg_if! {
             img_start:
                 .incbin "./tools/sdcard.img"
             img_end:
-        "#);
-        extern "C" {
-            pub fn img_start();
-            pub fn img_end();
-        }
-        pub fn checkout_fs_img() {
-            let img_start = img_start as usize;
-            let img_end = img_end as usize;
-            let img_size = img_end - img_start;
-            println!(
-                "img_start: {:#x}, img_end: {:#x}, img_size: {:#x}",
-                img_start, img_end, img_size
-            );
-        }
-    }
+        "#
+);
+
+#[cfg(feature = "ramfs")]
+extern "C" {
+    pub fn img_start();
+    pub fn img_end();
+}
+
+#[cfg(feature = "ramfs")]
+pub fn checkout_fs_img() {
+    let img_start = img_start as usize;
+    let img_end = img_end as usize;
+    let img_size = img_end - img_start;
+    println!(
+        "img_start: {:#x}, img_end: {:#x}, img_size: {:#x}",
+        img_start, img_end, img_size
+    );
 }
