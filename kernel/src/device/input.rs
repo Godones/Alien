@@ -85,10 +85,11 @@ impl VfsInode for INPUTDevice {
 pub static KEYBOARD_INPUT_DEVICE: Once<Arc<dyn InputDevice>> = Once::new();
 pub static MOUSE_INPUT_DEVICE: Once<Arc<dyn InputDevice>> = Once::new();
 
+#[cfg(feature = "qemu")]
 pub fn init_keyboard_input_device(input_device: Arc<dyn InputDevice>) {
     KEYBOARD_INPUT_DEVICE.call_once(|| input_device);
 }
-
+#[cfg(feature = "qemu")]
 pub fn init_mouse_input_device(input_device: Arc<dyn InputDevice>) {
     MOUSE_INPUT_DEVICE.call_once(|| input_device);
 }

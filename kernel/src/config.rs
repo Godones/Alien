@@ -79,7 +79,7 @@ pub const USER_STACK_SIZE: usize = 0x50_000;
 
 /// vf2/unmatched 的块缓存大小
 #[cfg(any(feature = "vf2", feature = "hifive"))]
-pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
+pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 16;
 
 /// qemu 的块缓存大小
 #[cfg(feature = "qemu")]

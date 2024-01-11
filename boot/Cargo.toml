@@ -16,7 +16,6 @@ kernel = { version = "0.1.0", path = "../kernel" }
 [features]
 default = []
 vf2 = ["kernel/vf2"]
-cv1811h = ["kernel/cv1811h"]
 qemu = ["kernel/qemu"]
 hifive = ["kernel/hifive"]
 
@@ -24,4 +23,5 @@ slab = ["kernel/slab"]
 talloc = ["kernel/talloc"]
 buddy = ["kernel/buddy"]
 
-[build-dependencies]
+ramfs= ["kernel/ramfs"]
+

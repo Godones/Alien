@@ -69,11 +69,12 @@ features = [
 ]
 
 [features]
-default = ["pager_bitmap","test"]
+default = ["pager_bitmap","test",]
 vf2 = ["visionfive2-sd", "uart8250"]
-cv1811h = []
 hifive = ["uart16550"]
 qemu = ["uart16550"]
+
+
 net_test = []
 
 slab = ["rslab"]
@@ -87,3 +88,5 @@ test = ["loopback"]
 
 debug-eh-frame = []
 debug-frame-pointer = []
+
+ramfs = []

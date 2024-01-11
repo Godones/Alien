@@ -31,4 +31,7 @@ pub fn probe_devices_from_dtb() {
     if let Some(uart) = dtb.probe_uart() {
         BOARD_DEVICES.lock().insert(DeviceType::Uart, uart);
     }
+    if let Some(sdio) = dtb.probe_sdio() {
+        BOARD_DEVICES.lock().insert(DeviceType::Block, sdio);
+    }
 }

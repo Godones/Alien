@@ -96,7 +96,7 @@ pub fn main(_: usize, _: usize) -> ! {
         // init device tree
         #[cfg(feature = "qemu")]
         init_dtb(Some(device_tree_addr));
-        #[cfg(feature = "vf2")]
+        #[cfg(any(feature = "hifive", feature = "vf2"))]
         init_dtb(None);
         // init plic associate board
         init_plic();

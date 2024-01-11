@@ -38,9 +38,12 @@ impl GenericBlockDevice {
             device: Mutex::new(device),
             cache: Mutex::new(LruCache::new(
                 NonZeroUsize::new(BLOCK_CACHE_FRAMES).unwrap(),
-            )), // 4MB cache
+            )),
             dirty: Mutex::new(Vec::new()),
         }
+    }
+    pub fn cache_max_size(&self) -> usize {
+        PAGE_CACHE_SIZE * BLOCK_CACHE_FRAMES
     }
 }
 
@@ -179,7 +182,7 @@ impl VirtIOBlkWrapper {
         let blk = VirtIOBlk::<HalImpl, MmioTransport>::new(transport)
             .expect("failed to create blk driver");
         let size = blk.capacity();
-        println!("blk device size is {}MB", size * 512 / 1024 / 1024);
+        println!("Block device size is {}MB", size * 512 / 1024 / 1024);
         Self { device: blk }
     }
 }
@@ -229,5 +232,41 @@ impl LowBlockDriver for MemoryFat32Img {
 impl MemoryFat32Img {
     pub fn new(data: &'static mut [u8]) -> Self {
         Self { data }
+    }
+}
+
+#[cfg(all(feature = "vf2", not(feature = "ramfs")))]
+pub struct Vf2SdDriver {
+    driver: visionfive2_sd::Vf2SdDriver,
+}
+
+#[cfg(all(feature = "vf2", not(feature = "ramfs")))]
+impl Vf2SdDriver {
+    pub fn new(vf2sd_driver: visionfive2_sd::Vf2SdDriver) -> Self {
+        Self {
+            driver: vf2sd_driver,
+        }
+    }
+    pub fn init(&self) {
+        self.driver.init();
+    }
+}
+
+#[cfg(all(feature = "vf2", not(feature = "ramfs")))]
+impl LowBlockDriver for Vf2SdDriver {
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+        self.driver.read_block(block_id, buf);
+        Ok(())
+    }
+
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+        self.driver.write_block(block_id, buf);
+        Ok(())
+    }
+
+    fn capacity(&self) -> usize {
+        // unimplemented!()
+        // 32GB
+        32 * 1024 * 1024 * 1024 / 512
     }
 }

@@ -1,14 +1,12 @@
 pub use self::rtc::{get_rtc_time, RTCDevice, RtcDevice, RTC_DEVICE};
 pub use self::uart::{UARTDevice, UartDevice, UART_DEVICE};
 use crate::board::{get_rtc_info, probe_devices_from_dtb};
-use crate::driver::uart::Uart;
 use crate::driver::GenericBlockDevice;
 use crate::interrupt::register_device_to_plic;
 use crate::print::console::UART_FLAG;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 pub use block::{BLKDevice, BlockDevice, BLOCK_DEVICE};
-use core::sync::atomic::Ordering;
 pub use gpu::{GPUDevice, GpuDevice, GPU_DEVICE};
 pub use input::{
     sys_event_get, INPUTDevice, InputDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE,
@@ -81,23 +79,27 @@ fn init_uart() {
     println!("Init uart, base_addr:{:#x},irq:{}", base_addr, irq);
     #[cfg(feature = "qemu")]
     {
-        use crate::driver::uart::Uart16550;
+        use crate::driver::uart::{Uart, Uart16550};
+        use core::sync::atomic::Ordering;
         let uart = Uart16550::new(base_addr);
         let uart = Uart::new(Box::new(uart));
         let uart = Arc::new(uart);
         uart::init_uart(uart.clone());
         register_device_to_plic(irq, uart);
+        UART_FLAG.store(true, Ordering::Relaxed);
     }
     #[cfg(feature = "vf2")]
     {
-        use crate::driver::uart::Uart8250;
+        use crate::driver::uart::{Uart, Uart8250};
+        use core::sync::atomic::Ordering;
         let uart = Uart8250::new(base_addr);
         let uart = Uart::new(Box::new(uart));
         let uart = Arc::new(uart);
         uart::init_uart(uart.clone());
         register_device_to_plic(irq, uart);
+        UART_FLAG.store(true, Ordering::Relaxed);
     }
-    UART_FLAG.store(true, Ordering::Relaxed);
+
     println!("Init uart success");
 }
 
@@ -115,21 +117,51 @@ fn init_block_device() {
         println!("Init block device, base_addr:{:#x},irq:{}", base_addr, irq);
         let block_device = VirtIOBlkWrapper::new(base_addr);
         let block_device = GenericBlockDevice::new(Box::new(block_device));
+        println!(
+            "Block Cache size: {}MB",
+            block_device.cache_max_size() / 1024 / 1024
+        );
         let block_device = Arc::new(block_device);
         block::init_block_device(block_device);
         // register_device_to_plic(irq, block_device);
         println!("Init block device success");
     }
+
     #[cfg(any(feature = "vf2", feature = "hifive"))]
     {
-        use crate::board::checkout_fs_img;
-        checkout_fs_img();
-        init_fake_disk();
-        println!("Init fake disk success");
+        #[cfg(not(feature = "ramfs"))]
+        {
+            use crate::config::CLOCK_FREQ;
+            use crate::driver::Vf2SdDriver;
+            use crate::timer::read_timer;
+            pub fn sleep(ms: usize) {
+                let start = read_timer();
+                while read_timer() - start < ms * (CLOCK_FREQ / 1000) {
+                    core::hint::spin_loop();
+                }
+            }
+            let device = Vf2SdDriver::new(visionfive2_sd::Vf2SdDriver::new(sleep));
+            device.init();
+            let block_device = GenericBlockDevice::new(Box::new(device));
+            println!(
+                "Block Cache size: {}MB",
+                block_device.cache_max_size() / 1024 / 1024
+            );
+            let block_device = Arc::new(block_device);
+            block::init_block_device(block_device);
+            println!("Init block device success");
+        }
+        #[cfg(feature = "ramfs")]
+        {
+            use crate::board::checkout_fs_img;
+            checkout_fs_img();
+            init_fake_disk();
+            println!("Init fake disk success");
+        }
     }
 }
 
-#[cfg(any(feature = "vf2", feature = "hifive"))]
+#[cfg(feature = "ramfs")]
 fn init_fake_disk() {
     use crate::board::{img_end, img_start};
     use crate::driver::MemoryFat32Img;
@@ -137,8 +169,12 @@ fn init_fake_disk() {
         core::slice::from_raw_parts_mut(img_start as *mut u8, img_end as usize - img_start as usize)
     };
     let device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
+    println!(
+        "Block Cache size: {}MB",
+        device.cache_max_size() / 1024 / 1024
+    );
     let device = Arc::new(device);
-    block::init_block_device(device.clone());
+    block::init_block_device(device);
 }
 
 fn init_gpu() {
