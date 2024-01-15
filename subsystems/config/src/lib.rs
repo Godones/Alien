@@ -10,21 +10,6 @@ pub const FLAG: &str = r"
  /_/   \_\ |_| |_|  \___| |_| |_|
 ";
 
-/// qemu时钟频率
-#[cfg(feature = "qemu")]
-pub const CLOCK_FREQ: usize = 1250_0000;
-/// vf2时钟频率
-#[cfg(feature = "vf2")]
-pub const CLOCK_FREQ: usize = 400_0000;
-
-/// unmatched时钟频率
-#[cfg(feature = "hifive")]
-pub const CLOCK_FREQ: usize = 100_0000;
-
-/// cv1811h时钟频率
-#[cfg(feature = "cv1811h")]
-pub const CLOCK_FREQ: usize = 0x17d7840;
-
 /// 物理页大小
 pub const FRAME_SIZE: usize = 0x1000;
 /// 物理页大小的位数
@@ -34,36 +19,8 @@ pub const STACK_SIZE: usize = 1024 * 64;
 /// 内核启动栈大小的位数
 pub const STACK_SIZE_BITS: usize = 16;
 
-/// equal to CLOCK_FREQ
-pub const TIMER_FREQ: usize = CLOCK_FREQ;
 /// 可配置的启动cpu数量
 pub const CPU_NUM: usize = 1;
-
-pub const AT_FDCWD: isize = -100isize;
-
-///qemu的设备地址空间
-#[cfg(feature = "qemu")]
-pub const MMIO: &[(usize, usize)] = &[
-    (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
-    (0x2000000, 0x10000),
-    (0xc00_0000, 0x21_0000), // VIRT_PLIC in virt machine
-    (0x1000_0000, 0x9000),   // VIRT_UART0 with GPU  in virt machine
-    (0x3000_0000, 0x1000_0000),
-];
-
-/// vf2的设备地址空间
-#[cfg(feature = "vf2")]
-pub const MMIO: &[(usize, usize)] = &[
-    (0x17040000, 0x10000),     // RTC
-    (0xc000000, 0x4000000),    //PLIC
-    (0x00_1000_0000, 0x10000), // UART
-];
-
-/// hifive的设备地址空间
-#[cfg(feature = "hifive")]
-pub const MMIO: &[(usize, usize)] = &[
-    (0xc000000, 0x4000000), //PLIC
-];
 
 // todo!(if the app linker script changed, this should be changed too)
 /// 进程的堆空间上限
@@ -77,25 +34,6 @@ pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
 pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
 /// app用户栈大小
 pub const USER_STACK_SIZE: usize = 0x50_000;
-
-/// vf2/unmatched 的块缓存大小
-#[cfg(any(feature = "vf2", feature = "hifive"))]
-pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
-
-/// qemu 的块缓存大小
-#[cfg(feature = "qemu")]
-pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
-
-/// vf2/unmatched 的堆空间大小
-#[cfg(any(feature = "vf2", feature = "hifive"))]
-pub const HEAP_SIZE: usize = 0x40_00000;
-
-/// qemu 的堆空间大小
-#[cfg(feature = "qemu")]
-pub const HEAP_SIZE: usize = 0x26_00000; // (32+6)MB
-
-/// equal to HEAP_SIZe
-pub const KERNEL_HEAP_SIZE: usize = HEAP_SIZE;
 
 /// pipe缓冲区大小
 pub const PIPE_BUF: usize = 65536;

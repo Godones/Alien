@@ -154,6 +154,7 @@ impl Into<VfsTimeSpec> for TimeSpec {
         VfsTimeSpec::new(self.tv_sec as u64, self.tv_nsec as u64)
     }
 }
+
 /// [`getitimer`] / [`setitimer`] 指定的类型，用户执行系统调用时获取和输入的计时器
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
@@ -189,7 +190,6 @@ pub fn set_next_trigger_in_kernel() {
 }
 
 /// 获取当前时间，以 ms 为单位
-// #[syscall_func(169)]
 pub fn get_time_ms() -> isize {
     (read_timer() / (CLOCK_FREQ / MSEC_PER_SEC)) as isize
 }

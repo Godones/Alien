@@ -20,13 +20,13 @@ spin = "0"
 
 page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
 
-page_table = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
-memory_addr = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
+#page_table = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
+#memory_addr = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
 
 
 
 [features]
-default = ["pager_buddy","talloc"]
+default = ["pager_bitmap","talloc"]
 pager_buddy = ["pager/buddy"]
 pager_bitmap = ["pager/bitmap"]
 slab = ["rslab"]

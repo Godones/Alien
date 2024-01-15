@@ -8,9 +8,3 @@ edition = "2021"
 [dependencies]
 
 
-[features]
-default = ["qemu"]
-vf2 = []
-cv1811h = []
-hifive = []
-qemu = []

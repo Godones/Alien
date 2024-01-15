@@ -34,3 +34,5 @@ impl From<u64> for DeviceId {
         }
     }
 }
+
+pub const AT_FDCWD: isize = -100isize;

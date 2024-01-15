@@ -1,0 +1,27 @@
+[package]
+name = "vfs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin = "0"
+log = "0"
+ksync = { path = "../ksync" }
+arch = { path = "../arch" }
+constants = { path = "../constants" }
+interrupt = { path = "../interrupt" }
+platform = { path = "../platform" }
+
+
+vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
+    "linux_error",
+] }
+devfs = { git = "https://github.com/os-module/rvfs.git" }
+dynfs = { git = "https://github.com/os-module/rvfs.git" }
+ramfs = { git = "https://github.com/os-module/rvfs.git" }
+fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
+
+
+devices = { path = "../devices" }

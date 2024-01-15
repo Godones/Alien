@@ -367,15 +367,6 @@ impl Task {
         &inner.context as *const Context
     }
 
-    pub fn get_context(&self) -> Context {
-        let inner = self.inner.lock();
-        inner.context.clone()
-    }
-
-    pub fn kstack_top(&self) -> usize {
-        self.kernel_stack.top()
-    }
-
     /// 获取任务上下文的可变指针
     pub fn get_context_mut_raw_ptr(&self) -> *mut Context {
         let mut inner = self.inner.lock();
@@ -447,25 +438,6 @@ impl Task {
     pub fn exit_code(&self) -> i32 {
         let inner = self.inner.lock();
         inner.exit_code
-    }
-
-    /// 用于判断一个文件是否存在在该进程的文件描述符表中，如果存在返回该文件描述符
-    pub fn file_existed(&self, file: Arc<dyn File>) -> Option<Arc<dyn File>> {
-        let inner = self.inner.lock();
-        let fd_table = inner.fd_table.lock();
-        let fds = fd_table.data();
-        fds.iter().find_map(|f| {
-            if f.is_some() {
-                let f = f.as_ref().unwrap();
-                if Arc::ptr_eq(f, &file) {
-                    Some(f.clone())
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        })
     }
 
     /// 用于获取文件描述符id号为 fd 的 文件描述符
@@ -715,31 +687,6 @@ impl TaskInner {
             physical += 1;
         }
         res
-    }
-
-    /// 将虚拟地址空间中的一段缓冲区的首地址 `ptr` 和 缓冲区的长度 `len` 转换为 实地址下的一组页
-    pub fn transfer_raw_buffer(&self, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
-        let address_space = &self.address_space.lock();
-        let mut start = ptr as usize;
-        let end = start + len;
-        let mut v = Vec::new();
-        while start < end {
-            let (start_phy, flag, _) = address_space.query(VirtAddr::from(start)).unwrap();
-            assert!(flag.contains(MappingFlags::V));
-            // start_phy向上取整到FRAME_SIZE
-            let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
-            let len = if bound > end {
-                end - start
-            } else {
-                bound - start
-            };
-            unsafe {
-                let buf = core::slice::from_raw_parts_mut(start_phy.as_usize() as *mut u8, len);
-                v.push(buf);
-            }
-            start = bound;
-        }
-        v
     }
 
     /// 从物理地址的 `src` 处取一个长度为 `len` 类型为 T 的缓冲区 赋到 用户虚拟地址空间下的 `dst` 处

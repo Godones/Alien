@@ -1,0 +1,15 @@
+[package]
+name = "timer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arch = { path = "../arch" }
+config = { path = "../config" }
+platform = { path = "../platform" }
+constants = { path = "../constants" }
+vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
+    "linux_error",
+] }

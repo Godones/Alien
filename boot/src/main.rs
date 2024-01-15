@@ -105,11 +105,11 @@ pub fn main(_: usize, _: usize) -> ! {
         trap::init_trap_subsystem();
         init_filesystem().expect("Init filesystem failed");
         task::init_process();
+        // register all syscall
+        init_init_array!();
         CPUS.fetch_add(1, Ordering::Release);
         STARTED.store(true, Ordering::Relaxed);
         init_other_hart(hart_id());
-        // register all syscall
-        init_init_array!();
     } else {
         while !STARTED.load(Ordering::Relaxed) {
             spin_loop();

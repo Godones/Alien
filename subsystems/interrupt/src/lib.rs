@@ -12,6 +12,7 @@ use plic::{Mode, PLIC};
 use arch::hart_id;
 use config::CPU_NUM;
 use device_interface::DeviceBase;
+use platform::println;
 
 mod ext_interrupt;
 pub mod record;
@@ -20,11 +21,11 @@ pub static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 
 pub static DEVICE_TABLE: Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>> = Mutex::new(BTreeMap::new());
 
-pub fn init_plic(addr: usize) {
+pub fn init_plic(plic_addr: usize) {
     #[cfg(feature = "qemu")]
     {
         let privileges = [2; CPU_NUM];
-        let plic = PLIC::new(addr, privileges);
+        let plic = PLIC::new(plic_addr, privileges);
         PLIC.call_once(|| plic);
         println!("Init qemu plic success");
     }
@@ -34,7 +35,7 @@ pub fn init_plic(addr: usize) {
         // core 0 don't have S mode
         privileges[0] = 1;
         println!("PLIC context: {:?}", privileges);
-        let plic = PLIC::new(addr, privileges);
+        let plic = PLIC::new(plic_addr, privileges);
         PLIC.call_once(|| plic);
         println!("Init hifive or vf2 plic success");
     }
@@ -46,7 +47,7 @@ pub fn register_device_to_plic(irq: usize, device: Arc<dyn DeviceBase>) {
     table.insert(irq, device);
     let hard_id = hart_id();
     println!(
-        "plic enable irq {} for hart {}, priority {}",
+        "PLIC enable irq {} for hart {}, priority {}",
         irq, hard_id, 1
     );
     let plic = PLIC.get().unwrap();

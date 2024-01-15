@@ -1,12 +1,10 @@
-use core::iter::Once;
+pub mod config;
 
-#[repr(align(4))]
-struct Wrapper<T>(T);
+use spin::Once;
 
-const FDT: &[u8] = &Wrapper(*include_bytes!(
+const FDT: &[u8] = include_bytes!(
     "../../../../tools/hifive-unmatched-a00.dtb"
-))
-.0;
+);
 
 pub static DTB: Once<usize> = Once::new();
 
@@ -22,7 +20,6 @@ pub fn set_timer(time: usize) {
 
 pub fn system_shutdown() -> ! {
     crate::common_riscv::sbi::system_shutdown();
-    loop {}
 }
 
 /// Warp sbi SBI_CONSOLE_PUT_CHAR  call

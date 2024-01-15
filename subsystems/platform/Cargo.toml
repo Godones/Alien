@@ -10,12 +10,17 @@ log = "0"
 arch = { path = "../arch" }
 config = { path = "../config" }
 ksync = { path = "../ksync" }
+spin = "0"
 
 
+preprint = "0.1.0"
+basemachine = { path = "../../dep/basemachine" }
 
 [features]
 default = ["qemu_riscv"]
 
 qemu_riscv = []
-starfive2_riscv = []
-hifive_riscv = []
+vf2 = []
+hifive = []
+
+smp = []
