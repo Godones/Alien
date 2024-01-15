@@ -22,7 +22,6 @@ pub fn get_rtc_time() -> Option<RtcTime> {
     RTC_DEVICE.get().map(|rtc| rtc.read_time_fmt())
 }
 
-#[allow(unused)]
 pub fn init_rtc(rtc: Arc<dyn RtcDevice>) {
     RTC_DEVICE.call_once(|| rtc);
 }

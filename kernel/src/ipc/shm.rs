@@ -96,10 +96,6 @@ impl ShmMemory {
         self.access_inner().state == ShmMemoryState::Deleted
     }
 
-    /// 引用计数器减一
-    pub fn dec_ref(&self) {
-        self.access_inner().ref_count -= 1;
-    }
 }
 
 /// 记录共享内存当前状态的结构

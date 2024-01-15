@@ -1,4 +1,4 @@
-use config::{CPU_NUM, STACK_SIZE};
+use config::{CPU_NUM, STACK_SIZE, STACK_SIZE_BITS};
 use core::arch::asm;
 
 #[link_section = ".bss.stack"]
@@ -16,19 +16,44 @@ extern "C" fn _start() {
         mv tp, a0
         mv gp, a1
         add t0, a0, 1
-        slli t0, t0, 16
+        slli t0, t0, {stack_size_bits}
         la sp, {boot_stack}
         add sp, sp, t0
         call clear_bss
         mv a0, tp
         mv a1, gp
+        call {platform_init}
+        ",
+        stack_size_bits = const STACK_SIZE_BITS,
+        boot_stack = sym STACK,
+        platform_init = sym crate::platform_init,
+        options(noreturn)
+        );
+    }
+}
+
+#[naked]
+#[no_mangle]
+extern "C" fn _start_secondary() {
+    unsafe {
+        asm!("\
+        mv tp, a0
+        mv gp, a1
+        add t0, a0, 1
+        slli t0, t0, {stack_size_bits}
+        la sp, {boot_stack}
+        add sp, sp, t0
+        mv a0, tp
+        mv a1, gp
         call main
         ",
+        stack_size_bits = const STACK_SIZE_BITS,
         boot_stack = sym STACK,
         options(noreturn)
         );
     }
 }
+
 
 extern "C" {
     fn sbss();

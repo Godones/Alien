@@ -302,7 +302,7 @@ pub fn build_cow_address_space(
             if target {
                 for i in 0..usize::from(page_size) / FRAME_SIZE {
                     let page_number = (phy + FRAME_SIZE * i).as_usize() >> FRAME_BITS;
-                    FRAME_REF_MANAGER.lock().get_ref(page_number);
+                    // FRAME_REF_MANAGER.lock().get_ref(page_number);
                     FRAME_REF_MANAGER.lock().add_ref(page_number);
                 }
                 address_space.get_record_mut().insert(v_addr, true);

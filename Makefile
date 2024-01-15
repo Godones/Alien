@@ -1,6 +1,6 @@
 TRACE_EXE  := trace_exe
 TARGET      := riscv64gc-unknown-none-elf
-OUTPUT := target/$(TARGET)/release/
+OUTPUT := target/$(TARGET)/release
 KERNEL_FILE := $(OUTPUT)/boot
 DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
@@ -90,7 +90,7 @@ else
 endif
 
 
-build:install compile
+build:install compile2 #compile
 
 
 compile:
@@ -100,6 +100,12 @@ compile:
 	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
+
+compile2:
+	cargo build --release -p kkernel --target $(TARGET) --features $(FEATURES)
+	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > subsystems/unwinder/src/kernel_symbol.S)
+	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
+	@cp $(OUTPUT)/kkernel ./kernel-qemu
 
 trace_info:
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)

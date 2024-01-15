@@ -1,3 +1,4 @@
+#![allow(unused)]
 //! SBI 调用接口
 use core::arch::asm;
 

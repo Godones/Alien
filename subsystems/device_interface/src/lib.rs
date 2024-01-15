@@ -25,6 +25,7 @@ pub trait GpuDevice: Send + Sync + Any + DeviceBase {
     fn update_cursor(&self);
     fn get_framebuffer(&self) -> &mut [u8];
     fn flush(&self);
+    fn resolution(&self) -> (u32, u32);
 }
 
 pub trait InputDevice: Send + Sync + DeviceBase {

@@ -29,10 +29,23 @@ members = [
     "subsystems/arch",
     "subsystems/config",
     "subsystems/ksync",
-    "subsystems/constants"
-, "subsystems/mem", "subsystems/vfs", "subsystems/devices", "subsystems/drivers", "subsystems/interrupt", "subsystems/device_interface", "subsystems/timer"]
+    "subsystems/constants",
+    "subsystems/mem",
+    "subsystems/vfs",
+    "subsystems/devices",
+    "subsystems/drivers",
+    "subsystems/interrupt",
+    "subsystems/device_interface",
+    "subsystems/timer",
+    "kkernel"
+    , "subsystems/unwinder",]
 
 
 [profile.release]
 #lto = true
 #codegen-units = 1
+
+
+
+[workspace.dependencies]
+spin = "0"

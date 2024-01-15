@@ -14,15 +14,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aarch64-cpu"
-version = "9.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac42a04a61c19fc8196dd728022a784baecc5d63d7e256c01ad1b3fbfab26287"
-dependencies = [
- "tock-registers",
-]
-
-[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -77,7 +68,6 @@ dependencies = [
 name = "arch"
 version = "0.1.0"
 dependencies = [
- "config",
  "riscv",
 ]
 
@@ -669,11 +659,13 @@ dependencies = [
 name = "devices"
 version = "0.1.0"
 dependencies = [
+ "arch",
  "config",
  "constants",
  "device_interface",
  "drivers",
  "fdt 0.2.0-alpha1",
+ "interrupt",
  "ksync",
  "log",
  "netcore",
@@ -721,13 +713,16 @@ dependencies = [
  "config",
  "constants",
  "device_interface",
+ "downcast-rs",
  "ksync",
  "log",
  "loopback",
  "lru",
  "mem",
  "netcore",
+ "platform",
  "rtc",
+ "spin",
  "timer",
  "uart16550",
  "uart8250",
@@ -1434,6 +1429,7 @@ dependencies = [
  "config",
  "device_interface",
  "ksync",
+ "platform",
  "plic",
  "spin",
 ]
@@ -1548,6 +1544,37 @@ source = "git+https://github.com/os-module/kernel-sync.git#e7e366d8ae91ba6c00870
 dependencies = [
  "cfg-if",
  "lock_api",
+]
+
+[[package]]
+name = "kkernel"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "bit_field",
+ "bitflags 1.3.2",
+ "config",
+ "constants",
+ "devices",
+ "downcast-rs",
+ "drivers",
+ "gmanager",
+ "interrupt",
+ "ksync",
+ "log",
+ "mem",
+ "netcore",
+ "page-table",
+ "platform",
+ "riscv",
+ "smpscheduler",
+ "spin",
+ "syscall-table",
+ "timer",
+ "unwinder",
+ "vfs",
+ "vfscore",
+ "xmas-elf",
 ]
 
 [[package]]
@@ -1742,9 +1769,7 @@ dependencies = [
  "config",
  "ksync",
  "log",
- "memory_addr",
  "page-table",
- "page_table",
  "pager",
  "platform",
  "rslab",
@@ -1815,11 +1840,6 @@ dependencies = [
  "slint-helper",
  "virt2slint",
 ]
-
-[[package]]
-name = "memory_addr"
-version = "0.1.0"
-source = "git+https://github.com/rcore-os/arceos?rev=7eeebc5#7eeebc5581f3d1d6e8b03c6177c6cb34543ae50f"
 
 [[package]]
 name = "micromath"
@@ -2131,27 +2151,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "page_table"
-version = "0.1.0"
-source = "git+https://github.com/rcore-os/arceos?rev=7eeebc5#7eeebc5581f3d1d6e8b03c6177c6cb34543ae50f"
-dependencies = [
- "log",
- "memory_addr",
- "page_table_entry",
-]
-
-[[package]]
-name = "page_table_entry"
-version = "0.1.0"
-source = "git+https://github.com/rcore-os/arceos?rev=7eeebc5#7eeebc5581f3d1d6e8b03c6177c6cb34543ae50f"
-dependencies = [
- "aarch64-cpu",
- "bitflags 2.4.0",
- "memory_addr",
- "x86_64",
-]
-
-[[package]]
 name = "pager"
 version = "0.1.0"
 source = "git+https://github.com/os-module/pager#ccb9a5090ba9b2e712020e9a6ec75f613b0e2cb9"
@@ -2238,9 +2237,12 @@ name = "platform"
 version = "0.1.0"
 dependencies = [
  "arch",
+ "basemachine",
  "config",
  "ksync",
  "log",
+ "preprint",
+ "spin",
 ]
 
 [[package]]
@@ -3050,6 +3052,9 @@ version = "0.1.0"
 dependencies = [
  "arch",
  "config",
+ "constants",
+ "platform",
+ "vfscore",
 ]
 
 [[package]]
@@ -3114,12 +3119,6 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
-
-[[package]]
-name = "tock-registers"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "696941a0aee7e276a165a978b37918fd5d22c55c3d6bda197813070ca9c0f21c"
 
 [[package]]
 name = "todo"
@@ -3296,6 +3295,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "unwinder"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "platform",
+ "tracer",
+]
+
+[[package]]
 name = "url"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3392,6 +3400,7 @@ dependencies = [
  "arch",
  "constants",
  "devfs",
+ "devices",
  "dynfs",
  "fat-vfs",
  "interrupt",
@@ -3876,18 +3885,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82d6c3f9a0fb6701fab8f6cea9b0c0bd5d6876f1f89f7fada07e558077c344bc"
 dependencies = [
  "nix",
-]
-
-[[package]]
-name = "x86_64"
-version = "0.14.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b835097a84e4457323331ec5d6eb23d096066cbfb215d54096dcb4b2e85f500"
-dependencies = [
- "bit_field",
- "bitflags 2.4.0",
- "rustversion",
- "volatile",
 ]
 
 [[package]]

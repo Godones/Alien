@@ -193,10 +193,6 @@ impl Debug for Socket {
 }
 
 impl SocketData {
-    pub fn from_ptr(ptr: *const u8) -> &'static mut Self {
-        unsafe { &mut *(ptr as *mut Self) }
-    }
-
     /// 用于创建一个新的套接字数据 `SocketData` 结构，返回创建的文件描述符。一般被系统调用 [`socket`] 所调用。
     ///
     /// 执行过程中会创建一个对应的套接字文件，打开后将对应的文件描述符放入进程的文件描述符表中，

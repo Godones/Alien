@@ -1,0 +1,15 @@
+[package]
+name = "unwinder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tracer = { git = "https://github.com/os-module/tracer" }
+platform = { path = "../platform" }
+arch = { path = "../arch" }
+
+[features]
+debug-eh-frame = []
+debug-frame-pointer = []

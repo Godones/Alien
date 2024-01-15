@@ -1,4 +1,6 @@
-use core::iter::Once;
+pub mod config;
+
+use spin::Once;
 
 pub static DTB: Once<usize> = Once::new();
 
@@ -14,7 +16,6 @@ pub fn set_timer(time: usize) {
 
 pub fn system_shutdown() -> ! {
     crate::common_riscv::sbi::system_shutdown();
-    loop {}
 }
 
 /// Warp sbi SBI_CONSOLE_PUT_CHAR  call
