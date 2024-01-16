@@ -1,14 +1,12 @@
+use crate::frame::FRAME_ALLOCATOR;
 use alloc::collections::BTreeMap;
+use ksync::Mutex;
 use log::trace;
 use pager::PageAllocator;
 use spin::Lazy;
-use ksync::Mutex;
-use crate::frame::FRAME_ALLOCATOR;
-
 
 pub static FRAME_REF_MANAGER: Lazy<Mutex<FrameRefManager>> =
     Lazy::new(|| Mutex::new(FrameRefManager::new()));
-
 
 #[derive(Debug)]
 pub struct FrameRefManager {

@@ -4,17 +4,17 @@ extern crate alloc;
 #[macro_use]
 extern crate platform;
 use arch::activate_paging_mode;
-use config::{FRAME_BITS};
+use config::FRAME_BITS;
 use heap::HeapAllocator;
 use platform::config::HEAP_SIZE;
 mod frame;
 mod heap;
-mod vmm;
 mod manager;
+mod vmm;
 
-pub use frame::{alloc_frames, free_frames,FrameTracker,VmmPageAllocator,alloc_frame_trackers};
+pub use frame::{alloc_frame_trackers, alloc_frames, free_frames, FrameTracker, VmmPageAllocator};
 
-pub use vmm::{map_region_to_kernel,query_kernel_space,kernel_pgd,kernel_satp};
+pub use vmm::{kernel_pgd, kernel_satp, map_region_to_kernel, query_kernel_space};
 
 pub use manager::FRAME_REF_MANAGER;
 #[global_allocator]
@@ -23,11 +23,11 @@ static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::new();
 #[cfg(any(feature = "talloc", feature = "buddy"))]
 static mut KERNEL_HEAP: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
 
-extern "C"{
+extern "C" {
     fn ekernel();
 }
 
-pub fn init_memory_system( memory_end: usize, is_first_cpu: bool) {
+pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     if is_first_cpu {
         frame::init_frame_allocator(ekernel as usize, memory_end);
         println!("Frame allocator init success");

@@ -2,9 +2,7 @@ pub mod config;
 
 use spin::Once;
 
-const FDT: &[u8] = include_bytes!(
-    "../../../../tools/hifive-unmatched-a00.dtb"
-);
+const FDT: &[u8] = include_bytes!("../../../../tools/hifive-unmatched-a00.dtb");
 
 pub static DTB: Once<usize> = Once::new();
 

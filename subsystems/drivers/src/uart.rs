@@ -1,11 +1,11 @@
 pub use self::uart16550::Uart16550;
 pub use self::uart8250::Uart8250;
+use crate::{DriverTask, DRIVER_TASK};
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use device_interface::{DeviceBase, UartDevice};
 use ksync::Mutex;
-use crate::{DRIVER_TASK, DriverTask};
 
 pub trait LowUartDriver: Send + Sync {
     fn _init(&mut self);

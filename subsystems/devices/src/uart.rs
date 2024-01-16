@@ -1,3 +1,4 @@
+use crate::TASK_FUNC;
 use alloc::sync::Arc;
 use constants::io::{LocalModes, TeletypeCommand, Termios, WinSize};
 use constants::DeviceId;
@@ -10,7 +11,6 @@ use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
 use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 use vfscore::VfsResult;
-use crate::TASK_FUNC;
 
 pub static UART_DEVICE: Once<Arc<dyn UartDevice>> = Once::new();
 
@@ -102,12 +102,18 @@ impl VfsFile for UARTDevice {
         return match cmd {
             TeletypeCommand::TCGETS | TeletypeCommand::TCGETA => {
                 // task_inner.copy_to_user(&io.termios, arg as *mut Termios);
-                TASK_FUNC.get().unwrap().copy_data_to_task(&io.termios, arg as *mut Termios);
+                TASK_FUNC
+                    .get()
+                    .unwrap()
+                    .copy_data_to_task(&io.termios, arg as *mut Termios);
                 Ok(0)
             }
             TeletypeCommand::TCSETS | TeletypeCommand::TCSETSW | TeletypeCommand::TCSETSF => {
                 // task_inner.copy_from_user(arg as *const Termios, &mut io.termios);
-                TASK_FUNC.get().unwrap().copy_data_from_task(arg as *const Termios, &mut io.termios);
+                TASK_FUNC
+                    .get()
+                    .unwrap()
+                    .copy_data_from_task(arg as *const Termios, &mut io.termios);
                 Ok(0)
             }
             TeletypeCommand::TIOCGPGRP => {
@@ -124,12 +130,18 @@ impl VfsFile for UARTDevice {
             }
             TeletypeCommand::TIOCGWINSZ => {
                 // task_inner.copy_to_user(&io.winsize, arg as *mut WinSize);
-                TASK_FUNC.get().unwrap().copy_data_to_task(&io.winsize, arg as *mut WinSize);
+                TASK_FUNC
+                    .get()
+                    .unwrap()
+                    .copy_data_to_task(&io.winsize, arg as *mut WinSize);
                 Ok(0)
             }
             TeletypeCommand::TIOCSWINSZ => {
                 // task_inner.copy_from_user(arg as *const WinSize, &mut io.winsize);
-                TASK_FUNC.get().unwrap().copy_data_from_task(arg as *const WinSize, &mut io.winsize);
+                TASK_FUNC
+                    .get()
+                    .unwrap()
+                    .copy_data_from_task(arg as *const WinSize, &mut io.winsize);
                 Ok(0)
             }
             _ => {

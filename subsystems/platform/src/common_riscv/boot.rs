@@ -54,7 +54,6 @@ extern "C" fn _start_secondary() {
     }
 }
 
-
 extern "C" {
     fn sbss();
     fn ebss();

@@ -1,8 +1,8 @@
 use alloc::format;
 use alloc::string::String;
-use log::trace;
 use constants::io::RtcTime;
 use device_interface::{DeviceBase, RtcDevice};
+use log::trace;
 use rtc::{LowRtcDevice, LowRtcDeviceExt};
 
 type GFish = rtc::goldfish::GoldFishRtc;
@@ -10,7 +10,7 @@ pub struct GoldFishRtc {
     gold_fish_rtc: GFish,
 }
 
-impl GoldFishRtc{
+impl GoldFishRtc {
     pub fn read_time_u64(&self) -> u64 {
         self.gold_fish_rtc.read_time()
     }

@@ -41,5 +41,6 @@ features = [
 
 [features]
 default = ["test"]
-memblk = []
+ramdisk = []
 test = []
+vf2 = [] # enable to probe vf2's sdcard

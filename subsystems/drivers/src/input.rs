@@ -8,8 +8,8 @@ use virtio_drivers::device::input::VirtIOInput;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use crate::hal::HalImpl;
+use crate::{DriverTask, DRIVER_TASK};
 use ksync::Mutex;
-use crate::{DRIVER_TASK, DriverTask};
 
 pub struct VirtIOInputDriver {
     inner: Mutex<InputDriverInner>,
@@ -68,7 +68,7 @@ impl InputDevice for VirtIOInputDriver {
                 task.to_wait();
                 inner.wait_queue.push_back(task);
             } // drop the lock
-            // schedule();
+              // schedule();
             DRIVER_TASK.get().unwrap().suspend();
         }
     }

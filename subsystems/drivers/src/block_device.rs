@@ -14,11 +14,10 @@ use constants::AlienResult;
 use ksync::Mutex;
 
 use crate::hal::HalImpl;
-use config::{FRAME_SIZE};
+use config::FRAME_SIZE;
 use device_interface::{BlockDevice, DeviceBase, LowBlockDevice};
 use mem::{alloc_frames, free_frames};
 use platform::config::BLOCK_CACHE_FRAMES;
-
 
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 
@@ -207,7 +206,7 @@ impl VirtIOBlkWrapper {
         Self { device: blk }
     }
 
-    pub fn from_mmio(mmio_transport: MmioTransport)->Self{
+    pub fn from_mmio(mmio_transport: MmioTransport) -> Self {
         let blk = VirtIOBlk::<HalImpl, MmioTransport>::new(mmio_transport)
             .expect("failed to create blk driver");
         Self { device: blk }
@@ -259,5 +258,40 @@ impl LowBlockDevice for MemoryFat32Img {
 impl MemoryFat32Img {
     pub fn new(data: &'static mut [u8]) -> Self {
         Self { data }
+    }
+}
+
+
+pub use visionfive2_sd::Vf2SdDriver;
+pub struct VF2SDDriver {
+    driver: Vf2SdDriver,
+}
+
+impl VF2SDDriver {
+    pub fn new(vf2sd_driver: Vf2SdDriver) -> Self {
+        Self {
+            driver: vf2sd_driver,
+        }
+    }
+    pub fn init(&self) {
+        self.driver.init();
+    }
+}
+
+impl LowBlockDevice for VF2SDDriver {
+    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+        self.driver.read_block(block_id, buf);
+        Ok(())
+    }
+
+    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+        self.driver.write_block(block_id, buf);
+        Ok(())
+    }
+
+    fn capacity(&self) -> usize {
+        // unimplemented!()
+        // 32GB
+        32 * 1024 * 1024 * 1024 / 512
     }
 }

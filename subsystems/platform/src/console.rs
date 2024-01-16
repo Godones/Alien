@@ -1,6 +1,6 @@
 use core::fmt::{Arguments, Result, Write};
-use preprint::Print;
 use ksync::Mutex;
+use preprint::Print;
 /// 系统启动初期使用的输出函数
 #[macro_export]
 macro_rules! print {
@@ -46,7 +46,6 @@ pub fn __print(args: Arguments) {
 pub fn console_write(s: &str) {
     Stdout.write_str(s).unwrap();
 }
-
 
 pub struct PrePrint;
 

@@ -1,19 +1,18 @@
 use super::im2vim;
-use crate::config::AT_FDCWD;
-use crate::fs::file::KernelFile;
-use crate::fs::{syscontext_for_vfs, user_path_at, FS, SYSTEM_ROOT_FS};
+use crate::fs::{syscontext_for_vfs, user_path_at};
 use crate::task::current_task;
 use alloc::sync::Arc;
 use alloc::vec;
 use constants::io::{
     FileStat, FsStat, InodeMode, IoVec, MountFlags, OpenFlags, Renameat2Flags, SeekFrom, StatFlags,
 };
-use constants::AlienResult;
 use constants::LinuxErrno;
+use constants::{AlienResult, AT_FDCWD};
 use core::cmp::min;
-use core::ops::Index;
 use gmanager::ManagerError;
+use log::{info, warn};
 use syscall_table::syscall_func;
+use vfs::kfile::KernelFile;
 use vfscore::path::VfsPath;
 use vfscore::utils::{VfsFileStat, VfsFsStat, VfsNodeType, VfsRenameFlag};
 
@@ -36,16 +35,11 @@ pub fn sys_mount(
         "mount special:{:?},dir:{:?},fs_type:{:?},flags:{:?},data:{:?}",
         source, dir, fs_type, flags, data
     );
-    let find = FS
-        .lock()
-        .iter()
-        .find(|(name, _)| name.eq(&&fs_type))
-        .map(|(_, fs)| fs.clone())
-        .ok_or(LinuxErrno::EINVAL)?;
-    let path = VfsPath::new(SYSTEM_ROOT_FS.get().unwrap().clone());
+    let find = vfs::system_support_fs(&fs_type).ok_or(LinuxErrno::EINVAL)?;
+    let path = VfsPath::new(vfs::system_root_fs());
     let fs_root = match find.fs_name() {
         name @ ("tmpfs" | "ramfs" | "fat32") => {
-            let fs = FS.lock().index(name).clone();
+            let fs = vfs::system_support_fs(name).unwrap();
             let dev = if name.eq("fat32") {
                 let dev = path.join(source)?.open(None)?;
                 Some(dev.inode()?)
@@ -67,7 +61,7 @@ pub fn sys_umount(dir: *const u8) -> AlienResult<isize> {
     let process = current_task().unwrap();
     let dir = process.transfer_str(dir);
     info!("umount dir:{:?}", dir);
-    let path = VfsPath::new(SYSTEM_ROOT_FS.get().unwrap().clone());
+    let path = VfsPath::new(vfs::system_root_fs());
     path.join(dir)?.umount()?;
     Ok(0)
 }

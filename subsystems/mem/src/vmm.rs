@@ -1,15 +1,13 @@
+use crate::frame::VmmPageAllocator;
 use alloc::sync::Arc;
-use core::sync::atomic::AtomicUsize;
+use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
+use ksync::RwLock;
 use page_table::addr::{PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
-use spin::Lazy;
-use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
-use ksync::RwLock;
 use platform::config::MMIO;
-use crate::frame::VmmPageAllocator;
+use spin::Lazy;
 
-#[allow(unused)]
 extern "C" {
     fn stext();
     fn srodata();
@@ -53,7 +51,6 @@ fn kernel_info(memory_end: usize) {
         ekernel as usize, memory_end
     );
 }
-
 
 pub static KERNEL_SPACE: Lazy<Arc<RwLock<Sv39PageTable<VmmPageAllocator>>>> = Lazy::new(|| {
     Arc::new(RwLock::new(
@@ -132,7 +129,7 @@ pub fn build_kernel_address_space(memory_end: usize) {
     }
 }
 
-static KERNEL_MAP_MAX: AtomicUsize = AtomicUsize::new(0);
+// static KERNEL_MAP_MAX: AtomicUsize = AtomicUsize::new(0);
 pub fn kernel_pgd() -> usize {
     KERNEL_SPACE.read().root_paddr().as_usize()
 }
@@ -141,12 +138,12 @@ pub fn kernel_satp() -> usize {
     8usize << 60 | (KERNEL_SPACE.read().root_paddr().as_usize() >> FRAME_BITS)
 }
 
-pub fn alloc_kernel_free_region(size: usize) -> usize {
-    assert!(size > 0 && size % FRAME_SIZE == 0);
-    KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::SeqCst)
-}
+// pub fn alloc_kernel_free_region(size: usize) -> usize {
+//     assert!(size > 0 && size % FRAME_SIZE == 0);
+//     KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::SeqCst)
+// }
 
-pub fn map_region_to_kernel(addr: usize, size: usize, flags: MappingFlags){
+pub fn map_region_to_kernel(addr: usize, size: usize, flags: MappingFlags) {
     let mut kernel_space = KERNEL_SPACE.write();
     kernel_space
         .map_region(

@@ -21,15 +21,14 @@ use crate::trap::check_timer_interrupt_pending;
 ///
 /// 之后如果在线程池中有任务需要调度，那么就把该任务的上下文切换到 CPU 上来运行；
 /// 否则该 CPU 将进入等待状态，等待其它核的中断信号。
-#[no_mangle]
-pub fn first_into_user() -> ! {
+pub fn run_task() -> ! {
     loop {
         {
             let cpu = current_cpu();
             if cpu.task.is_some() {
                 let task = cpu.task.take().unwrap();
                 match task.state() {
-                    TaskState::Sleeping | TaskState::Waiting => {
+                    TaskState::Waiting => {
                         // drop(task);
                     }
                     TaskState::Zombie => {
@@ -56,7 +55,7 @@ pub fn first_into_user() -> ! {
         let cpu = current_cpu();
         if let Some(task) = GLOBAL_TASK_MANAGER.pick_next_task() {
             // if process.get_tid() >= 1 {
-            //     warn!("switch to task {}", process.get_tid());
+            //     warn!("switch to task {}", task.get_tid());
             // }
             // update state to running
             task.inner().update_state(TaskState::Running);

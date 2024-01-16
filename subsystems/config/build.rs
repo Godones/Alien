@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-fn main(){
+fn main() {
     println!("cargo:rerun-if-changed={}", "src/lib.rs");
     let cpus = option_env!("SMP").unwrap_or("1");
     let cpus = cpus.parse::<usize>().unwrap();

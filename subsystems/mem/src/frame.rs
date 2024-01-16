@@ -1,14 +1,14 @@
+use crate::manager::FRAME_REF_MANAGER;
 use alloc::format;
+use config::{FRAME_BITS, FRAME_SIZE};
 use core::mem::forget;
 use core::ops::{Deref, DerefMut};
+use ksync::Mutex;
 use log::trace;
 use page_table::addr::{PhysAddr, VirtAddr};
-use config::{FRAME_BITS, FRAME_SIZE};
-use ksync::Mutex;
 use page_table::table::PagingIf;
 use pager::{PageAllocator, PageAllocatorExt};
 use platform::println;
-use crate::manager::FRAME_REF_MANAGER;
 
 #[cfg(feature = "pager_bitmap")]
 pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<0>> = Mutex::new(pager::Bitmap::new());
@@ -50,7 +50,6 @@ pub fn free_frames(addr: *mut u8, num: usize) {
         .expect(format!("free frame start:{:#x},num:{} failed", start, num).as_str());
 }
 
-
 #[derive(Debug)]
 pub struct FrameTracker {
     start: usize,
@@ -58,12 +57,12 @@ pub struct FrameTracker {
 }
 
 impl FrameTracker {
-    pub fn new(start: usize, size:usize) -> Self {
-        Self { start ,size}
+    pub fn new(start: usize, size: usize) -> Self {
+        Self { start, size }
     }
-    pub fn from_addr(addr: usize,size:usize) -> Self {
+    pub fn from_addr(addr: usize, size: usize) -> Self {
         assert_eq!(addr % FRAME_SIZE, 0);
-        Self::new(addr >> FRAME_BITS,size)
+        Self::new(addr >> FRAME_BITS, size)
     }
     pub fn start(&self) -> usize {
         self.start << FRAME_BITS
@@ -90,27 +89,27 @@ impl Deref for FrameTracker {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        unsafe { core::slice::from_raw_parts(self.start() as *const u8, FRAME_SIZE*self.size) }
+        unsafe { core::slice::from_raw_parts(self.start() as *const u8, FRAME_SIZE * self.size) }
     }
 }
 impl DerefMut for FrameTracker {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { core::slice::from_raw_parts_mut(self.start() as *mut u8, FRAME_SIZE*self.size) }
+        unsafe { core::slice::from_raw_parts_mut(self.start() as *mut u8, FRAME_SIZE * self.size) }
     }
 }
 
-
 pub fn alloc_frame_trackers(count: usize) -> FrameTracker {
-    let frame = FRAME_ALLOCATOR.lock().alloc_pages(count, FRAME_SIZE)
+    let frame = FRAME_ALLOCATOR
+        .lock()
+        .alloc_pages(count, FRAME_SIZE)
         .expect(format!("alloc {} frame failed", count).as_str());
     trace!("alloc frame [{}] start page: {:#x}", count, frame);
     for i in 0..count {
         let refs = FRAME_REF_MANAGER.lock().add_ref(frame + i);
         assert_eq!(refs, 1)
     }
-    FrameTracker::new(frame,count)
+    FrameTracker::new(frame, count)
 }
-
 
 pub struct VmmPageAllocator;
 
@@ -123,7 +122,7 @@ impl PagingIf for VmmPageAllocator {
     }
 
     fn dealloc_frame(paddr: PhysAddr) {
-        FrameTracker::from_addr(paddr.as_usize(),1);
+        FrameTracker::from_addr(paddr.as_usize(), 1);
     }
 
     fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {

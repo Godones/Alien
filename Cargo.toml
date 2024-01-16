@@ -3,9 +3,7 @@ resolver = "2"
 members = [
     "kernel",
     "userlib",
-    "boot",
-    "dep/gmanager",
-    "dep/basemachine",
+    "subsystems/gmanager",
     "apps/slint-helper",
     "apps/cat",
     "apps/sleep",
@@ -37,8 +35,9 @@ members = [
     "subsystems/interrupt",
     "subsystems/device_interface",
     "subsystems/timer",
-    "kkernel"
-    , "subsystems/unwinder",]
+    "kernel",
+    "subsystems/unwinder",
+    "subsystems/knet",]
 
 
 [profile.release]

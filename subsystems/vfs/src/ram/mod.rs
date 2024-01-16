@@ -3,7 +3,6 @@ use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 use vfscore::utils::VfsNodeType;
 
-
 ///
 /// ```bash
 /// |

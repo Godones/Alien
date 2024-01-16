@@ -14,8 +14,6 @@ mem = { path = "../mem" }
 log = "0"
 timer = { path = "../timer" }
 platform = { path = "../platform" }
-
-
 spin = "0"
 
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
@@ -32,5 +30,6 @@ loopback = {git = "https://github.com/os-module/simple-net"}
 virtio-net = {git = "https://github.com/os-module/simple-net"}
 netcore = {git = "https://github.com/os-module/simple-net"}
 
-
+visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git"}
 downcast-rs = { version = "1.2.0", default-features = false }
+

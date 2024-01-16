@@ -1,3 +1,4 @@
+use crate::TASK_FUNC;
 use alloc::format;
 use alloc::sync::Arc;
 use constants::io::{RtcTime, TeletypeCommand};
@@ -11,7 +12,6 @@ use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
 use vfscore::utils::{VfsFileStat, VfsNodeType};
 use vfscore::VfsResult;
-use crate::TASK_FUNC;
 
 pub static RTC_DEVICE: Once<Arc<dyn RtcDevice>> = Once::new();
 
@@ -57,7 +57,10 @@ impl VfsFile for RTCDevice {
         match cmd {
             TeletypeCommand::RTC_RD_TIME => {
                 let time = self.device.read_time();
-                TASK_FUNC.get().unwrap().copy_data_to_task(&time, arg as *mut RtcTime);
+                TASK_FUNC
+                    .get()
+                    .unwrap()
+                    .copy_data_to_task(&time, arg as *mut RtcTime);
             }
             _ => return Err(VfsError::Invalid),
         }
