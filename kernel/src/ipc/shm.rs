@@ -6,19 +6,15 @@
 //! 最后封装成 [`ShmMemory`] 结构。
 //!
 use alloc::collections::btree_map::BTreeMap;
-use alloc::vec::Vec;
-
-use page_table::addr::{align_down_4k, PhysAddr, VirtAddr};
-use page_table::table::PageSize;
-
 use constants::ipc::{ShmAtFlags, ShmCtlCmd, ShmGetFlags, IPC_PRIVATE};
-use constants::LinuxErrno;
+use constants::{AlienResult, LinuxErrno};
 use ksync::{Mutex, MutexGuard};
+use page_table::addr::{align_down_4k, PhysAddr, VirtAddr};
 use syscall_table::syscall_func;
 
-use crate::config::FRAME_SIZE;
-use crate::memory::{frames_alloc, FrameTracker};
 use crate::task::current_task;
+use config::FRAME_SIZE;
+use mem::{alloc_frame_trackers, FrameTracker};
 
 /// 共享内存被 Mutex 封装后的结构
 #[derive(Debug)]
@@ -33,7 +29,7 @@ pub struct ShmMemoryInner {
     /// 引用计数器
     ref_count: usize,
     /// 共享内存数据部分
-    pub frames: Vec<FrameTracker>,
+    pub frames: FrameTracker,
     /// 共享内存的状态
     state: ShmMemoryState,
 }
@@ -56,7 +52,7 @@ impl ShmInfo {
 
 impl ShmMemory {
     /// 创建新的共享内存
-    pub fn new(frames: Vec<FrameTracker>) -> Self {
+    pub fn new(frames: FrameTracker) -> Self {
         Self {
             inner: Mutex::new(ShmMemoryInner {
                 ref_count: 0,
@@ -73,7 +69,7 @@ impl ShmMemory {
 
     /// 返回共享内存数据区的长度(字节数)
     pub fn len(&self) -> usize {
-        self.access_inner().frames.len() * FRAME_SIZE
+        self.access_inner().frames.len()
     }
 
     /// 引用计数器加一
@@ -95,7 +91,6 @@ impl ShmMemory {
     pub fn is_deleted(&self) -> bool {
         self.access_inner().state == ShmMemoryState::Deleted
     }
-
 }
 
 /// 记录共享内存当前状态的结构
@@ -123,7 +118,7 @@ pub static SHM_MEMORY: Mutex<BTreeMap<usize, ShmMemory>> = Mutex::new(BTreeMap::
 /// Reference: [shmget](https://man7.org/linux/man-pages/man2/shmget.2.html)
 #[syscall_func(194)]
 pub fn shmget(key: usize, size: usize, shmflg: u32) -> isize {
-    warn!(
+    info!(
         "shmget key:{},size:{},shmflg:{:?}",
         key,
         size,
@@ -143,13 +138,13 @@ pub fn shmget(key: usize, size: usize, shmflg: u32) -> isize {
     }
     let flag = ShmGetFlags::from_bits_truncate(shmflg as i32);
     if flag.contains(ShmGetFlags::IPC_CREAT) {
-        warn!("create new share memory {}", key);
+        info!("create new share memory {}", key);
         // alloc frames
-        let frames = frames_alloc(align_down_4k(size) / FRAME_SIZE);
-        if frames.is_none() {
-            return LinuxErrno::ENOMEM as isize;
-        }
-        let frames = frames.unwrap();
+        let frames = alloc_frame_trackers(align_down_4k(size) / FRAME_SIZE);
+        // if frames.is_none() {
+        //     return LinuxErrno::ENOMEM as isize;
+        // }
+        // let frames = frames.unwrap();
         let share_mem = ShmMemory::new(frames);
         shm_memory.insert(key, share_mem);
         return key as isize;
@@ -171,7 +166,7 @@ pub fn shmget(key: usize, size: usize, shmflg: u32) -> isize {
 ///
 /// Reference: [shmat](https://www.man7.org/linux/man-pages/man3/shmat.3p.html)
 #[syscall_func(196)]
-pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> isize {
+pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> AlienResult<isize> {
     warn!(
         "shmat shmid:{},shmaddr:{:#x},shmflg:{:?}",
         shmid,
@@ -179,15 +174,12 @@ pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> isize {
         ShmAtFlags::from_bits_truncate(shmflg as i32)
     );
     let shm_memory = SHM_MEMORY.lock();
-    let shm = shm_memory.get(&shmid);
-    if shm.is_none() {
-        return LinuxErrno::EINVAL as isize;
-    }
-    let shm = shm.unwrap();
+    let shm = shm_memory.get(&shmid).ok_or(LinuxErrno::EINVAL)?;
+
     let flag = ShmAtFlags::from_bits_truncate(shmflg as i32);
     assert!(flag.is_empty());
     if flag.contains(ShmAtFlags::SHM_RDONLY) {
-        warn!("read only");
+        info!("read only");
     }
     assert_eq!(shmaddr, 0);
     // we must find a place to map
@@ -199,26 +191,41 @@ pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> isize {
     let mut task_inner = task.access_inner();
     let mut address_space = task_inner.address_space.lock();
     // let shm_inner = shm.access_inner();
-    let mut virt_start = free_map.start;
-    shm.access_inner().frames.iter().for_each(|x| {
-        let phy_start = x.start();
-        address_space
-            .map(
-                VirtAddr::from(virt_start),
-                PhysAddr::from(phy_start),
-                PageSize::Size4K,
-                "UVRWAD".into(),
-            )
-            .unwrap();
-        error!("map {:#x} to {:#x}", phy_start, virt_start);
-        virt_start += FRAME_SIZE;
-    });
+    // let mut virt_start = free_map.start;
+    // shm.access_inner().frames.iter().for_each(|x| {
+    //     let phy_start = x.start();
+    //     address_space
+    //         .map(
+    //             VirtAddr::from(virt_start),
+    //             PhysAddr::from(phy_start),
+    //             PageSize::Size4K,
+    //             "UVRWAD".into(),
+    //         )
+    //         .unwrap();
+    //     error!("map {:#x} to {:#x}", phy_start, virt_start);
+    //     virt_start += FRAME_SIZE;
+    // });
+
+    let size = shm.len();
+    let start_phy = shm.access_inner().frames.start();
+    address_space
+        .map_region(
+            VirtAddr::from(free_map.start),
+            PhysAddr::from(start_phy),
+            size,
+            "UVRWAD".into(),
+            false,
+        )
+        .unwrap();
+
+    info!("shm map range:{:#x?}", free_map);
+
     drop(address_space);
     task_inner
         .shm
         .insert(shmid, ShmInfo::new(free_map.start, free_map.end));
     shm.add_ref();
-    free_map.start as isize
+    Ok(free_map.start as isize)
 }
 
 /// 一个系统调用，用于控制共享内存。
@@ -232,21 +239,13 @@ pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> isize {
 ///
 /// Reference: [shmctl](https://man7.org/linux/man-pages/man2/shmctl.2.html)
 #[syscall_func(195)]
-pub fn shmctl(shmid: usize, cmd: usize, _buf: usize) -> isize {
-    let cmd = ShmCtlCmd::try_from(cmd as u32);
-    if cmd.is_err() {
-        return LinuxErrno::EINVAL as isize;
-    }
-    let cmd = cmd.unwrap();
+pub fn shmctl(shmid: usize, cmd: usize, _buf: usize) -> AlienResult<isize> {
+    let cmd = ShmCtlCmd::try_from(cmd as u32).map_err(|_| LinuxErrno::EINVAL)?;
     match cmd {
         ShmCtlCmd::IpcRmid => {
             //delete
             let shm_memory = SHM_MEMORY.lock();
-            let shm = shm_memory.get(&shmid);
-            if shm.is_none() {
-                return LinuxErrno::EINVAL as isize;
-            }
-            let shm = shm.unwrap();
+            let shm = shm_memory.get(&shmid).ok_or(LinuxErrno::EINVAL)?;
             shm.delete();
             let task = current_task().unwrap();
             let task_inner = task.access_inner();
@@ -279,5 +278,5 @@ pub fn shmctl(shmid: usize, cmd: usize, _buf: usize) -> isize {
             panic!("not support")
         }
     }
-    0
+    Ok(0)
 }

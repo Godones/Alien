@@ -67,7 +67,7 @@ impl HeapAllocator {
         unsafe {
             init_slab_system(FRAME_SIZE, 64);
         }
-        #[cfg(any(feature = "talc",feature = "buddy"))]
+        #[cfg(any(feature = "talc", feature = "buddy"))]
         println!("Kernel Heap size: {:#x}MB", heap.len() / 1024 / 1024);
     }
 }

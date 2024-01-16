@@ -12,15 +12,13 @@ config = { path = "../config" }
 ksync = { path = "../ksync" }
 spin = "0"
 
-
 preprint = "0.1.0"
-basemachine = { path = "../../dep/basemachine" }
+fdt = { git = "https://github.com/repnop/fdt" }
 
 [features]
-default = ["qemu_riscv"]
+default = []
 
 qemu_riscv = []
 vf2 = []
 hifive = []
-
 smp = []

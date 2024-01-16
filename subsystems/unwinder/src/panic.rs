@@ -1,8 +1,9 @@
 //! panic 处理
 
-
+use crate::symbol::find_symbol_with_addr;
 use core::panic::PanicInfo;
 use core::sync::atomic::AtomicBool;
+use platform::{println, system_shutdown};
 #[cfg(all(not(feature = "debug-eh-frame"), not(feature = "debug-frame-point")))]
 use tracer::CompilerTracer;
 #[cfg(feature = "debug-eh-frame")]
@@ -10,8 +11,6 @@ use tracer::DwarfTracer;
 #[cfg(feature = "debug-frame-point")]
 use tracer::FramePointTracer;
 use tracer::{Tracer, TracerProvider};
-use platform::{system_shutdown, println};
-use crate::symbol::find_symbol_with_addr;
 
 /// 递归标志
 static RECURSION: AtomicBool = AtomicBool::new(false);
@@ -80,14 +79,13 @@ impl DwarfProvider for DwarfProviderImpl {
 fn back_trace() {
     println!("---START BACKTRACE---");
     #[cfg(all(not(feature = "debug-eh-frame"), not(feature = "debug-frame-point")))]
-        let tracer = CompilerTracer::new(TracerProviderImpl);
+    let tracer = CompilerTracer::new(TracerProviderImpl);
     #[cfg(feature = "debug-frame-point")]
-        let tracer = FramePointTracer::new(TracerProviderImpl);
+    let tracer = FramePointTracer::new(TracerProviderImpl);
     #[cfg(feature = "debug-eh-frame")]
-        let tracer = DwarfTracer::new(DwarfProviderImpl, TracerProviderImpl);
+    let tracer = DwarfTracer::new(DwarfProviderImpl, TracerProviderImpl);
     for x in tracer.trace() {
         println!("[{:#x}] (+{:0>4x}) {}", x.func_addr, x.bias, x.func_name);
     }
     println!("---END   BACKTRACE---");
 }
-

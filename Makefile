@@ -1,7 +1,7 @@
 TRACE_EXE  := trace_exe
 TARGET      := riscv64gc-unknown-none-elf
 OUTPUT := target/$(TARGET)/release
-KERNEL_FILE := $(OUTPUT)/boot
+KERNEL_FILE := $(OUTPUT)/kernel
 DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
 OBJDUMP     := rust-objdump --arch-name=riscv64
@@ -17,7 +17,7 @@ NET ?=y
 
 APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
 VF2 ?=n
-CV1811h ?=n
+UNMATCHED ?=n
 FEATURES :=
 QEMU_ARGS :=
 MEMORY_SIZE := 1024M
@@ -30,8 +30,6 @@ comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
-CARGO_FLAGS := -Zbuild-std=core,compiler_builtins,alloc \
-               -Zbuild-std-features=compiler-builtins-mem
 
 ifeq ($(GUI),y)
 QEMU_ARGS += -device virtio-gpu-device \
@@ -44,10 +42,8 @@ endif
 
 ifeq ($(VF2),y)
 FEATURES += vf2
-else ifeq ($(CV1811h),y)
-FEATURES += cv1811h
 else ifeq ($(UNMATCHED),y)
-FEATURES += hifive
+FEATURES += hifive ramdisk
 else
 FEATURES += qemu
 endif
@@ -90,22 +86,15 @@ else
 endif
 
 
-build:install compile2 #compile
-
+build:install  compile
 
 compile:
-	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
-	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
+	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
+	(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > subsystems/unwinder/src/kernel_symbol.S)
 	@#call trace_info
-	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
+	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
-	@cp $(KERNEL_FILE) ./kernel-qemu
-
-compile2:
-	cargo build --release -p kkernel --target $(TARGET) --features $(FEATURES)
-	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > subsystems/unwinder/src/kernel_symbol.S)
-	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
-	@cp $(OUTPUT)/kkernel ./kernel-qemu
+	cp $(KERNEL_FILE) ./kernel-qemu
 
 trace_info:
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
@@ -141,11 +130,6 @@ vf2:board
 	@rm ./kernel-qemu
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
 
-
-cv1811h:board
-	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
-	@rm ./kernel-qemu
-	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
 
 unmatched:board
 	@mkimage -f ./tools/fu740.its ./alien-unmatched.itb
@@ -227,9 +211,8 @@ docs:
 	cargo doc --open -p  kernel --target riscv64gc-unknown-none-elf --features $(FEATURES)
 clean:
 	@cargo clean
-	@rm riscv.*
-	@rm kernel-qemu
-	@rm alien-*
+	@-rm kernel-qemu
+	@-rm alien-*
 
 
 check:

@@ -1,10 +1,8 @@
 //! GUI 相关的系统调用
+use crate::task::current_task;
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 
-use syscall_table::syscall_func;
-
-use crate::device::GPU_DEVICE;
-use crate::task::current_task;
+use devices::{GPU_DEVICE, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 
 const FB_VADDR: usize = 0x1000_0000;
 
@@ -32,4 +30,48 @@ pub fn sys_framebuffer() -> isize {
 pub fn sys_framebuffer_flush() -> isize {
     GPU_DEVICE.get().unwrap().flush();
     0
+}
+
+
+/// 一个系统调用函数，用于获取鼠标和键盘事件。
+///
+/// `sys_event_get`会将获取到的事件将保存在event_buf所指向的内存位置处，
+/// 此次允许获取到的事件的最大值(即event_buf)的大小由len指出。
+///
+/// 函数将返回成功获取到的事件个数。
+///
+#[syscall_func(2002)]
+pub fn sys_event_get(event_buf: *mut u64, len: usize) -> isize {
+    let task = current_task().unwrap();
+    let user_buffer = task.transfer_buffer(event_buf, len);
+    let mut count = 0;
+    for buf in user_buffer {
+        let mut index = 0;
+        let len = buf.len();
+        while index < len {
+            let event = read_event();
+            if event == 0 {
+                break;
+            }
+            buf[index] = event;
+            index += 1;
+            count += 1;
+        }
+    }
+    count
+}
+
+fn read_event() -> u64 {
+    let (keyboard, mouse) = {
+        let kb = KEYBOARD_INPUT_DEVICE.get().unwrap();
+        let mouse = MOUSE_INPUT_DEVICE.get().unwrap();
+        (kb, mouse)
+    };
+    if !keyboard.is_empty() {
+        keyboard.read_event_with_block()
+    } else if !mouse.is_empty() {
+        mouse.read_event_with_block()
+    } else {
+        0
+    }
 }

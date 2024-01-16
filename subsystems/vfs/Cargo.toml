@@ -14,7 +14,7 @@ constants = { path = "../constants" }
 interrupt = { path = "../interrupt" }
 platform = { path = "../platform" }
 
-
+downcast-rs = { version = "1.2.0", default-features = false }
 vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
     "linux_error",
 ] }

@@ -3,15 +3,15 @@
 //! Alien 中对于进程\线程的相关概念的设计与 Linux 类似，进程和线程共用一个控制块结构。
 //! 使用 `clone` 创建新的进程(线程)时，会根据 flag 指明父子进程之间资源共享的程度。
 //! tid 是标识不同任务的唯一标识。
-use crate::config::*;
-use crate::fs::file::File;
-use crate::fs::{STDIN, STDOUT, SYSTEM_ROOT_FS};
+use crate::fs::stdio::{STDIN, STDOUT};
 use crate::ipc::{global_register_signals, ShmInfo};
-use crate::memory::*;
+use crate::mm::loader::{
+    build_cow_address_space, build_elf_address_space, build_thread_address_space, UserStack,
+};
+use crate::mm::map::{MMapInfo, MMapRegion, ProtFlags};
 use crate::task::context::Context;
 use crate::task::heap::HeapInfo;
 use crate::task::stack::Stack;
-use crate::timer::{read_timer, ITimerVal, TimeNow, ToClock};
 use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
@@ -19,6 +19,7 @@ use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use bit_field::BitField;
+use config::*;
 use constants::aux::*;
 use constants::io::MapFlags;
 use constants::ipc::RobustList;
@@ -32,10 +33,13 @@ use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 use gmanager::MinimalManager;
 use ksync::{Mutex, MutexGuard};
+use mem::{kernel_satp, VmmPageAllocator, FRAME_REF_MANAGER};
 use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
 use spin::Lazy;
+use timer::{read_timer, ITimerVal, TimeNow, ToClock};
+use vfs::kfile::File;
 use vfscore::dentry::VfsDentry;
 
 type FdManager = MinimalManager<Arc<dyn File>>;
@@ -91,7 +95,7 @@ pub struct TaskInner {
     /// 用于记录当前线程组中的线程个数
     pub thread_number: usize,
     /// 地址空间
-    pub address_space: Arc<Mutex<Sv39PageTable<PageAllocator>>>,
+    pub address_space: Arc<Mutex<Sv39PageTable<VmmPageAllocator>>>,
     /// 线程状态
     pub state: TaskState,
     /// 父亲任务控制块
@@ -165,10 +169,6 @@ pub struct TaskTimer {
 }
 
 impl TaskTimer {
-    /// 创建一个新的任务计数器
-    pub fn new() -> Self {
-        Self::default()
-    }
     /// 清除当前的计数器信息，将 timer_remained 置为 0
     pub fn clear(&mut self) {
         self.timer_type = TimerType::NONE;
@@ -265,7 +265,7 @@ pub enum TaskState {
     /// 运行态
     Running,
     /// 等待一段时间
-    Sleeping,
+    // Sleeping,
     /// 等待一个事件
     Waiting,
     /// 僵尸态，等待父进程回收资源
@@ -967,6 +967,7 @@ impl TaskInner {
         self.heap.lock().clone()
     }
 
+    #[allow(unused)]
     /// (待实现)缩减堆空间
     pub fn shrink_heap(_addr: usize) -> Result<usize, AlienError> {
         todo!()
@@ -1120,7 +1121,7 @@ impl TaskInner {
         // warn!("add mmap region:{:#x?}",region);
         self.mmap.add_region(region);
         let start = v_range.start;
-        let mut map_flags = prot.into(); // no V  flag
+        let mut map_flags: MappingFlags = prot.into(); // no V  flag
         map_flags |= "AD".into();
         self.address_space
             .lock()
@@ -1203,7 +1204,7 @@ impl TaskInner {
         let region = self.mmap.get_region(addr).ok_or(AlienError::EINVAL)?;
         // now we need make sure the start is equal to the start of the region, and the len is equal to the len of the region
         // update page table
-        let mut map_flags = region.prot.into();
+        let mut map_flags: MappingFlags = region.prot.into();
         map_flags |= "V".into();
 
         let mut address_space = self.address_space.lock();
@@ -1248,7 +1249,7 @@ impl TaskInner {
             let region = is_mmap.unwrap();
             // assert_eq!(addr % FRAME_SIZE, 0);
             // update page table
-            let mut map_flags = region.prot.into();
+            let mut map_flags: MappingFlags = region.prot.into();
             map_flags |= "VAD".into();
             warn!(
                 "invalid page fault at {:#x}, flag is :{:?}",
@@ -1406,7 +1407,7 @@ impl Task {
         let k_stack = Stack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE)?;
         let k_stack_top = k_stack.top();
         let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
-        let cwd = SYSTEM_ROOT_FS.get().unwrap().clone();
+        let cwd = vfs::system_root_fs();
 
         let process = Task {
             tid,

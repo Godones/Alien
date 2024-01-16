@@ -16,7 +16,7 @@ use ksync::Mutex;
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, do_exit, do_suspend};
-use crate::timer::{read_timer, TimeSpec};
+use timer::{read_timer, TimeSpec};
 
 /// 记录每个线程的信号量，从 tid 获取信号相关信息
 static TID2SIGNALS: Mutex<BTreeMap<usize, Arc<Mutex<SignalReceivers>>>> =

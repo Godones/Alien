@@ -2,9 +2,7 @@ pub mod config;
 
 use spin::Once;
 
-pub const FDT: &[u8] = include_bytes!(
-    "../../../../tools/jh7110-visionfive-v2.dtb"
-);
+pub const FDT: &[u8] = include_bytes!("../../../../tools/jh7110-visionfive-v2.dtb");
 
 pub static DTB: Once<usize> = Once::new();
 

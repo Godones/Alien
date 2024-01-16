@@ -16,18 +16,19 @@ use spin::{Lazy, Once};
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 use vfscore::path::VfsPath;
-use vfscore::utils::{VfsTimeSpec};
+use vfscore::utils::VfsTimeSpec;
 
 pub mod dev;
+pub mod kfile;
+pub mod pipefs;
 pub mod proc;
 pub mod ram;
 pub mod sys;
-pub mod pipefs;
 
 pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsFsType>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
 
-pub static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDentry>> = Once::new();
+static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDentry>> = Once::new();
 
 type SysFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
 type ProcFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
@@ -131,3 +132,20 @@ impl core::fmt::Write for VfsOutPut {
     }
 }
 
+/// Get the root filesystem of the system
+#[inline]
+pub fn system_root_fs() -> Arc<dyn VfsDentry> {
+    SYSTEM_ROOT_FS.get().unwrap().clone()
+}
+
+/// Get the filesystem by name
+#[inline]
+pub fn system_support_fs(fs_name: &str) -> Option<Arc<dyn VfsFsType>> {
+    FS.lock().iter().find_map(|(name, fs)| {
+        if name == fs_name {
+            Some(fs.clone())
+        } else {
+            None
+        }
+    })
+}

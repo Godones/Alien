@@ -1,8 +1,8 @@
 #![no_std]
 
-use vfscore::utils::VfsTimeSpec;
 use constants::sys::TimeVal;
 use platform::config::CLOCK_FREQ;
+use vfscore::utils::VfsTimeSpec;
 /// 每秒包含的毫秒数
 const MSEC_PER_SEC: usize = 1000;
 /// 程序运行时间
@@ -29,7 +29,6 @@ impl Times {
         }
     }
 }
-
 
 /// 实现 `TimeNow` 特征的时钟结构，能够通过调用 `now` 方法得出 表示当前的 cpu 时间的一个本类型时钟
 pub trait TimeNow {
@@ -69,7 +68,6 @@ impl TimeFromFreq for TimeVal {
         }
     }
 }
-
 
 /// 更精细的时间，秒(s)+纳秒(ns)
 #[repr(C)]

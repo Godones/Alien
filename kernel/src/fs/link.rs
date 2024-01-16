@@ -1,5 +1,6 @@
 use alloc::vec;
 use constants::io::{LinkFlags, UnlinkatFlags};
+use log::{info, warn};
 use syscall_table::syscall_func;
 
 use crate::{fs::user_path_at, task::current_task};

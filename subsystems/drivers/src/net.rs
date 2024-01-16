@@ -6,8 +6,8 @@ use timer::TimeSpec;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_net::VirtIONetDeviceWrapper;
 
-pub use loopback::LoopbackDev;
 use crate::DRIVER_TASK;
+pub use loopback::LoopbackDev;
 
 pub const NET_BUFFER_LEN: usize = 4096;
 pub const NET_QUEUE_SIZE: usize = 128;

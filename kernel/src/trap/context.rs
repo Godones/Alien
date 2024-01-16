@@ -23,19 +23,6 @@ pub struct TrapFrame {
 }
 
 impl TrapFrame {
-    pub fn empty() -> Self {
-        Self {
-            x: [0; 32],
-            sepc: 0,
-            k_satp: 0,
-            k_sp: 0,
-            trap_handler: 0,
-            hart_id: 0,
-            sstatus: ExtSstatus::default(),
-            fg: [0; 2],
-        }
-    }
-
     /// 获取当前的 Trap 帧下的 sstatus 寄存器的值
     pub fn get_status(&self) -> ExtSstatus {
         self.sstatus

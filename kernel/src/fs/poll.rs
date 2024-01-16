@@ -1,10 +1,11 @@
 use crate::task::{current_task, do_suspend};
-use crate::timer::TimeSpec;
 use alloc::vec::Vec;
 use constants::io::{PollEvents, PollFd};
 use constants::AlienResult;
 use constants::LinuxErrno;
+use log::{info, warn};
 use syscall_table::syscall_func;
+use timer::TimeSpec;
 
 /// 一个系统调用，用于在一些文件描述符上等待事件。作用与 [`pselect6`] 相似。
 ///
@@ -54,18 +55,6 @@ pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, _mask: usize) -> AlienRes
         for pfd in fds.iter_mut() {
             if let Some(file) = task.get_file(pfd.fd as usize) {
                 let event = file.poll(pfd.events)?;
-                // if file.in_exceptional_conditions() {
-                //     event |= PollEvents::ERR;
-                // }
-                // if file.is_hang_up() {
-                //     event |= PollEvents::HUP;
-                // }
-                // if pfd.events.contains(PollEvents::IN) && file.ready_to_read() {
-                //     event |= PollEvents::IN;
-                // }
-                // if pfd.events.contains(PollEvents::OUT) && file.ready_to_write() {
-                //     event |= PollEvents::OUT;
-                // }
                 if !event.is_empty() {
                     res += 1;
                 }

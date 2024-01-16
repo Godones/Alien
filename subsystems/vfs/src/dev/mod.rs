@@ -1,13 +1,13 @@
-use devices::{
-    BLKDevice, GPUDevice, INPUTDevice, RTCDevice, UARTDevice, BLOCK_DEVICE, GPU_DEVICE,
-    KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE, RTC_DEVICE, UART_DEVICE,
-};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use constants::DeviceId;
 use devfs::DevKernelProvider;
-use log::info;
+use devices::{
+    BLKDevice, GPUDevice, INPUTDevice, RTCDevice, UARTDevice, BLOCK_DEVICE, GPU_DEVICE,
+    KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE, RTC_DEVICE, UART_DEVICE,
+};
 use ksync::Mutex;
+use log::info;
 use null::NullDevice;
 use random::RandomDevice;
 use spin::Lazy;
