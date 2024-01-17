@@ -38,6 +38,9 @@ alien-*
 alien.bin
 rust
 
-subsystems
-
 tests/testsuits-for-oskernel
+
+#subsystems/devices
+#subsystems/drivers
+#subsystems/vfs
+#subsystems/timer

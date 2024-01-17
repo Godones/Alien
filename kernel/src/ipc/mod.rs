@@ -9,20 +9,18 @@ use alloc::sync::Arc;
 use core::sync::atomic::{AtomicI32, Ordering};
 use spin::Lazy;
 
-use crate::error::AlienResult;
-use crate::ksync::Mutex;
-use pconst::ipc::{FutexOp, RobustList};
-use pconst::LinuxErrno;
-pub use pipe::*;
-pub use shm::*;
-pub use signal::*;
-use syscall_table::syscall_func;
-
-use crate::fs::sys_close;
+use crate::fs::basic::sys_close;
 use crate::ipc::futex::{FutexWaitManager, FutexWaiter};
 use crate::task::schedule::schedule;
 use crate::task::{current_task, TaskState};
-use crate::timer::TimeSpec;
+use constants::ipc::{FutexOp, RobustList};
+use constants::AlienResult;
+use constants::LinuxErrno;
+use ksync::Mutex;
+pub use pipe::*;
+pub use shm::*;
+pub use signal::*;
+use timer::TimeSpec;
 
 pub mod futex;
 mod pipe;

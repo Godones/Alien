@@ -18,12 +18,12 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::cmp::min;
 
-use crate::ksync::Mutex;
+use ksync::Mutex;
 use smpscheduler::FifoTask;
 
-use crate::error::{AlienError, AlienResult};
 use crate::task::{Task, GLOBAL_TASK_MANAGER};
-use crate::timer::read_timer;
+use constants::{AlienError, AlienResult};
+use timer::read_timer;
 
 /// 用于记录一个进程等待一个 futex 的相关信息
 pub struct FutexWaiter {

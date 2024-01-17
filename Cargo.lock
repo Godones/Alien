@@ -65,6 +65,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "arch"
+version = "0.1.0"
+dependencies = [
+ "riscv",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -92,15 +99,6 @@ dependencies = [
  "generic-array 0.13.3",
  "generic-array 0.14.7",
  "stable_deref_trait",
-]
-
-[[package]]
-name = "atomic-polyfill"
-version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3ff7eb3f316534d83a8a2c3d1674ace8a5a71198eba31e2e2b597833f699b28"
-dependencies = [
- "critical-section",
 ]
 
 [[package]]
@@ -141,13 +139,6 @@ name = "base64"
 version = "0.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ba43ea6f343b788c8764558649e08df62f86c6ef251fdaeb1ffd010a9ae50a2"
-
-[[package]]
-name = "basemachine"
-version = "0.1.0"
-dependencies = [
- "fdt",
-]
 
 [[package]]
 name = "bit-struct"
@@ -200,17 +191,6 @@ checksum = "8dd9e63c1744f755c2f60332b88de39d341e5e86239014ad839bd71c106dec42"
 dependencies = [
  "block-sys",
  "objc2-encode",
-]
-
-[[package]]
-name = "boot"
-version = "0.1.0"
-dependencies = [
- "basemachine",
- "cfg-if",
- "kernel",
- "preprint",
- "riscv",
 ]
 
 [[package]]
@@ -380,6 +360,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
+name = "config"
+version = "0.1.0"
+
+[[package]]
 name = "const-field-offset"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -398,6 +382,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.37",
+]
+
+[[package]]
+name = "constants"
+version = "0.1.0"
+dependencies = [
+ "pconst",
 ]
 
 [[package]]
@@ -639,6 +630,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "device_interface"
+version = "0.1.0"
+dependencies = [
+ "constants",
+]
+
+[[package]]
+name = "devices"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "config",
+ "constants",
+ "device_interface",
+ "drivers",
+ "fdt",
+ "interrupt",
+ "ksync",
+ "log",
+ "netcore",
+ "platform",
+ "smoltcp",
+ "spin",
+ "vfscore",
+ "virtio-drivers 0.5.0 (git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b1)",
+]
+
+[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -667,6 +686,31 @@ name = "downcast-rs"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
+
+[[package]]
+name = "drivers"
+version = "0.1.0"
+dependencies = [
+ "config",
+ "constants",
+ "device_interface",
+ "downcast-rs",
+ "ksync",
+ "log",
+ "loopback",
+ "lru",
+ "mem",
+ "netcore",
+ "platform",
+ "rtc",
+ "spin",
+ "timer",
+ "uart16550",
+ "uart8250",
+ "virtio-drivers 0.5.0 (git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b1)",
+ "virtio-net",
+ "visionfive2-sd",
+]
 
 [[package]]
 name = "drm"
@@ -852,9 +896,8 @@ dependencies = [
 
 [[package]]
 name = "fdt"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "784a4df722dc6267a04af36895398f59d21d07dce47232adf31ec0ff2fa45e67"
+version = "0.2.0-alpha1"
+source = "git+https://github.com/repnop/fdt#6fc87b53da0b46166f7bc5029982568e344cc338"
 
 [[package]]
 name = "field-offset"
@@ -1111,11 +1154,11 @@ dependencies = [
 
 [[package]]
 name = "heapless"
-version = "0.7.16"
+version = "0.7.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db04bc24a18b9ea980628ecf00e6c0264f3c1426dac36c00cb49b6fbad8b0743"
+checksum = "cdc6457c0eb62c71aac4bc17216026d8410337c4126773b9c5daba343f17964f"
 dependencies = [
- "atomic-polyfill 0.1.11",
+ "atomic-polyfill",
  "hash32 0.2.1",
  "rustc_version",
  "spin",
@@ -1355,6 +1398,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "interrupt"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "config",
+ "device_interface",
+ "ksync",
+ "platform",
+ "plic",
+ "spin",
+]
+
+[[package]]
 name = "inventory"
 version = "0.3.12"
 source = "git+https://github.com/os-module/inventory#b043290d65411cd1b37ac90f407b5ba16e6174b9"
@@ -1416,43 +1472,30 @@ dependencies = [
 name = "kernel"
 version = "0.1.0"
 dependencies = [
- "basemachine",
+ "arch",
  "bit_field",
  "bitflags 1.3.2",
- "buddy_system_allocator",
- "cfg-if",
- "devfs",
- "downcast-rs",
- "dynfs",
- "fat-vfs",
- "fdt",
+ "config",
+ "constants",
+ "devices",
+ "drivers",
  "gmanager",
- "kernel-sync",
+ "interrupt",
+ "knet",
+ "ksync",
  "log",
- "loopback",
- "lru",
+ "mem",
  "netcore",
  "page-table",
- "pager",
- "pconst",
- "plic",
- "preprint",
- "ramfs",
+ "platform",
  "riscv",
- "rslab",
- "rtc",
- "smoltcp",
  "smpscheduler",
  "spin",
  "syscall-table",
- "talc 1.0.0",
- "tracer",
- "uart16550",
- "uart8250",
+ "timer",
+ "unwinder",
+ "vfs",
  "vfscore",
- "virtio-drivers 0.5.0 (git+https://github.com/rcore-os/virtio-drivers?rev=de1c3b1)",
- "virtio-net",
- "visionfive2-sd",
  "xmas-elf",
 ]
 
@@ -1463,6 +1506,27 @@ source = "git+https://github.com/os-module/kernel-sync.git#e7e366d8ae91ba6c00870
 dependencies = [
  "cfg-if",
  "lock_api",
+]
+
+[[package]]
+name = "knet"
+version = "0.1.0"
+dependencies = [
+ "constants",
+ "ksync",
+ "log",
+ "netcore",
+ "vfs",
+ "vfscore",
+]
+
+[[package]]
+name = "ksync"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "config",
+ "kernel-sync",
 ]
 
 [[package]]
@@ -1638,6 +1702,23 @@ name = "managed"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
+
+[[package]]
+name = "mem"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "buddy_system_allocator",
+ "config",
+ "ksync",
+ "log",
+ "page-table",
+ "pager",
+ "platform",
+ "rslab",
+ "spin",
+ "talc 1.0.0",
+]
 
 [[package]]
 name = "memchr"
@@ -1983,7 +2064,7 @@ version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 dependencies = [
- "atomic-polyfill 1.0.3",
+ "atomic-polyfill",
  "critical-section",
 ]
 
@@ -2093,6 +2174,19 @@ name = "pkg-config"
 version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
+
+[[package]]
+name = "platform"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "config",
+ "fdt",
+ "ksync",
+ "log",
+ "preprint",
+ "spin",
+]
 
 [[package]]
 name = "plic"
@@ -2623,7 +2717,7 @@ dependencies = [
  "byteorder",
  "cfg-if",
  "defmt",
- "heapless 0.7.16",
+ "heapless 0.7.17",
  "log",
  "managed",
 ]
@@ -2896,6 +2990,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "timer"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "config",
+ "constants",
+ "platform",
+ "vfscore",
+]
+
+[[package]]
 name = "tiny-skia"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3133,6 +3238,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "unwinder"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "platform",
+ "tracer",
+]
+
+[[package]]
 name = "url"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3221,6 +3335,26 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vfs"
+version = "0.1.0"
+dependencies = [
+ "arch",
+ "constants",
+ "devfs",
+ "devices",
+ "downcast-rs",
+ "dynfs",
+ "fat-vfs",
+ "interrupt",
+ "ksync",
+ "log",
+ "platform",
+ "ramfs",
+ "spin",
+ "vfscore",
+]
 
 [[package]]
 name = "vfscore"

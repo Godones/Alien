@@ -1,0 +1,23 @@
+[package]
+name = "interrupt"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+plic = { git = "https://github.com/os-module/plic" }
+spin = "0"
+ksync = { path = "../ksync" }
+arch = { path = "../arch" }
+config = { path = "../config" }
+device_interface = { path = "../device_interface" }
+platform  = { path = "../platform"}
+
+
+[features]
+default = [ "qemu" ]
+
+vf2 = []
+hifive = []
+qemu = []

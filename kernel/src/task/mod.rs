@@ -6,17 +6,16 @@
 //! [`schedule`] 子模块指明了 Alien 中有关 CPU 调度的相关机制
 //! [`stack`] 子模块定义了 Alien 中有关内核栈的相关结构。
 //! [`task`] 子模块定义了 Alien 中有关进程控制块的定义。
+use crate::fs::read_all;
+pub use crate::task::task::FsContext;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use smpscheduler::FifoTask;
-
-use spin::Lazy;
-
 pub use cpu::*;
+use devices::DeviceWithTask;
+use drivers::{DriverTask, DriverWithTask};
+use smpscheduler::FifoTask;
+use spin::Lazy;
 pub use task::{StatisticalData, Task, TaskState};
-
-use crate::fs::{read_all, SYSTEM_ROOT_FS};
-pub use crate::task::task::FsContext;
 
 mod context;
 mod cpu;
@@ -29,7 +28,6 @@ mod task;
 pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
     let mut data = Vec::new();
     read_all("/bin/init", &mut data);
-    // let data = INIT;
     assert!(data.len() > 0);
     let task = Task::from_elf("/bin/init", data.as_slice()).unwrap();
     Arc::new(task)
@@ -38,11 +36,54 @@ pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
 /// 将初始进程加入进程池中进行调度
 pub fn init_process() {
     let task = INIT_PROCESS.clone();
-    let cwd = SYSTEM_ROOT_FS.get().unwrap().clone();
+    let cwd = vfs::system_root_fs();
     let root = cwd.clone();
     task.access_inner().fs_info = FsContext::new(root, cwd);
     GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
     println!("Init process success");
 }
+
+impl DriverTask for Task {
+    fn to_wait(&self) {
+        self.update_state(TaskState::Waiting)
+    }
+
+    fn to_wakeup(&self) {
+        self.update_state(TaskState::Ready)
+    }
+
+    fn have_signal(&self) -> bool {
+        self.access_inner().signal_receivers.lock().have_signal()
+    }
+}
+pub struct DriverTaskImpl;
+impl DriverWithTask for DriverTaskImpl {
+    fn get_task(&self) -> Arc<dyn DriverTask> {
+        let task = current_task().unwrap();
+        task.clone()
+    }
+
+    fn put_task(&self, task: Arc<dyn DriverTask>) {
+        let task = task.downcast_arc::<Task>().map_err(|_| ()).unwrap();
+        GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
+    }
+
+    fn suspend(&self) {
+        do_suspend();
+    }
+}
+
+impl DeviceWithTask for DriverTaskImpl {
+    fn transfer_ptr_raw(&self, ptr: usize) -> usize {
+        let task = current_task().unwrap();
+        task.transfer_raw(ptr)
+    }
+
+    fn transfer_buf_raw(&self, src: usize, size: usize) -> Vec<&mut [u8]> {
+        let task = current_task().unwrap();
+        task.transfer_buffer(src as *const u8, size)
+    }
+}
+
 // online test has no sort.src
 // pub static SORT_SRC: &[u8] = include_bytes!("../../../sdcard/sort.src");

@@ -1,32 +1,27 @@
-use core::arch::{asm, global_asm};
-
 use bit_field::BitField;
-use page_table::addr::VirtAddr;
+use core::arch::{asm, global_asm};
 use riscv::register::sstatus::SPP;
-use riscv::register::{sepc, sscratch, stval};
+use riscv::register::{sepc, sscratch, sstatus, stval, stvec};
 
+use constants::signal::SignalNumber;
+use constants::signal::SIGNAL_RETURN_TRAP;
+use constants::time::TimerType;
 pub use context::TrapFrame;
 pub use exception::trap_common_read_file;
-use pconst::signal::SignalNumber;
-use pconst::signal::SIGNAL_RETURN_TRAP;
-use pconst::time::TimerType;
 
-use crate::arch::riscv::register::scause::{Exception, Interrupt, Trap};
-use crate::arch::riscv::register::stvec;
-use crate::arch::riscv::register::stvec::TrapMode;
-use crate::arch::riscv::sstatus;
-use crate::arch::{
-    external_interrupt_enable, hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable,
+use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
+use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
+use crate::time::{check_timer_queue, set_next_trigger, set_next_trigger_in_kernel};
+use ::interrupt::external_interrupt_handler;
+use ::interrupt::record::write_irq_info;
+use arch::{
+    external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable,
     timer_interrupt_enable,
 };
-use crate::config::TRAMPOLINE;
-use crate::error::AlienError;
-use crate::interrupt::external_interrupt_handler;
-use crate::interrupt::record::write_irq_info;
-use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
-use crate::memory::KERNEL_SPACE;
-use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
-use crate::timer::{check_timer_queue, set_next_trigger, set_next_trigger_in_kernel};
+use config::TRAMPOLINE;
+use constants::AlienError;
+use riscv::register::scause::{Exception, Interrupt, Trap};
+use riscv::register::stvec::TrapMode;
 
 mod context;
 mod exception;
@@ -56,7 +51,6 @@ pub fn trap_return() -> ! {
     let sie = sstatues.0.get_bit(1);
     assert!(enable);
     assert!(!sie);
-
     let trap_cx_ptr = current_task().unwrap().trap_frame_ptr();
     let user_satp = current_user_token();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
@@ -211,8 +205,7 @@ impl TrapHandler for Trap {
                     self, stval, sepc
                 );
                 {
-                    let kernel_space = KERNEL_SPACE.read();
-                    let phy = kernel_space.query(VirtAddr::from(stval));
+                    let phy = mem::query_kernel_space(stval);
                     debug!("physical address: {:#x?}", phy);
                 }
             }
@@ -259,12 +252,7 @@ pub fn user_trap_vector() {
         panic!("user_trap_vector: spp == SPP::Supervisor");
     }
     {
-        let task = current_task().unwrap_or_else(|| {
-            panic!(
-                "can't find task in hart {}, but it's in user mode",
-                hart_id() as usize
-            )
-        });
+        let task = current_task().expect("user_trap_vector: current_task is none");
         // update process statistics
         task.access_inner().update_user_mode_time();
         check_task_timer_expired();
@@ -273,12 +261,12 @@ pub fn user_trap_vector() {
     let cause = riscv::register::scause::read();
     let cause = cause.cause();
     cause.do_user_handle();
-    let process = current_task().unwrap();
+    let task = current_task().unwrap();
     if cause != Trap::Interrupt(Interrupt::SupervisorTimer) {
         // update process statistics
-        process.access_inner().update_kernel_mode_time();
+        task.access_inner().update_kernel_mode_time();
     }
-    process.access_inner().update_timer();
+    task.access_inner().update_timer();
     check_task_timer_expired();
     trap_return();
 }

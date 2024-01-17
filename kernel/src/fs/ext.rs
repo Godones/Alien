@@ -1,8 +1,10 @@
+use crate::fs::user_path_at;
+use crate::task::current_task;
+use constants::AlienResult;
+use constants::{LinuxErrno, AT_FDCWD};
 use core::cmp::min;
-use pconst::LinuxErrno;
+use syscall_table::syscall_func;
 use vfscore::path::VfsPath;
-
-use crate::{config::AT_FDCWD, error::AlienResult, fs::user_path_at, task::current_task};
 
 /// 一个系统调用，用于设置文件的 扩展属性(xattrs, Extended Attributes)。
 ///

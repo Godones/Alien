@@ -9,35 +9,28 @@
 //! [`pipe_read_is_hang_up`]、[`pipe_write_is_hang_up`]、[`pipe_ready_to_read`]
 //! 、[`pipe_ready_to_write`] 几个操作函数，即可快速的创建管道文件，并将其放入进程的文件描述
 //! 符表中。
-
-use crate::config::PIPE_BUF;
-use crate::error::AlienResult;
-use crate::fs::file::File;
-use crate::fs::CommonFsProviderImpl;
-use crate::ksync::Mutex;
 use crate::task::{current_task, do_suspend};
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
+use config::PIPE_BUF;
+use constants::io::{OpenFlags, PollEvents, SeekFrom};
+use constants::AlienResult;
+use constants::LinuxErrno;
 use core::fmt::{Debug, Formatter};
 use core::sync::atomic::AtomicUsize;
-use dynfs::DynFsDirInode;
-use pconst::io::{MountFlags, OpenFlags, PollEvents, SeekFrom};
-use pconst::LinuxErrno;
-use spin::Once;
+use ksync::Mutex;
+use vfs::kfile::File;
+use vfs::pipefs::{PipeFsDirInodeImpl, PIPE_FS_ROOT};
 use vfscore::dentry::VfsDentry;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
-use vfscore::fstype::VfsFsType;
 use vfscore::impl_common_inode_default;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
 use vfscore::utils::VfsPollEvents;
 use vfscore::utils::*;
 use vfscore::VfsResult;
-
-type PipeFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;
-static PIPE_FS_ROOT: Once<Arc<dyn VfsDentry>> = Once::new();
 
 static PIPE: AtomicUsize = AtomicUsize::new(0);
 
@@ -69,13 +62,6 @@ impl PipeFile {
             inode_copy,
         }
     }
-}
-
-pub fn init_pipefs(fs: Arc<dyn VfsFsType>) {
-    let root = fs
-        .i_mount(MountFlags::empty().bits(), "", None, &[])
-        .unwrap();
-    PIPE_FS_ROOT.call_once(|| root);
 }
 
 /// create a pipe file

@@ -1,7 +1,7 @@
 TRACE_EXE  := trace_exe
 TARGET      := riscv64gc-unknown-none-elf
-OUTPUT := target/$(TARGET)/release/
-KERNEL_FILE := $(OUTPUT)/boot
+OUTPUT := target/$(TARGET)/release
+KERNEL_FILE := $(OUTPUT)/kernel
 DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
 OBJDUMP     := rust-objdump --arch-name=riscv64
@@ -41,9 +41,9 @@ endif
 
 
 ifeq ($(VF2),y)
-FEATURES += vf2 ramfs
+FEATURES += vf2
 else ifeq ($(UNMATCHED),y)
-FEATURES += hifive ramfs
+FEATURES += hifive ramdisk
 else
 FEATURES += qemu
 endif
@@ -76,7 +76,7 @@ define boot_qemu
         -serial mon:stdio
 endef
 
-all:run
+all:
 
 install:
 ifeq (, $(shell which $(TRACE_EXE)))
@@ -86,25 +86,23 @@ else
 endif
 
 
-build:install compile
-
+build:install  compile
 
 compile:
-	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
-	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
+	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
+	(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > subsystems/unwinder/src/kernel_symbol.S)
 	@#call trace_info
-	cargo build --release -p boot --target $(TARGET) --features $(FEATURES)
+	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
-	@cp $(KERNEL_FILE) ./kernel-qemu
+	cp $(KERNEL_FILE) ./kernel-qemu
 
 trace_info:
 	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
 
-sdcard:fat32
-	@if [ -d "tests/testbin-second-stage" ]; then \
-    		sudo cp tests/testbin-second-stage/* /fat -r; \
-	fi
-	@make -C apps
+user:
+	@cd apps && make all
+
+sdcard:fat32 testelf user
 	@sudo umount /fat
 
 run:sdcard install compile
@@ -122,26 +120,21 @@ board:install compile
 	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
 	@cp $(OUTPUT)/testos.bin ./alien.bin
 
-qemu:install compile
+qemu:
+	@rust-objcopy --strip-all $(OUTPUT)/boot -O binary $(OUTPUT)/testos.bin
+	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
+	@cp $(OUTPUT)/testos.bin ./alien.bin
 
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
 	@rm ./kernel-qemu
 	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
-	@rm ./alien-vf2.itb
 
-
-cv1811h:board
-	@mkimage -f ./tools/cv1811h.its ./alien-cv1811h.itb
-	@rm ./kernel-qemu
-	@cp ./alien-cv1811h.itb /home/godones/projects/tftpboot/
-	@rm ./alien-cv1811h.itb
 
 unmatched:board
 	@mkimage -f ./tools/fu740.its ./alien-unmatched.itb
 	@rm ./kernel-qemu
 	@cp ./alien-unmatched.itb /home/godones/projects/tftpboot/
-	@rm ./alien-unmatched.itb
 
 f_test:
 	qemu-system-riscv64 \
@@ -154,6 +147,10 @@ f_test:
 	    -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
 	    -device virtio-net-device,netdev=net -netdev user,id=net
 
+testelf:
+	@if [ -d "tests/testbin-second-stage" ]; then \
+		sudo cp tests/testbin-second-stage/* /fat -r; \
+	fi
 
 dtb:
 	$(call boot_qemu, -machine dumpdtb=riscv.dtb)
@@ -168,7 +165,9 @@ SecondFile:
 	#创建64MB大小空白文件
 	@dd if=/dev/zero of=$(IMG1) bs=1M count=64
 
-
+ZeroFile:
+	#创建空白文件
+	@dd if=/dev/zero of=$(IMG) bs=1M count=64
 
 fat32:
 	@-touch $(IMG)
@@ -208,13 +207,12 @@ kernel_asm:
 	@vim kernel.asm
 	@rm kernel.asm
 
-
 docs:
 	cargo doc --open -p  kernel --target riscv64gc-unknown-none-elf --features $(FEATURES)
 clean:
 	@cargo clean
-	@rm kernel-qemu
-	@rm alien-*
+	@-rm kernel-qemu
+	@-rm alien-*
 
 
 check:

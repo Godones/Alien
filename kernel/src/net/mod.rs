@@ -5,23 +5,19 @@
 //! [`socket`] 子模块指明了Alien 内核中使用的套接字。
 //! [`unix`] 子模块指明了有关 Unix 协议族下的套接字结构。(目前有关的功能有待支持)
 //!
-use crate::error::AlienResult;
-use crate::fs::file::File;
-use crate::net::addr::{socket_addr_resolution, RawIpV4Addr};
-use crate::net::socket::{SocketData, SocketFile, SocketFileExt};
+use crate::net::addr::socket_addr_resolution;
 use crate::task::{current_task, do_suspend};
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
-use pconst::io::OpenFlags;
-use pconst::net::*;
-use pconst::LinuxErrno;
-use syscall_table::syscall_func;
+use constants::io::OpenFlags;
+use constants::net::*;
+use constants::{AlienResult, LinuxErrno};
+use knet::addr::RawIpV4Addr;
+use knet::socket::{SocketData, SocketFile, SocketFileExt};
+use vfs::kfile::File;
 
 pub mod addr;
-pub mod port;
-pub mod socket;
-mod unix;
 
 /// 一个系统调用，用于创建一个未绑定的socket套接字。
 ///
