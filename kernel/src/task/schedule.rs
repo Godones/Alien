@@ -23,36 +23,28 @@ use crate::trap::check_timer_interrupt_pending;
 /// 否则该 CPU 将进入等待状态，等待其它核的中断信号。
 pub fn run_task() -> ! {
     loop {
-        {
-            let cpu = current_cpu();
-            if cpu.task.is_some() {
-                let task = cpu.task.take().unwrap();
-                match task.state() {
-                    TaskState::Waiting => {
-                        // drop(task);
+        let cpu = current_cpu();
+        if cpu.task.is_some() {
+            let task = cpu.task.take().unwrap();
+            match task.state() {
+                TaskState::Waiting => {
+                    // drop(task);
+                }
+                TaskState::Zombie => {
+                    // 退出时向父进程发送信号，其中选项可被 sys_clone 控制
+                    if task.send_sigchld_when_exit || task.pid == task.tid.0 {
+                        let parent = task
+                            .access_inner()
+                            .parent.as_ref().unwrap().upgrade().unwrap();
+                        send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
                     }
-                    TaskState::Zombie => {
-                        // 退出时向父进程发送信号，其中选项可被 sys_clone 控制
-                        if task.send_sigchld_when_exit || task.pid == task.tid.0 {
-                            let parent = task
-                                .access_inner()
-                                .parent
-                                .clone()
-                                .unwrap()
-                                .upgrade()
-                                .unwrap();
-                            send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
-                        }
-                        // 通知全局表将 signals 删除
-                        task.terminate();
-                    }
-                    _ => {
-                        GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
-                    }
+                    task.terminate();
+                }
+                _ => {
+                    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
                 }
             }
         }
-        let cpu = current_cpu();
         if let Some(task) = GLOBAL_TASK_MANAGER.pick_next_task() {
             // if process.get_tid() >= 1 {
             //     warn!("switch to task {}", task.get_tid());
