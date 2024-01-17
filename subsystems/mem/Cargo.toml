@@ -1,0 +1,34 @@
+[package]
+name = "mem"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+config  = {path = "../config" }
+arch = {path = "../arch" }
+ksync = { path = "../ksync" }
+pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
+platform = { path = "../platform" }
+log = "0"
+talc = { version = "1.0", optional = true }
+buddy_system_allocator = { version = "0.9.0", optional = true }
+rslab = { version = "0.2.1", optional = true }
+
+spin = "0"
+
+page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
+
+#page_table = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
+#memory_addr = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
+
+
+
+[features]
+default = ["pager_bitmap","talloc"]
+pager_buddy = ["pager/buddy"]
+pager_bitmap = ["pager/bitmap"]
+slab = ["rslab"]
+talloc = ["talc"]
+buddy = ["buddy_system_allocator"]

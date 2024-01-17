@@ -3,27 +3,28 @@ use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
+use log::{error, info, warn};
 use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::Lazy;
 
-use crate::error::{AlienError, AlienResult};
-use crate::ksync::Mutex;
-use pconst::ipc::FutexOp;
-use pconst::signal::SignalNumber;
-use pconst::task::{CloneFlags, WaitOptions};
-use pconst::{PrLimit, PrLimitRes};
+use constants::ipc::FutexOp;
+use constants::signal::SignalNumber;
+use constants::task::{CloneFlags, WaitOptions};
+use constants::{AlienError, AlienResult};
+use constants::{PrLimit, PrLimitRes};
+use ksync::Mutex;
 use syscall_table::syscall_func;
 
-use crate::arch::hart_id;
-use crate::config::CPU_NUM;
+use crate::fs;
 use crate::ipc::{futex, global_logoff_signals};
-use crate::sbi::system_shutdown;
 use crate::task::context::Context;
 use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
 use crate::task::INIT_PROCESS;
 use crate::trap::{check_task_timer_expired, TrapFrame};
-use crate::{arch, fs};
+use arch::hart_id;
+use config::CPU_NUM;
+use platform::system_shutdown;
 
 /// 记录当前 CPU 上正在执行的线程 和 线程上下文
 #[derive(Debug, Clone)]
@@ -41,11 +42,6 @@ impl CPU {
             task: None,
             context: Context::empty(),
         }
-    }
-
-    /// 获取 cpu 上的线程任务控制块(会直接获取该任务控制块的所有权)
-    pub fn take_process(&mut self) -> Option<Arc<Task>> {
-        self.task.take()
     }
 
     /// 获取线程上下文的一个 不可变引用 的指针

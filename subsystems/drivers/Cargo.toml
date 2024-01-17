@@ -1,0 +1,35 @@
+[package]
+name = "drivers"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+constants = { path = "../constants" }
+ksync = { path = "../ksync" }
+config = { path = "../config" }
+device_interface = { path = "../device_interface" }
+mem = { path = "../mem" }
+log = "0"
+timer = { path = "../timer" }
+platform = { path = "../platform" }
+spin = "0"
+
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
+rtc = { git = "https://github.com/os-module/rtc.git" }
+lru = "0.10.0"
+
+# uart
+uart16550 = { version = "0.0.1"}
+uart8250 = { git = "https://github.com/os-module/uart-rs.git"}
+
+
+# net
+loopback = {git = "https://github.com/os-module/simple-net"}
+virtio-net = {git = "https://github.com/os-module/simple-net"}
+netcore = {git = "https://github.com/os-module/simple-net"}
+
+visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git"}
+downcast-rs = { version = "1.2.0", default-features = false }
+

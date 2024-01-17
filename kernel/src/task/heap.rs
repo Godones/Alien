@@ -33,6 +33,7 @@ impl HeapInfo {
         addr >= self.start && addr < self.end
     }
 
+    #[allow(unused)]
     /// 堆大小增加 size 个单位
     pub fn increase(&mut self, size: usize) {
         self.end += size;
@@ -44,6 +45,7 @@ impl HeapInfo {
         self.start = start;
     }
 
+    #[allow(unused)]
     /// 重新设置堆空间的尾
     pub fn set_end(&mut self, end: usize) {
         self.end = end;

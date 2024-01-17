@@ -7,16 +7,16 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem::size_of;
 
-use crate::ksync::Mutex;
-use pconst::signal::{
+use constants::signal::{
     SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
     SignalReceivers, SignalUserContext, SimpleBitSet,
 };
-use pconst::LinuxErrno;
+use constants::LinuxErrno;
+use ksync::Mutex;
 use syscall_table::syscall_func;
 
 use crate::task::{current_task, do_exit, do_suspend};
-use crate::timer::{read_timer, TimeSpec};
+use timer::{read_timer, TimeSpec};
 
 /// 记录每个线程的信号量，从 tid 获取信号相关信息
 static TID2SIGNALS: Mutex<BTreeMap<usize, Arc<Mutex<SignalReceivers>>>> =

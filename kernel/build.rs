@@ -1,45 +1,32 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use std::string::String;
-use std::{format, fs};
+use std::{env, fs};
 
 fn main() {
-    println!("cargo:rerun-if-changed={}", "src/");
-    let path = Path::new("src/trace/kernel_symbol.S");
-    if !path.exists() {
-        let mut file = File::create(path).unwrap();
-        write!(file, ".section .rodata\n").unwrap();
-        write!(file, ".align 3\n").unwrap();
-        write!(file, ".global symbol_num\n").unwrap();
-        write!(file, ".global symbol_address\n").unwrap();
-        write!(file, ".global symbol_index\n").unwrap();
-        write!(file, ".global symbol_name\n").unwrap();
-        write!(file, "symbol_num:\n").unwrap();
-        write!(file, ".quad {}\n", 0).unwrap();
-        write!(file, "symbol_address:\n").unwrap();
-        write!(file, "symbol_index:\n").unwrap();
-        write!(file, "symbol_name:\n").unwrap();
-    }
-    rewrite_config();
-}
+    // 指定target
+    let outdir = env::var("OUT_DIR").unwrap();
+    let link_script = Path::new(&outdir).join("link.lds");
+    let mut script = File::create(&link_script).unwrap();
 
-pub fn rewrite_config() {
-    let cpus = option_env!("SMP").unwrap_or("1");
-    let cpus = cpus.parse::<usize>().unwrap();
-    let config_file = Path::new("src/config.rs");
-    let config = fs::read_to_string(config_file).unwrap();
-    let cpus = format!("pub const CPU_NUM: usize = {};\n", cpus);
-    // let regex = regex::Regex::new(r"pub const CPU_NUM: usize = \d+;").unwrap();
-    // config = regex.replace_all(&config, cpus.as_str()).to_string();
+    let ld_path = Path::new("../tools/link.ld");
+    let ld = fs::read_to_string(ld_path).unwrap();
+
+    #[cfg(not(feature = "vf2"))]
+    let base_addr = 0x80200000usize;
+    #[cfg(feature = "vf2")]
+    let base_addr: usize = 0x40200000;
+    let base_addr = format!("BASE_ADDRESS = {};", base_addr);
     let mut new_config = String::new();
-    for line in config.lines() {
-        if line.starts_with("pub const CPU_NUM: usize = ") {
-            new_config.push_str(cpus.as_str());
+    for line in ld.lines() {
+        if line.starts_with("BASE_ADDRESS = ") {
+            new_config.push_str(base_addr.as_str());
         } else {
             new_config.push_str(line);
             new_config.push_str("\n");
         }
     }
-    fs::write(config_file, new_config).unwrap();
+
+    script.write_all(new_config.as_bytes()).unwrap();
+    println!("cargo:rustc-link-arg=-T{}", &link_script.display());
 }
