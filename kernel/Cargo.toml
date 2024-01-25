@@ -36,7 +36,7 @@ vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
 syscall-table = { git = "https://github.com/os-module/syscall-table.git" }
 smpscheduler = { git = "https://github.com/os-module/smpscheduler.git" }
 page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
-netcore = {git = "https://github.com/os-module/simple-net"}
+netcore = { git = "https://github.com/os-module/simple-net" }
 
 
 [features]

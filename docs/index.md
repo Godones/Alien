@@ -1,5 +1,9 @@
 Welcome to the Alien OS blog, where Alien OS maintainers announce development and progress updates.
 
+## Posts from 2024
+
+**2024/1** [子系统划分](./subsystem.md)
+
 ## Posts from 2023
 
 **2023/12** [更多模块的改进](./stage-refactor.md)

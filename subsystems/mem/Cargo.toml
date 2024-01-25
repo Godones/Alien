@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config  = {path = "../config" }
-arch = {path = "../arch" }
+config  = { path = "../config" }
+arch = { path = "../arch" }
 ksync = { path = "../ksync" }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
 platform = { path = "../platform" }

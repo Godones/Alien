@@ -12,38 +12,24 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 ├── README.md               (readme)
 ├── apps                    (rust程序)
 ├── assert
-├── boot                    (内核启动代码)
+├── kernel                  (核心子系统)
 ├── doc                     (开发文档与内核相关模块文档)
-├── kernel					
-	├── Cargo.toml
-    ├── build.rs            (系统调用+调式符号生成脚本)
-    └── src			
-        ├── arch            (riscv相关代码)
-        ├── board           (板级设备扫描注册)
-        ├── config.rs       (内核配置)
-        ├── device          (设备注册管理)
-        ├── driver          (设备驱动)
-        ├── error.rs        (内核错误码定义)
-        ├── fs              (文件系统相关)
-        ├── gui.rs          (gui显示相关)
-        ├── interrupt       (外中断相关)
-        ├── ipc             (进程间通信模块)
-        ├── lib.rs          (内核代码模块导出)
-        ├── memory          (内存管理)
-        ├── net             (网络模块)
-        ├── panic.rs        (堆栈回溯)
-        ├── print           (内核输入输出)
-        ├── sbi.rs          (SBI系统调用)
-        ├── sync            (同步原语)
-        ├── sys.rs          (内核运行信息)
-        ├── syscall.rs      (系统调用表)
-        ├── system.rs       (机器信息)
-        ├── task            (进程/线程管理)
-        ├── timer           (计时器)
-        ├── trace           (堆栈回溯)
-        └── trap            (异常处理)
-├── modules                 (内核模块)
-├── rust-toolchain.toml		
+├── subsystems							
+    ├── arch            (riscv相关代码)
+    ├── platform        (平台相关代码)
+    ├── config		    (内核配置)
+    ├── devices         (设备注册管理)
+    ├── drivers         (设备驱动合集)
+    ├── unwinder        (内核panic处理)
+    ├── vfs             (虚拟文件系统)
+    ├── interrupt       (外中断注册管理)
+    ├── ipc             (进程间通信模块)
+    ├── mem          	(内存管理)
+    ├── knet            (网络模块)
+    ├── ksync           (内核锁实现)
+    ├── timer           (时间相关实现)
+    ├── constants		(常量、错误定义)
+    ├── device_interface(设备接口定义)
 ├── tests                   (测试程序)
 ├── tools                   (一些dts文件)
 └── userlibc                (rust lib库)
@@ -125,34 +111,6 @@ make unmatched LOG= UNMATCHED=y SMP=2
 ## [Doc](docs/doc/doc.md)
 
 
-## App/Test
-
-- [x] libc-test
-- [x] busybox
-- [x] lua
-- [x] lmbench
-- [x] iozone
-- [x] cyclictest
-- [x] libc-bench
-- [x] unixbench
-- [x] netperf
-- [x] iperf
-- [x] bash
-- [x] redis
-- [x] sqlite3
-- [x] slint gui
-- [x] embedded graphic gui
-
-
-
-## Working
-
-- [ ] 重构重要子模块
-  - [x] pager
-  - [x] tracer
-  - [x] vfs
-  - [ ] vmm
-  - [ ] task
 
 ## Reference
 

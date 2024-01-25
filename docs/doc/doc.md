@@ -27,3 +27,23 @@
   - [物理页帧分配器](https://github.com/os-module/pager)
 - 更多: 查看[系统架构](系统架构.md)中module部分各个子模块的详细说明
 - `make docs` 查看kernel源代码文档
+
+
+
+## 测试通过
+
+- [x] libc-test
+- [x] busybox
+- [x] lua
+- [x] lmbench
+- [x] iozone
+- [x] cyclictest
+- [x] libc-bench
+- [x] unixbench
+- [x] netperf
+- [x] iperf
+- [x] bash
+- [x] redis
+- [x] sqlite3
+- [x] slint gui
+- [x] embedded graphic gui
