@@ -22,8 +22,8 @@ vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
     "linux_error",
 ] }
 
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
-netcore = {git = "https://github.com/os-module/simple-net"}
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1" }
+netcore = { git = "https://github.com/os-module/simple-net" }
 
 
 

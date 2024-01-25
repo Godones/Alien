@@ -16,20 +16,20 @@ timer = { path = "../timer" }
 platform = { path = "../platform" }
 spin = "0"
 
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1" }
 rtc = { git = "https://github.com/os-module/rtc.git" }
 lru = "0.10.0"
 
 # uart
 uart16550 = { version = "0.0.1"}
-uart8250 = { git = "https://github.com/os-module/uart-rs.git"}
+uart8250 = { git = "https://github.com/os-module/uart-rs.git" }
 
 
 # net
-loopback = {git = "https://github.com/os-module/simple-net"}
-virtio-net = {git = "https://github.com/os-module/simple-net"}
-netcore = {git = "https://github.com/os-module/simple-net"}
+loopback = { git = "https://github.com/os-module/simple-net" }
+virtio-net = { git = "https://github.com/os-module/simple-net" }
+netcore = { git = "https://github.com/os-module/simple-net" }
 
-visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git"}
+visionfive2-sd = { git = "https://github.com/os-module/visionfive2-sd.git" }
 downcast-rs = { version = "1.2.0", default-features = false }
 

@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 constants = { path = "../constants" }
 ksync = { path = "../ksync" }
-netcore = {git = "https://github.com/os-module/simple-net"}
+netcore = { git = "https://github.com/os-module/simple-net" }
 vfs = { path = "../vfs" }
 vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
     "linux_error",
