@@ -21,7 +21,21 @@ vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
 devfs = { git = "https://github.com/os-module/rvfs.git" }
 dynfs = { git = "https://github.com/os-module/rvfs.git" }
 ramfs = { git = "https://github.com/os-module/rvfs.git" }
-fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
-
-
+fat-vfs = { git = "https://github.com/os-module/rvfs.git", optional = true }
+lwext4-vfs = { git = "https://github.com/os-module/rvfs" , optional = true }
 devices = { path = "../devices" }
+
+printf-compat = { version = "0.1", default-features = false, optional = true }
+cty = { version =  "0", optional = true }
+
+
+[dependencies.tinyrlibc]
+optional = true
+git = "https://github.com/rust-embedded-community/tinyrlibc"
+default-features = false
+features = ["strcmp","strcpy","strncmp","alloc"]
+
+[features]
+default = []
+ext = ["dep:lwext4-vfs","dep:printf-compat","dep:cty", "tinyrlibc"]
+fat = ["dep:fat-vfs"]

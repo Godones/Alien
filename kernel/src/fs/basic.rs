@@ -207,7 +207,7 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> AlienResult<isize> {
             break;
         }
     }
-
+    info!("read: {:?}", count);
     Ok(count as _)
 }
 
@@ -230,6 +230,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> AlienResult<isize> {
             break;
         }
     }
+    info!("write: {:?}", count);
     Ok(count as _)
 }
 
@@ -332,6 +333,7 @@ pub fn sys_lseek(fd: usize, offset: isize, whence: usize) -> AlienResult<isize> 
     let file = process.get_file(fd).ok_or(LinuxErrno::EBADF)?;
     let seek = SeekFrom::try_from((whence, offset as usize)).unwrap();
     let r = file.seek(seek).map(|x| x as isize)?;
+    info!("seek: {:?}", r);
     Ok(r)
 }
 

@@ -4,11 +4,11 @@ mode := release
 target := ../target/riscv64gc-unknown-none-elf/$(mode)/
 APPS_NAME := $(shell ls -d */ | cut -d '/' -f 1)
 GUI ?=n
-
+FSMOUNT := ../diskfs
 
 all:build
-	@echo "Moving apps to /fat32/bin"
-	@$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) /fat/$(dir););)
+	@echo "Moving apps to ../diskfs/bin"
+	@$(foreach dir, $(BUILD_CRATES), (sudo cp $(target)$(dir) $(FSMOUNT)/$(dir););)
 
 
 build:

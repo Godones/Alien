@@ -121,7 +121,7 @@ impl File for KernelFile {
         Ok(read)
     }
 
-    fn write_at(&self, _offset: u64, buf: &[u8]) -> AlienResult<usize> {
+    fn write_at(&self, offset: u64, buf: &[u8]) -> AlienResult<usize> {
         if buf.len() == 0 {
             return Ok(0);
         }
@@ -130,7 +130,11 @@ impl File for KernelFile {
             return Err(LinuxErrno::EPERM);
         }
         let inode = self.dentry.inode()?;
-        let write = inode.write_at(_offset, buf)?;
+        let attr = inode.get_attr()?;
+        if attr.st_size < offset{
+            inode.truncate(offset).unwrap();
+        }
+        let write = inode.write_at(offset, buf)?;
         Ok(write)
     }
 
