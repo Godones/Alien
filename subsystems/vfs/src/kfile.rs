@@ -91,9 +91,7 @@ impl File for KernelFile {
         if buf.len() == 0 {
             return Ok(0);
         }
-        // warn!("[read] is_interrupt_enable:{}",is_interrupt_enable());
         let pos = *self.pos.lock();
-        // warn!("[read] is_interrupt_enable:{}",is_interrupt_enable());
         let read = self.read_at(pos, buf)?;
         *self.pos.lock() += read as u64;
         Ok(read)
@@ -130,10 +128,6 @@ impl File for KernelFile {
             return Err(LinuxErrno::EPERM);
         }
         let inode = self.dentry.inode()?;
-        let attr = inode.get_attr()?;
-        if attr.st_size < offset{
-            inode.truncate(offset).unwrap();
-        }
         let write = inode.write_at(offset, buf)?;
         Ok(write)
     }
