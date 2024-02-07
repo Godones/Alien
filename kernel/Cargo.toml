@@ -46,6 +46,8 @@ vf2 = ["platform/vf2","interrupt/vf2", "devices/vf2"]
 hifive = ["platform/hifive","interrupt/hifive"]
 smp = ["platform/smp"]
 
+fat = ["vfs/fat"]
+ext = ["vfs/ext"]
 
 slab = []
 talloc = []

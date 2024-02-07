@@ -10,7 +10,7 @@ extern crate syscall_table;
 #[macro_use]
 extern crate platform;
 extern crate alloc;
-
+extern crate unwinder;
 use alloc::boxed::Box;
 pub use syscall_table::*;
 mod fs;
@@ -64,10 +64,4 @@ fn main(hart_id: usize) {
     time::set_next_trigger();
     println!("Begin run task...");
     task::schedule::run_task();
-}
-
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
-    system_shutdown()
 }

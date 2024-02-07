@@ -1,23 +1,26 @@
+#![feature(c_variadic)]
 #![no_std]
 
 extern crate alloc;
 #[macro_use]
 extern crate platform;
-use crate::dev::DevFsProviderImpl;
+use crate::dev::{DevFsProviderImpl};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use constants::AlienResult;
+use constants::{AlienResult};
 use core::ops::Index;
 use dynfs::DynFsKernelProvider;
-use fat_vfs::FatFsProvider;
 use ksync::Mutex;
 use spin::{Lazy, Once};
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 use vfscore::path::VfsPath;
 use vfscore::utils::VfsTimeSpec;
-
+#[cfg(feature = "ext")]
+use vfscore::inode::VfsInode;
+#[cfg(feature = "ext")]
+mod extffi;
 pub mod dev;
 pub mod kfile;
 pub mod pipefs;
@@ -36,7 +39,12 @@ type RamFs = ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
 type DevFs = devfs::DevFs<DevFsProviderImpl, Mutex<()>>;
 type TmpFs = ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
 type PipeFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
-type FatFs = fat_vfs::FatFs<CommonFsProviderImpl, Mutex<()>>;
+
+#[cfg(feature = "fat")]
+type DiskFs = fat_vfs::FatFs<CommonFsProviderImpl, Mutex<()>>;
+
+#[cfg(feature = "ext")]
+type DiskFs = lwext4_vfs::ExtFs<CommonFsProviderImpl, Mutex<()>>;
 
 #[derive(Clone)]
 pub struct CommonFsProviderImpl;
@@ -53,9 +61,20 @@ impl ramfs::RamFsProvider for CommonFsProviderImpl {
     }
 }
 
-impl FatFsProvider for CommonFsProviderImpl {
+#[cfg(feature = "fat")]
+impl fat_vfs::FatFsProvider for CommonFsProviderImpl {
     fn current_time(&self) -> VfsTimeSpec {
         DynFsKernelProvider::current_time(self)
+    }
+}
+
+#[cfg(feature = "ext")]
+impl lwext4_vfs::ExtDevProvider for CommonFsProviderImpl {
+    fn rdev2device(&self, rdev: u64) -> Option<Arc<dyn VfsInode>> {
+        use dev::{DEVICES};
+        use constants::DeviceId;
+        let device_id = DeviceId::from(rdev);
+        DEVICES.lock().get(&device_id).cloned()
     }
 }
 
@@ -67,15 +86,19 @@ fn register_all_fs() {
     let tmpfs = Arc::new(TmpFs::new(CommonFsProviderImpl));
     let pipefs = Arc::new(PipeFs::new(CommonFsProviderImpl, "pipefs"));
 
-    let fatfs = Arc::new(FatFs::new(CommonFsProviderImpl));
-
     FS.lock().insert("procfs".to_string(), procfs);
     FS.lock().insert("sysfs".to_string(), sysfs);
     FS.lock().insert("ramfs".to_string(), ramfs);
     FS.lock().insert("devfs".to_string(), devfs);
     FS.lock().insert("tmpfs".to_string(), tmpfs);
     FS.lock().insert("pipefs".to_string(), pipefs);
-    FS.lock().insert("fatfs".to_string(), fatfs);
+
+    #[cfg(feature = "fat")]
+        let diskfs = Arc::new(DiskFs::new(CommonFsProviderImpl));
+    #[cfg(feature = "ext")]
+        let diskfs = Arc::new(DiskFs::new(lwext4_vfs::ExtFsType::Ext4,CommonFsProviderImpl));
+
+    FS.lock().insert("diskfs".to_string(), diskfs);
 
     println!("register fs success");
 }
@@ -108,14 +131,14 @@ pub fn init_filesystem() -> AlienResult<()> {
         .i_mount(0, "/dev/shm", None, &[])?;
     path.join("dev/shm")?.mount(shm_ramfs, 0)?;
 
-    let fatfs = FS.lock().index("fatfs").clone();
+    let diskfs = FS.lock().index("diskfs").clone();
     let blk_inode = path
         .join("/dev/sda")?
         .open(None)
         .expect("open /dev/sda failed")
         .inode()?;
-    let fat32_root = fatfs.i_mount(0, "/bin", Some(blk_inode), &[])?;
-    path.join("bin")?.mount(fat32_root, 0)?;
+    let diskfs_root = diskfs.i_mount(0, "/bin", Some(blk_inode), &[])?;
+    path.join("bin")?.mount(diskfs_root, 0)?;
 
     vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
         .unwrap();

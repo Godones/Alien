@@ -1,4 +1,5 @@
-TRACE_EXE  := trace_exe
+TRACE_EXE  	:= trace_exe
+EXTMKFS	:= lwext4-mkfs
 TARGET      := riscv64gc-unknown-none-elf
 OUTPUT := target/$(TARGET)/release
 KERNEL_FILE := $(OUTPUT)/kernel
@@ -10,6 +11,7 @@ BOOTLOADER  := ./boot/rustsbi-qemu.bin
 BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/sdcard.img
+FSMOUNT := ./diskfs
 SMP ?= 1
 GUI ?=n
 NET ?=y
@@ -21,10 +23,11 @@ UNMATCHED ?=n
 FEATURES :=
 QEMU_ARGS :=
 MEMORY_SIZE := 1024M
-img ?=fat32
 SLAB ?=n
 TALLOC ?=y
 BUDDY ?=n
+FS ?=fat
+
 
 comma:= ,
 empty:=
@@ -55,6 +58,13 @@ FEATURES += talloc
 else ifeq ($(BUDDY),y)
 FEATURES += buddy
 endif
+
+ifeq ($(FS),fat)
+FEATURES += fat
+else ifeq ($(FS),ext)
+FEATURES += ext
+endif
+
 
 ifeq ($(NET),y)
 QEMU_ARGS += -device virtio-net-device,netdev=net0 \
@@ -91,19 +101,16 @@ build:install  compile
 compile:
 	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 	(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > subsystems/unwinder/src/kernel_symbol.S)
-	@#call trace_info
 	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	cp $(KERNEL_FILE) ./kernel-qemu
 
-trace_info:
-	@(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > kernel/src/trace/kernel_symbol.S)
-
 user:
-	@cd apps && make all
+	@make all -C apps
 
-sdcard:fat32 testelf user
-	@sudo umount /fat
+sdcard:$(FS) mount testelf user
+	@sudo umount $(FSMOUNT)
+	@rm -rf $(FSMOUNT)
 
 run:sdcard install compile
 	@echo qemu booot $(SMP)
@@ -149,7 +156,7 @@ f_test:
 
 testelf:
 	@if [ -d "tests/testbin-second-stage" ]; then \
-		sudo cp tests/testbin-second-stage/* /fat -r; \
+		sudo cp tests/testbin-second-stage/* $(FSMOUNT) -r; \
 	fi
 
 dtb:
@@ -161,26 +168,35 @@ jh7110:
 	@dtc -I dtb -o dts -o jh7110.dts ./tools/jh7110-visionfive-v2.dtb
 
 
-SecondFile:
-	#创建64MB大小空白文件
-	@dd if=/dev/zero of=$(IMG1) bs=1M count=64
-
-ZeroFile:
-	#创建空白文件
-	@dd if=/dev/zero of=$(IMG) bs=1M count=64
-
-fat32:
-	@-touch $(IMG)
-	@dd if=/dev/zero of=$(IMG) bs=1M count=72
-	@mkfs.fat -F 32 $(IMG)
-	@if mountpoint -q /fat; then \
-		sudo umount /fat; \
+fat:
+	@if [ -f $(IMG) ]; then \
+		echo "file exist"; \
+	else \
+		echo "file not exist"; \
+		@touch $(IMG); \
+		@dd if=/dev/zero of=$(IMG) bs=1M count=72; \
 	fi
-	@sudo mount $(IMG) /fat
-	@sudo cp tools/f1.txt /fat
-	@sudo mkdir /fat/folder
-	@sudo cp tools/f1.txt /fat/folder
-	@echo fat32 has been created
+	@mkfs.fat -F 32 $(IMG)
+
+ext:
+	@if [ -f $(IMG) ]; then \
+		echo "file exist"; \
+	else \
+		echo "file not exist"; \
+		touch $(IMG); \
+		@dd if=/dev/zero of=$(IMG) bs=1M count=2048; \
+	fi
+	@mkfs.ext4 $(IMG)
+
+mount:
+	@mkdir $(FSMOUNT)
+	@if mountpoint -q $(FSMOUNT); then \
+    		sudo umount $(FSMOUNT); \
+    fi
+	@sudo mount $(IMG) $(FSMOUNT)
+	@sudo cp tools/f1.txt $(FSMOUNT)
+	@sudo mkdir $(FSMOUNT)/folder
+	@sudo cp tools/f1.txt $(FSMOUNT)/folder
 
 
 img-hex:
@@ -213,6 +229,8 @@ clean:
 	@cargo clean
 	@-rm kernel-qemu
 	@-rm alien-*
+	@-sudo umount $(FSMOUNT)
+	@-rm -rf $(FSMOUNT)
 
 
 check:
