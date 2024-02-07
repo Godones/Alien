@@ -25,9 +25,8 @@ mod trap;
 
 use crate::task::DriverTaskImpl;
 use core::hint::spin_loop;
-use core::panic::PanicInfo;
 use core::sync::atomic::{AtomicBool, Ordering};
-use platform::{platform_machine_info, system_shutdown};
+use platform::{platform_machine_info};
 
 /// 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);
