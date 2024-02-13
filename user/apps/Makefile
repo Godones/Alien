@@ -1,10 +1,10 @@
 APPS := $(shell ls -d */)
 compile := cargo build --release
 mode := release
-target := ../target/riscv64gc-unknown-none-elf/$(mode)/
+target := ../../target/riscv64gc-unknown-none-elf/$(mode)/
 APPS_NAME := $(shell ls -d */ | cut -d '/' -f 1)
 GUI ?=n
-FSMOUNT := ../diskfs
+FSMOUNT := ../../diskfs
 
 all:build
 	@echo "Moving apps to ../diskfs/bin"
