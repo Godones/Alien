@@ -39,8 +39,4 @@ alien.bin
 rust
 
 tests/testsuits-for-oskernel
-
-#subsystems/devices
-#subsystems/drivers
-#subsystems/vfs
-#subsystems/timer
+subsystems/unwinder/src/kernel_symbol.S

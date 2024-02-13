@@ -1,6 +1,6 @@
 ## 对app和Mstd的修改内容
 
-+ 在app/tests下加入了[thread_create.rs](../../apps/tests/src/thread_create.rs)，其中的thread_test1()调用了两个Mstd中的系统调用thread_create(), gettid()(也就是sys_clone()和sys_gettid())
++ 在app/tests下加入了[thread_create.rs](../../user/apps/tests/src/thread_create.rs)，其中的thread_test1()调用了两个Mstd中的系统调用thread_create(), gettid()(也就是sys_clone()和sys_gettid())
 
 
 + 修改系统调用号 220: SYSCALL_FORK -> SYSCALL_CLONE 以及syscall_clone的参数

@@ -17,7 +17,6 @@ GUI ?=n
 NET ?=y
 #IMG1 := tools/fs1.img
 
-APPS_NAME := $(shell cd apps && ls -d */ | cut -d '/' -f 1)
 VF2 ?=n
 UNMATCHED ?=n
 FEATURES :=
@@ -106,7 +105,9 @@ compile:
 	cp $(KERNEL_FILE) ./kernel-qemu
 
 user:
-	@make all -C apps
+	@echo "Building user apps"
+	@make all -C ./user/apps
+	@echo "Building user apps done"
 
 sdcard:$(FS) mount testelf user
 	@sudo umount $(FSMOUNT)
@@ -155,9 +156,11 @@ f_test:
 	    -device virtio-net-device,netdev=net -netdev user,id=net
 
 testelf:
+	@echo "copying test elf"
 	@if [ -d "tests/testbin-second-stage" ]; then \
 		sudo cp tests/testbin-second-stage/* $(FSMOUNT) -r; \
 	fi
+	@echo "copying test elf done"
 
 dtb:
 	$(call boot_qemu, -machine dumpdtb=riscv.dtb)
@@ -189,11 +192,11 @@ ext:
 	@mkfs.ext4 $(IMG)
 
 mount:
-	@mkdir $(FSMOUNT)
-	@if mountpoint -q $(FSMOUNT); then \
-    		sudo umount $(FSMOUNT); \
-    fi
+	@echo "Mounting $(IMG) to $(FSMOUNT)"
+	@-mkdir $(FSMOUNT)
+	@-sudo umount $(FSMOUNT);
 	@sudo mount $(IMG) $(FSMOUNT)
+	@sudo rm -rf $(FSMOUNT)/*
 	@sudo cp tools/f1.txt $(FSMOUNT)
 	@sudo mkdir $(FSMOUNT)/folder
 	@sudo cp tools/f1.txt $(FSMOUNT)/folder
@@ -236,4 +239,4 @@ clean:
 check:
 	cargo check --target riscv64gc-unknown-none-elf --features $(FEATURES)
 
-.PHONY: all install build run clean fake_run sdcard vf2 unmatched gdb-client gdb-server kernel_asm docs
+.PHONY: all install build run clean fake_run sdcard vf2 unmatched gdb-client gdb-server kernel_asm docs user
