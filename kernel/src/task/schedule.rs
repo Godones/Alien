@@ -35,7 +35,11 @@ pub fn run_task() -> ! {
                     if task.send_sigchld_when_exit || task.pid == task.tid.0 {
                         let parent = task
                             .access_inner()
-                            .parent.as_ref().unwrap().upgrade().unwrap();
+                            .parent
+                            .as_ref()
+                            .unwrap()
+                            .upgrade()
+                            .unwrap();
                         send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
                     }
                     task.terminate();

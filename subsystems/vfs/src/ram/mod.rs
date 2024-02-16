@@ -66,10 +66,10 @@ pub fn init_ramfs(ramfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
         .create("sys", VfsNodeType::Dir, "rwxr-xr-x".into(), None)
         .unwrap();
     root_inode
-        .create("bin", VfsNodeType::Dir, "rwxr-xr-x".into(), None)
+        .create("tmp", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
         .unwrap();
     root_inode
-        .create("tmp", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
+        .create("tests", VfsNodeType::Dir, "rwxr-xr-x".into(), None)
         .unwrap();
 
     let _bashrc = root

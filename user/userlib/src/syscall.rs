@@ -60,7 +60,7 @@ syscall_id!(SYSCALL_GET_SOCKOPT, 209);
 syscall_id!(SYSCALL_SHUTDOWN, 210);
 
 syscall_id!(SYSCALL_OPENAT, 56);
-
+syscall_id!(SYSCALL_MOUNT, 40);
 syscall_id!(SYSCALL_CLOSE, 57);
 syscall_id!(SYSCALL_LSEEK, 62);
 syscall_id!(SYSCALL_MKDIR, 83);
@@ -199,7 +199,15 @@ syscall!(
     *const u8,
     *const u8
 );
-
+syscall!(
+    sys_mount,
+    SYSCALL_MOUNT,
+    *const u8,
+    *const u8,
+    *const u8,
+    usize,
+    *const u8
+);
 syscall!(sys_lseek, SYSCALL_LSEEK, usize, isize, usize);
 syscall!(sys_fstat, SYSCALL_FSTAT, usize, *mut u8);
 syscall!(

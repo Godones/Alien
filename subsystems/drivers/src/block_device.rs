@@ -68,7 +68,7 @@ impl GenericBlockDevice {
             device: Mutex::new(device),
             cache: Mutex::new(LruCache::new(
                 NonZeroUsize::new(BLOCK_CACHE_FRAMES).unwrap(),
-            )), // 4MB cache
+            )),
             dirty: Mutex::new(Vec::new()),
         }
     }
@@ -260,7 +260,6 @@ impl MemoryFat32Img {
         Self { data }
     }
 }
-
 
 pub use visionfive2_sd::Vf2SdDriver;
 pub struct VF2SDDriver {

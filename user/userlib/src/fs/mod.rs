@@ -212,6 +212,16 @@ pub fn fstat(fd: usize, stat: &mut Stat) -> isize {
     sys_fstat(fd, stat as *mut Stat as *mut u8)
 }
 
+pub fn mount(source: &str, target: &str, fs_type: &str, flags: usize, data: &str) -> isize {
+    sys_mount(
+        source.as_ptr(),
+        target.as_ptr(),
+        fs_type.as_ptr(),
+        flags,
+        data.as_ptr(),
+    )
+}
+
 pub fn linkat(
     old_fd: isize,
     old_path: &str,

@@ -27,7 +27,7 @@ mod task;
 /// 初始进程（0号进程）
 pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
     let mut data = Vec::new();
-    read_all("/bin/init", &mut data);
+    read_all("/tests/init", &mut data);
     assert!(data.len() > 0);
     let task = Task::from_elf("/bin/init", data.as_slice()).unwrap();
     Arc::new(task)

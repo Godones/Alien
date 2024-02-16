@@ -11,6 +11,7 @@ use alloc::vec::Vec;
 use constants::io::InodeMode;
 use constants::{AlienResult, LinuxErrno, AT_FDCWD};
 use log::info;
+use vfs::system_root_fs;
 use vfscore::path::{SysContext, VfsPath};
 use vfscore::utils::{VfsInodeMode, VfsNodeType};
 
@@ -28,14 +29,14 @@ fn user_path_at(fd: isize, path: &str) -> AlienResult<VfsPath> {
     let res = if !path.starts_with("/") {
         if fd == AT_FDCWD {
             let fs_context = process.access_inner().fs_info.clone();
-            VfsPath::new(fs_context.cwd).join(path)
+            VfsPath::new(system_root_fs(), fs_context.cwd).join(path)
         } else {
             let fd = fd as usize;
             let file = process.get_file(fd).ok_or(LinuxErrno::EBADF)?;
-            VfsPath::new(file.dentry()).join(path)
+            VfsPath::new(system_root_fs(), file.dentry()).join(path)
         }
     } else {
-        VfsPath::new(vfs::system_root_fs()).join(path)
+        VfsPath::new(system_root_fs(), system_root_fs()).join(path)
     };
     res.map_err(|e| e.into())
 }
@@ -48,7 +49,9 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
     //     vfs::system_root_fs()
     // };
     let path = if task.is_none() {
-        VfsPath::new(vfs::system_root_fs()).join(file_name).unwrap()
+        VfsPath::new(system_root_fs(), system_root_fs())
+            .join(file_name)
+            .unwrap()
     } else {
         user_path_at(AT_FDCWD, file_name).unwrap()
     };

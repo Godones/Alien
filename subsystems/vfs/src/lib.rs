@@ -4,24 +4,25 @@
 extern crate alloc;
 #[macro_use]
 extern crate platform;
-use crate::dev::{DevFsProviderImpl};
+use crate::dev::DevFsProviderImpl;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use constants::{AlienResult};
+use constants::AlienResult;
 use core::ops::Index;
 use dynfs::DynFsKernelProvider;
 use ksync::Mutex;
 use spin::{Lazy, Once};
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
-use vfscore::path::VfsPath;
-use vfscore::utils::VfsTimeSpec;
 #[cfg(feature = "ext")]
 use vfscore::inode::VfsInode;
+use vfscore::path::VfsPath;
+use vfscore::utils::VfsTimeSpec;
+pub mod dev;
 #[cfg(feature = "ext")]
 mod extffi;
-pub mod dev;
+mod initrd;
 pub mod kfile;
 pub mod pipefs;
 pub mod proc;
@@ -71,8 +72,8 @@ impl fat_vfs::FatFsProvider for CommonFsProviderImpl {
 #[cfg(feature = "ext")]
 impl lwext4_vfs::ExtDevProvider for CommonFsProviderImpl {
     fn rdev2device(&self, rdev: u64) -> Option<Arc<dyn VfsInode>> {
-        use dev::{DEVICES};
         use constants::DeviceId;
+        use dev::DEVICES;
         let device_id = DeviceId::from(rdev);
         DEVICES.lock().get(&device_id).cloned()
     }
@@ -94,9 +95,12 @@ fn register_all_fs() {
     FS.lock().insert("pipefs".to_string(), pipefs);
 
     #[cfg(feature = "fat")]
-        let diskfs = Arc::new(DiskFs::new(CommonFsProviderImpl));
+    let diskfs = Arc::new(DiskFs::new(CommonFsProviderImpl));
     #[cfg(feature = "ext")]
-        let diskfs = Arc::new(DiskFs::new(lwext4_vfs::ExtFsType::Ext4,CommonFsProviderImpl));
+    let diskfs = Arc::new(DiskFs::new(
+        lwext4_vfs::ExtFsType::Ext4,
+        CommonFsProviderImpl,
+    ));
 
     FS.lock().insert("diskfs".to_string(), diskfs);
 
@@ -107,7 +111,8 @@ fn register_all_fs() {
 pub fn init_filesystem() -> AlienResult<()> {
     register_all_fs();
     let ramfs_root = ram::init_ramfs(FS.lock().index("ramfs").clone());
-    let procfs_root = proc::init_procfs(FS.lock().index("procfs").clone());
+    let procfs = FS.lock().index("procfs").clone();
+    let procfs_root = proc::init_procfs(procfs);
     let devfs_root = dev::init_devfs(FS.lock().index("devfs").clone());
     let sysfs_root = sys::init_sysfs(FS.lock().index("sysfs").clone());
     let tmpfs_root = FS
@@ -118,7 +123,7 @@ pub fn init_filesystem() -> AlienResult<()> {
 
     pipefs::init_pipefs(FS.lock().index("pipefs").clone());
 
-    let path = VfsPath::new(ramfs_root.clone());
+    let path = VfsPath::new(ramfs_root.clone(), ramfs_root.clone());
     path.join("proc")?.mount(procfs_root, 0)?;
     path.join("sys")?.mount(sysfs_root, 0)?;
     path.join("dev")?.mount(devfs_root, 0)?;
@@ -137,11 +142,16 @@ pub fn init_filesystem() -> AlienResult<()> {
         .open(None)
         .expect("open /dev/sda failed")
         .inode()?;
-    let diskfs_root = diskfs.i_mount(0, "/bin", Some(blk_inode), &[])?;
-    path.join("bin")?.mount(diskfs_root, 0)?;
+    let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
 
+    // path.join("bin")?.mount(diskfs_root, 0)?;
+
+    path.join("tests")?.mount(diskfs_root, 0)?;
     vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
         .unwrap();
+
+    initrd::populate_initrd(ramfs_root.clone())?;
+
     SYSTEM_ROOT_FS.call_once(|| ramfs_root);
     println!("Init filesystem success");
     Ok(())

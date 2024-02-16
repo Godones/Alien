@@ -214,12 +214,6 @@ pub fn getrusage(who: isize, usage: usize) -> AlienResult<isize> {
     Ok(0)
 }
 
-
-
-
-
-
-
 /// 一个系统调用，通过调用 SBI_SHUTDOWN 来关闭操作系统（直接退出 QEMU）
 #[syscall_func(2003)]
 pub fn system_shutdown() -> AlienResult<isize> {

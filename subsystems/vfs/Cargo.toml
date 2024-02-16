@@ -13,6 +13,7 @@ arch = { path = "../arch" }
 constants = { path = "../constants" }
 interrupt = { path = "../interrupt" }
 platform = { path = "../platform" }
+mem = { path = "../mem" }
 
 downcast-rs = { version = "1.2.0", default-features = false }
 vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
@@ -28,6 +29,9 @@ devices = { path = "../devices" }
 printf-compat = { version = "0.1", default-features = false, optional = true }
 cty = { version =  "0", optional = true }
 
+cpio_reader = { version = "0.1.1", optional = true }
+libflate = { version = "2.0.0", default-features = false, optional = true }
+core2 = { version = "0.4", default-features = false, optional = true }
 
 [dependencies.tinyrlibc]
 optional = true
@@ -36,6 +40,7 @@ default-features = false
 features = ["strcmp","strcpy","strncmp","alloc"]
 
 [features]
-default = []
+default = ["initrd"]
 ext = ["dep:lwext4-vfs","dep:printf-compat","dep:cty", "tinyrlibc"]
 fat = ["dep:fat-vfs"]
+initrd  = ["dep:libflate","dep:cpio_reader","dep:core2"]

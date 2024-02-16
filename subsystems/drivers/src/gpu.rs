@@ -1,7 +1,6 @@
-use core::ptr::NonNull;
 use device_interface::{DeviceBase, GpuDevice};
 use virtio_drivers::device::gpu::VirtIOGpu;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use virtio_drivers::transport::mmio::MmioTransport;
 
 use crate::hal::HalImpl;
 use ksync::Mutex;
@@ -18,10 +17,12 @@ unsafe impl Sync for VirtIOGpuWrapper {}
 unsafe impl Send for VirtIOGpuWrapper {}
 
 impl VirtIOGpuWrapper {
-    pub fn new(addr: usize) -> Self {
-        let header = NonNull::new(addr as *mut VirtIOHeader).unwrap();
-        let mmio = unsafe { MmioTransport::new(header) }.unwrap();
-        let mut gpu = VirtIOGpu::new(mmio).unwrap();
+    pub fn from_mmio(mmio: MmioTransport) -> Self {
+        let gpu = VirtIOGpu::new(mmio).unwrap();
+        Self::__new(gpu)
+    }
+    fn __new(gpu: VirtIOGpu<HalImpl, MmioTransport>) -> Self {
+        let mut gpu = gpu;
         let resolution = gpu.resolution().unwrap();
         unsafe {
             let fbuffer = gpu.setup_framebuffer().unwrap();
@@ -29,6 +30,7 @@ impl VirtIOGpuWrapper {
             let ptr = fbuffer.as_mut_ptr();
             let fb = core::slice::from_raw_parts_mut(ptr, len);
             gpu.move_cursor(50, 50).unwrap();
+            gpu.flush().unwrap();
             Self {
                 gpu: Mutex::new(gpu),
                 fb,

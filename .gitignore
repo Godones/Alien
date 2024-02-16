@@ -20,23 +20,15 @@ tools/fs.img
 */target
 std
 tools/fs1.img
-kernel/src/trace/kernel_symbol.S
-
-
 run.log
 nohup.out
 *.img
 
-oscomp-debian
-#sdcard
-tools/siglibc
-tools/testsuits-for-oskernel
-tools/bash-5.1.16
-tools/redis-3.2.9
-tools/sqlite-amalgamation-3410100
 alien-*
 alien.bin
 rust
 
 tests/testsuits-for-oskernel
 subsystems/unwinder/src/kernel_symbol.S
+tools/initrd/busybox*
+tools/initrd/initramfs*

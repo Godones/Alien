@@ -1,5 +1,5 @@
 use alloc::vec;
-use constants::io::{LinkFlags, UnlinkatFlags};
+use constants::io::{LinkFlags, OpenFlags, UnlinkatFlags};
 use log::{info, warn};
 use syscall_table::syscall_func;
 
@@ -121,14 +121,14 @@ pub fn sys_symlinkat(
 /// 若读取成功，则返回读取内容的长度(即链接到文件的路径的长度)；否则返回错误码。
 #[syscall_func(78)]
 pub fn sys_readlinkat(fd: isize, path: *const u8, buf: *mut u8, size: usize) -> AlienResult<isize> {
-    let process = current_task().unwrap();
-    let path = process.transfer_str(path);
+    let task = current_task().unwrap();
+    let path = task.transfer_str(path);
     info!("readlink path: {}", path);
     let path = user_path_at(fd, &path)?;
-    let dt = path.open(None)?;
+    let dt = path.open2(None, OpenFlags::O_NOFOLLOW)?;
     let mut empty_buf = vec![0u8; size];
     let r = dt.inode()?.readlink(empty_buf.as_mut_slice())?;
-    let buf = process.transfer_buffer(buf, size);
+    let buf = task.transfer_buffer(buf, size);
     let mut w = 0;
     for buf in buf {
         let len = buf.len();

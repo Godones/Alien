@@ -4,6 +4,7 @@ use constants::AlienResult;
 use constants::{LinuxErrno, AT_FDCWD};
 use core::cmp::min;
 use syscall_table::syscall_func;
+use vfs::system_root_fs;
 use vfscore::path::VfsPath;
 
 /// 一个系统调用，用于设置文件的 扩展属性(xattrs, Extended Attributes)。
@@ -73,7 +74,7 @@ pub fn sys_fsetxattr(
     let name = process.transfer_str(name);
     let value = process.transfer_buffer(value, size);
     let file = process.get_file(fd).ok_or(LinuxErrno::EBADF)?;
-    let path = VfsPath::new(file.dentry());
+    let path = VfsPath::new(system_root_fs(), file.dentry());
     path.set_xattr(&name, value[0])?;
     Ok(0)
 }
@@ -140,7 +141,7 @@ pub fn sys_fgetxattr(
     let name = process.transfer_str(name);
     let mut value = process.transfer_buffer(value, size);
     let file = process.get_file(fd).ok_or(LinuxErrno::EBADF)?;
-    let path = VfsPath::new(file.dentry());
+    let path = VfsPath::new(system_root_fs(), file.dentry());
     let res = path.get_xattr(&name)?;
     let mut copy = 0;
     value.iter_mut().for_each(|x| {
