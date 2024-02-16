@@ -12,6 +12,7 @@ BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/sdcard.img
 FSMOUNT := ./diskfs
+TFTPBOOT := /home/godones/projects/tftpboot
 SMP ?= 1
 GUI ?=n
 NET ?=y
@@ -44,7 +45,7 @@ endif
 
 
 ifeq ($(VF2),y)
-FEATURES += vf2
+FEATURES += vf2 ramdisk
 else ifeq ($(UNMATCHED),y)
 FEATURES += hifive ramdisk
 else
@@ -181,22 +182,13 @@ jh7110:
 	@dtc -I dtb -o dts -o jh7110.dts ./tools/jh7110-visionfive-v2.dtb
 
 fat:
-	@if [ -f $(IMG) ]; then \
-		echo "file exist"; \
-	else \
-		echo "file not exist"; \
-		@touch $(IMG); \
-		@dd if=/dev/zero of=$(IMG) bs=1M count=72; \
-	fi
+	dd if=/dev/zero of=$(IMG) bs=1M count=72;
 	@mkfs.fat -F 32 $(IMG)
 
 ext:
-	@if [ -f $(IMG) ]; then \
-		echo "file exist"; \
-	else \
-		echo "file not exist"; \
-		touch $(IMG); \
-		@dd if=/dev/zero of=$(IMG) bs=1M count=2048; \
+	$if [ `ls -l $(IMG) | awk '{print $$5}' ` -lt 2147483648 ]; then \
+		echo "resize img to 2G"; \
+		dd if=/dev/zero bs=1M count=2048 >> $(IMG); \
 	fi
 	@mkfs.ext4 $(IMG)
 
@@ -249,5 +241,32 @@ clean:
 
 check:
 	cargo check --target riscv64gc-unknown-none-elf --features $(FEATURES)
+
+
+help:
+	@echo "Usage: make [target]"
+	@echo "  run [SMP=?] [GUI=?] [FS=?] [LOG=?]: build kernel and run qemu"
+	@echo "  	 SMP: number of cores, default 1, max 8"
+	@echo "  	 GUI: enable gui, default n"
+	@echo "  	 FS: file system, default fat, options: fat, ext"
+	@echo "  	 LOG: enable log, default n, options: TRACE, DEBUG, INFO, WARN, ERROR"
+	@echo "  build [SMP=?] [LOG=?]: build kernel"
+	@echo "  sdcard [GUI=?] [FS=?]: build sdcard"
+	@echo "  fake_run [SMP=?] [GUI=?]: run kernel without building"
+	@echo "  vf2 [SMP=?] [LOG=?] [VF2=y]: build starfive2 board image"
+	@echo "      SMP: number of cores, must >= 2"
+	@echo "      VF2: must be y"
+
+	@echo "  unmatched [SMP=?] [LOG=?] [UNMATCHED=y]: build unmatched board image"
+	@echo "      SMP: number of cores, must >= 2"
+	@echo "      UNMATCHED: must be y"
+	@echo "  dtb: generate dtb"
+	@echo "  gdb-server: run gdb server"
+	@echo "  gdb-client: run gdb client"
+	@echo "  kernel_asm: disassemble kernel"
+	@echo "  docs: generate docs"
+	@echo "  clean: clean"
+	@echo "  check: check"
+	@echo "  help: help"
 
 .PHONY: all install build run clean fake_run sdcard vf2 unmatched gdb-client gdb-server kernel_asm docs user initramfs

@@ -43,6 +43,10 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 2. install rust nightly
 
 ```
+make help
+```
+
+```
 # 一键运行
 # 可以指定LOG=ERROR/WARN/INFO/DEBUG/TRACE开启调式
 make run [LOG=] [SMP=]
@@ -70,7 +74,7 @@ make fake_run [SMP=]
 运行测试(in bash)
 
 ```
-> cd bin
+> cd tests
 > ls
 > final_test
 ```
