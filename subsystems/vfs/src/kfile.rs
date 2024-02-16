@@ -1,3 +1,4 @@
+use crate::system_root_fs;
 use alloc::sync::Arc;
 use constants::io::{Dirent64, DirentType, OpenFlags, PollEvents, SeekFrom};
 use constants::AlienResult;
@@ -233,7 +234,9 @@ impl File for KernelFile {
             return Err(LinuxErrno::EINVAL);
         }
         let dt = self.dentry();
-        VfsPath::new(dt).truncate(len).map_err(Into::into)
+        VfsPath::new(system_root_fs(), dt)
+            .truncate(len)
+            .map_err(Into::into)
     }
     fn is_readable(&self) -> bool {
         let open_flag = self.open_flag.lock();

@@ -17,23 +17,23 @@ build:
 
 
 BUILD_CRATES := \
-	shell \
 	init \
-	mkdir \
-	ls \
-	cat \
 	run_test \
 	tests \
 	sleep \
 	socket_test \
-	print \
 	final_test \
+#	shell \
+	mkdir \
+	ls \
+	cat \
+	print \
 
 ifeq ($(GUI),y)
-	BUILD_CRATES += sysinfo \
+	BUILD_CRATES += egui \
+					sysinfo \
 					todo \
 					slint \
 					memory-game \
-					printdemo \
-					egui
+					printdemo
 endif

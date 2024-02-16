@@ -1711,9 +1711,9 @@ impl Task {
         inner.stack = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
         let env = if env.is_empty() {
             let envp = vec![
-                "LD_LIBRARY_PATH=/",
+                "LD_LIBRARY_PATH=/:/tests:/bin",
                 "PS1=\x1b[1m\x1b[32mAlien\x1b[0m:\x1b[1m\x1b[34m\\w\x1b[0m\\$ \0",
-                "PATH=/bin:/usr/bin",
+                "PATH=/bin:/sbin:/usr/bin",
                 "UB_BINDIR=./",
             ]
             .iter()

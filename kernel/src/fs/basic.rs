@@ -13,6 +13,7 @@ use gmanager::ManagerError;
 use log::{info, warn};
 use syscall_table::syscall_func;
 use vfs::kfile::KernelFile;
+use vfs::system_root_fs;
 use vfscore::path::VfsPath;
 use vfscore::utils::{VfsFileStat, VfsFsStat, VfsNodeType, VfsRenameFlag};
 
@@ -25,10 +26,10 @@ pub fn sys_mount(
     flags: usize,
     data: *const u8,
 ) -> AlienResult<isize> {
-    let process = current_task().unwrap();
-    let source = process.transfer_str(source);
-    let dir = process.transfer_str(dir);
-    let fs_type = process.transfer_str(fs_type);
+    let task = current_task().unwrap();
+    let source = task.transfer_str(source);
+    let dir = task.transfer_str(dir);
+    let fs_type = task.transfer_str(fs_type);
     assert!(data.is_null());
     let flags = MountFlags::from_bits(flags as u32).unwrap();
     info!(
@@ -36,7 +37,7 @@ pub fn sys_mount(
         source, dir, fs_type, flags, data
     );
     let find = vfs::system_support_fs(&fs_type).ok_or(LinuxErrno::EINVAL)?;
-    let path = VfsPath::new(vfs::system_root_fs());
+    let path = VfsPath::new(vfs::system_root_fs(), system_root_fs());
     let fs_root = match find.fs_name() {
         name @ ("tmpfs" | "ramfs" | "fat32") => {
             let fs = vfs::system_support_fs(name).unwrap();
@@ -61,7 +62,7 @@ pub fn sys_umount(dir: *const u8) -> AlienResult<isize> {
     let process = current_task().unwrap();
     let dir = process.transfer_str(dir);
     info!("umount dir:{:?}", dir);
-    let path = VfsPath::new(vfs::system_root_fs());
+    let path = VfsPath::new(vfs::system_root_fs(), system_root_fs());
     path.join(dir)?.umount()?;
     Ok(0)
 }
@@ -79,9 +80,8 @@ pub fn sys_openat(dirfd: isize, path: *const u8, flag: usize, mode: u32) -> Alie
     }
     .map(|x| im2vim(x));
     let process = current_task().unwrap();
-
-    let _path = process.transfer_str(path);
-    let path = user_path_at(dirfd, &_path)?;
+    let path_str = process.transfer_str(path);
+    let path = user_path_at(dirfd, &path_str)?;
     warn!(
         "open file: dirfd:[{}], {:?},flag:{:?}, mode:{:?}",
         dirfd, path, flag, file_mode

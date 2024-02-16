@@ -7,6 +7,7 @@ use arch::activate_paging_mode;
 use config::FRAME_BITS;
 use heap::HeapAllocator;
 use platform::config::HEAP_SIZE;
+pub mod data;
 mod frame;
 mod heap;
 mod manager;
@@ -31,20 +32,15 @@ pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     if is_first_cpu {
         frame::init_frame_allocator(ekernel as usize, memory_end);
         println!("Frame allocator init success");
+        data::relocate_removable_data();
         #[cfg(any(feature = "talloc", feature = "buddy"))]
         HEAP_ALLOCATOR.init(unsafe { &mut KERNEL_HEAP });
         #[cfg(feature = "talloc")]
-        {
-            println!("Talloc allocator init success");
-        }
+        println!("Talloc allocator init success");
         #[cfg(feature = "slab")]
-        {
-            println!("Slab allocator init success");
-        }
+        println!("Slab allocator init success");
         #[cfg(feature = "buddy")]
-        {
-            println!("Buddy allocator init success");
-        }
+        println!("Buddy allocator init success");
         vmm::build_kernel_address_space(memory_end);
         println!("Build kernel address space success");
         activate_paging_mode(vmm::kernel_pgd() >> FRAME_BITS);

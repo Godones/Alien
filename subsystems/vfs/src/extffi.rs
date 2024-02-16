@@ -12,9 +12,8 @@ unsafe extern "C" fn printf(str: *const c_char, mut args: ...) -> c_int {
     bytes_written
 }
 
-
 struct FakeOut;
-impl Write for FakeOut{
+impl Write for FakeOut {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         print!("{}", s);
         Ok(())
@@ -24,9 +23,8 @@ impl Write for FakeOut{
 #[no_mangle]
 static stdout: usize = 0;
 
-
 #[no_mangle]
-extern "C" fn fflush(file: *mut c_void) -> c_int{
+extern "C" fn fflush(file: *mut c_void) -> c_int {
     assert!(file.is_null());
     0
 }

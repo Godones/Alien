@@ -11,7 +11,7 @@ use Mstd::thread::m_yield;
 fn main() -> isize {
     println!("Init process is running");
     if fork() == 0 {
-        exec("/bin/bash\0", &[0 as *const u8], BASH_ENV);
+        exec("/tests/bash\0", &[0 as *const u8], BASH_ENV);
         // exec("/bin/shell\0", &[0 as *const u8], BASH_ENV);
     } else {
         loop {
@@ -43,8 +43,8 @@ const BASH_ENV: &[*const u8] = &[
     "OLDPWD=/root\0".as_ptr(),
     "PS1=\x1b[1m\x1b[32mAlien\x1b[0m:\x1b[1m\x1b[34m\\w\x1b[0m\\$ \0".as_ptr(),
     "_=/bin/bash\0".as_ptr(),
-    "PATH=/:/bin\0".as_ptr(),
-    "LD_LIBRARY_PATH=/bin\0".as_ptr(),
+    "PATH=/:/bin:/sbin:/tests\0".as_ptr(),
+    "LD_LIBRARY_PATH=/tests:/bin\0".as_ptr(),
     core::ptr::null(),
 ];
 

@@ -15,25 +15,25 @@ use alloc::sync::Arc;
 
 use crate::prob::Probe;
 use alloc::vec::Vec;
+pub use block::{BLKDevice, BLOCK_DEVICE};
 use config::MAX_INPUT_EVENT_NUM;
 use core::ptr::NonNull;
 use device_interface::{DeviceBase, GpuDevice, LowBlockDevice};
+use drivers::block_device::GenericBlockDevice;
 use drivers::rtc::GoldFishRtc;
 use drivers::uart::{Uart, Uart16550, Uart8250};
 use fdt::Fdt;
-use ksync::Mutex;
-use log::info;
-use platform::println;
-use spin::{Lazy, Once};
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::transport::{DeviceType, Transport};
-pub use block::{BLKDevice, BLOCK_DEVICE};
-use drivers::block_device::GenericBlockDevice;
 pub use gpu::{GPUDevice, GPU_DEVICE};
 pub use input::{INPUTDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 use interrupt::register_device_to_plic;
+use ksync::Mutex;
+use log::info;
+use platform::println;
 pub use rtc::{RTCDevice, RTC_DEVICE};
+use spin::{Lazy, Once};
 pub use uart::{UARTDevice, UART_DEVICE};
+use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use virtio_drivers::transport::{DeviceType, Transport};
 
 pub struct DeviceInfo {
     pub device: Arc<dyn DeviceBase>,
@@ -128,9 +128,6 @@ pub fn init_device(task_func: Box<dyn DeviceWithTask>) {
             println!("There is no virtio-mmio device");
         }
     }
-
-
-
 }
 
 fn init_rtc(rtc: prob::DeviceInfo) {
@@ -217,15 +214,17 @@ pub fn init_virtio_mmio(devices: Vec<prob::DeviceInfo>) {
                 match transport.device_type() {
                     DeviceType::Input => {
                         if paddr == VIRTIO5 {
-                            init_input_device(device, "keyboard");
+                            init_input_device(device, "keyboard", Some(transport));
                         } else if paddr == VIRTIO6 {
-                            init_input_device(device, "mouse");
+                            init_input_device(device, "mouse", Some(transport));
                         }
                     }
                     DeviceType::Block => init_block_device(device, Some(transport)),
-                    DeviceType::GPU => init_gpu(device),
+                    DeviceType::GPU => init_gpu(device, Some(transport)),
                     DeviceType::Network => init_net(device),
-                    _ => {}
+                    ty => {
+                        println!("Don't support virtio device type: {:?}", ty);
+                    }
                 }
             }
         }
@@ -262,7 +261,7 @@ pub fn checkout_fs_img() {
 }
 
 fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport>) {
-    use drivers::block_device::{VirtIOBlkWrapper};
+    use drivers::block_device::VirtIOBlkWrapper;
     let (base_addr, irq) = (blk.base_addr, blk.irq);
     match blk.compatible.as_str() {
         "virtio,mmio" => {
@@ -289,7 +288,7 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
                         core::hint::spin_loop();
                     }
                 }
-                use drivers::block_device::{Vf2SdDriver,VF2SDDriver};
+                use drivers::block_device::{VF2SDDriver, Vf2SdDriver};
                 let block_device = VF2SDDriver::new(Vf2SdDriver::new(sleep));
                 let size = block_device.capacity();
                 println!("Block device size is {}MB", size * 512 / 1024 / 1024);
@@ -305,7 +304,8 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
         }
         name => {
             println!("Don't support block device: {}", name);
-            #[cfg(feature = "ramdisk")]{
+            #[cfg(feature = "ramdisk")]
+            {
                 init_ramdisk();
             }
             #[cfg(not(feature = "ramdisk"))]
@@ -319,10 +319,7 @@ fn init_ramdisk() {
     use drivers::block_device::MemoryFat32Img;
     checkout_fs_img();
     let data = unsafe {
-        core::slice::from_raw_parts_mut(
-            img_start as *mut u8,
-            img_end as usize - img_start as usize,
-        )
+        core::slice::from_raw_parts_mut(img_start as *mut u8, img_end as usize - img_start as usize)
     };
     let block_device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
     let block_device = Arc::new(block_device);
@@ -330,19 +327,18 @@ fn init_ramdisk() {
     println!("Init fake block device success");
 }
 
-
-fn init_gpu(gpu: prob::DeviceInfo) {
+fn init_gpu(gpu: prob::DeviceInfo, mmio_transport: Option<MmioTransport>) {
     let (base_addr, irq) = (gpu.base_addr, gpu.irq);
     println!("Init gpu, base_addr:{:#x},irq:{}", base_addr, irq);
     match gpu.compatible.as_str() {
         "virtio,mmio" => {
             // qemu
             use drivers::gpu::VirtIOGpuWrapper;
-            let gpu = VirtIOGpuWrapper::new(base_addr);
+            let gpu = VirtIOGpuWrapper::from_mmio(mmio_transport.unwrap());
             let resolution = gpu.resolution();
             println!("GPU resolution: {:?}", resolution);
             let gpu = Arc::new(gpu);
-            gpu::init_gpu(gpu.clone());
+            gpu::init_gpu(gpu);
             // let _ = register_device_to_plic(irq, gpu);
             println!("Init gpu success");
         }
@@ -350,9 +346,12 @@ fn init_gpu(gpu: prob::DeviceInfo) {
             println!("Don't support gpu: {}", name);
         }
     }
+    // loop {
+    //
+    // }
 }
 
-fn init_input_device(input: prob::DeviceInfo, name: &str) {
+fn init_input_device(input: prob::DeviceInfo, name: &str, mmio_transport: Option<MmioTransport>) {
     let (base_addr, irq) = (input.base_addr, input.irq);
     println!(
         "Init {} input device, base_addr:{:#x},irq:{}",
@@ -362,7 +361,8 @@ fn init_input_device(input: prob::DeviceInfo, name: &str) {
         "virtio,mmio" => {
             // qemu
             use drivers::input::VirtIOInputDriver;
-            let input = VirtIOInputDriver::from_addr(base_addr, MAX_INPUT_EVENT_NUM as u32);
+            let input =
+                VirtIOInputDriver::from_mmio(mmio_transport.unwrap(), MAX_INPUT_EVENT_NUM as u32);
             let input = Arc::new(input);
             match name {
                 "mouse" => input::init_mouse_input_device(input.clone()),

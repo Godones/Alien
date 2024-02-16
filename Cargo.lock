@@ -8,7 +8,7 @@ version = "0.1.0"
 dependencies = [
  "bitflags 1.3.2",
  "core2",
- "embedded-graphics 0.7.1",
+ "embedded-graphics",
  "spin",
  "talc 2.1.0",
 ]
@@ -18,6 +18,12 @@ name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
+
+[[package]]
+name = "adler32"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
 name = "ahash"
@@ -271,7 +277,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
 dependencies = [
- "nom 7.1.3",
+ "nom",
 ]
 
 [[package]]
@@ -500,6 +506,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
+name = "cpio_reader"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "625db7965478dc700951b2e15e9144863a0dacb31f60b0eb799c7a7b975afb5c"
+dependencies = [
+ "bitflags 1.3.2",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -581,6 +596,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
+name = "dary_heap"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7762d17f1241643615821a8455a0b2c3e803784b058693d990b11f2dce25a0ca"
+
+[[package]]
 name = "data-url"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -654,7 +675,7 @@ dependencies = [
 [[package]]
 name = "devfs"
 version = "0.1.0"
-source = "git+https://github.com/os-module/rvfs.git#196e4e847bfe775c4f46a09b0ea64e1a63824634"
+source = "git+https://github.com/os-module/rvfs.git#6ced9655ebf0b75aed0e5693ba0d85f00b9bfcb2"
 dependencies = [
  "lock_api",
  "log",
@@ -793,7 +814,7 @@ checksum = "56ce8c6da7551ec6c462cbaf3bfbc75131ebbfa1c944aeaa9dab51ca1c5f0c3b"
 [[package]]
 name = "dynfs"
 version = "0.1.0"
-source = "git+https://github.com/os-module/rvfs.git#196e4e847bfe775c4f46a09b0ea64e1a63824634"
+source = "git+https://github.com/os-module/rvfs.git#6ced9655ebf0b75aed0e5693ba0d85f00b9bfcb2"
 dependencies = [
  "lock_api",
  "log",
@@ -817,38 +838,15 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "embedded-graphics"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "750082c65094fbcc4baf9ba31583ce9a8bb7f52cadfb96f6164b1bc7f922f32b"
-dependencies = [
- "az",
- "byteorder",
- "embedded-graphics-core 0.3.3",
- "float-cmp 0.8.0",
- "micromath 1.1.1",
-]
-
-[[package]]
-name = "embedded-graphics"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0649998afacf6d575d126d83e68b78c0ab0e00ca2ac7e9b3db11b4cbe8274ef0"
 dependencies = [
  "az",
  "byteorder",
- "embedded-graphics-core 0.4.0",
- "float-cmp 0.9.0",
- "micromath 2.1.0",
-]
-
-[[package]]
-name = "embedded-graphics-core"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8b1239db5f3eeb7e33e35bd10bd014e7b2537b17e071f726a09351431337cfa"
-dependencies = [
- "az",
- "byteorder",
+ "embedded-graphics-core",
+ "float-cmp",
+ "micromath",
 ]
 
 [[package]]
@@ -884,7 +882,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f37bb00b903818f924c57ba71ecaff99824ac480b3ba47a93de219d861403ac"
 dependencies = [
  "az",
- "embedded-graphics 0.8.1",
+ "embedded-graphics",
  "object-chain",
 ]
 
@@ -938,7 +936,7 @@ checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
 [[package]]
 name = "fat-vfs"
 version = "0.1.0"
-source = "git+https://github.com/os-module/rvfs.git#196e4e847bfe775c4f46a09b0ea64e1a63824634"
+source = "git+https://github.com/os-module/rvfs.git#6ced9655ebf0b75aed0e5693ba0d85f00b9bfcb2"
 dependencies = [
  "fatfs",
  "lock_api",
@@ -996,15 +994,6 @@ checksum = "46303f565772937ffe1d394a4fac6f411c6013172fadde9dcdb1e147a086940e"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
-]
-
-[[package]]
-name = "float-cmp"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1267f4ac4f343772758f7b1bdcbe767c218bbab93bb432acbf5162bbf85a6c4"
-dependencies = [
- "num-traits",
 ]
 
 [[package]]
@@ -1595,6 +1584,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c198f91728a82281a64e1f4f9eeb25d82cb32a5de251c6bd1b5154d63a8e7bd"
 
 [[package]]
+name = "libflate"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f7d5654ae1795afc7ff76f4365c2c8791b0feb18e8996a96adad8ffd7c3b2bf"
+dependencies = [
+ "adler32",
+ "core2",
+ "crc32fast",
+ "dary_heap",
+ "libflate_lz77",
+]
+
+[[package]]
+name = "libflate_lz77"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be5f52fb8c451576ec6b79d3f4deb327398bc05bbdbd99021a6e77a4c855d524"
+dependencies = [
+ "core2",
+ "hashbrown 0.13.2",
+ "rle-decode-fast",
+]
+
+[[package]]
 name = "libloading"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1725,7 +1738,7 @@ dependencies = [
 [[package]]
 name = "lwext4-vfs"
 version = "0.1.0"
-source = "git+https://github.com/os-module/rvfs.git#196e4e847bfe775c4f46a09b0ea64e1a63824634"
+source = "git+https://github.com/os-module/rvfs.git#6ced9655ebf0b75aed0e5693ba0d85f00b9bfcb2"
 dependencies = [
  "bitflags 1.3.2",
  "embedded-io",
@@ -1865,12 +1878,6 @@ dependencies = [
 
 [[package]]
 name = "micromath"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc4010833aea396656c2f91ee704d51a6f1329ec2ab56ffd00bfd56f7481ea94"
-
-[[package]]
-name = "micromath"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3c8dda44ff03a2f238717214da50f65d5a53b45cd213a7370424ffdb6fae815"
@@ -1965,16 +1972,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "memoffset 0.7.1",
-]
-
-[[package]]
-name = "nom"
-version = "6.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6a7a9657c84d5814c6196b68bb4429df09c18b1573806259fba397ea4ad0d44"
-dependencies = [
- "memchr",
- "version_check",
 ]
 
 [[package]]
@@ -2429,7 +2426,7 @@ dependencies = [
 [[package]]
 name = "ramfs"
 version = "0.1.0"
-source = "git+https://github.com/os-module/rvfs.git#196e4e847bfe775c4f46a09b0ea64e1a63824634"
+source = "git+https://github.com/os-module/rvfs.git#6ced9655ebf0b75aed0e5693ba0d85f00b9bfcb2"
 dependencies = [
  "lock_api",
  "log",
@@ -2551,6 +2548,12 @@ dependencies = [
  "critical-section",
  "embedded-hal",
 ]
+
+[[package]]
+name = "rle-decode-fast"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
 
 [[package]]
 name = "rowan"
@@ -2750,9 +2753,9 @@ dependencies = [
 [[package]]
 name = "simplegui"
 version = "0.1.0"
-source = "git+https://github.com/os-module/simplegui#89c290daaed73418b4a9a66edbbb16e4b9a3de55"
+source = "git+https://github.com/os-module/simplegui#82d6d1ed04c1c9a629948cf7d3522fdea408f523"
 dependencies = [
- "embedded-graphics 0.8.1",
+ "embedded-graphics",
  "embedded-text",
  "log",
  "oorandom",
@@ -2963,7 +2966,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 dependencies = [
- "float-cmp 0.9.0",
+ "float-cmp",
 ]
 
 [[package]]
@@ -3200,12 +3203,11 @@ dependencies = [
 
 [[package]]
 name = "tinybmp"
-version = "0.3.3"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44873aee48dd30712dc2610209902a78b9033a0148ac03c6c3e73e4ca2f49838"
+checksum = "197cc000e382175ff15abd9c54c694ef80ef20cb07e7f956c71e3ea97fc8dc60"
 dependencies = [
- "embedded-graphics 0.7.1",
- "nom 6.2.2",
+ "embedded-graphics",
 ]
 
 [[package]]
@@ -3391,7 +3393,7 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 [[package]]
 name = "unifs"
 version = "0.1.0"
-source = "git+https://github.com/os-module/rvfs.git#196e4e847bfe775c4f46a09b0ea64e1a63824634"
+source = "git+https://github.com/os-module/rvfs.git#6ced9655ebf0b75aed0e5693ba0d85f00b9bfcb2"
 dependencies = [
  "lock_api",
  "log",
@@ -3497,6 +3499,8 @@ version = "0.1.0"
 dependencies = [
  "arch",
  "constants",
+ "core2",
+ "cpio_reader",
  "cty",
  "devfs",
  "devices",
@@ -3505,8 +3509,10 @@ dependencies = [
  "fat-vfs",
  "interrupt",
  "ksync",
+ "libflate",
  "log",
  "lwext4-vfs",
+ "mem",
  "platform",
  "printf-compat",
  "ramfs",
@@ -3518,7 +3524,7 @@ dependencies = [
 [[package]]
 name = "vfscore"
 version = "0.1.0"
-source = "git+https://github.com/os-module/rvfs.git#196e4e847bfe775c4f46a09b0ea64e1a63824634"
+source = "git+https://github.com/os-module/rvfs.git#6ced9655ebf0b75aed0e5693ba0d85f00b9bfcb2"
 dependencies = [
  "bitflags 1.3.2",
  "downcast-rs",

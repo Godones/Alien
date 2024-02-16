@@ -46,6 +46,12 @@ impl VirtIOInputDriver {
             .expect("failed to create input driver");
         Self::new(input, max_events)
     }
+
+    pub fn from_mmio(mmio: MmioTransport, max_events: u32) -> Self {
+        let input = VirtIOInput::<HalImpl, MmioTransport>::new(mmio)
+            .expect("failed to create input driver");
+        Self::new(input, max_events)
+    }
 }
 
 impl InputDevice for VirtIOInputDriver {

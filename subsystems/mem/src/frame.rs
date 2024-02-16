@@ -31,18 +31,18 @@ pub fn init_frame_allocator(start: usize, end: usize) {
 
 #[no_mangle]
 pub fn alloc_frames(num: usize) -> *mut u8 {
-    assert_eq!(num.next_power_of_two(), num);
+    // assert_eq!(num.next_power_of_two(), num);
     let start_page = FRAME_ALLOCATOR
         .lock()
         .alloc_pages(num, FRAME_SIZE)
-        .expect(format!("alloc {} frame failed", num).as_str());
+        .expect("alloc frame failed");
     let start_addr = start_page << FRAME_BITS;
     start_addr as *mut u8
 }
 
 #[no_mangle]
 pub fn free_frames(addr: *mut u8, num: usize) {
-    assert_eq!(num.next_power_of_two(), num);
+    // assert_eq!(num.next_power_of_two(), num);
     let start = addr as usize >> FRAME_BITS;
     FRAME_ALLOCATOR
         .lock()

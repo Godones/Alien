@@ -32,7 +32,6 @@ pub fn sys_framebuffer_flush() -> isize {
     0
 }
 
-
 /// 一个系统调用函数，用于获取鼠标和键盘事件。
 ///
 /// `sys_event_get`会将获取到的事件将保存在event_buf所指向的内存位置处，

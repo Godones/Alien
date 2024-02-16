@@ -26,6 +26,7 @@ SLAB ?=n
 TALLOC ?=y
 BUDDY ?=n
 FS ?=fat
+INITRD ?=y
 
 
 comma:= ,
@@ -71,6 +72,13 @@ QEMU_ARGS += -device virtio-net-device,netdev=net0 \
 endif
 
 
+ifeq ($(INITRD),y)
+#FEATURES += initrd
+QEMU_ARGS += -initrd tools/initrd/initramfs.cpio.gz
+QEMU_ARGS += -append "rdinit=/init"
+endif
+
+
 FEATURES := $(subst $(space),$(comma),$(FEATURES))
 
 define boot_qemu
@@ -104,12 +112,15 @@ compile:
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	cp $(KERNEL_FILE) ./kernel-qemu
 
+initramfs:
+	make -C tools/initrd
+
 user:
 	@echo "Building user apps"
 	@make all -C ./user/apps
 	@echo "Building user apps done"
 
-sdcard:$(FS) mount testelf user
+sdcard:$(FS) mount testelf user initramfs
 	@sudo umount $(FSMOUNT)
 	@rm -rf $(FSMOUNT)
 
@@ -118,10 +129,8 @@ run:sdcard install compile
 	$(call boot_qemu)
 	@#rm ./kernel-qemu
 
-
 fake_run:
 	$(call boot_qemu)
-
 
 board:install compile
 	@rust-objcopy --strip-all $(KERNEL_FILE) -O binary $(OUTPUT)/testos.bin
@@ -159,6 +168,7 @@ testelf:
 	@echo "copying test elf"
 	@if [ -d "tests/testbin-second-stage" ]; then \
 		sudo cp tests/testbin-second-stage/* $(FSMOUNT) -r; \
+		sed "s:/code/lmbench/bin/riscv64/:/tests/:g" tests/testbin-second-stage/hello | sudo tee $(FSMOUNT)/hello; \
 	fi
 	@echo "copying test elf done"
 
@@ -169,7 +179,6 @@ dtb:
 
 jh7110:
 	@dtc -I dtb -o dts -o jh7110.dts ./tools/jh7110-visionfive-v2.dtb
-
 
 fat:
 	@if [ -f $(IMG) ]; then \
@@ -193,14 +202,14 @@ ext:
 
 mount:
 	@echo "Mounting $(IMG) to $(FSMOUNT)"
-	@-mkdir $(FSMOUNT)
 	@-sudo umount $(FSMOUNT);
+	@sudo rm -rf $(FSMOUNT)
+	@-mkdir $(FSMOUNT)
 	@sudo mount $(IMG) $(FSMOUNT)
 	@sudo rm -rf $(FSMOUNT)/*
 	@sudo cp tools/f1.txt $(FSMOUNT)
 	@sudo mkdir $(FSMOUNT)/folder
 	@sudo cp tools/f1.txt $(FSMOUNT)/folder
-
 
 img-hex:
 	@hexdump $(IMG) > test.hex
@@ -222,21 +231,23 @@ gdb-client:
 	@riscv64-unknown-elf-gdb -ex 'file kernel-qemu' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
 kernel_asm:
-	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/boot > kernel.asm
+	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
 	@vim kernel.asm
 	@rm kernel.asm
 
 docs:
 	cargo doc --open -p  kernel --target riscv64gc-unknown-none-elf --features $(FEATURES)
+
 clean:
 	@cargo clean
 	@-rm kernel-qemu
 	@-rm alien-*
 	@-sudo umount $(FSMOUNT)
 	@-rm -rf $(FSMOUNT)
+	@make clean -C tools/initrd
 
 
 check:
 	cargo check --target riscv64gc-unknown-none-elf --features $(FEATURES)
 
-.PHONY: all install build run clean fake_run sdcard vf2 unmatched gdb-client gdb-server kernel_asm docs user
+.PHONY: all install build run clean fake_run sdcard vf2 unmatched gdb-client gdb-server kernel_asm docs user initramfs
