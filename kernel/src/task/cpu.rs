@@ -267,11 +267,12 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     // check whether flag include signal
     let sig = flag & 0xff;
     let sig = SignalNumber::from(sig);
-    let task = current_task().unwrap();
+    let mut task = current_task().unwrap();
 
     let child_num = task.access_inner().children.len();
     if child_num >= 10 {
         do_suspend();
+        task = current_task().unwrap();
     }
     let new_task = task.t_clone(clone_flag, stack, sig, ptid, tls, ctid);
     if new_task.is_none() {

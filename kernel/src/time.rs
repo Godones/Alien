@@ -96,6 +96,7 @@ pub fn nanosleep(req: *mut u8, _: *mut u8) -> isize {
             break;
         }
         do_suspend();
+        let task = current_task().unwrap();
         // interrupt by signal
         let task_inner = task.access_inner();
         let receiver = task_inner.signal_receivers.lock();
@@ -241,6 +242,7 @@ pub fn clock_nanosleep(clock_id: usize, flags: usize, req: usize, remain: usize)
                     break;
                 }
                 do_suspend();
+                let task = current_task().unwrap();
                 // check signal
                 let task_inner = task.access_inner();
                 let receiver = task_inner.signal_receivers.lock();

@@ -149,6 +149,7 @@ pub fn sigtimewait(set: usize, info: usize, time: usize) -> isize {
             break;
         }
         do_suspend();
+        let task = current_task().unwrap();
 
         // interrupt by signal
         let task_inner = task.access_inner();

@@ -47,7 +47,7 @@ fn main(hart_id: usize) {
         vfs::init_filesystem().expect("init filesystem failed");
         trap::init_trap_subsystem();
         arch::allow_access_user_memory();
-        task::init_process();
+        task::init_task();
         // register all syscall
         syscall_table::init_init_array!();
         STARTED.store(false, Ordering::Relaxed);

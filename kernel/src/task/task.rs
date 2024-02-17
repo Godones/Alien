@@ -83,7 +83,7 @@ pub struct Task {
     /// 内核栈
     pub kernel_stack: Stack,
     /// 更详细的信息
-    inner: Mutex<TaskInner>,
+    pub inner: Mutex<TaskInner>,
 }
 
 #[derive(Debug)]
@@ -129,7 +129,7 @@ pub struct TaskInner {
     /// 在创建时包含 CLONE_CHILD_SETTID 时才非0，但可以被 sys_set_tid_address 修改
     pub clear_child_tid: usize,
     /// 处理信号时，保存的之前的用户线程的上下文信息
-    trap_cx_before_signal: Option<TrapFrame>,
+    pub trap_cx_before_signal: Option<TrapFrame>,
     /// 保存信息时，处理函数是否设置了 SIGINFO 选项
     /// 如果设置了，说明信号触发前的上下文信息通过 ucontext 传递给了用户，
     /// 此时用户可能修改其中的 pc 信息(如musl-libc 的 pthread_cancel 函数)。
@@ -877,7 +877,7 @@ impl TaskInner {
             .address_space
             .lock()
             .query(VirtAddr::from(ptr as usize))
-            .unwrap();
+            .expect(format!("{} transfer_raw_ptr: {:#x} failed", self.name, ptr as usize).as_str());
         assert!(flag.contains(MappingFlags::V));
         unsafe { &mut *(physical.as_usize() as *mut T) }
     }
@@ -888,7 +888,7 @@ impl TaskInner {
             .address_space
             .lock()
             .query(VirtAddr::from(ptr as usize))
-            .unwrap();
+            .expect(format!("{} transfer_raw_ptr: {:#x} failed", self.name, ptr as usize).as_str());
         assert!(flag.contains(MappingFlags::V));
         unsafe { &*(physical.as_usize() as *const T) }
     }

@@ -4,7 +4,7 @@ use core::arch::global_asm;
 /// 线程切换需要保存的上下文
 ///
 /// 线程切换由__switch()完成，这个汇编函数不会由编译器完成寄存器保存，因此需要手动保存
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Context {
     /// ra 寄存器
