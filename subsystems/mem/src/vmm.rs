@@ -1,7 +1,7 @@
 use crate::frame::VmmPageAllocator;
 use alloc::sync::Arc;
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
-use ksync::RwLock;
+use ksync::Mutex;
 use page_table::addr::{PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
@@ -52,15 +52,15 @@ fn kernel_info(memory_end: usize) {
     );
 }
 
-pub static KERNEL_SPACE: Lazy<Arc<RwLock<Sv39PageTable<VmmPageAllocator>>>> = Lazy::new(|| {
-    Arc::new(RwLock::new(
+pub static KERNEL_SPACE: Lazy<Arc<Mutex<Sv39PageTable<VmmPageAllocator>>>> = Lazy::new(|| {
+    Arc::new(Mutex::new(
         Sv39PageTable::<VmmPageAllocator>::try_new().unwrap(),
     ))
 });
 
 pub fn build_kernel_address_space(memory_end: usize) {
     kernel_info(memory_end);
-    let mut kernel_space = KERNEL_SPACE.write();
+    let mut kernel_space = KERNEL_SPACE.lock();
     kernel_space
         .map_region(
             VirtAddr::from(stext as usize),
@@ -131,11 +131,11 @@ pub fn build_kernel_address_space(memory_end: usize) {
 
 // static KERNEL_MAP_MAX: AtomicUsize = AtomicUsize::new(0);
 pub fn kernel_pgd() -> usize {
-    KERNEL_SPACE.read().root_paddr().as_usize()
+    KERNEL_SPACE.lock().root_paddr().as_usize()
 }
 
 pub fn kernel_satp() -> usize {
-    8usize << 60 | (KERNEL_SPACE.read().root_paddr().as_usize() >> FRAME_BITS)
+    8usize << 60 | (KERNEL_SPACE.lock().root_paddr().as_usize() >> FRAME_BITS)
 }
 
 // pub fn alloc_kernel_free_region(size: usize) -> usize {
@@ -144,7 +144,7 @@ pub fn kernel_satp() -> usize {
 // }
 
 pub fn map_region_to_kernel(addr: usize, size: usize, flags: MappingFlags) {
-    let mut kernel_space = KERNEL_SPACE.write();
+    let mut kernel_space = KERNEL_SPACE.lock();
     kernel_space
         .map_region(
             VirtAddr::from(addr),
@@ -156,9 +156,13 @@ pub fn map_region_to_kernel(addr: usize, size: usize, flags: MappingFlags) {
         .unwrap();
 }
 pub fn query_kernel_space(addr: usize) -> Option<usize> {
-    let kernel_space = KERNEL_SPACE.read();
+    let kernel_space = KERNEL_SPACE.lock();
     kernel_space
         .query(VirtAddr::from(addr))
         .ok()
         .map(|(x, _, _)| x.as_usize())
+}
+
+pub fn kernel_space() -> Arc<Mutex<Sv39PageTable<VmmPageAllocator>>> {
+    KERNEL_SPACE.clone()
 }

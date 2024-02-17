@@ -190,22 +190,6 @@ pub fn shmat(shmid: usize, shmaddr: usize, shmflg: u32) -> AlienResult<isize> {
     shm.access_inner().state = ShmMemoryState::Used;
     let mut task_inner = task.access_inner();
     let mut address_space = task_inner.address_space.lock();
-    // let shm_inner = shm.access_inner();
-    // let mut virt_start = free_map.start;
-    // shm.access_inner().frames.iter().for_each(|x| {
-    //     let phy_start = x.start();
-    //     address_space
-    //         .map(
-    //             VirtAddr::from(virt_start),
-    //             PhysAddr::from(phy_start),
-    //             PageSize::Size4K,
-    //             "UVRWAD".into(),
-    //         )
-    //         .unwrap();
-    //     error!("map {:#x} to {:#x}", phy_start, virt_start);
-    //     virt_start += FRAME_SIZE;
-    // });
-
     let size = shm.len();
     let start_phy = shm.access_inner().frames.start();
     address_space

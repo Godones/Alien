@@ -104,6 +104,7 @@ pub fn pselect6(
     do_suspend();
 
     loop {
+        let task = current_task().unwrap();
         let mut set = 0;
         // 如果设置了监视是否可读的 fd
         if readfds != 0 {
@@ -208,6 +209,7 @@ pub fn pselect6(
                 return Ok(0);
             }
         }
+        let task = current_task().unwrap();
 
         // interrupt by signal
         let task_inner = task.access_inner();

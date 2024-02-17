@@ -16,10 +16,12 @@ use drivers::{DriverTask, DriverWithTask};
 use smpscheduler::FifoTask;
 use spin::Lazy;
 pub use task::{StatisticalData, Task, TaskState};
+use timer::get_time_ms;
 
 mod context;
 mod cpu;
 mod heap;
+mod kthread;
 pub mod schedule;
 mod stack;
 mod task;
@@ -29,18 +31,29 @@ pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
     let mut data = Vec::new();
     read_all("/tests/init", &mut data);
     assert!(data.len() > 0);
-    let task = Task::from_elf("/bin/init", data.as_slice()).unwrap();
+    let task = Task::from_elf("/tests/init", data.as_slice()).unwrap();
     Arc::new(task)
 });
 
 /// 将初始进程加入进程池中进行调度
-pub fn init_process() {
+pub fn init_task() {
+    kthread::ktread_create(kthread_test, "kthread_test").unwrap();
     let task = INIT_PROCESS.clone();
-    let cwd = vfs::system_root_fs();
-    let root = cwd.clone();
-    task.access_inner().fs_info = FsContext::new(root, cwd);
     GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
     println!("Init process success");
+}
+
+fn kthread_test() {
+    let mut time = get_time_ms();
+    println!("kthread_test start ...",);
+    loop {
+        let now = get_time_ms();
+        if now - time > 1000 {
+            // println!("kthread_test tick at {}", now);
+            time = now;
+        }
+        do_suspend();
+    }
 }
 
 impl DriverTask for Task {

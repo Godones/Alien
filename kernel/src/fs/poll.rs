@@ -82,6 +82,7 @@ pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, _mask: usize) -> AlienRes
         info!("[poll] suspend");
         // suspend
         do_suspend();
+        let task = current_task().unwrap();
         // interrupt by signal
         // let task = current_task().unwrap();
         let task_inner = task.access_inner();

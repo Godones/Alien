@@ -1,6 +1,6 @@
 //! CPU 调度
 use alloc::sync::Arc;
-use core::arch::asm;
+use core::hint::spin_loop;
 use smpscheduler::FifoTask;
 
 use constants::signal::SignalNumber;
@@ -60,11 +60,11 @@ pub fn run_task() -> ! {
             cpu.task = Some(task.inner().clone());
             // switch to the process context
             let cpu_context = cpu.get_context_mut_raw_ptr();
-            // warn!("switch to task {}", process.get_tid());
+            // println!("hart {} switch to task {}", hart_id(),task.get_tid());
             drop(task);
             switch(cpu_context, context);
         } else {
-            unsafe { asm!("wfi") }
+            spin_loop();
         }
     }
 }
