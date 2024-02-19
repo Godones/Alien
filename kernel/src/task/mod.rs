@@ -37,19 +37,19 @@ pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
 
 /// 将初始进程加入进程池中进行调度
 pub fn init_task() {
-    kthread::ktread_create(kthread_test, "kthread_test").unwrap();
-    let task = INIT_PROCESS.clone();
-    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
-    println!("Init process success");
+    kthread::ktread_create(kthread_init, "kthread_test").unwrap();
+    println!("Init task success");
 }
 
-fn kthread_test() {
+fn kthread_init() {
+    println!("kthread_init start...");
+    let task = INIT_PROCESS.clone();
+    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
     let mut time = get_time_ms();
-    println!("kthread_test start ...",);
     loop {
         let now = get_time_ms();
         if now - time > 1000 {
-            // println!("kthread_test tick at {}", now);
+            // println!("kthread_init tick at {}", now);
             time = now;
         }
         do_suspend();
