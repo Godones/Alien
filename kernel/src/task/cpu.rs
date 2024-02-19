@@ -116,7 +116,7 @@ pub fn current_trap_frame() -> &'static mut TrapFrame {
 pub fn do_exit(exit_code: i32) -> isize {
     let task = current_task().unwrap();
     let exit_code = (exit_code & 0xff) << 8;
-    if task.get_pid() == 0 {
+    if task.get_pid() == 1 {
         println!("Init process exit with code {}", exit_code);
         system_shutdown();
     }
