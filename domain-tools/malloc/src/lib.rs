@@ -34,10 +34,10 @@ unsafe impl GlobalAlloc for HeapAllocator {
             // we alloc two times of the pages we need
             let new_pages = libsyscall::alloc_pages(need_pages * 2);
             assert!(!new_pages.is_null());
-            self.allocator
-                .lock()
-                .lock()
-                .add_to_heap(new_pages as usize, need_pages * 2 * 4096 + new_pages as usize);
+            self.allocator.lock().lock().add_to_heap(
+                new_pages as usize,
+                need_pages * 2 * 4096 + new_pages as usize,
+            );
             self.allocator.lock().alloc(layout)
         } else {
             ptr

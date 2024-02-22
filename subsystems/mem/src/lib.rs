@@ -9,10 +9,11 @@ mod frame;
 mod heap;
 mod vmm;
 
-
-pub use vmm::{MappingFlags,alloc_free_region,map_region_to_kernel,unmap_region_from_kernel,query_kernel_space
-,VirtAddr,PhysAddr};
-pub use frame::{alloc_frames,free_frames};
+pub use frame::{alloc_frames, free_frames};
+pub use vmm::{
+    alloc_free_region, map_region_to_kernel, query_kernel_space, unmap_region_from_kernel,
+    MappingFlags, PhysAddr, VirtAddr,
+};
 
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::new();

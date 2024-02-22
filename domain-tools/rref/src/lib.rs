@@ -9,6 +9,7 @@ use core::alloc::Layout;
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 use core::ops::{Deref, DerefMut};
+use libsyscall::println;
 use spin::Once;
 
 pub unsafe auto trait RRefable {}
@@ -84,6 +85,8 @@ impl<T: RRefable> DerefMut for RRef<T> {
 
 impl TypeIdentifiable for [u8; 512] {
     fn type_id() -> u64 {
+        // core::intrinsics::type_id();
+        // core::any::TypeId::of();
         5u64
     }
 }
@@ -123,6 +126,8 @@ impl Error for RpcError {}
 
 static HEAP: Once<Box<dyn SharedHeap>> = Once::new();
 
+/// Init the shared heap
 pub fn init(heap: Box<dyn SharedHeap>) {
     HEAP.call_once(|| heap);
+    println!("shared heap initialized");
 }
