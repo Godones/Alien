@@ -1,5 +1,5 @@
+#![allow(unused)]
 //! SBI 调用接口
-
 use core::arch::asm;
 
 /// 设置定时器
@@ -77,7 +77,7 @@ pub const EXTENSION_HSM: usize = 0x48534D;
 const FUNCTION_HSM_HART_START: usize = 0x0;
 // const FUNCTION_HSM_HART_STOP: usize = 0x1;
 // const FUNCTION_HSM_HART_GET_STATUS: usize = 0x2;
-// const FUNCTION_HSM_HART_SUSPEND: usize = 0x3;
+const FUNCTION_HSM_HART_SUSPEND: usize = 0x3;
 
 /// 第三种类型的SBI调用
 ///
@@ -96,15 +96,15 @@ fn sbi_call_3(extension: usize, function: usize, arg0: usize, arg1: usize, arg2:
     SbiRet { error, value }
 }
 
-// pub fn hart_suspend(suspend_type: u32, resume_addr: usize, opaque: usize) -> SbiRet {
-//     sbi_call_3(
-//         EXTENSION_HSM,
-//         FUNCTION_HSM_HART_SUSPEND,
-//         suspend_type as usize,
-//         resume_addr,
-//         opaque,
-//     )
-// }
+pub fn hart_suspend(suspend_type: u32, resume_addr: usize, opaque: usize) -> SbiRet {
+    sbi_call_3(
+        EXTENSION_HSM,
+        FUNCTION_HSM_HART_SUSPEND,
+        suspend_type as usize,
+        resume_addr,
+        opaque,
+    )
+}
 
 /// wrap sbi FUNCTION_HSM_HART_START call
 pub fn hart_start(hart_id: usize, start_addr: usize, opaque: usize) -> SbiRet {

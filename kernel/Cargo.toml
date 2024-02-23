@@ -6,9 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config = {path = "../subsystems/config"}
-arch = {path = "../subsystems/arch"}
-platform = {path = "../subsystems/platform"}
-basemachine = { path = "../../Alien/dep/basemachine" }
-mem = {path = "../subsystems/mem"}
-domain-loader = {path = "../subsystems/domain-loader"}
+config = { path = "../subsystems/config" }
+arch = { path = "../subsystems/arch" }
+platform = { path = "../subsystems/platform" }
+mem = { path = "../subsystems/mem" }
+domain-loader = { path = "../subsystems/domain-loader" }
+
+
+
+[features]
+default = ["smp"]
+smp = ["platform/smp"]

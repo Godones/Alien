@@ -9,12 +9,14 @@ edition = "2021"
 config = { path = "../config" }
 mem = { path = "../mem" }
 ksync = { path = "../ksync" }
-spin = "0"
 platform = { path = "../platform" }
-arch = {path = "../arch"}
-log = "0"
+arch = { path = "../arch" }
 
 libsyscall = { path = "../../domain-tools/libsyscall" }
 rref = { path = "../../domain-tools/rref" }
 continuation = { path = "../../domain-tools/continuation" }
 proxy = { path = "../proxy" }
+
+
+log = "0"
+spin = "0"

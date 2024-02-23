@@ -6,16 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mem = {path = "../mem"}
-config = {path = "../config"}
+mem = { path = "../mem" }
+config = { path = "../config" }
+platform = { path = "../platform" }
+
+proxy = { path = "../proxy" }
+domain-helper = { path = "../domain-helper" }
+libsyscall = { path = "../../domain-tools/libsyscall" }
+interface = { path = "../../domain-tools/interface" }
+rref = { path = "../../domain-tools/rref" }
+
 xmas-elf = "0.9"
 log = "0"
-domain-helper = {path = "../domain-helper"}
-platform = {path = "../platform"}
-proxy = { path = "../proxy" }
-
-
-libsyscall = {path = "../../domain-tools/libsyscall"}
-interface = {path = "../../domain-tools/interface"}
-rref = {path = "../../domain-tools/rref"}
 

@@ -6,6 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+platform = { path = "../platform" }
+arch = { path = "../arch" }
+ksync = { path = "../ksync" }
+
 interface = { path = "../../domain-tools/interface" }
 rref = { path = "../../domain-tools/rref" }
 continuation = { path = "../../domain-tools/continuation" }
@@ -13,10 +17,6 @@ continuation = { path = "../../domain-tools/continuation" }
 
 spin = "0"
 log = "0"
-platform = { path = "../platform" }
-arch = { path = "../arch" }
-ksync = { path = "../ksync" }
-
 [features]
 default = ["fault_isolation"]
 fault_isolation = []

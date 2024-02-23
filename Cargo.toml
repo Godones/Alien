@@ -13,11 +13,12 @@ members = [
     "domain-tools/rref",
     "domains/generated/gblk",
     "subsystems/domain-loader",
-    "subsystems/error",
     "subsystems/domain-helper",
     "domains/fatfs",
     "domains/generated/gfatfs",
-    "subsystems/safety-abstraction/virtio-blk", "subsystems/proxy", "domain-tools/continuation",
+    "subsystems/safety-abstraction/virtio-blk",
+    "subsystems/proxy",
+    "domain-tools/continuation",
 ]
 
 resolver = "2"
