@@ -32,6 +32,7 @@ pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     if is_first_cpu {
         frame::init_frame_allocator(ekernel as usize, memory_end);
         println!("Frame allocator init success");
+        #[cfg(feature = "initrd")]
         data::relocate_removable_data();
         #[cfg(any(feature = "talloc", feature = "buddy"))]
         HEAP_ALLOCATOR.init(unsafe { &mut KERNEL_HEAP });

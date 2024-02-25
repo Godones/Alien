@@ -23,10 +23,10 @@ BUILD_CRATES := \
 	sleep \
 	socket_test \
 	final_test \
-#	shell \
-	mkdir \
 	ls \
 	cat \
+	mkdir \
+#	shell \
 	print \
 
 ifeq ($(GUI),y)

@@ -41,7 +41,7 @@ netcore = { git = "https://github.com/os-module/simple-net" }
 
 [features]
 default = ["smp","test"]
-qemu = ["platform/qemu_riscv","interrupt/qemu"]
+qemu = ["platform/qemu_riscv","interrupt/qemu","mem/initrd"]
 vf2 = ["platform/vf2","interrupt/vf2", "devices/vf2"]
 hifive = ["platform/hifive","interrupt/hifive"]
 smp = ["platform/smp"]

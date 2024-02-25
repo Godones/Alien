@@ -1,4 +1,4 @@
-use crate::{alloc_frames, free_frames};
+use crate::{free_frames};
 use config::FRAME_SIZE;
 use ksync::Mutex;
 
@@ -15,7 +15,7 @@ impl Drop for InitrdData {
         free_frames(self.data_ptr as *mut u8, np);
     }
 }
-
+#[cfg(feature = "initrd")]
 pub(super) fn relocate_removable_data() {
     let info = platform::platform_machine_info();
     if info.initrd.is_some() {
@@ -23,7 +23,7 @@ pub(super) fn relocate_removable_data() {
         let end = info.initrd.as_ref().unwrap().end;
         let size = end - start;
         let np = (size + FRAME_SIZE - 1) / FRAME_SIZE;
-        let frame_start = alloc_frames(np);
+        let frame_start = crate::alloc_frames(np);
         // copy data
         unsafe {
             core::ptr::copy_nonoverlapping(start as *const u8, frame_start, size);
