@@ -129,7 +129,11 @@ fn walk_dt(fdt: Fdt) -> MachineInfo {
                 }
             })
         } else if node.name.starts_with(CHOSE) {
-            let initrd_start = node.property("linux,initrd-start").unwrap();
+            let initrd_start = node.property("linux,initrd-start");
+            if initrd_start.is_none() {
+                continue;
+            }
+            let initrd_start = initrd_start.unwrap();
             let initrd_end = node.property("linux,initrd-end").unwrap();
             let initrd_start = initrd_start.as_usize().unwrap();
             let initrd_end = initrd_end.as_usize().unwrap();

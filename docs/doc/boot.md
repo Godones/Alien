@@ -90,3 +90,5 @@ remove any packages on your system with `brltty` in name
 https://github.com/orgs/rcore-os/discussions/24  
 
 https://www.cnblogs.com/elect-fans/archive/2012/05/03/2481001.html 解决开发板连接后无法输入的问题
+
+https://www.thegoodpenguin.co.uk/blog/u-boot-fit-image-overview/ FIT镜像格式
