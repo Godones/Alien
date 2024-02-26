@@ -232,31 +232,15 @@ pub fn init_virtio_mmio(devices: Vec<prob::DeviceInfo>) {
 }
 
 #[cfg(feature = "ramdisk")]
-core::arch::global_asm!(
-    r#"
-            .section .data
-            .global img_start
-            .global img_end
-            .align 12
-            img_start:
-                .incbin "./tools/sdcard.img"
-            img_end:
-        "#
-);
+static RAMDISK: &'static [u8] = include_bytes!("../../../tools/sdcard.img");
 
 #[cfg(feature = "ramdisk")]
-extern "C" {
-    pub fn img_start();
-    pub fn img_end();
-}
-#[cfg(feature = "ramdisk")]
 pub fn checkout_fs_img() {
-    let img_start = img_start as usize;
-    let img_end = img_end as usize;
-    let img_size = img_end - img_start;
+    let img_start = RAMDISK.as_ptr() as usize;
+    let img_size = RAMDISK.len();
     println!(
-        "img_start: {:#x}, img_end: {:#x}, img_size: {:#x}",
-        img_start, img_end, img_size
+        "img_start: {:#x}, img_size: {:#x}",
+        img_start, img_size
     );
 }
 
@@ -319,7 +303,7 @@ fn init_ramdisk() {
     use drivers::block_device::MemoryFat32Img;
     checkout_fs_img();
     let data = unsafe {
-        core::slice::from_raw_parts_mut(img_start as *mut u8, img_end as usize - img_start as usize)
+        core::slice::from_raw_parts_mut(RAMDISK.as_ptr() as *mut u8, RAMDISK.len())
     };
     let block_device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
     let block_device = Arc::new(block_device);
@@ -346,9 +330,6 @@ fn init_gpu(gpu: prob::DeviceInfo, mmio_transport: Option<MmioTransport>) {
             println!("Don't support gpu: {}", name);
         }
     }
-    // loop {
-    //
-    // }
 }
 
 fn init_input_device(input: prob::DeviceInfo, name: &str, mmio_transport: Option<MmioTransport>) {
