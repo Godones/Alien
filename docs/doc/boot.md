@@ -69,12 +69,6 @@ sudo apt-get install uboot-mkimage
 
 
 
-## cv1811h启动os
-
-制作镜像的流程与上面的一致。
-
-
-
 
 
 ## minicom: cannot open /dev/ttyUSB0: No such file or directory 解决
