@@ -16,8 +16,6 @@ platform  = { path = "../platform"}
 
 
 [features]
-default = [ "qemu" ]
-
 vf2 = []
 hifive = []
 qemu = []
