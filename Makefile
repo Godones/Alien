@@ -12,7 +12,7 @@ BOOTLOADER  := default
 KERNEL_BIN  := $(KERNEL_FILE).bin
 IMG := tools/sdcard.img
 FSMOUNT := ./diskfs
-TFTPBOOT := /home/godones/projects/tftpboot
+TFTPBOOT := /home/godones/projects/tftpboot/
 SMP ?= 1
 GUI ?=n
 NET ?=y
@@ -135,24 +135,24 @@ fake_run:
 
 board:install compile
 	@rust-objcopy --strip-all $(KERNEL_FILE) -O binary $(OUTPUT)/testos.bin
-	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
+	@cp $(OUTPUT)/testos.bin  $(TFTPBOOT)
 	@cp $(OUTPUT)/testos.bin ./alien.bin
 
 qemu:
 	@rust-objcopy --strip-all $(OUTPUT)/boot -O binary $(OUTPUT)/testos.bin
-	@cp $(OUTPUT)/testos.bin  /home/godones/projects/tftpboot/
+	@cp $(OUTPUT)/testos.bin  $(TFTPBOOT)
 	@cp $(OUTPUT)/testos.bin ./alien.bin
 
 vf2:board
 	@mkimage -f ./tools/vf2.its ./alien-vf2.itb
 	@rm ./kernel-qemu
-	@cp ./alien-vf2.itb /home/godones/projects/tftpboot/
+	@cp ./alien-vf2.itb $(TFTPBOOT)
 
 
 unmatched:board
 	@mkimage -f ./tools/fu740.its ./alien-unmatched.itb
 	@rm ./kernel-qemu
-	@cp ./alien-unmatched.itb /home/godones/projects/tftpboot/
+	@cp ./alien-unmatched.itb $(TFTPBOOT)
 
 f_test:
 	qemu-system-riscv64 \
@@ -252,11 +252,12 @@ help:
 	@echo "  	 LOG: enable log, default n, options: TRACE, DEBUG, INFO, WARN, ERROR"
 	@echo "  build [SMP=?] [LOG=?]: build kernel"
 	@echo "  sdcard [GUI=?] [FS=?]: build sdcard"
-	@echo "  fake_run [SMP=?] [GUI=?]: run kernel without building"
+	@echo "  	 GUI: enable gui, it's available only when running qemu"
+	@echo "  	 FS: file system, for vf2 or unmatched, only fat is available"
+	@echo "  fake_run [SMP=?] [GUI=?]: run kernel without building, the SMP should same as build"
 	@echo "  vf2 [SMP=?] [LOG=?] [VF2=y]: build starfive2 board image"
 	@echo "      SMP: number of cores, must >= 2"
 	@echo "      VF2: must be y"
-
 	@echo "  unmatched [SMP=?] [LOG=?] [UNMATCHED=y]: build unmatched board image"
 	@echo "      SMP: number of cores, must >= 2"
 	@echo "      UNMATCHED: must be y"
