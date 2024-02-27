@@ -26,6 +26,7 @@ download:
 	fi
 
 config:
+	sudo apt install libncurses5-dev libncursesw5-dev
 	CROSS_COMPILE=$(COMPILER) ARCH=$(ARCH) make defconfig -C $(BB)
 	CROSS_COMPILE=$(COMPILER) ARCH=$(ARCH) make menuconfig -C $(BB)
 
