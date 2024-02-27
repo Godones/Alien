@@ -1,4 +1,4 @@
-use crate::{free_frames};
+use crate::free_frames;
 use config::FRAME_SIZE;
 use ksync::Mutex;
 

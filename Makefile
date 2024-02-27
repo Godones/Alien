@@ -186,7 +186,7 @@ fat:
 	@mkfs.fat -F 32 $(IMG)
 
 ext:
-	$if [ `ls -l $(IMG) | awk '{print $$5}' ` -lt 2147483648 ]; then \
+	@if [ `ls -l $(IMG) | awk '{print $$5}' ` -lt 2147483648 ]; then \
 		echo "resize img to 2G"; \
 		dd if=/dev/zero bs=1M count=2048 >> $(IMG); \
 	fi

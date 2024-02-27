@@ -26,11 +26,10 @@ use fdt::Fdt;
 pub use gpu::{GPUDevice, GPU_DEVICE};
 pub use input::{INPUTDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 use interrupt::register_device_to_plic;
-use ksync::Mutex;
 use log::info;
 use platform::println;
 pub use rtc::{RTCDevice, RTC_DEVICE};
-use spin::{Lazy, Once};
+use spin::Once;
 pub use uart::{UARTDevice, UART_DEVICE};
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::transport::{DeviceType, Transport};
@@ -40,8 +39,6 @@ pub struct DeviceInfo {
     pub irq: usize,
     pub need_register: bool,
 }
-
-pub static INITIALIZED_DEVICES: Lazy<Mutex<Vec<DeviceInfo>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 static TASK_FUNC: Once<Box<dyn DeviceWithTask>> = Once::new();
 
@@ -122,12 +119,37 @@ pub fn init_device(task_func: Box<dyn DeviceWithTask>) {
         }
     }
 
-    match dtb.probe_virtio() {
-        Some(virtio_mmio_devices) => init_virtio_mmio(virtio_mmio_devices),
-        None => {
-            println!("There is no virtio-mmio device");
+    #[cfg(not(all(feature = "vf2", feature = "hifive")))]
+    {
+        match dtb.probe_virtio() {
+            Some(virtio_mmio_devices) => init_virtio_mmio(virtio_mmio_devices),
+            None => {
+                println!("There is no virtio-mmio device");
+            }
         }
     }
+
+    #[cfg(feature = "vf2")]
+    match dtb.probe_sdio() {
+        Some(sdio) => init_block_device(sdio, None),
+        None => {
+            panic!("There is no sdio device");
+        }
+    }
+
+    #[cfg(feature = "hifive")]
+    init_block_device(
+        prob::DeviceInfo::new(
+            alloc::string::String::new(),
+            0,
+            0,
+            alloc::string::String::new(),
+        ),
+        None,
+    );
+
+    #[cfg(any(feature = "hifive", feature = "vf2"))]
+    init_net(None);
 }
 
 fn init_rtc(rtc: prob::DeviceInfo) {
@@ -142,11 +164,6 @@ fn init_rtc(rtc: prob::DeviceInfo) {
             let current_time = rtc.read_time_string();
             rtc::init_rtc(rtc.clone());
             register_device_to_plic(info.irq, rtc);
-            // INITIALIZED_DEVICES.lock().push(DeviceInfo {
-            //     device: rtc,
-            //     irq: info.irq,
-            //     need_register: true,
-            // });
             println!("Init rtc success, current time: {:?}", current_time);
         }
         name => {
@@ -165,11 +182,6 @@ fn init_uart(uart: prob::DeviceInfo) {
             let uart = Arc::new(Uart::new(Box::new(uart)));
             uart::init_uart(uart.clone());
             register_device_to_plic(irq, uart);
-            // INITIALIZED_DEVICES.lock().push(DeviceInfo {
-            //     device: uart,
-            //     irq,
-            //     need_register: true,
-            // });
         }
         "snps,dw-apb-uart" => {
             // vf2
@@ -177,15 +189,9 @@ fn init_uart(uart: prob::DeviceInfo) {
             let uart = Arc::new(Uart::new(Box::new(uart)));
             uart::init_uart(uart.clone());
             register_device_to_plic(irq, uart);
-            // INITIALIZED_DEVICES.lock().push(DeviceInfo {
-            //     device: uart,
-            //     irq,
-            //     need_register: true,
-            // });
         }
         name => {
-            println!("Don't support uart: {}", name);
-            return;
+            panic!("Don't support uart: {}", name);
         }
     }
     println!("Init uart success");
@@ -221,7 +227,7 @@ pub fn init_virtio_mmio(devices: Vec<prob::DeviceInfo>) {
                     }
                     DeviceType::Block => init_block_device(device, Some(transport)),
                     DeviceType::GPU => init_gpu(device, Some(transport)),
-                    DeviceType::Network => init_net(device),
+                    DeviceType::Network => init_net(Some(device)),
                     ty => {
                         println!("Don't support virtio device type: {:?}", ty);
                     }
@@ -238,10 +244,7 @@ static RAMDISK: &'static [u8] = include_bytes!("../../../tools/sdcard.img");
 pub fn checkout_fs_img() {
     let img_start = RAMDISK.as_ptr() as usize;
     let img_size = RAMDISK.len();
-    println!(
-        "img_start: {:#x}, img_size: {:#x}",
-        img_start, img_size
-    );
+    println!("img_start: {:#x}, img_size: {:#x}", img_start, img_size);
 }
 
 fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport>) {
@@ -261,7 +264,7 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
             println!("Init block device success");
         }
         "starfive,jh7110-sdio" => {
-            // visionfi ve2/starfive2
+            // starfive2
             #[cfg(not(feature = "ramdisk"))]
             {
                 use arch::read_timer;
@@ -302,9 +305,8 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
 fn init_ramdisk() {
     use drivers::block_device::MemoryFat32Img;
     checkout_fs_img();
-    let data = unsafe {
-        core::slice::from_raw_parts_mut(RAMDISK.as_ptr() as *mut u8, RAMDISK.len())
-    };
+    let data =
+        unsafe { core::slice::from_raw_parts_mut(RAMDISK.as_ptr() as *mut u8, RAMDISK.len()) };
     let block_device = GenericBlockDevice::new(Box::new(MemoryFat32Img::new(data)));
     let block_device = Arc::new(block_device);
     block::init_block_device(block_device);
@@ -351,11 +353,6 @@ fn init_input_device(input: prob::DeviceInfo, name: &str, mmio_transport: Option
                 _ => panic!("Don't support {} input device", name),
             }
             let _ = register_device_to_plic(irq, input);
-            // INITIALIZED_DEVICES.lock().push(DeviceInfo {
-            //     device: input,
-            //     irq,
-            //     need_register: true,
-            // });
             println!("Init keyboard input device success");
         }
         name => {
@@ -364,18 +361,19 @@ fn init_input_device(input: prob::DeviceInfo, name: &str, mmio_transport: Option
     }
 }
 
-fn init_net(_nic: prob::DeviceInfo) {
-    // If we need run test, we should only init loop device because no we can't route packet
+fn init_net(_nic: Option<prob::DeviceInfo>) {
+    // If we need run test, we should init loop device because no we can't route packet
     #[cfg(feature = "test")]
     {
         init_loop_device();
     }
     #[cfg(not(feature = "test"))]
     {
-        let (base_addr, irq) = (_nic.base_addr, _nic.irq);
+        let nic = _nic.unwrap();
+        let (base_addr, irq) = (nic.base_addr, nic.irq);
         println!("Init net device, base_addr:{:#x},irq:{}", base_addr, irq);
 
-        match _nic.compatible.as_str() {
+        match nic.compatible.as_str() {
             "virtio,mmio" => {
                 use config::{QEMU_GATEWAY, QEMU_IP};
                 use core::str::FromStr;
@@ -393,8 +391,7 @@ fn init_net(_nic: prob::DeviceInfo) {
                 println!("Init net device success");
             }
             name => {
-                println!("Don't support net device: {}", name);
-                return;
+                panic!("Don't support net device: {}", name);
             }
         }
     }

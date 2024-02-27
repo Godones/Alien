@@ -1,9 +1,3 @@
-//! This crate provides a way to get machine information from a device-tree.
-//!
-//! # Example
-//! ```
-//! let machine_info = machine_info_from_dtb(0x80700000);
-//! ```
 use core::cmp::min;
 use core::fmt::Debug;
 use core::ops::Range;

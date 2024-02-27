@@ -10,9 +10,8 @@ mod common_riscv;
 mod hifive_riscv;
 
 use ::config::CPU_NUM;
-pub use basic::MachineInfo as PlatformInfo;
+pub use common_riscv::basic::MachineInfo as PlatformInfo;
 use spin::Once;
-mod basic;
 
 pub mod logging;
 #[cfg(feature = "qemu_riscv")]
@@ -21,17 +20,17 @@ mod qemu_riscv;
 mod starfive2_riscv;
 
 #[cfg(feature = "qemu_riscv")]
-use qemu_riscv::console_putchar;
+use qemu_riscv::{basic_machine_info, console_putchar};
 #[cfg(feature = "qemu_riscv")]
 pub use qemu_riscv::{config, set_timer, system_shutdown};
 
 #[cfg(feature = "vf2")]
-use starfive2_riscv::console_putchar;
+use starfive2_riscv::{basic_machine_info, console_putchar};
 #[cfg(feature = "vf2")]
 pub use starfive2_riscv::{config, set_timer, system_shutdown};
 
 #[cfg(feature = "hifive")]
-use hifive_riscv::console_putchar;
+use hifive_riscv::{basic_machine_info, console_putchar};
 
 use crate::common_riscv::sbi::hart_start;
 use crate::console::PrePrint;
@@ -39,15 +38,15 @@ use crate::console::PrePrint;
 pub use hifive_riscv::{config, set_timer, system_shutdown};
 
 #[no_mangle]
-pub fn platform_init(hart_id: usize, dtb: usize) {
+pub fn platform_init(hart_id: usize, _dtb: usize) {
     println!("{}", ::config::FLAG);
     #[cfg(feature = "hifive")]
-    hifive_riscv::init_dtb(Some(dtb));
+    hifive_riscv::init_dtb(None);
     #[cfg(feature = "vf2")]
-    starfive2_riscv::init_dtb(Some(dtb));
+    starfive2_riscv::init_dtb(None);
     #[cfg(feature = "qemu_riscv")]
-    qemu_riscv::init_dtb(Some(dtb));
-    let machine_info = basic::machine_info_from_dtb(platform_dtb_ptr());
+    qemu_riscv::init_dtb(Some(_dtb));
+    let machine_info = basic_machine_info();
     MACHINE_INFO.call_once(|| machine_info);
     logging::init_logger();
     preprint::init_print(&PrePrint);
