@@ -41,6 +41,7 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 
 1. install qemu 7.0.0
 2. install rust nightly
+3. install riscv64-linux-musl [toolchain](https://musl.cc/)
 
 ```
 make help

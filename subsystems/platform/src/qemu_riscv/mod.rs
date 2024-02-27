@@ -1,5 +1,5 @@
 pub mod config;
-
+use crate::PlatformInfo;
 use spin::Once;
 
 pub static DTB: Once<usize> = Once::new();
@@ -7,6 +7,10 @@ pub static DTB: Once<usize> = Once::new();
 pub fn init_dtb(dtb: Option<usize>) {
     let dtb_ptr = dtb.expect("No dtb found");
     DTB.call_once(|| dtb_ptr);
+}
+
+pub fn basic_machine_info() -> PlatformInfo {
+    crate::common_riscv::basic::machine_info_from_dtb(*DTB.get().unwrap())
 }
 
 /// 设置定时器
