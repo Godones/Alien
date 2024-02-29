@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 libsyscall = { path = "../../../domain-tools/libsyscall" }
 rref = { path = "../../../domain-tools/rref" }
-interface = { path = "../../../domain-tools/interface" }
+interface = { path = "../../../domain-tools/interface", default-features = false, features = ["fs"] }
 
 fatfs = { path = "../../fatfs" }

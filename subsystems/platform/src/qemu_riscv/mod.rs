@@ -9,12 +9,14 @@ pub fn init_dtb(dtb: Option<usize>) {
     DTB.call_once(|| dtb_ptr);
 }
 
+#[allow(unused)]
 /// 设置定时器
 pub fn set_timer(time: usize) {
     crate::common_riscv::sbi::set_timer(time);
 }
 
 pub fn system_shutdown() -> ! {
+    println!("shutdown...");
     crate::common_riscv::sbi::system_shutdown();
 }
 

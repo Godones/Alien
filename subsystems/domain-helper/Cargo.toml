@@ -6,17 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arch = { path = "../arch" }
 config = { path = "../config" }
 mem = { path = "../mem" }
 ksync = { path = "../ksync" }
 platform = { path = "../platform" }
-arch = { path = "../arch" }
 
 libsyscall = { path = "../../domain-tools/libsyscall" }
 rref = { path = "../../domain-tools/rref" }
 continuation = { path = "../../domain-tools/continuation" }
 proxy = { path = "../proxy" }
-
+interface = { path = "../../domain-tools/interface" }
 
 log = "0"
 spin = "0"

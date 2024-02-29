@@ -7,11 +7,11 @@ edition = "2021"
 
 [dependencies]
 malloc = { path = "../../../domain-tools/malloc" }
-interface = { path = "../../../domain-tools/interface", default-features = false,features = ["blk"] }
-rref = { path = "../../../domain-tools/rref"}
+interface = { path = "../../../domain-tools/interface", default-features = false, features = ["blk"] }
+rref = { path = "../../../domain-tools/rref" }
 virtio-blk = { path = "../../../subsystems/safety-abstraction/virtio-blk" }
 libsyscall = { path = "../../../domain-tools/libsyscall" }
-
+ksync = { path = "../../../subsystems/ksync" }
 
 
 log = "0"

@@ -5,29 +5,24 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::panic::PanicInfo;
 use interface::{BlkDevice, Fs};
 use libsyscall::{println, Syscall};
 use rref::SharedHeap;
 
 #[no_mangle]
-fn main(
-    sys: Box<dyn Syscall>,
-    domain_id: u64,
-    shared_heap: Box<dyn SharedHeap>,
-    blk_device: Box<dyn BlkDevice>,
-) -> Box<dyn Fs> {
+fn main(sys: Box<dyn Syscall>, domain_id: u64, shared_heap: Box<dyn SharedHeap>) -> Arc<dyn Fs> {
+    rref::init(shared_heap, domain_id);
     // init libsyscall
-    libsyscall::init(sys, domain_id);
-    rref::init(shared_heap);
+    libsyscall::init(sys);
     // activate the domain
     interface::activate_domain();
     // call the real fatfs
-
-    let mut blk_device = blk_device;
-    let res = blk_device.read(0, rref::RRef::new([0; 512]));
-    println!("read res is err: {:?}?", res.err());
-    fatfs::main(blk_device)
+    // let blk_device = blk_device;
+    // let res = blk_device.read(0, rref::RRef::new([0; 512]));
+    // println!("read res is err: {:?}?", res.err());
+    fatfs::main()
 }
 
 #[panic_handler]

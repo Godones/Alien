@@ -9,9 +9,11 @@ edition = "2021"
 rref = { path = "../rref" }
 
 
-
 [features]
-default = ["blk","fs"]
+default = ["blk","fs","uart","gpu","input"]
 
 blk = []
 fs = []
+uart = []
+gpu = []
+input = []

@@ -1,5 +1,5 @@
 [package]
-name = "gblk"
+name = "guart"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 libsyscall = { path = "../../../domain-tools/libsyscall" }
 rref = { path = "../../../domain-tools/rref" }
-interface = { path = "../../../domain-tools/interface", default-features = false, features = ["blk"] }
+interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart"] }
 
-blk = { path = "../../drivers/blk" }
+uart = { path = "../../drivers/uart" }

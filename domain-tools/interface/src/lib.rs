@@ -2,31 +2,53 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
+use core::any::Any;
+use core::fmt::Debug;
 use core::hint::spin_loop;
 use core::sync::atomic::AtomicBool;
 use rref::{RRef, RpcResult};
 
-pub trait Basic {
-    fn drop_self(self: Box<Self>) {
-        drop(self);
-    }
+pub trait Basic: Any {
+    // may be deleted
+    // fn drop_self(self: Arc<Self>) {
+    //     drop(self);
+    // }
     fn is_active(&self) -> bool {
         is_active()
     }
 }
 
 #[cfg(feature = "blk")]
-pub trait BlkDevice: Send + Sync + Basic {
-    fn read(&mut self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>>;
-    fn write(&mut self, block: u32, data: &RRef<[u8; 512]>) -> RpcResult<usize>;
+pub trait BlkDevice: Send + Sync + Basic + Debug {
+    fn read(&self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>>;
+    fn write(&self, block: u32, data: &RRef<[u8; 512]>) -> RpcResult<usize>;
     fn get_capacity(&self) -> RpcResult<u64>;
     fn flush(&self) -> RpcResult<()>;
 }
 
 #[cfg(feature = "fs")]
-pub trait Fs: Send + Sync + Basic {
+pub trait Fs: Send + Sync + Basic + Debug {
     fn ls(&self, path: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>>;
+}
+
+#[cfg(feature = "uart")]
+pub trait Uart: Send + Sync + Basic + Debug {
+    /// Write a character to the UART
+    fn putc(&self, ch: u8) -> RpcResult<()>;
+    /// Read a character from the UART
+    fn getc(&self) -> RpcResult<Option<u8>>;
+}
+
+#[cfg(feature = "gpu")]
+pub trait Gpu: Send + Sync + Basic + Debug {
+    fn flush(&self) -> RpcResult<()>;
+    fn fill_buf(&self, buf: RRef<[u8; 1280 * 800]>) -> RpcResult<()>;
+}
+
+#[cfg(feature = "input")]
+pub trait Input: Send + Sync + Basic + Debug {
+    /// Read an input event from the input device
+    fn event(&self) -> RpcResult<Option<u64>>;
 }
 
 static ACTIVE: AtomicBool = AtomicBool::new(false);

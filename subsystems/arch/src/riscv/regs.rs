@@ -73,3 +73,9 @@ pub fn activate_paging_mode(root_ppn: usize) {
         sfence_vma_all();
     }
 }
+
+pub fn allow_access_user_memory() {
+    unsafe {
+        riscv::register::sstatus::set_sum();
+    }
+}

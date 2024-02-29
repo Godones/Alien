@@ -7,19 +7,19 @@ mod trampoline;
 
 pub use trampoline::pop_continuation;
 
-use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::arch::asm;
 use interface::{Basic, BlkDevice, Fs};
-use log::warn;
 use rref::{RRef, RpcError, RpcResult};
 
+#[derive(Debug)]
 pub struct BlkDomainProxy {
     domain_id: u64,
-    domain: Box<dyn BlkDevice>,
+    domain: Arc<dyn BlkDevice>,
 }
 
 impl BlkDomainProxy {
-    pub fn new(domain_id: u64, domain: Box<dyn BlkDevice>) -> Self {
+    pub fn new(domain_id: u64, domain: Arc<dyn BlkDevice>) -> Self {
         Self { domain_id, domain }
     }
 }
@@ -27,16 +27,15 @@ impl BlkDomainProxy {
 impl Basic for BlkDomainProxy {}
 
 impl BlkDevice for BlkDomainProxy {
-    fn read(&mut self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {
+    fn read(&self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {
         if !self.domain.is_active() {
             return Err(RpcError::DomainCrash);
         }
-        warn!("BlkDomainProxy_read: block: {}", block);
+        // trace!("BlkDomainProxy_read: block: {}", block);
         // self.domain.read(block, data)
-        unsafe { blk_domain_proxy_read_trampoline(&mut self.domain, block, data) }
-        // ?
+        unsafe { blk_domain_proxy_read_trampoline(&self.domain, block, data) }
     }
-    fn write(&mut self, block: u32, data: &RRef<[u8; 512]>) -> RpcResult<usize> {
+    fn write(&self, block: u32, data: &RRef<[u8; 512]>) -> RpcResult<usize> {
         if !self.domain.is_active() {
             return Err(RpcError::DomainCrash);
         }
@@ -59,7 +58,7 @@ impl BlkDevice for BlkDomainProxy {
 #[no_mangle]
 #[allow(undefined_naked_function_abi)]
 unsafe fn blk_domain_proxy_read_trampoline(
-    blk_domain: &mut Box<dyn BlkDevice>,
+    blk_domain: &Arc<dyn BlkDevice>,
     block: u32,
     data: RRef<[u8; 512]>,
 ) -> RpcResult<RRef<[u8; 512]>> {
@@ -127,7 +126,7 @@ unsafe fn blk_domain_proxy_read_trampoline(
 
 #[no_mangle]
 fn blk_domain_proxy_read(
-    blk_domain: &mut Box<dyn BlkDevice>,
+    blk_domain: &Arc<dyn BlkDevice>,
     block: u32,
     data: RRef<[u8; 512]>,
 ) -> RpcResult<RRef<[u8; 512]>> {
@@ -136,7 +135,7 @@ fn blk_domain_proxy_read(
 }
 #[no_mangle]
 fn blk_domain_proxy_read_err(
-    _blk_domain: &mut Box<dyn BlkDevice>,
+    _blk_domain: &Arc<dyn BlkDevice>,
     _block: u32,
     _data: RRef<[u8; 512]>,
 ) -> RpcResult<RRef<[u8; 512]>> {
@@ -149,13 +148,14 @@ fn blk_domain_proxy_read_ptr() -> usize {
     blk_domain_proxy_read_err as usize
 }
 
+#[derive(Debug)]
 pub struct FsDomainProxy {
     domain_id: u64,
-    domain: Box<dyn Fs>,
+    domain: Arc<dyn Fs>,
 }
 
 impl FsDomainProxy {
-    pub fn new(domain_id: u64, domain: Box<dyn Fs>) -> Self {
+    pub fn new(domain_id: u64, domain: Arc<dyn Fs>) -> Self {
         Self { domain_id, domain }
     }
 }

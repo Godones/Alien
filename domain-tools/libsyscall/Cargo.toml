@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 continuation = { path = "../continuation" }
-
-
+rref = { path = "../rref" }
+interface = { path = "../interface" }
 spin = "0"
 log = "0"

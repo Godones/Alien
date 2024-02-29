@@ -6,13 +6,44 @@ mod panic;
 #[macro_use]
 extern crate platform;
 
+use core::hint::spin_loop;
+use core::sync::atomic::{AtomicBool, Ordering};
+
+/// 多核启动标志
+static STARTED: AtomicBool = AtomicBool::new(false);
+
 #[no_mangle]
-fn main(hart_id: usize) -> ! {
-    println!("boot hart id: {}", hart_id);
-    let machine_info = platform::platform_machine_info();
-    println!("{:#x?}", machine_info);
-    mem::init_memory_system(machine_info.memory.end, true);
-    domain_loader::test_domain();
-    println!("shutdown");
-    platform::system_shutdown()
+fn main(hart_id: usize) {
+    if STARTED
+        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+        .is_ok()
+    {
+        println!("Boot hart {}", hart_id);
+        let machine_info = platform::platform_machine_info();
+        println!("{:#?}", machine_info);
+        mem::init_memory_system(machine_info.memory.end, true);
+        // interrupt::init_plic(machine_info.plic.start);
+        // drivers::register_task_func(Box::new(DriverTaskImpl));
+        // devices::init_device(Box::new(DriverTaskImpl));
+        // vfs::init_filesystem().expect("init filesystem failed");
+        // trap::init_trap_subsystem();
+        // arch::allow_access_user_memory();
+        // task::init_task();
+        // register all syscall
+        // syscall_table::init_init_array!();
+        domain_loader::load_domains();
+        STARTED.store(false, Ordering::Relaxed);
+    } else {
+        while STARTED.load(Ordering::Relaxed) {
+            spin_loop();
+        }
+        mem::init_memory_system(0, false);
+        arch::allow_access_user_memory();
+        // trap::init_trap_subsystem();
+        println!("hart {} start", arch::hart_id());
+    }
+    // time::set_next_trigger();
+    println!("Begin run task...");
+    // task::schedule::run_task();
+    platform::system_shutdown();
 }

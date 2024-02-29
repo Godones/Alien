@@ -2,8 +2,7 @@ use core::fmt::{Arguments, Write};
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
-        let domain_id = $crate::domain_id();
-        // [hart_id] xxx
+        let domain_id = rref::domain_id();
         $crate::console::__print(format_args!("[Domain:{}] {}", domain_id, format_args!($($arg)*)))
     };
 }

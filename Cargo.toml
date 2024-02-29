@@ -1,24 +1,35 @@
 [workspace]
 members = [
-    "domain-tools/libsyscall",
-    "domain-tools/malloc",
     "kernel",
+
     "subsystems/arch",
     "subsystems/config",
-    "domains/drivers/blk",
     "subsystems/ksync",
     "subsystems/mem",
     "subsystems/platform",
-    "domain-tools/interface",
-    "domain-tools/rref",
-    "domains/generated/gblk",
-    "subsystems/domain-loader",
-    "subsystems/domain-helper",
-    "domains/fatfs",
-    "domains/generated/gfatfs",
     "subsystems/safety-abstraction/virtio-blk",
     "subsystems/proxy",
+    "subsystems/constants",
+    "subsystems/domain-loader",
+    "subsystems/domain-helper",
+
+    "domain-tools/interface",
+    "domain-tools/rref",
     "domain-tools/continuation",
+    "domain-tools/libsyscall",
+    "domain-tools/malloc",
+
+    "domains/fatfs",
+    "domains/generated/gfatfs",
+    "domains/generated/gblk",
+    "domains/drivers/blk",
+    "domains/vfs",
+    "domains/drivers/net",
+    "domains/drivers/input",
+    "domains/drivers/uart",
+    "domains/drivers/gpu",
+    "domains/generated/guart",
+    "domains/generated/ggpu", "subsystems/safety-abstraction/bus",
 ]
 
 resolver = "2"

@@ -9,7 +9,7 @@ use core::alloc::Layout;
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 use core::ops::{Deref, DerefMut};
-use libsyscall::println;
+use log::info;
 use spin::Once;
 
 pub unsafe auto trait RRefable {}
@@ -51,7 +51,7 @@ where
             None => panic!("Shared heap allocation failed"),
         };
         let value_pointer = allocation.value_pointer as *mut T;
-        *allocation.domain_id_pointer = libsyscall::domain_id();
+        *allocation.domain_id_pointer = domain_id();
         *allocation.borrow_count_pointer = 0;
         core::ptr::write(value_pointer, value);
         RRef {
@@ -124,10 +124,18 @@ impl Display for RpcError {
 
 impl Error for RpcError {}
 
+static CRATE_DOMAIN_ID: Once<u64> = Once::new();
+
 static HEAP: Once<Box<dyn SharedHeap>> = Once::new();
 
 /// Init the shared heap
-pub fn init(heap: Box<dyn SharedHeap>) {
+pub fn init(heap: Box<dyn SharedHeap>, domain_id: u64) {
     HEAP.call_once(|| heap);
-    println!("shared heap initialized");
+    CRATE_DOMAIN_ID.call_once(|| domain_id);
+    info!("shared heap and domain id initialized");
+}
+
+#[inline]
+pub fn domain_id() -> u64 {
+    *CRATE_DOMAIN_ID.get().expect("domain id not initialized")
 }

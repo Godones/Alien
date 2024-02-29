@@ -3,15 +3,14 @@
 extern crate alloc;
 extern crate malloc;
 
-use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::sync::Arc;
-use core::fmt::Write;
+use core::fmt::{Debug, Formatter, Write};
 use fat_vfs::{FatFs, FatFsProvider};
 use interface::{Basic, BlkDevice, Fs};
 use ksync::Mutex;
 use libsyscall::println;
-use log::{info, warn};
+use log::{debug, info, warn};
 use rref::{RRef, RpcResult};
 use vfscore::dentry::VfsDentry;
 use vfscore::file::VfsFile;
@@ -20,8 +19,15 @@ use vfscore::inode::VfsInode;
 use vfscore::utils::{VfsFileStat, VfsNodePerm, VfsNodeType, VfsTimeSpec};
 use vfscore::VfsResult;
 
+#[derive(Clone)]
 pub struct FatFsDomain {
     root: Arc<dyn VfsDentry>,
+}
+
+impl Debug for FatFsDomain {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "FatFsDomain")
+    }
 }
 
 impl FatFsDomain {
@@ -31,10 +37,10 @@ impl FatFsDomain {
 }
 
 impl Basic for FatFsDomain {
-    fn drop_self(self: Box<Self>) {
-        info!("Drop FatFsDomain");
-        drop(self);
-    }
+    // fn drop_self(self: Box<Self>) {
+    //     info!("Drop FatFsDomain");
+    //     drop(self);
+    // }
 }
 
 impl Fs for FatFsDomain {
@@ -52,11 +58,11 @@ impl FatFsProvider for ProviderImpl {
 }
 
 struct FakeInode {
-    device: Mutex<Box<dyn BlkDevice>>,
+    device: Mutex<Arc<dyn BlkDevice>>,
 }
 
 impl FakeInode {
-    pub fn new(device: Box<dyn BlkDevice>) -> Self {
+    pub fn new(device: Arc<dyn BlkDevice>) -> Self {
         Self {
             device: Mutex::new(device),
         }
@@ -66,7 +72,7 @@ impl FakeInode {
 impl VfsFile for FakeInode {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let read_len = buf.len();
-        let mut device = self.device.lock();
+        let device = self.device.lock();
         let mut tmp_buf = RRef::new([0u8; 512]);
 
         let mut read_offset = offset;
@@ -87,7 +93,7 @@ impl VfsFile for FakeInode {
     }
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
         let write_len = buf.len();
-        let mut device = self.device.lock();
+        let device = self.device.lock();
         let mut tmp_buf = RRef::new([0u8; 512]);
 
         let mut write_offset = offset;
@@ -123,7 +129,7 @@ impl VfsInode for FakeInode {
         VfsNodePerm::from_bits_truncate(0x777)
     }
     fn get_attr(&self) -> VfsResult<VfsFileStat> {
-        warn!("get_attr");
+        debug!("get_attr");
         Ok(VfsFileStat {
             st_dev: 0,
             st_ino: 0,
@@ -148,7 +154,8 @@ impl VfsInode for FakeInode {
     }
 }
 
-pub fn main(blk_device: Box<dyn BlkDevice>) -> Box<dyn Fs> {
+pub fn main() -> Arc<dyn Fs> {
+    let blk_device = libsyscall::get_blk_domain().unwrap();
     let fatfs = Arc::new(FatFs::<_, Mutex<()>>::new(ProviderImpl));
     let root = fatfs
         .clone()
@@ -157,7 +164,7 @@ pub fn main(blk_device: Box<dyn BlkDevice>) -> Box<dyn Fs> {
     println!("****Files In Root****");
     vfscore::path::print_fs_tree(&mut FakeOut, root.clone(), "".to_string(), true).unwrap();
     println!("List all file passed");
-    Box::new(FatFsDomain::new(root))
+    Arc::new(FatFsDomain::new(root))
 }
 
 struct FakeOut;

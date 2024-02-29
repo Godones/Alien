@@ -1,4 +1,5 @@
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use config::{FRAME_BITS, FRAME_SIZE};
 use core::arch::global_asm;
@@ -54,7 +55,14 @@ impl Syscall for DomainSyscall {
         }
         drop(binding); // release lock
         unwind();
-        // platform::system_shutdown();
+    }
+
+    fn sys_get_blk_domain(&self) -> Option<Arc<dyn interface::BlkDevice>> {
+        crate::query_domain("blk").map(|blk| unsafe { core::mem::transmute(blk) })
+    }
+
+    fn sys_get_uart_domain(&self) -> Option<Arc<dyn interface::Uart>> {
+        crate::query_domain("uart").map(|uart| unsafe { core::mem::transmute(uart) })
     }
 }
 
