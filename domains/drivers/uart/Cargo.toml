@@ -6,6 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart"] }
+interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart","domain"] }
 rref = { path = "../../../domain-tools/rref" }
-libsyscall = { path = "../../../domain-tools/libsyscall" }
+libsyscall = { path = "../../../domain-tools/libsyscall",features = ["domain"] }
+
+
+region = { path = "../../../subsystems/safety-abstraction/region" }

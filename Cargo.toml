@@ -12,24 +12,25 @@ members = [
     "subsystems/constants",
     "subsystems/domain-loader",
     "subsystems/domain-helper",
-
+    "subsystems/safety-abstraction/bus",
+    "subsystems/safety-abstraction/region",
     "domain-tools/interface",
     "domain-tools/rref",
     "domain-tools/continuation",
     "domain-tools/libsyscall",
     "domain-tools/malloc",
-
-    "domains/fatfs",
+    "domains/fs/fatfs",
     "domains/generated/gfatfs",
     "domains/generated/gblk",
     "domains/drivers/blk",
-    "domains/vfs",
+    "domains/fs/vfs",
     "domains/drivers/net",
     "domains/drivers/input",
     "domains/drivers/uart",
     "domains/drivers/gpu",
     "domains/generated/guart",
-    "domains/generated/ggpu", "subsystems/safety-abstraction/bus",
+    "domains/generated/ggpu", "domains/fs/ramfs",
+
 ]
 
 resolver = "2"

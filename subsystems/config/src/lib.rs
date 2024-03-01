@@ -24,3 +24,5 @@ pub const CPU_NUM: usize = 1;
 
 const HEAP_SIZE: usize = 0x26_00000;
 pub const KERNEL_HEAP_SIZE: usize = HEAP_SIZE;
+
+pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;

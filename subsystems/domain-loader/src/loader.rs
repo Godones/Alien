@@ -47,16 +47,16 @@ impl DomainLoader {
             .for_each(|ph| {
                 let start_vaddr = ph.virtual_addr() as usize + region_start;
                 let end_vaddr = start_vaddr + ph.mem_size() as usize;
-                let mut permission = MappingFlags::empty();
+                let mut permission: MappingFlags = "VAD".into();
                 let ph_flags = ph.flags();
                 if ph_flags.is_read() {
-                    permission |= MappingFlags::READ;
+                    permission |= MappingFlags::R;
                 }
                 if ph_flags.is_write() {
-                    permission |= MappingFlags::WRITE;
+                    permission |= MappingFlags::W;
                 }
                 if ph_flags.is_execute() {
-                    permission |= MappingFlags::EXECUTE;
+                    permission |= MappingFlags::X;
                 }
                 let mut vaddr = VirtAddr::from(start_vaddr).align_down_4k().as_usize();
                 let end_vaddr = VirtAddr::from(end_vaddr).align_up_4k().as_usize();

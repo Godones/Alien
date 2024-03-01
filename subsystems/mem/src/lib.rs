@@ -7,12 +7,13 @@ use heap::HeapAllocator;
 use platform::println;
 mod frame;
 mod heap;
+mod manager;
 mod vmm;
 
 pub use frame::{alloc_frames, free_frames};
 pub use vmm::{
-    alloc_free_region, map_region_to_kernel, query_kernel_space, unmap_region_from_kernel,
-    MappingFlags, PhysAddr, VirtAddr,
+    alloc_free_region, is_in_kernel_space, map_region_to_kernel, query_kernel_space,
+    unmap_region_from_kernel, MappingFlags, PhysAddr, VirtAddr,
 };
 
 #[global_allocator]

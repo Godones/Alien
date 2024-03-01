@@ -10,7 +10,7 @@ config  = { path = "../config" }
 arch = { path = "../arch" }
 ksync = { path = "../ksync" }
 platform = { path = "../platform" }
-
+constants = { path = "../constants" }
 
 log = "0"
 talc = { version = "1.0", optional = true }
@@ -18,8 +18,8 @@ buddy_system_allocator = { version = "0.9.0", optional = true }
 rslab = { version = "0.2.1", optional = true }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
 spin = "0"
-page_table = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
-memory_addr = { git = "https://github.com/rcore-os/arceos",rev = "7eeebc5" }
+
+page-table = { git = "https://github.com/os-module/page-table.git", branch = "dev" }
 
 [features]
 default = ["pager_buddy","talloc"]

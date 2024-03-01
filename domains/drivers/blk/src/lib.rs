@@ -73,6 +73,10 @@ impl interface::BlkDevice for VirtIOBlk {
     fn flush(&self) -> RpcResult<()> {
         Ok(())
     }
+
+    fn handle_irq(&self) -> RpcResult<()> {
+        unimplemented!()
+    }
 }
 
 pub fn main(virtio_blk_addr: usize) -> Arc<dyn interface::BlkDevice> {

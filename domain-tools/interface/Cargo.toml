@@ -11,7 +11,7 @@ rref = { path = "../rref" }
 
 [features]
 default = ["blk","fs","uart","gpu","input"]
-
+domain = []
 blk = []
 fs = []
 uart = []

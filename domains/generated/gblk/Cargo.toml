@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libsyscall = { path = "../../../domain-tools/libsyscall" }
+libsyscall = { path = "../../../domain-tools/libsyscall",features = ["domain"] }
 rref = { path = "../../../domain-tools/rref" }
-interface = { path = "../../../domain-tools/interface", default-features = false, features = ["blk"] }
+interface = { path = "../../../domain-tools/interface", default-features = false, features = ["blk","domain"] }
 
 blk = { path = "../../drivers/blk" }

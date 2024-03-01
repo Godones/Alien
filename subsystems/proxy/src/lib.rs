@@ -24,7 +24,11 @@ impl BlkDomainProxy {
     }
 }
 
-impl Basic for BlkDomainProxy {}
+impl Basic for BlkDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
 
 impl BlkDevice for BlkDomainProxy {
     fn read(&self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {
@@ -42,16 +46,23 @@ impl BlkDevice for BlkDomainProxy {
         self.domain.write(block, data)
     }
     fn get_capacity(&self) -> RpcResult<u64> {
-        if !self.domain.is_active() {
+        if !self.is_active() {
             return Err(RpcError::DomainCrash);
         }
         self.domain.get_capacity()
     }
     fn flush(&self) -> RpcResult<()> {
-        if !self.domain.is_active() {
+        if !self.is_active() {
             return Err(RpcError::DomainCrash);
         }
         self.domain.flush()
+    }
+
+    fn handle_irq(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.handle_irq()
     }
 }
 #[naked]
@@ -160,7 +171,11 @@ impl FsDomainProxy {
     }
 }
 
-impl Basic for FsDomainProxy {}
+impl Basic for FsDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
 
 impl Fs for FsDomainProxy {
     fn ls(&self, path: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {

@@ -83,6 +83,12 @@ impl<T: RRefable> DerefMut for RRef<T> {
     }
 }
 
+impl<T: RRefable> Drop for RRef<T> {
+    fn drop(&mut self) {
+        unsafe { HEAP.get().unwrap().dealloc(self.value_pointer as _) }
+    }
+}
+
 impl TypeIdentifiable for [u8; 512] {
     fn type_id() -> u64 {
         // core::intrinsics::type_id();

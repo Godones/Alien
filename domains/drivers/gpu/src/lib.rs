@@ -20,6 +20,10 @@ impl Gpu for GPUDomain {
     fn fill_buf(&self, buf: RRef<[u8; 1280 * 800]>) -> RpcResult<()> {
         todo!()
     }
+
+    fn handle_irq(&self) -> RpcResult<()> {
+        unimplemented!()
+    }
 }
 
 pub fn main(virtio_gpu_addr: usize) -> Arc<dyn Gpu> {
