@@ -11,6 +11,8 @@ config = { path = "../config" }
 mem = { path = "../mem" }
 ksync = { path = "../ksync" }
 platform = { path = "../platform" }
+timer = { path = "../timer" }
+
 
 libsyscall = { path = "../../domain-tools/libsyscall" }
 rref = { path = "../../domain-tools/rref" }

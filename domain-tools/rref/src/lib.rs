@@ -2,14 +2,20 @@
 #![feature(auto_traits)]
 #![feature(negative_impls)]
 #![feature(error_in_core)]
+
+mod rref;
+mod rvec;
+
 extern crate alloc;
 
 use alloc::boxed::Box;
+pub use constants::AlienError;
 use core::alloc::Layout;
 use core::error::Error;
 use core::fmt::{Display, Formatter};
-use core::ops::{Deref, DerefMut};
 use log::info;
+pub use rref::RRef;
+pub use rvec::RRefVec;
 use spin::Once;
 
 pub unsafe auto trait RRefable {}
@@ -23,77 +29,17 @@ pub trait TypeIdentifiable {
     fn type_id() -> u64;
 }
 
-#[repr(C)]
-pub struct RRef<T>
-where
-    T: 'static + RRefable,
-{
-    domain_id_pointer: *mut u64,
-    pub(crate) borrow_count_pointer: *mut u64,
-    pub(crate) value_pointer: *mut T,
-}
-
-unsafe impl<T: RRefable> RRefable for RRef<T> {}
-unsafe impl<T: RRefable> Send for RRef<T> where T: Send {}
-
-impl<T: RRefable> RRef<T>
-where
-    T: TypeIdentifiable,
-{
-    unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
-        let type_id = T::type_id();
-        let allocation = match unsafe {
-            HEAP.get()
-                .expect("Shared heap not initialized")
-                .alloc(layout, type_id)
-        } {
-            Some(allocation) => allocation,
-            None => panic!("Shared heap allocation failed"),
-        };
-        let value_pointer = allocation.value_pointer as *mut T;
-        *allocation.domain_id_pointer = domain_id();
-        *allocation.borrow_count_pointer = 0;
-        core::ptr::write(value_pointer, value);
-        RRef {
-            domain_id_pointer: allocation.domain_id_pointer,
-            borrow_count_pointer: allocation.borrow_count_pointer,
-            value_pointer,
-        }
-    }
-    pub fn new(value: T) -> RRef<T> {
-        let layout = Layout::new::<T>();
-        unsafe { Self::new_with_layout(value, layout) }
-    }
-    pub fn new_aligned(value: T, align: usize) -> RRef<T> {
-        let size = core::mem::size_of::<T>();
-        let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
-        unsafe { Self::new_with_layout(value, layout) }
-    }
-}
-
-impl<T: RRefable> Deref for RRef<T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        unsafe { &*self.value_pointer }
-    }
-}
-impl<T: RRefable> DerefMut for RRef<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        unsafe { &mut *self.value_pointer }
-    }
-}
-
-impl<T: RRefable> Drop for RRef<T> {
-    fn drop(&mut self) {
-        unsafe { HEAP.get().unwrap().dealloc(self.value_pointer as _) }
-    }
-}
-
 impl TypeIdentifiable for [u8; 512] {
     fn type_id() -> u64 {
         // core::intrinsics::type_id();
         // core::any::TypeId::of();
         5u64
+    }
+}
+
+impl TypeIdentifiable for u8 {
+    fn type_id() -> u64 {
+        1u64
     }
 }
 
@@ -119,11 +65,20 @@ pub type RpcResult<T> = Result<T, RpcError>;
 #[derive(Debug)]
 pub enum RpcError {
     DomainCrash,
+    Alien(AlienError),
 }
+
+impl From<AlienError> for RpcError {
+    fn from(e: AlienError) -> Self {
+        RpcError::Alien(e)
+    }
+}
+
 impl Display for RpcError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             RpcError::DomainCrash => write!(f, "DomainCrash"),
+            RpcError::Alien(e) => write!(f, "Alien({:?})", e),
         }
     }
 }

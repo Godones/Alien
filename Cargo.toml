@@ -14,6 +14,7 @@ members = [
     "subsystems/domain-helper",
     "subsystems/safety-abstraction/bus",
     "subsystems/safety-abstraction/region",
+    "subsystems/timer",
     "domain-tools/interface",
     "domain-tools/rref",
     "domain-tools/continuation",
@@ -29,7 +30,13 @@ members = [
     "domains/drivers/uart",
     "domains/drivers/gpu",
     "domains/generated/guart",
-    "domains/generated/ggpu", "domains/fs/ramfs",
+    "domains/generated/ggpu",
+    "domains/fs/ramfs",
+    "domains/fs/devfs",
+    "domains/syscall",
+    "domains/fs/dynfs",
+    "domains/devices", "domains/drivers/cache_blk", "domains/generated/gcache_blk", "domains/drivers/kuart",
+
 
 ]
 

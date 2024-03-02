@@ -14,6 +14,10 @@ QEMU_ARGS += -device virtio-net-device,netdev=net0 \
 endif
 
 
+
+
+domains += 	gblk gfatfs gcache_blk
+
 all:run
 
 build:
@@ -21,9 +25,8 @@ build:
 	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET)
 
 domains:
-	make -C domains LOG=$(LOG)
-	cp target/$(TARGET)/$(PROFILE)/gblk ./build/blk_domain.bin
-	cp target/$(TARGET)/$(PROFILE)/gfatfs ./build/fatfs_domain.bin
+	make -C domains all  DOMAIN_LIST="$(domains)" LOG=$(LOG)
+	$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
 
 run:domains build img
 	qemu-system-riscv64 \

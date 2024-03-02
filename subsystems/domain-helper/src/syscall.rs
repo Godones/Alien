@@ -3,11 +3,13 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use config::{FRAME_BITS, FRAME_SIZE};
 use core::arch::global_asm;
+use interface::{CacheBlkDeviceDomain, FsDomain, GpuDomain, InputDomain, RtcDomain};
 use ksync::Mutex;
 use libsyscall::Syscall;
 use log::info;
 use platform::{iprint, println};
 use spin::Lazy;
+
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<usize>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
 
@@ -57,12 +59,35 @@ impl Syscall for DomainSyscall {
         unwind();
     }
 
-    fn sys_get_blk_domain(&self) -> Option<Arc<dyn interface::BlkDevice>> {
+    fn read_timer(&self) -> u64 {
+        timer::read_timer() as u64
+    }
+
+    fn sys_get_blk_domain(&self) -> Option<Arc<dyn interface::BlkDeviceDomain>> {
         crate::query_domain("blk").map(|blk| unsafe { core::mem::transmute(blk) })
     }
 
-    fn sys_get_uart_domain(&self) -> Option<Arc<dyn interface::Uart>> {
+    fn sys_get_uart_domain(&self) -> Option<Arc<dyn interface::UartDomain>> {
         crate::query_domain("uart").map(|uart| unsafe { core::mem::transmute(uart) })
+    }
+
+    fn sys_get_gpu_domain(&self) -> Option<Arc<dyn GpuDomain>> {
+        crate::query_domain("gpu").map(|gpu| unsafe { core::mem::transmute(gpu) })
+    }
+
+    fn sys_get_input_domain(&self, ty: &str) -> Option<Arc<dyn InputDomain>> {
+        crate::query_domain(ty).map(|input| unsafe { core::mem::transmute(input) })
+    }
+
+    fn sys_get_fs_domain(&self, ty: &str) -> Option<Arc<dyn FsDomain>> {
+        crate::query_domain(ty).map(|fs| unsafe { core::mem::transmute(fs) })
+    }
+
+    fn sys_get_rtc_domain(&self) -> Option<Arc<dyn RtcDomain>> {
+        crate::query_domain("rtc").map(|rtc| unsafe { core::mem::transmute(rtc) })
+    }
+    fn sys_get_cache_blk_domain(&self) -> Option<Arc<dyn CacheBlkDeviceDomain>> {
+        crate::query_domain("cache_blk").map(|cache_blk| unsafe { core::mem::transmute(cache_blk) })
     }
 }
 

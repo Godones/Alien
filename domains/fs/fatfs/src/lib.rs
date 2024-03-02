@@ -7,11 +7,11 @@ use alloc::string::ToString;
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter, Write};
 use fat_vfs::{FatFs, FatFsProvider};
-use interface::{Basic, BlkDevice, Fs};
+use interface::{Basic, BlkDeviceDomain, FsDomain};
 use ksync::Mutex;
 use libsyscall::println;
-use log::{debug, info, warn};
-use rref::{RRef, RpcResult};
+use log::debug;
+use rref::RRef;
 use vfscore::dentry::VfsDentry;
 use vfscore::file::VfsFile;
 use vfscore::fstype::VfsFsType;
@@ -43,11 +43,7 @@ impl Basic for FatFsDomain {
     // }
 }
 
-impl Fs for FatFsDomain {
-    fn ls(&self, _path: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {
-        unimplemented!()
-    }
-}
+impl FsDomain for FatFsDomain {}
 
 #[derive(Clone)]
 struct ProviderImpl;
@@ -58,11 +54,11 @@ impl FatFsProvider for ProviderImpl {
 }
 
 struct FakeInode {
-    device: Mutex<Arc<dyn BlkDevice>>,
+    device: Mutex<Arc<dyn BlkDeviceDomain>>,
 }
 
 impl FakeInode {
-    pub fn new(device: Arc<dyn BlkDevice>) -> Self {
+    pub fn new(device: Arc<dyn BlkDeviceDomain>) -> Self {
         Self {
             device: Mutex::new(device),
         }
@@ -83,7 +79,7 @@ impl VfsFile for FakeInode {
             let block = read_offset / 512;
             let offset = read_offset % 512;
             let read_len = core::cmp::min(512 - offset as usize, read_len - count);
-            tmp_buf = device.read(block as u32, tmp_buf).unwrap();
+            tmp_buf = device.read_block(block as u32, tmp_buf).unwrap();
             buf[count..count + read_len]
                 .copy_from_slice(&tmp_buf[offset as usize..offset as usize + read_len]);
             count += read_len;
@@ -104,12 +100,12 @@ impl VfsFile for FakeInode {
             let block = write_offset / 512;
             let offset = write_offset % 512;
             if offset != 0 {
-                tmp_buf = device.read(block as u32, tmp_buf).unwrap();
+                tmp_buf = device.read_block(block as u32, tmp_buf).unwrap();
             }
             let write_len = core::cmp::min(512 - offset as usize, write_len - count);
             tmp_buf[offset as usize..offset as usize + write_len]
                 .copy_from_slice(&buf[count..count + write_len]);
-            device.write(block as u32, &tmp_buf).unwrap();
+            device.write_block(block as u32, &tmp_buf).unwrap();
             count += write_len;
             write_offset += write_len as u64;
         }
@@ -154,7 +150,7 @@ impl VfsInode for FakeInode {
     }
 }
 
-pub fn main() -> Arc<dyn Fs> {
+pub fn main() -> Arc<dyn FsDomain> {
     let blk_device = libsyscall::get_blk_domain().unwrap();
     let fatfs = Arc::new(FatFs::<_, Mutex<()>>::new(ProviderImpl));
     let root = fatfs

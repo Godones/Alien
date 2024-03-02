@@ -7,12 +7,16 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::panic::PanicInfo;
-use interface::{BlkDevice, Fs};
+use interface::FsDomain;
 use libsyscall::{println, Syscall};
 use rref::SharedHeap;
 
 #[no_mangle]
-fn main(sys: Box<dyn Syscall>, domain_id: u64, shared_heap: Box<dyn SharedHeap>) -> Arc<dyn Fs> {
+fn main(
+    sys: Box<dyn Syscall>,
+    domain_id: u64,
+    shared_heap: Box<dyn SharedHeap>,
+) -> Arc<dyn FsDomain> {
     rref::init(shared_heap, domain_id);
     // init libsyscall
     libsyscall::init(sys);

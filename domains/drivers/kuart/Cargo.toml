@@ -1,0 +1,12 @@
+[package]
+name = "kuart"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart","domain"] }
+rref = { path = "../../../domain-tools/rref" }
+libsyscall = { path = "../../../domain-tools/libsyscall",features = ["domain"] }
+ksync = { path = "../../../subsystems/ksync" }

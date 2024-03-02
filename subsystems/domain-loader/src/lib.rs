@@ -7,7 +7,7 @@ use crate::loader::DomainLoader;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use domain_helper::{alloc_domain_id, DomainSyscall, SharedHeapAllocator};
-use interface::{BlkDevice, Fs};
+use interface::{BlkDeviceDomain, FsDomain};
 use libsyscall::Syscall;
 use log::info;
 use proxy::{BlkDomainProxy, FsDomainProxy};
@@ -47,8 +47,8 @@ static BLK_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../buil
 static FATFS_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/fatfs_domain.bin");
 
-fn fatfs_domain() -> Arc<dyn Fs> {
-    type F = def_func!(Arc<dyn Fs>,);
+fn fatfs_domain() -> Arc<dyn FsDomain> {
+    type F = def_func!(Arc<dyn FsDomain>,);
     let mut domain = DomainLoader::new();
     domain.load(FATFS_DOMAIN).unwrap();
     let main = unsafe { core::mem::transmute::<*const (), F>(domain.entry() as *const ()) };
@@ -57,8 +57,8 @@ fn fatfs_domain() -> Arc<dyn Fs> {
     Arc::new(FsDomainProxy::new(id, fatfs))
 }
 
-fn blk_domain() -> Arc<dyn BlkDevice> {
-    type F = def_func!(Arc<dyn BlkDevice>, usize);
+fn blk_domain() -> Arc<dyn BlkDeviceDomain> {
+    type F = def_func!(Arc<dyn BlkDeviceDomain>, usize);
     let mut domain = DomainLoader::new();
     domain.load(BLK_DOMAIN).unwrap();
     let main = unsafe { core::mem::transmute::<*const (), F>(domain.entry() as *const ()) };

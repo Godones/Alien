@@ -6,12 +6,16 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::panic::PanicInfo;
-use interface::Gpu;
+use interface::GpuDomain;
 use libsyscall::Syscall;
 use rref::SharedHeap;
 
 #[no_mangle]
-fn main(sys: Box<dyn Syscall>, domain_id: u64, shared_heap: Box<dyn SharedHeap>) -> Arc<dyn Gpu> {
+fn main(
+    sys: Box<dyn Syscall>,
+    domain_id: u64,
+    shared_heap: Box<dyn SharedHeap>,
+) -> Arc<dyn GpuDomain> {
     // init rref's shared heap
     rref::init(shared_heap, domain_id);
     // init libsyscall

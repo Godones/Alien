@@ -1,4 +1,4 @@
-use interface::{Basic, Gpu};
+use interface::{Basic, GpuDomain};
 use rref::{RRef, RpcResult};
 use std::sync::Arc;
 #[derive(Debug)]
@@ -12,7 +12,7 @@ impl GPUDomain {
 
 impl Basic for GPUDomain {}
 
-impl Gpu for GPUDomain {
+impl GpuDomain for GPUDomain {
     fn flush(&self) -> RpcResult<()> {
         todo!()
     }
@@ -26,7 +26,7 @@ impl Gpu for GPUDomain {
     }
 }
 
-pub fn main(virtio_gpu_addr: usize) -> Arc<dyn Gpu> {
+pub fn main(virtio_gpu_addr: usize) -> Arc<dyn GpuDomain> {
     libsyscall::println!("virtio_gpu_addr: {:#x}", virtio_gpu_addr);
     Arc::new(GPUDomain::new(virtio_gpu_addr))
 }

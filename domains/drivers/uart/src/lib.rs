@@ -1,14 +1,14 @@
-use interface::{Basic, Uart};
+use interface::{Basic, UartDomain};
 use region::SafeRegion;
 use rref::RpcResult;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct UartDomain {
+pub struct UartDomainImpl {
     region: SafeRegion,
 }
 
-impl UartDomain {
+impl UartDomainImpl {
     pub fn new(uart_addr: usize, size: usize) -> Self {
         Self {
             region: SafeRegion::new(uart_addr, size).unwrap(),
@@ -16,9 +16,9 @@ impl UartDomain {
     }
 }
 
-impl Basic for UartDomain {}
+impl Basic for UartDomainImpl {}
 
-impl Uart for UartDomain {
+impl UartDomain for UartDomainImpl {
     fn putc(&self, _ch: u8) -> RpcResult<()> {
         todo!()
     }
@@ -27,12 +27,16 @@ impl Uart for UartDomain {
         todo!()
     }
 
+    fn have_data_to_get(&self) -> bool {
+        todo!()
+    }
+
     fn handle_irq(&self) -> RpcResult<()> {
         todo!()
     }
 }
 
-pub fn main(uart_addr: usize, size: usize) -> Arc<dyn Uart> {
+pub fn main(uart_addr: usize, size: usize) -> Arc<dyn UartDomain> {
     libsyscall::println!("uart_addr: {:#x}-{:#x}", uart_addr, uart_addr + size);
     Arc::new(UartDomain::new(uart_addr, size))
 }

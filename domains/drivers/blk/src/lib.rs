@@ -46,8 +46,12 @@ impl Basic for VirtIOBlk {
     // }
 }
 
-impl interface::BlkDevice for VirtIOBlk {
-    fn read(&self, block: u32, data: rref::RRef<[u8; 512]>) -> RpcResult<rref::RRef<[u8; 512]>> {
+impl interface::BlkDeviceDomain for VirtIOBlk {
+    fn read_block(
+        &self,
+        block: u32,
+        data: rref::RRef<[u8; 512]>,
+    ) -> RpcResult<rref::RRef<[u8; 512]>> {
         let mut buf = data;
         self.driver
             .lock()
@@ -57,7 +61,7 @@ impl interface::BlkDevice for VirtIOBlk {
         // panic!("read block: {}, buf:{:#x}", block, buf[0]);
         Ok(buf)
     }
-    fn write(&self, block: u32, data: &rref::RRef<[u8; 512]>) -> RpcResult<usize> {
+    fn write_block(&self, block: u32, data: &rref::RRef<[u8; 512]>) -> RpcResult<usize> {
         self.driver
             .lock()
             .write_block(block as usize, data.as_ref())
@@ -79,7 +83,7 @@ impl interface::BlkDevice for VirtIOBlk {
     }
 }
 
-pub fn main(virtio_blk_addr: usize) -> Arc<dyn interface::BlkDevice> {
+pub fn main(virtio_blk_addr: usize) -> Arc<dyn interface::BlkDeviceDomain> {
     println!("virtio_blk_addr: {:#x}", virtio_blk_addr);
     Arc::new(VirtIOBlk::new(virtio_blk_addr))
 }
