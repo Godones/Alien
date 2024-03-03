@@ -4,6 +4,7 @@ use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
 use constants::AlienResult;
 use core::sync::atomic::AtomicUsize;
 use ksync::RwLock;
+use log::info;
 pub use page_table::addr::{PhysAddr, VirtAddr};
 pub use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
@@ -177,6 +178,7 @@ pub fn query_kernel_space(addr: usize) -> Option<usize> {
 }
 
 pub fn is_in_kernel_space(vaddr: usize, size: usize) -> bool {
+    info!("[is_in_kernel_space]: {:#x}-{:#x}", vaddr, vaddr + size);
     let kernel_space = KERNEL_SPACE.read();
     let mut addr = vaddr;
     while addr < vaddr + size {

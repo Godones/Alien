@@ -7,6 +7,7 @@ use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
 use interface::{Basic, UartDomain};
 use ksync::Mutex;
+use libsyscall::KTask;
 use rref::RpcResult;
 
 pub struct Uart {
@@ -15,7 +16,7 @@ pub struct Uart {
 
 struct UartInner {
     rx_buf: VecDeque<u8>,
-    wait_queue: VecDeque<Arc<dyn DriverTask>>,
+    wait_queue: VecDeque<Arc<dyn KTask>>,
 }
 
 impl Uart {
@@ -56,13 +57,13 @@ impl UartDomain for Uart {
             if inner.1.rx_buf.is_empty() {
                 // let current_process = current_task().unwrap();
                 // current_process.update_state(TaskState::Waiting);
-                let task = DRIVER_TASK.get().unwrap().get_task();
+                let task = libsyscall::current_task();
                 task.to_wait();
                 inner.1.wait_queue.push_back(task);
                 drop(inner);
-                DRIVER_TASK.get().unwrap().suspend();
+                libsyscall::suspend();
             } else {
-                return inner.1.rx_buf.pop_front();
+                return Ok(inner.1.rx_buf.pop_front());
             }
         }
     }
@@ -82,10 +83,8 @@ impl UartDomain for Uart {
                 inner.1.rx_buf.push_back(c);
                 if !inner.1.wait_queue.is_empty() {
                     let task = inner.1.wait_queue.pop_front().unwrap();
-                    // task.update_state(TaskState::Ready);
-                    // GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
                     task.to_wakeup();
-                    DRIVER_TASK.get().unwrap().put_task(task);
+                    libsyscall::put_task(task);
                 }
             } else {
                 break;

@@ -1,17 +1,17 @@
 use interface::{Basic, UartDomain};
-use region::SafeRegion;
+use region::SafeIORegion;
 use rref::RpcResult;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct UartDomainImpl {
-    region: SafeRegion,
+    region: SafeIORegion,
 }
 
 impl UartDomainImpl {
     pub fn new(uart_addr: usize, size: usize) -> Self {
         Self {
-            region: SafeRegion::new(uart_addr, size).unwrap(),
+            region: SafeIORegion::new(uart_addr, size).unwrap(),
         }
     }
 }

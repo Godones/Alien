@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mem = { path = "../../mem" }
-constants = { path = "../../constants" }
+#mem = { path = "../../../subsystems/mem" }
+constants = { path = "../../../subsystems/constants" }
+libsyscall = { path = "../../libsyscall", features = ["domain"] }

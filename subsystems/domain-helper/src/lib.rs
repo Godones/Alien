@@ -2,6 +2,7 @@
 
 mod sheap;
 mod syscall;
+mod task;
 
 extern crate alloc;
 
@@ -15,6 +16,8 @@ use spin::Lazy;
 
 pub use sheap::SharedHeapAllocator;
 pub use syscall::DomainSyscall;
+pub use task::TaskShimImpl;
+
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);
 
 struct DomainContainer {

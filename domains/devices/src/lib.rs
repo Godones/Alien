@@ -1,5 +1,5 @@
 #![no_std]
-
+#![deny(unsafe_code)]
 extern crate alloc;
 
 use alloc::sync::Arc;
@@ -27,8 +27,8 @@ impl DevicesDomain for DevicesDomainImpl {}
 fn main() -> Arc<dyn DevicesDomain> {
     let uart = libsyscall::get_uart_domain().unwrap();
     let gpu = libsyscall::get_gpu_domain().unwrap();
-    let mouse = libsyscall::get_input_domain("mouse").unwrap();
-    let keyboard = libsyscall::get_input_domain("keyboard").unwrap();
+    // let mouse = libsyscall::get_input_domain("mouse").unwrap();
+    // let keyboard = libsyscall::get_input_domain("keyboard").unwrap();
     let blk = libsyscall::get_cache_blk_domain().unwrap();
     let rtc = libsyscall::get_rtc_domain().unwrap();
 

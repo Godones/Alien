@@ -1,15 +1,16 @@
+#![no_std]
 use constants::{AlienError, AlienResult};
 
-#[derive(Debug, Copy)]
-pub struct SafeRegion {
+#[derive(Debug, Copy, Clone)]
+pub struct SafeIORegion {
     start: usize,
     size: usize,
 }
 
-impl SafeRegion {
+impl SafeIORegion {
     pub fn new(start: usize, size: usize) -> AlienResult<Self> {
         // check whether the start address is in the kernel space
-        mem::is_in_kernel_space(start, size)
+        libsyscall::check_kernel_space(start, size)
             .then(|| ())
             .ok_or(AlienError::EINVAL)?;
         Ok(Self { start, size })
@@ -25,16 +26,14 @@ impl SafeRegion {
             return Err(AlienError::EINVAL);
         }
         let ptr = (self.start + offset) as *const T;
-        Ok(unsafe { *ptr }.clone())
+        unsafe { Ok(ptr.read_volatile()) }
     }
-    pub fn write_at<T: Copy>(&mut self, offset: usize, value: T) -> AlienResult<()> {
+    pub fn write_at<T: Copy>(&self, offset: usize, value: T) -> AlienResult<()> {
         if offset + core::mem::size_of::<T>() > self.size {
             return Err(AlienError::EINVAL);
         }
         let ptr = (self.start + offset) as *mut T;
-        unsafe {
-            *ptr = value;
-        }
+        unsafe { ptr.write_volatile(value) }
         Ok(())
     }
 }

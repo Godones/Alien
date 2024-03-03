@@ -1,5 +1,5 @@
 use interface::{Basic, GpuDomain};
-use rref::{RRef, RpcResult};
+use rref::{RRef, RRefVec, RpcResult};
 use std::sync::Arc;
 #[derive(Debug)]
 pub struct GPUDomain {}
@@ -17,7 +17,7 @@ impl GpuDomain for GPUDomain {
         todo!()
     }
 
-    fn fill_buf(&self, buf: RRef<[u8; 1280 * 800]>) -> RpcResult<()> {
+    fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> RpcResult<()> {
         todo!()
     }
 

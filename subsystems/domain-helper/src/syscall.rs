@@ -63,6 +63,10 @@ impl Syscall for DomainSyscall {
         timer::read_timer() as u64
     }
 
+    fn check_kernel_space(&self, start: usize, size: usize) -> bool {
+        mem::is_in_kernel_space(start, size)
+    }
+
     fn sys_get_blk_domain(&self) -> Option<Arc<dyn interface::BlkDeviceDomain>> {
         crate::query_domain("blk").map(|blk| unsafe { core::mem::transmute(blk) })
     }

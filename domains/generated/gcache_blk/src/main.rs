@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::panic::PanicInfo;
 use interface::CacheBlkDeviceDomain;
-use libsyscall::{println, Syscall};
+use libsyscall::{println, KTaskShim, Syscall};
 use rref::SharedHeap;
 
 #[no_mangle]
@@ -16,12 +16,13 @@ fn main(
     sys: Box<dyn Syscall>,
     domain_id: u64,
     shared_heap: Box<dyn SharedHeap>,
+    ktask_shim: Box<dyn KTaskShim>,
     max_cache_frames: usize,
 ) -> Arc<dyn CacheBlkDeviceDomain> {
     // init rref's shared heap
     rref::init(shared_heap, domain_id);
     // init libsyscall
-    libsyscall::init(sys);
+    libsyscall::init(sys, ktask_shim);
     // activate the domain
     interface::activate_domain();
     // call the real blk driver

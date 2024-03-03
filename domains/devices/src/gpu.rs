@@ -1,6 +1,7 @@
 use crate::DeviceId;
 use alloc::sync::Arc;
 use interface::GpuDomain;
+use rref::RRefVec;
 use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
@@ -34,15 +35,19 @@ impl VfsFile for GPUDevice {
         Err(VfsError::Invalid)
     }
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        let gbuf = self.device.get_framebuffer();
-        let offset = offset as usize;
-        let gbuf_len = gbuf.len();
-        let min_len = (gbuf_len - offset).min(buf.len());
-        gbuf[offset..offset + min_len].copy_from_slice(&buf[..min_len]);
-        Ok(min_len)
+        // let gbuf = self.device.get_framebuffer();
+        // let offset = offset as usize;
+        // let gbuf_len = gbuf.len();
+        // let min_len = (gbuf_len - offset).min(buf.len());
+        // gbuf[offset..offset + min_len].copy_from_slice(&buf[..min_len]);
+        //
+        //
+        let share_buf = RRefVec::from_slice(buf);
+        let w = self.device.fill(offset as u32, &share_buf).unwrap();
+        Ok(w)
     }
     fn flush(&self) -> VfsResult<()> {
-        self.device.flush();
+        self.device.flush().unwrap();
         Ok(())
     }
     fn fsync(&self) -> VfsResult<()> {

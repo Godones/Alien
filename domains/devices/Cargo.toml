@@ -11,7 +11,7 @@ interface = { path = "../../domain-tools/interface",default-features = false,fea
 rref = { path = "../../domain-tools/rref" }
 libsyscall = { path = "../../domain-tools/libsyscall" ,features = ["domain"] }
 ksync = { path = "../../subsystems/ksync" }
-
+constants = { path = "../../subsystems/constants" }
 
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
 spin = "0"

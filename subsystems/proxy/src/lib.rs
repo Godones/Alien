@@ -9,7 +9,8 @@ pub use trampoline::pop_continuation;
 
 use alloc::sync::Arc;
 use core::arch::asm;
-use interface::{Basic, BlkDeviceDomain, FsDomain};
+use core::fmt::Debug;
+use interface::{Basic, BlkDeviceDomain, FsDomain, RtcDomain, RtcTime};
 use rref::{RRef, RpcError, RpcResult};
 
 #[derive(Debug)]
@@ -178,3 +179,37 @@ impl Basic for FsDomainProxy {
 }
 
 impl FsDomain for FsDomainProxy {}
+
+#[derive(Debug)]
+pub struct RtcDomainProxy {
+    domain: Arc<dyn RtcDomain>,
+}
+
+impl RtcDomainProxy {
+    pub fn new(_domain_id: u64, domain: Arc<dyn RtcDomain>) -> Self {
+        Self { domain }
+    }
+}
+
+impl Basic for RtcDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
+
+impl RtcDomain for RtcDomainProxy {
+    fn read_time(&self, time: RRef<RtcTime>) -> RpcResult<RRef<RtcTime>> {
+        if self.domain.is_active() {
+            self.domain.read_time(time)
+        } else {
+            Err(RpcError::DomainCrash)
+        }
+    }
+    fn handle_irq(&self) -> RpcResult<()> {
+        if self.domain.is_active() {
+            self.domain.handle_irq()
+        } else {
+            Err(RpcError::DomainCrash)
+        }
+    }
+}

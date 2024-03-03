@@ -1,8 +1,11 @@
 use crate::DeviceId;
 use alloc::format;
 use alloc::sync::Arc;
+use constants::io::TeletypeCommand;
 use core::cmp::min;
-use interface::RtcDomain;
+use core::ops::Deref;
+use interface::{RtcDomain, RtcTime};
+use rref::RRef;
 use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
@@ -12,11 +15,6 @@ use vfscore::utils::{VfsFileStat, VfsNodeType};
 use vfscore::VfsResult;
 
 pub static RTC_DEVICE: Once<Arc<dyn RtcDomain>> = Once::new();
-
-#[allow(unused)]
-pub fn get_rtc_time() -> Option<RtcTime> {
-    RTC_DEVICE.get().map(|rtc| rtc.read_time())
-}
 
 pub fn init_rtc(rtc: Arc<dyn RtcDomain>) {
     RTC_DEVICE.call_once(|| rtc);
@@ -38,7 +36,8 @@ impl RTCDevice {
 
 impl VfsFile for RTCDevice {
     fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let time = self.device.read_time();
+        let mut time = RRef::new(RtcTime::default());
+        time = self.device.read_time(time).unwrap();
         let str = format!("{:?}", time);
         let bytes = str.as_bytes();
         let min_len = min(buf.len(), bytes.len());
@@ -54,11 +53,9 @@ impl VfsFile for RTCDevice {
         let cmd = TeletypeCommand::try_from(cmd).map_err(|_| VfsError::Invalid)?;
         match cmd {
             TeletypeCommand::RTC_RD_TIME => {
-                let time = self.device.read_time();
-                TASK_FUNC
-                    .get()
-                    .unwrap()
-                    .copy_data_to_task(&time, arg as *mut RtcTime);
+                let mut time = RRef::new(RtcTime::default());
+                time = self.device.read_time(time).unwrap();
+                libsyscall::copy_data_to_task(time.deref(), arg as *mut RtcTime);
             }
             _ => return Err(VfsError::Invalid),
         }

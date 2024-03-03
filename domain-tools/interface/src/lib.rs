@@ -59,7 +59,7 @@ pub trait UartDomain: Send + Sync + Basic + Debug {
 #[cfg(feature = "gpu")]
 pub trait GpuDomain: Send + Sync + Basic + Debug {
     fn flush(&self) -> RpcResult<()>;
-    fn fill_buf(&self, buf: RRef<[u8; 1280 * 800]>) -> RpcResult<()>;
+    fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> RpcResult<usize>;
     fn handle_irq(&self) -> RpcResult<()>;
 }
 
@@ -77,8 +77,23 @@ pub trait VfsDomain: Send + Sync + Basic + Debug {}
 pub trait DevicesDomain: Send + Sync + Basic + Debug {}
 
 #[cfg(feature = "rtc")]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
+pub struct RtcTime {
+    pub sec: u32,
+    pub min: u32,
+    pub hour: u32,
+    pub mday: u32,
+    pub mon: u32,
+    pub year: u32,
+    pub wday: u32,  // unused
+    pub yday: u32,  // unused
+    pub isdst: u32, // unused
+}
+
+#[cfg(feature = "rtc")]
 pub trait RtcDomain: Send + Sync + Basic + Debug {
-    fn read_time(&self) -> RpcResult<u64>;
+    fn read_time(&self, time: RRef<RtcTime>) -> RpcResult<RRef<RtcTime>>;
     fn handle_irq(&self) -> RpcResult<()>;
 }
 

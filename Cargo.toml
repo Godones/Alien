@@ -7,13 +7,13 @@ members = [
     "subsystems/ksync",
     "subsystems/mem",
     "subsystems/platform",
-    "subsystems/safety-abstraction/virtio-blk",
+    "domain-tools/safety-abstraction/virtio-blk",
     "subsystems/proxy",
     "subsystems/constants",
     "subsystems/domain-loader",
     "subsystems/domain-helper",
-    "subsystems/safety-abstraction/bus",
-    "subsystems/safety-abstraction/region",
+    "domain-tools/safety-abstraction/bus",
+    "domain-tools/safety-abstraction/region",
     "subsystems/timer",
     "domain-tools/interface",
     "domain-tools/rref",
@@ -35,7 +35,7 @@ members = [
     "domains/fs/devfs",
     "domains/syscall",
     "domains/fs/dynfs",
-    "domains/devices", "domains/drivers/cache_blk", "domains/generated/gcache_blk", "domains/drivers/kuart",
+    "domains/devices", "domains/drivers/cache_blk", "domains/generated/gcache_blk", "domains/drivers/kuart", "domains/drivers/goldfish", "domains/generated/ggoldfish",
 
 
 ]

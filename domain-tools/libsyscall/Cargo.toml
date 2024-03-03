@@ -9,9 +9,10 @@ edition = "2021"
 continuation = { path = "../continuation" }
 rref = { path = "../rref" }
 interface = { path = "../interface" }
+
 spin = "0"
 log = "0"
-
+downcast-rs = { version = "1.2.0", default-features = false }
 
 
 [features]
