@@ -35,10 +35,9 @@ members = [
     "domains/drivers/cache_blk",
     "domains/drivers/kuart",
     "domains/drivers/goldfish",
-    "domain-tools/utils",
     "domains/generated/gvfs",
     "domains/generated/gcache_blk",
-    "domains/generated/ggoldfish",
+    "domains/generated/ggoldfish", "domains/exception",
 ]
 
 resolver = "2"
