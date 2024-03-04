@@ -1,24 +1,17 @@
-use crate::DeviceId;
 use alloc::format;
 use alloc::sync::Arc;
 use constants::io::TeletypeCommand;
+use constants::DeviceId;
 use core::cmp::min;
 use core::ops::Deref;
 use interface::{RtcDomain, RtcTime};
 use rref::RRef;
-use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
 use vfscore::utils::{VfsFileStat, VfsNodeType};
 use vfscore::VfsResult;
-
-pub static RTC_DEVICE: Once<Arc<dyn RtcDomain>> = Once::new();
-
-pub fn init_rtc(rtc: Arc<dyn RtcDomain>) {
-    RTC_DEVICE.call_once(|| rtc);
-}
 
 pub struct RTCDevice {
     device_id: DeviceId,
@@ -38,7 +31,7 @@ impl VfsFile for RTCDevice {
     fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let mut time = RRef::new(RtcTime::default());
         time = self.device.read_time(time).unwrap();
-        let str = format!("{:?}", time);
+        let str = format!("{:?}", time.deref());
         let bytes = str.as_bytes();
         let min_len = min(buf.len(), bytes.len());
         buf[..min_len].copy_from_slice(&bytes[..min_len]);

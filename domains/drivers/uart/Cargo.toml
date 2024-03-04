@@ -9,6 +9,6 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart"] }
 rref = { path = "../../../domain-tools/rref" }
 libsyscall = { path = "../../../domain-tools/libsyscall",features = ["domain"] }
-
+malloc = { path = "../../../domain-tools/malloc" }
 
 region = { path = "../../../domain-tools/safety-abstraction/region" }

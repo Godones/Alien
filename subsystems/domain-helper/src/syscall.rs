@@ -17,6 +17,7 @@ pub struct DomainSyscall;
 
 impl Syscall for DomainSyscall {
     fn sys_alloc_pages(&self, domain_id: u64, n: usize) -> *mut u8 {
+        let n = n.next_power_of_two();
         let page = mem::alloc_frames(n);
         info!(
             "[Domain: {}] alloc pages: {}, range:[{:#x}-{:#x}]",
@@ -32,6 +33,7 @@ impl Syscall for DomainSyscall {
     }
 
     fn sys_free_pages(&self, domain_id: u64, p: *mut u8, n: usize) {
+        let n = n.next_power_of_two();
         info!("[Domain: {}] free pages: {}, ptr: {:p}", domain_id, n, p);
         let mut binding = DOMAIN_PAGE_MAP.lock();
         let vec = binding.entry(domain_id).or_insert(Vec::new());

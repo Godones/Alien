@@ -1,7 +1,12 @@
+#![no_std]
+extern crate alloc;
+extern crate malloc;
+
+use alloc::sync::Arc;
+use core::ops::Range;
 use interface::{Basic, UartDomain};
 use region::SafeIORegion;
 use rref::RpcResult;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct UartDomainImpl {
@@ -36,7 +41,7 @@ impl UartDomain for UartDomainImpl {
     }
 }
 
-pub fn main(uart_addr: usize, size: usize) -> Arc<dyn UartDomain> {
-    libsyscall::println!("uart_addr: {:#x}-{:#x}", uart_addr, uart_addr + size);
-    Arc::new(UartDomain::new(uart_addr, size))
+pub fn main(region: Range<usize>) -> Arc<dyn UartDomain> {
+    libsyscall::println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
+    Arc::new(UartDomain::new(region.start, region.end - region.start))
 }

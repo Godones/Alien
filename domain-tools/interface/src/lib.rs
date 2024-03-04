@@ -73,9 +73,6 @@ pub trait InputDomain: Send + Sync + Basic + Debug {
 #[cfg(feature = "vfs")]
 pub trait VfsDomain: Send + Sync + Basic + Debug {}
 
-#[cfg(feature = "devices")]
-pub trait DevicesDomain: Send + Sync + Basic + Debug {}
-
 #[cfg(feature = "rtc")]
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]

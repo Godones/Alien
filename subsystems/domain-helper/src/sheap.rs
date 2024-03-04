@@ -1,6 +1,7 @@
 use alloc::alloc::{alloc, dealloc};
 use alloc::collections::BTreeMap;
 use core::alloc::Layout;
+use core::any::TypeId;
 use ksync::Mutex;
 use log::trace;
 use rref::{SharedHeap, SharedHeapAllocation};
@@ -11,8 +12,8 @@ static SHARED_HEAP: Lazy<Mutex<BTreeMap<usize, SharedHeapAllocation>>> =
 
 pub struct SharedHeapAllocator;
 impl SharedHeap for SharedHeapAllocator {
-    unsafe fn alloc(&self, layout: Layout, type_id: u64) -> Option<SharedHeapAllocation> {
-        trace!("[SharedHeap] alloc: {:?}, type_id: {}", layout, type_id);
+    unsafe fn alloc(&self, layout: Layout, type_id: TypeId) -> Option<SharedHeapAllocation> {
+        trace!("[SharedHeap] alloc: {:?}, type_id: {:?}", layout, type_id);
         let ptr = alloc(layout);
         if ptr.is_null() {
             return None;

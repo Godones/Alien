@@ -11,6 +11,7 @@ use core::ops::Deref;
 use interface::{Basic, BlkDeviceDomain, CacheBlkDeviceDomain};
 use ksync::Mutex;
 use libsyscall::{FrameTracker, FRAME_SIZE};
+use log::info;
 use lru::LruCache;
 use rref::{RRef, RRefVec, RpcResult};
 
@@ -161,5 +162,10 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
 
 pub fn main(max_cache_frames: usize) -> Arc<dyn CacheBlkDeviceDomain> {
     let blk = libsyscall::get_blk_domain().unwrap();
+    info!(
+        "max_cache_frames: {}, blk size: {}MB",
+        max_cache_frames,
+        blk.get_capacity().unwrap() / (1024 * 1024)
+    );
     Arc::new(GenericBlockDevice::new(blk, max_cache_frames))
 }

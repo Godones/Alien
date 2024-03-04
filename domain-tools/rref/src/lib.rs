@@ -2,7 +2,7 @@
 #![feature(auto_traits)]
 #![feature(negative_impls)]
 #![feature(error_in_core)]
-
+#![feature(core_intrinsics)]
 mod rref;
 mod rvec;
 
@@ -11,6 +11,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 pub use constants::AlienError;
 use core::alloc::Layout;
+use core::any::TypeId;
 use core::error::Error;
 use core::fmt::{Display, Formatter};
 use log::info;
@@ -26,20 +27,26 @@ impl<T> !RRefable for &mut T {}
 impl<T> !RRefable for [T] {}
 
 pub trait TypeIdentifiable {
-    fn type_id() -> u64;
+    fn type_id() -> TypeId;
 }
 
-impl TypeIdentifiable for [u8; 512] {
-    fn type_id() -> u64 {
-        // core::intrinsics::type_id();
-        // core::any::TypeId::of();
-        5u64
-    }
-}
+// impl TypeIdentifiable for [u8; 512] {
+//     fn type_id() -> u64 {
+//         // core::intrinsics::type_id();
+//         // core::any::TypeId::of();
+//         5u64
+//     }
+// }
+//
+// impl TypeIdentifiable for u8 {
+//     fn type_id() -> u64 {
+//         1u64
+//     }
+// }
 
-impl TypeIdentifiable for u8 {
-    fn type_id() -> u64 {
-        1u64
+impl<T: 'static> TypeIdentifiable for T {
+    fn type_id() -> TypeId {
+        core::any::TypeId::of::<T>()
     }
 }
 
@@ -50,13 +57,13 @@ pub struct SharedHeapAllocation {
     pub domain_id_pointer: *mut u64,
     pub borrow_count_pointer: *mut u64,
     pub layout: Layout,
-    pub type_id: u64,
+    pub type_id: TypeId,
 }
 
 unsafe impl Send for SharedHeapAllocation {}
 
 pub trait SharedHeap: Send + Sync {
-    unsafe fn alloc(&self, layout: Layout, type_id: u64) -> Option<SharedHeapAllocation>;
+    unsafe fn alloc(&self, layout: Layout, type_id: TypeId) -> Option<SharedHeapAllocation>;
     unsafe fn dealloc(&self, ptr: *mut u8);
 }
 

@@ -1,5 +1,5 @@
-use crate::id::DeviceId;
 use alloc::sync::Arc;
+use constants::DeviceId;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};

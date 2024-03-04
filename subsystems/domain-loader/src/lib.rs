@@ -8,10 +8,11 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::ops::Range;
 use domain_helper::{alloc_domain_id, DomainSyscall, SharedHeapAllocator, TaskShimImpl};
-use interface::{BlkDeviceDomain, FsDomain, RtcDomain};
+use interface::{BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, RtcDomain, VfsDomain};
 use libsyscall::{KTaskShim, Syscall};
 use log::info;
-use proxy::{BlkDomainProxy, FsDomainProxy, RtcDomainProxy};
+use platform::config::MAX_BLOCK_CACHE_FRAMES;
+use proxy::{BlkDomainProxy, CacheBlkDomainProxy, FsDomainProxy, RtcDomainProxy, VfsDomainProxy};
 use rref::SharedHeap;
 
 #[macro_use]
@@ -49,6 +50,9 @@ static FATFS_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gfatfs_domain.bin");
 static RTC_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/ggoldfish_domain.bin");
+static VFS_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/gvfs_domain.bin");
+static CACHE_BLK_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gcache_blk_domain.bin");
 fn fatfs_domain() -> Arc<dyn FsDomain> {
     type F = def_func!(Arc<dyn FsDomain>,);
     let mut domain = DomainLoader::new();
@@ -100,6 +104,37 @@ fn rtc_domain() -> Arc<dyn RtcDomain> {
     Arc::new(RtcDomainProxy::new(id, rtc))
 }
 
+fn vfs_domain() -> Arc<dyn VfsDomain> {
+    type F = def_func!(Arc<dyn VfsDomain>,);
+    let mut domain = DomainLoader::new();
+    domain.load(VFS_DOMAIN).unwrap();
+    let main = unsafe { core::mem::transmute::<*const (), F>(domain.entry() as *const ()) };
+    let id = alloc_domain_id();
+    let vfs = main(
+        Box::new(DomainSyscall),
+        id,
+        Box::new(SharedHeapAllocator),
+        Box::new(TaskShimImpl),
+    );
+    Arc::new(VfsDomainProxy::new(id, vfs))
+}
+
+fn cache_blk_domain() -> Arc<dyn CacheBlkDeviceDomain> {
+    type F = def_func!(Arc<dyn CacheBlkDeviceDomain>, usize);
+    let mut domain = DomainLoader::new();
+    domain.load(CACHE_BLK_DOMAIN).unwrap();
+    let main = unsafe { core::mem::transmute::<*const (), F>(domain.entry() as *const ()) };
+    let id = alloc_domain_id();
+    let cache_blk = main(
+        Box::new(DomainSyscall),
+        id,
+        Box::new(SharedHeapAllocator),
+        Box::new(TaskShimImpl),
+        MAX_BLOCK_CACHE_FRAMES,
+    );
+    Arc::new(CacheBlkDomainProxy::new(id, cache_blk))
+}
+
 pub fn load_domains() {
     info!("Load blk domain, size: {}KB", BLK_DOMAIN.len() / 1024);
     let dev = blk_domain();
@@ -110,5 +145,14 @@ pub fn load_domains() {
     info!("Load rtc domain, size: {}KB", RTC_DOMAIN.len() / 1024);
     let rtc = rtc_domain();
     domain_helper::register_domain("rtc", rtc);
+    info!(
+        "Load cache blk domain, size: {}KB",
+        CACHE_BLK_DOMAIN.len() / 1024
+    );
+    let cache_blk = cache_blk_domain();
+    domain_helper::register_domain("cache_blk", cache_blk);
+    info!("Load vfs domain, size: {}KB", VFS_DOMAIN.len() / 1024);
+    let vfs = vfs_domain();
+    domain_helper::register_domain("vfs", vfs);
     platform::println!("Load domains done");
 }

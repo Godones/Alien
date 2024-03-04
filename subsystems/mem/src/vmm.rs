@@ -124,14 +124,14 @@ pub fn build_kernel_address_space(memory_end: usize) {
     for pair in MMIO {
         kernel_space
             .map_region(
-                VirtAddr::from(pair.0),
-                PhysAddr::from(pair.0),
-                pair.1,
+                VirtAddr::from(pair.1),
+                PhysAddr::from(pair.1),
+                pair.2,
                 "RWVAD".into(),
                 true,
             )
             .unwrap();
-        println!("map mmio: {:#x?}-{:#x?}", pair.0, pair.0 + pair.1);
+        println!("map {}: {:#x?}-{:#x?}", pair.0, pair.1, pair.1 + pair.2);
     }
     KERNEL_MAP_MAX.store(memory_end, core::sync::atomic::Ordering::SeqCst);
 }

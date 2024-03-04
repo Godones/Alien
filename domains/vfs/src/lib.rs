@@ -1,32 +1,69 @@
 #![no_std]
 
 extern crate alloc;
-
+extern crate malloc;
+use crate::devfs::DevFsProviderImpl;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use core::ops::Index;
-use interface::VfsDomain;
+use dynfs::DynFsKernelProvider;
+use interface::{Basic, VfsDomain};
 use ksync::Mutex;
-use rref::RpcResult;
 use spin::{Lazy, Once};
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 use vfscore::path::VfsPath;
+use vfscore::utils::VfsTimeSpec;
+use vfscore::VfsResult;
 
-pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsDomain>>>> =
+mod devfs;
+mod pipefs;
+mod procfs;
+mod ramfs;
+mod sys;
+
+type SysFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
+type ProcFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
+type TmpFs = ::ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
+type RamFs = ::ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
+type DevFs = ::devfs::DevFs<DevFsProviderImpl, Mutex<()>>;
+type PipeFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
+type DiskFs = fat_vfs::FatFs<CommonFsProviderImpl, Mutex<()>>;
+#[derive(Clone)]
+pub struct CommonFsProviderImpl;
+
+impl DynFsKernelProvider for CommonFsProviderImpl {
+    fn current_time(&self) -> VfsTimeSpec {
+        VfsTimeSpec::new(0, 0)
+    }
+}
+
+impl ::ramfs::RamFsProvider for CommonFsProviderImpl {
+    fn current_time(&self) -> VfsTimeSpec {
+        DynFsKernelProvider::current_time(self)
+    }
+}
+
+impl fat_vfs::FatFsProvider for CommonFsProviderImpl {
+    fn current_time(&self) -> VfsTimeSpec {
+        DynFsKernelProvider::current_time(self)
+    }
+}
+
+pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsFsType>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
 
-static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDomain>> = Once::new();
+static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDentry>> = Once::new();
 
 fn register_all_fs() {
-    let procfs = libsyscall::get_fs_domain("procfs").unwrap();
-    let sysfs = libsyscall::get_fs_domain("sysfs").unwrap();
-    let ramfs = libsyscall::get_fs_domain("ramfs").unwrap();
-    let devfs = libsyscall::get_fs_domain("devfs").unwrap();
-    let tmpfs = libsyscall::get_fs_domain("tmpfs").unwrap();
-    let pipefs = libsyscall::get_fs_domain("pipefs").unwrap();
-    let diskfs = libsyscall::get_fs_domain("fatfs").unwrap();
+    let procfs = Arc::new(ProcFs::new(CommonFsProviderImpl, "procfs"));
+    let sysfs = Arc::new(SysFs::new(CommonFsProviderImpl, "sysfs"));
+    let ramfs = Arc::new(RamFs::new(CommonFsProviderImpl));
+    let devfs = Arc::new(DevFs::new(DevFsProviderImpl));
+    let tmpfs = Arc::new(TmpFs::new(CommonFsProviderImpl));
+    let pipefs = Arc::new(PipeFs::new(CommonFsProviderImpl, "pipefs"));
+    let diskfs = Arc::new(DiskFs::new(CommonFsProviderImpl));
 
     FS.lock().insert("procfs".to_string(), procfs);
     FS.lock().insert("sysfs".to_string(), sysfs);
@@ -40,12 +77,12 @@ fn register_all_fs() {
 }
 
 /// Init the filesystem
-pub fn init_filesystem() -> RpcResult<()> {
+pub fn init_filesystem() -> VfsResult<()> {
     register_all_fs();
-    let ramfs_root = ram::init_ramfs(FS.lock().index("ramfs").clone());
+    let ramfs_root = ramfs::init_ramfs(FS.lock().index("ramfs").clone());
     let procfs = FS.lock().index("procfs").clone();
-    let procfs_root = proc::init_procfs(procfs);
-    let devfs_root = dev::init_devfs(FS.lock().index("devfs").clone());
+    let procfs_root = procfs::init_procfs(procfs);
+    let devfs_root = devfs::init_devfs(FS.lock().index("devfs").clone());
     let sysfs_root = sys::init_sysfs(FS.lock().index("sysfs").clone());
     let tmpfs_root = FS
         .lock()
@@ -76,13 +113,14 @@ pub fn init_filesystem() -> RpcResult<()> {
         .inode()?;
     let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
     path.join("tests")?.mount(diskfs_root, 0)?;
+    libsyscall::println!("Vfs Tree:");
     vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
         .unwrap();
 
-    initrd::populate_initrd(ramfs_root.clone())?;
+    // initrd::populate_initrd(ramfs_root.clone())?;
 
     SYSTEM_ROOT_FS.call_once(|| ramfs_root);
-    println!("Init filesystem success");
+    libsyscall::println!("Init filesystem success");
     Ok(())
 }
 
@@ -112,4 +150,14 @@ pub fn system_support_fs(fs_name: &str) -> Option<Arc<dyn VfsFsType>> {
     })
 }
 
-pub fn main() -> Arc<dyn VfsDomain> {}
+#[derive(Debug)]
+struct VfsDomainImpl;
+
+impl Basic for VfsDomainImpl {}
+
+impl VfsDomain for VfsDomainImpl {}
+
+pub fn main() -> Arc<dyn VfsDomain> {
+    init_filesystem().unwrap();
+    Arc::new(VfsDomainImpl)
+}

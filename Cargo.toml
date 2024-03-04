@@ -24,20 +24,21 @@ members = [
     "domains/generated/gfatfs",
     "domains/generated/gblk",
     "domains/drivers/blk",
-    "domains/fs/vfs",
+    "domains/vfs",
     "domains/drivers/net",
     "domains/drivers/input",
     "domains/drivers/uart",
     "domains/drivers/gpu",
     "domains/generated/guart",
     "domains/generated/ggpu",
-    "domains/fs/ramfs",
-    "domains/fs/devfs",
     "domains/syscall",
-    "domains/fs/dynfs",
-    "domains/devices", "domains/drivers/cache_blk", "domains/generated/gcache_blk", "domains/drivers/kuart", "domains/drivers/goldfish", "domains/generated/ggoldfish",
-
-
+    "domains/drivers/cache_blk",
+    "domains/drivers/kuart",
+    "domains/drivers/goldfish",
+    "domain-tools/utils",
+    "domains/generated/gvfs",
+    "domains/generated/gcache_blk",
+    "domains/generated/ggoldfish",
 ]
 
 resolver = "2"

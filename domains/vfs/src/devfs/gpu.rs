@@ -1,20 +1,13 @@
-use crate::DeviceId;
 use alloc::sync::Arc;
 use interface::GpuDomain;
 use rref::RRefVec;
-use spin::Once;
+
+use constants::DeviceId;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::utils::{VfsFileStat, VfsNodeType};
 use vfscore::VfsResult;
-
-pub static GPU_DEVICE: Once<Arc<dyn GpuDomain>> = Once::new();
-
-#[allow(unused)]
-pub fn init_gpu(gpu: Arc<dyn GpuDomain>) {
-    GPU_DEVICE.call_once(|| gpu);
-}
 
 pub struct GPUDevice {
     device_id: DeviceId,
@@ -40,8 +33,6 @@ impl VfsFile for GPUDevice {
         // let gbuf_len = gbuf.len();
         // let min_len = (gbuf_len - offset).min(buf.len());
         // gbuf[offset..offset + min_len].copy_from_slice(&buf[..min_len]);
-        //
-        //
         let share_buf = RRefVec::from_slice(buf);
         let w = self.device.fill(offset as u32, &share_buf).unwrap();
         Ok(w)

@@ -1,24 +1,22 @@
-#![no_std]
-#![deny(unsafe_code)]
-
+mod block;
+mod gpu;
 mod id;
 mod null;
 mod random;
+mod rtc;
+mod uart;
 
-extern crate alloc;
-extern crate malloc;
-
-use crate::id::{alloc_device_id, DeviceId};
-use crate::null::NullDevice;
-use crate::random::RandomDevice;
-use alloc::collections::BTreeMap;
+use crate::devfs::block::BLKDevice;
+use crate::devfs::gpu::GPUDevice;
+use crate::devfs::rtc::RTCDevice;
+use crate::devfs::uart::UARTDevice;
 use alloc::sync::Arc;
-use core::fmt::Debug;
+use constants::DeviceId;
 use devfs::DevKernelProvider;
-use interface::{Basic, FsDomain};
-use ksync::Mutex;
+use id::{alloc_device_id, query_device, register_device};
 use log::info;
-use spin::Lazy;
+use null::NullDevice;
+use random::RandomDevice;
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 use vfscore::inode::VfsInode;
@@ -33,40 +31,9 @@ impl DevKernelProvider for DevFsProviderImpl {
     }
     fn rdev2device(&self, rdev: u64) -> Option<Arc<dyn VfsInode>> {
         let device_id = DeviceId::from(rdev);
-        DEVICES.lock().get(&device_id).cloned()
+        query_device(device_id)
     }
 }
-
-pub static DEVICES: Lazy<Mutex<BTreeMap<DeviceId, Arc<dyn VfsInode>>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
-
-pub fn register_device(inode: Arc<dyn VfsInode>) {
-    let rdev = inode.get_attr().unwrap().st_rdev;
-    let device_id = DeviceId::from(rdev);
-    DEVICES.lock().insert(device_id, inode);
-}
-
-pub fn unregister_device(rdev: DeviceId) {
-    DEVICES.lock().remove(&rdev);
-}
-
-type DevFs = devfs::DevFs<DevFsProviderImpl, Mutex<()>>;
-
-#[derive(Debug)]
-pub struct DevFsDomain {
-    fs: Arc<DevFs>,
-}
-
-impl DevFsDomain {
-    pub fn new() -> Self {
-        let fs = Arc::new(DevFs::new(DevFsProviderImpl));
-        DevFsDomain { fs }
-    }
-}
-
-impl Basic for DevFsDomain {}
-
-impl FsDomain for DevFsDomain {}
 
 ///```bash
 /// |
@@ -140,7 +107,14 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
 }
 
 fn scan_system_devices(root: Arc<dyn VfsInode>) {
-    BLOCK_DEVICE.get().map(|blk| {
+    let uart = libsyscall::get_uart_domain();
+    let gpu = libsyscall::get_gpu_domain();
+    // let mouse = libsyscall::get_input_domain("mouse").unwrap();
+    // let keyboard = libsyscall::get_input_domain("keyboard").unwrap();
+    let blk = libsyscall::get_cache_blk_domain();
+    let rtc = libsyscall::get_rtc_domain();
+
+    blk.map(|blk| {
         let block_device = Arc::new(BLKDevice::new(
             alloc_device_id(VfsNodeType::BlockDevice),
             blk.clone(),
@@ -155,7 +129,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         info!("block device id: {}", block_device.device_id().id());
         register_device(block_device);
     });
-    GPU_DEVICE.get().map(|gpu| {
+    gpu.map(|gpu| {
         let gpu_device = Arc::new(GPUDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
             gpu.clone(),
@@ -170,39 +144,39 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         info!("gpu device id: {}", gpu_device.device_id().id());
         register_device(gpu_device);
     });
-    KEYBOARD_INPUT_DEVICE.get().map(|input| {
-        let input_device = Arc::new(INPUTDevice::new(
-            alloc_device_id(VfsNodeType::CharDevice),
-            input.clone(),
-            false,
-        ));
-        root.create(
-            "keyboard",
-            VfsNodeType::BlockDevice,
-            "rw-rw----".into(),
-            Some(input_device.device_id().id()),
-        )
-        .unwrap();
-        info!("keyboard device id: {}", input_device.device_id().id());
-        register_device(input_device);
-    });
-    MOUSE_INPUT_DEVICE.get().map(|input| {
-        let input_device = Arc::new(INPUTDevice::new(
-            alloc_device_id(VfsNodeType::CharDevice),
-            input.clone(),
-            true,
-        ));
-        root.create(
-            "mouse",
-            VfsNodeType::BlockDevice,
-            "rw-rw----".into(),
-            Some(input_device.device_id().id()),
-        )
-        .unwrap();
-        info!("mouse device id: {}", input_device.device_id().id());
-        register_device(input_device);
-    });
-    RTC_DEVICE.get().map(|rtc| {
+    // KEYBOARD_INPUT_DEVICE.get().map(|input| {
+    //     let input_device = Arc::new(INPUTDevice::new(
+    //         alloc_device_id(VfsNodeType::CharDevice),
+    //         input.clone(),
+    //         false,
+    //     ));
+    //     root.create(
+    //         "keyboard",
+    //         VfsNodeType::BlockDevice,
+    //         "rw-rw----".into(),
+    //         Some(input_device.device_id().id()),
+    //     )
+    //     .unwrap();
+    //     info!("keyboard device id: {}", input_device.device_id().id());
+    //     register_device(input_device);
+    // });
+    // MOUSE_INPUT_DEVICE.get().map(|input| {
+    //     let input_device = Arc::new(INPUTDevice::new(
+    //         alloc_device_id(VfsNodeType::CharDevice),
+    //         input.clone(),
+    //         true,
+    //     ));
+    //     root.create(
+    //         "mouse",
+    //         VfsNodeType::BlockDevice,
+    //         "rw-rw----".into(),
+    //         Some(input_device.device_id().id()),
+    //     )
+    //     .unwrap();
+    //     info!("mouse device id: {}", input_device.device_id().id());
+    //     register_device(input_device);
+    // });
+    rtc.map(|rtc| {
         let rtc_device = Arc::new(RTCDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
             rtc.clone(),
@@ -217,7 +191,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         info!("rtc device id: {}", rtc_device.device_id().id());
         register_device(rtc_device);
     });
-    UART_DEVICE.get().map(|uart| {
+    uart.map(|uart| {
         let uart_device = Arc::new(UARTDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
             uart.clone(),
@@ -232,8 +206,4 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         info!("uart device id: {}", uart_device.device_id().id());
         register_device(uart_device);
     });
-}
-
-pub fn main() -> Arc<dyn FsDomain> {
-    Arc::new(DevFsDomain::new())
 }

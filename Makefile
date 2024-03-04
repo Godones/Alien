@@ -16,7 +16,7 @@ endif
 
 
 
-domains += 	gblk gfatfs gcache_blk ggoldfish
+domains += 	gblk gfatfs gcache_blk ggoldfish gvfs
 
 all:run
 

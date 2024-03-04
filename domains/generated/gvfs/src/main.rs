@@ -1,13 +1,13 @@
 #![no_std]
+#![no_main]
 #![feature(panic_info_message)]
 
 extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::Range;
 use core::panic::PanicInfo;
-use interface::UartDomain;
+use interface::VfsDomain;
 use libsyscall::{KTaskShim, Syscall};
 use rref::SharedHeap;
 
@@ -17,8 +17,7 @@ fn main(
     domain_id: u64,
     shared_heap: Box<dyn SharedHeap>,
     ktask_shim: Box<dyn KTaskShim>,
-    region: Range<usize>,
-) -> Arc<dyn UartDomain> {
+) -> Arc<dyn VfsDomain> {
     // init rref's shared heap
     rref::init(shared_heap, domain_id);
     // init libsyscall
@@ -26,7 +25,7 @@ fn main(
     // activate the domain
     interface::activate_domain();
     // call the real uart driver
-    uart::main(region)
+    vfs::main()
 }
 
 #[panic_handler]

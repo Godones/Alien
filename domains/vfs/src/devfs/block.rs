@@ -1,20 +1,12 @@
-use crate::DeviceId;
 use alloc::sync::Arc;
+use constants::DeviceId;
 use interface::CacheBlkDeviceDomain;
 use rref::RRefVec;
-use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 use vfscore::VfsResult;
-
-pub static BLOCK_DEVICE: Once<Arc<dyn CacheBlkDeviceDomain>> = Once::new();
-
-pub fn init_block_device(block_device: Arc<dyn CacheBlkDeviceDomain>) {
-    // BLOCK_DEVICE.lock().push(block_device);
-    BLOCK_DEVICE.call_once(|| block_device);
-}
 
 pub struct BLKDevice {
     device_id: DeviceId,
@@ -68,7 +60,7 @@ impl VfsInode for BLKDevice {
     fn get_attr(&self) -> VfsResult<VfsFileStat> {
         Ok(VfsFileStat {
             st_rdev: self.device_id.id(),
-            st_size: self.device.size() as u64,
+            st_size: self.device.get_capacity().unwrap() as u64,
             st_blksize: 512,
             ..Default::default()
         })

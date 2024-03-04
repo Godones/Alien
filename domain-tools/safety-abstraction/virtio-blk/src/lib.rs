@@ -8,7 +8,7 @@ extern crate alloc;
 use core::ptr::NonNull;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::{BufferDirection, Hal, PhysAddr, PAGE_SIZE};
+use virtio_drivers::{BufferDirection, Hal, PhysAddr};
 
 /// For simplicity, now we directly use the `virtio-drivers` crate.
 ///
@@ -52,14 +52,12 @@ struct HalImpl;
 
 unsafe impl Hal for HalImpl {
     fn dma_alloc(pages: usize, _direction: BufferDirection) -> (PhysAddr, NonNull<u8>) {
-        let layout = core::alloc::Layout::from_size_align(pages * PAGE_SIZE, PAGE_SIZE).unwrap();
-        let start = unsafe { alloc::alloc::alloc(layout) };
-        (start as usize, NonNull::new(start).unwrap())
+        let ptr = libsyscall::alloc_raw_pages(pages);
+        (ptr as usize, NonNull::new(ptr).unwrap())
     }
 
     unsafe fn dma_dealloc(paddr: PhysAddr, _vaddr: NonNull<u8>, pages: usize) -> i32 {
-        let layout = core::alloc::Layout::from_size_align(pages * PAGE_SIZE, PAGE_SIZE).unwrap();
-        unsafe { alloc::alloc::dealloc(paddr as *mut u8, layout) };
+        libsyscall::free_raw_pages(paddr as *mut u8, pages);
         0
     }
 

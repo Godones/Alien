@@ -10,8 +10,10 @@ pub use trampoline::pop_continuation;
 use alloc::sync::Arc;
 use core::arch::asm;
 use core::fmt::Debug;
-use interface::{Basic, BlkDeviceDomain, FsDomain, RtcDomain, RtcTime};
-use rref::{RRef, RpcError, RpcResult};
+use interface::{
+    Basic, BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, RtcDomain, RtcTime, VfsDomain,
+};
+use rref::{RRef, RRefVec, RpcError, RpcResult};
 
 #[derive(Debug)]
 pub struct BlkDomainProxy {
@@ -211,5 +213,79 @@ impl RtcDomain for RtcDomainProxy {
         } else {
             Err(RpcError::DomainCrash)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct VfsDomainProxy {
+    domain: Arc<dyn VfsDomain>,
+}
+
+impl VfsDomainProxy {
+    pub fn new(_id: u64, domain: Arc<dyn VfsDomain>) -> Self {
+        Self { domain }
+    }
+}
+
+impl Basic for VfsDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
+
+impl VfsDomain for VfsDomainProxy {}
+
+#[derive(Debug)]
+pub struct CacheBlkDomainProxy {
+    domain_id: u64,
+    domain: Arc<dyn CacheBlkDeviceDomain>,
+}
+
+impl CacheBlkDomainProxy {
+    pub fn new(domain_id: u64, domain: Arc<dyn CacheBlkDeviceDomain>) -> Self {
+        Self { domain_id, domain }
+    }
+}
+
+impl Basic for CacheBlkDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
+
+impl CacheBlkDeviceDomain for CacheBlkDomainProxy {
+    fn read(&self, offset: u64, buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.read(offset, buf)
+    }
+
+    fn write(&self, offset: u64, buf: &RRefVec<u8>) -> RpcResult<usize> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.write(offset, buf)
+    }
+
+    fn get_capacity(&self) -> RpcResult<u64> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.get_capacity()
+    }
+
+    fn flush(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.flush()
+    }
+
+    fn handle_irq(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.handle_irq()
     }
 }

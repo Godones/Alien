@@ -1,21 +1,14 @@
-use crate::DeviceId;
 use alloc::sync::Arc;
 use constants::io::{LocalModes, TeletypeCommand, Termios, WinSize};
+use constants::DeviceId;
 use interface::UartDomain;
 use ksync::Mutex;
-use spin::Once;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
 use vfscore::superblock::VfsSuperBlock;
 use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 use vfscore::VfsResult;
-
-pub static UART_DEVICE: Once<Arc<dyn UartDomain>> = Once::new();
-
-pub fn init_uart(uart: Arc<dyn UartDomain>) {
-    UART_DEVICE.call_once(|| uart);
-}
 
 #[derive(Debug, Default)]
 pub struct IoData {
@@ -48,7 +41,7 @@ impl VfsFile for UARTDevice {
         // read util \r and transform to \n
         let mut read_count = 0;
         loop {
-            let ch = self.device.get();
+            let ch = self.device.getc().unwrap();
             assert!(ch.is_some());
             let ch = ch.unwrap();
             buf[read_count] = ch;
@@ -58,14 +51,14 @@ impl VfsFile for UARTDevice {
                 if LocalModes::from_bits_truncate(self.io.lock().termios.lflag)
                     .contains(LocalModes::ECHO)
                 {
-                    self.device.put(b'\n');
+                    self.device.putc(b'\n').unwrap();
                 }
                 break;
             }
             if LocalModes::from_bits_truncate(self.io.lock().termios.lflag)
                 .contains(LocalModes::ECHO)
             {
-                self.device.put(ch);
+                self.device.putc(ch).unwrap();
             }
             if read_count >= buf.len() {
                 break;
