@@ -289,10 +289,6 @@ impl Task {
                 }
             }
         } else {
-            // if it is a thread, we should not remove it from parent's children
-            // if self.access_inner().children.len() == 0 {
-            //     self.access_inner().address_space.lock().release();
-            // }
         }
         self.access_inner().state = TaskState::Terminated;
     }
