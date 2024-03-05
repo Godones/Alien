@@ -42,8 +42,8 @@ fn main(hart_id: usize) {
         println!("{:#?}", machine_info);
         mem::init_memory_system(machine_info.memory.end, true);
         interrupt::init_plic(machine_info.plic.start);
-        drivers::register_task_func(Box::new(DriverTaskImpl));
-        devices::init_device(Box::new(DriverTaskImpl));
+        shim::register_task_func(Box::new(DriverTaskImpl));
+        devices::init_device();
         vfs::init_filesystem().expect("init filesystem failed");
         trap::init_trap_subsystem();
         arch::allow_access_user_memory();

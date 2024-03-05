@@ -29,7 +29,6 @@ use interrupt::register_device_to_plic;
 use log::info;
 use platform::println;
 pub use rtc::{RTCDevice, RTC_DEVICE};
-use spin::Once;
 pub use uart::{UARTDevice, UART_DEVICE};
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::transport::{DeviceType, Transport};
@@ -40,68 +39,11 @@ pub struct DeviceInfo {
     pub need_register: bool,
 }
 
-static TASK_FUNC: Once<Box<dyn DeviceWithTask>> = Once::new();
-
-pub trait DeviceWithTask: Send + Sync {
-    fn transfer_ptr_raw(&self, ptr: usize) -> usize;
-    fn transfer_buf_raw(&self, src: usize, size: usize) -> Vec<&mut [u8]>;
-}
-
-impl dyn DeviceWithTask {
-    fn copy_data_to_task<T: 'static + Copy>(&self, src: *const T, dst: *mut T) {
-        let size = core::mem::size_of::<T>();
-        let bufs = self.transfer_buf_raw(dst as usize, size);
-        let src = unsafe { core::slice::from_raw_parts(src as *const u8, size) };
-        let mut start = 0;
-        for buffer in bufs {
-            let len = if start + buffer.len() > size {
-                size - start
-            } else {
-                buffer.len()
-            };
-            unsafe {
-                core::ptr::copy_nonoverlapping(src.as_ptr().add(start), buffer.as_mut_ptr(), len);
-            }
-            start += len;
-        }
-    }
-    fn copy_data_from_task<T: 'static + Copy>(&self, src: *const T, dst: *mut T) {
-        let size = core::mem::size_of::<T>();
-        let bufs = self.transfer_buf_raw(src as usize, size);
-        let dst = unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, size) };
-        let mut start = 0;
-        for buffer in bufs {
-            let len = if start + buffer.len() > size {
-                size - start
-            } else {
-                buffer.len()
-            };
-            unsafe {
-                core::ptr::copy_nonoverlapping(buffer.as_ptr(), dst.as_mut_ptr().add(start), len);
-            }
-            start += len;
-        }
-    }
-    fn transfer_ptr_mut<T>(&self, ptr: *mut T) -> &'static mut T {
-        let ptr = ptr as usize;
-        let ptr = self.transfer_ptr_raw(ptr);
-        unsafe { &mut *(ptr as *mut T) }
-    }
-    fn transfer_ptr<T>(&self, ptr: *const T) -> &'static T {
-        let ptr = ptr as usize;
-        let ptr = self.transfer_ptr_raw(ptr);
-        unsafe { &*(ptr as *const T) }
-    }
-}
-
 /// Probe all devices from device tree and init them.
 /// # Warning
 /// Before init device, we should init platform first.
 ///
-/// todo!(The task_func should be replaced)
-pub fn init_device(task_func: Box<dyn DeviceWithTask>) {
-    TASK_FUNC.call_once(|| task_func);
-
+pub fn init_device() {
     let dtb_ptr = platform::platform_dtb_ptr();
 
     let dtb = unsafe { Fdt::from_ptr(dtb_ptr as *const u8).unwrap() };

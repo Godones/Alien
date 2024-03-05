@@ -11,8 +11,7 @@ pub use crate::task::task::FsContext;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 pub use cpu::*;
-use devices::DeviceWithTask;
-use drivers::{DriverTask, DriverWithTask};
+use shim::{KTask, KTaskShim};
 use smpscheduler::FifoTask;
 use spin::Lazy;
 pub use task::{StatisticalData, Task, TaskState};
@@ -56,7 +55,7 @@ fn kthread_init() {
     }
 }
 
-impl DriverTask for Task {
+impl KTask for Task {
     fn to_wait(&self) {
         self.update_state(TaskState::Waiting)
     }
@@ -70,28 +69,24 @@ impl DriverTask for Task {
     }
 }
 pub struct DriverTaskImpl;
-impl DriverWithTask for DriverTaskImpl {
-    fn get_task(&self) -> Arc<dyn DriverTask> {
+impl KTaskShim for DriverTaskImpl {
+    fn get_task(&self) -> Arc<dyn KTask> {
         let task = current_task().unwrap();
         task.clone()
     }
 
-    fn put_task(&self, task: Arc<dyn DriverTask>) {
+    fn put_task(&self, task: Arc<dyn KTask>) {
         let task = task.downcast_arc::<Task>().map_err(|_| ()).unwrap();
         GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
     }
-
     fn suspend(&self) {
         do_suspend();
     }
-}
 
-impl DeviceWithTask for DriverTaskImpl {
     fn transfer_ptr_raw(&self, ptr: usize) -> usize {
         let task = current_task().unwrap();
         task.transfer_raw(ptr)
     }
-
     fn transfer_buf_raw(&self, src: usize, size: usize) -> Vec<&mut [u8]> {
         let task = current_task().unwrap();
         task.transfer_buffer(src as *const u8, size)
@@ -99,4 +94,4 @@ impl DeviceWithTask for DriverTaskImpl {
 }
 
 // online test has no sort.src
-// pub static SORT_SRC: &[u8] = include_bytes!("../../../sdcard/sort.src");
+// pub static SORT_SRC: &[u8] = include_bytes!("../../../tests/testbin-second-stage/sort.src");

@@ -1,13 +1,11 @@
 use core::ptr::NonNull;
 
 use crate::hal::HalImpl;
+pub use loopback::LoopbackDev;
 use netcore::{KernelNetFunc, NetInstant};
 use timer::TimeSpec;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_net::VirtIONetDeviceWrapper;
-
-use crate::DRIVER_TASK;
-pub use loopback::LoopbackDev;
 
 pub const NET_BUFFER_LEN: usize = 4096;
 pub const NET_QUEUE_SIZE: usize = 128;
@@ -51,10 +49,9 @@ impl KernelNetFunc for NetNeedFunc {
         }
     }
     fn yield_now(&self) -> bool {
-        // use crate::task::current_task;
-        // use crate::task::do_suspend;
         // do_suspend();
-        DRIVER_TASK.get().unwrap().suspend();
+        shim::suspend();
+
         // interrupt by signal
         // let task = current_task().unwrap();
         // let task_inner = task.access_inner();
@@ -62,7 +59,7 @@ impl KernelNetFunc for NetNeedFunc {
         // if receiver.have_signal() {
         //     return true;
         // }
-        let task = DRIVER_TASK.get().unwrap().get_task();
+        let task = shim::current_task();
         task.have_signal()
     }
 }
