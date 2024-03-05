@@ -1,11 +1,11 @@
 pub use self::uart16550::Uart16550;
 pub use self::uart8250::Uart8250;
-use crate::{DriverTask, DRIVER_TASK};
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use device_interface::{DeviceBase, UartDevice};
 use ksync::Mutex;
+use shim::KTask;
 
 pub trait LowUartDriver: Send + Sync {
     fn _init(&mut self);
@@ -98,7 +98,7 @@ pub struct Uart {
 
 struct UartInner {
     rx_buf: VecDeque<u8>,
-    wait_queue: VecDeque<Arc<dyn DriverTask>>,
+    wait_queue: VecDeque<Arc<dyn KTask>>,
 }
 
 impl Uart {
@@ -124,13 +124,11 @@ impl UartDevice for Uart {
         loop {
             let mut inner = self.inner.lock();
             if inner.1.rx_buf.is_empty() {
-                // let current_process = current_task().unwrap();
-                // current_process.update_state(TaskState::Waiting);
-                let task = DRIVER_TASK.get().unwrap().get_task();
+                let task = shim::current_task();
                 task.to_wait();
                 inner.1.wait_queue.push_back(task);
                 drop(inner);
-                DRIVER_TASK.get().unwrap().suspend();
+                shim::suspend();
             } else {
                 return inner.1.rx_buf.pop_front();
             }
@@ -163,10 +161,8 @@ impl DeviceBase for Uart {
                 inner.1.rx_buf.push_back(c);
                 if !inner.1.wait_queue.is_empty() {
                     let task = inner.1.wait_queue.pop_front().unwrap();
-                    // task.update_state(TaskState::Ready);
-                    // GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
                     task.to_wakeup();
-                    DRIVER_TASK.get().unwrap().put_task(task);
+                    shim::put_task(task);
                 }
             } else {
                 break;

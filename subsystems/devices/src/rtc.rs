@@ -1,4 +1,3 @@
-use crate::TASK_FUNC;
 use alloc::format;
 use alloc::sync::Arc;
 use constants::io::{RtcTime, TeletypeCommand};
@@ -51,16 +50,11 @@ impl VfsFile for RTCDevice {
         todo!()
     }
     fn ioctl(&self, cmd: u32, arg: usize) -> VfsResult<usize> {
-        // let task = current_task().unwrap();
-        // let mut task_inner = task.access_inner();
         let cmd = TeletypeCommand::try_from(cmd).map_err(|_| VfsError::Invalid)?;
         match cmd {
             TeletypeCommand::RTC_RD_TIME => {
                 let time = self.device.read_time();
-                TASK_FUNC
-                    .get()
-                    .unwrap()
-                    .copy_data_to_task(&time, arg as *mut RtcTime);
+                shim::copy_data_to_task(&time, arg as *mut RtcTime);
             }
             _ => return Err(VfsError::Invalid),
         }
