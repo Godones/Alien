@@ -8,8 +8,8 @@ use virtio_drivers::device::input::VirtIOInput;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use crate::hal::HalImpl;
-use crate::{DriverTask, DRIVER_TASK};
 use ksync::Mutex;
+use shim::KTask;
 
 pub struct VirtIOInputDriver {
     inner: Mutex<InputDriverInner>,
@@ -23,7 +23,7 @@ struct InputDriverInner {
     max_events: u32,
     driver: VirtIOInput<HalImpl, MmioTransport>,
     events: VecDeque<u64>,
-    wait_queue: VecDeque<Arc<dyn DriverTask>>,
+    wait_queue: VecDeque<Arc<dyn KTask>>,
 }
 
 impl VirtIOInputDriver {
@@ -67,15 +67,11 @@ impl InputDevice for VirtIOInputDriver {
                 if let Some(event) = inner.events.pop_front() {
                     return event;
                 }
-                // let process = current_task().unwrap();
-                // process.update_state(TaskState::Waiting);
-                // inner.wait_queue.push_back(process.clone());
-                let task = DRIVER_TASK.get().unwrap().get_task();
+                let task = shim::current_task();
                 task.to_wait();
                 inner.wait_queue.push_back(task);
             } // drop the lock
-              // schedule();
-            DRIVER_TASK.get().unwrap().suspend();
+            shim::suspend(); // yield current task
         }
     }
 
@@ -103,10 +99,8 @@ impl DeviceBase for VirtIOInputDriver {
         }
         while !inner.wait_queue.is_empty() && count > 0 {
             let task = inner.wait_queue.pop_front().unwrap();
-            // process.update_state(TaskState::Ready);
-            // GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(process)));
             task.to_wakeup();
-            DRIVER_TASK.get().unwrap().put_task(task);
+            shim::put_task(task);
             count -= 1;
         }
         info!("read {} events", count);

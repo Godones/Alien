@@ -705,6 +705,7 @@ dependencies = [
  "log",
  "netcore",
  "platform",
+ "shim",
  "smoltcp",
  "spin",
  "vfscore",
@@ -748,7 +749,6 @@ dependencies = [
  "config",
  "constants",
  "device_interface",
- "downcast-rs",
  "ksync",
  "log",
  "loopback",
@@ -757,6 +757,7 @@ dependencies = [
  "netcore",
  "platform",
  "rtc",
+ "shim",
  "spin",
  "timer",
  "uart16550",
@@ -1505,6 +1506,7 @@ dependencies = [
  "page-table",
  "platform",
  "riscv",
+ "shim",
  "smpscheduler",
  "spin",
  "syscall-table",
@@ -2726,6 +2728,14 @@ name = "shell"
 version = "0.1.0"
 dependencies = [
  "Mstd",
+ "spin",
+]
+
+[[package]]
+name = "shim"
+version = "0.1.0"
+dependencies = [
+ "downcast-rs",
  "spin",
 ]
 

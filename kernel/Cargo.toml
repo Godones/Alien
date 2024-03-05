@@ -20,7 +20,7 @@ timer = { path = "../subsystems/timer" }
 ksync = { path = "../subsystems/ksync" }
 knet = { path = "../subsystems/knet" }
 gmanager = { path = "../subsystems/gmanager" }
-
+shim = { path = "../subsystems/shim", features = ["kernel"]}
 
 
 

@@ -38,6 +38,7 @@ members = [
     "kernel",
     "subsystems/unwinder",
     "subsystems/knet",
+    "subsystems/shim",
 ]
 
 

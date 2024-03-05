@@ -14,7 +14,7 @@ ksync = { path = "../ksync" }
 interrupt = { path = "../interrupt" }
 drivers = { path = "../drivers" }
 device_interface = { path = "../device_interface" }
-
+shim = { path = "../shim", features = ["lib"] }
 spin = "0"
 fdt = { git = "https://github.com/repnop/fdt" }
 log = "0"
