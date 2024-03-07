@@ -31,6 +31,7 @@ pub enum DomainType {
     InputDomain(Arc<dyn InputDomain>),
     VfsDomain(Arc<dyn VfsDomain>),
     UartDomain(Arc<dyn UartDomain>),
+    PLICDomain(Arc<dyn PLICDomain>),
 }
 
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);

@@ -318,3 +318,43 @@ impl CacheBlkDeviceDomain for CacheBlkDomainProxy {
         self.domain.flush()
     }
 }
+
+#[derive(Debug)]
+pub struct EIntrDomainProxy {
+    id: u64,
+    domain: Arc<dyn PLICDomain>,
+}
+
+impl EIntrDomainProxy {
+    pub fn new(id: u64, domain: Arc<dyn PLICDomain>) -> Self {
+        Self { id, domain }
+    }
+}
+
+impl Basic for EIntrDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
+
+impl PLICDomain for EIntrDomainProxy {
+    fn handle_irq(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.handle_irq()
+    }
+    fn register_irq(&self, irq: usize, device: Arc<dyn DeviceBase>) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.register_irq(irq, device)
+    }
+
+    fn irq_info(&self, buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.irq_info(buf)
+    }
+}

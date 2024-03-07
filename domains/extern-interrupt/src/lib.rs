@@ -20,16 +20,16 @@ use rref::{RRefVec, RpcResult};
 #[derive(Debug)]
 pub struct PLICDomainImpl<const H: usize> {
     plic: PLIC<H>,
-    table: Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>>,
-    count: Mutex<BTreeMap<usize, usize>>,
+    table: Arc<Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>>>,
+    count: Arc<Mutex<BTreeMap<usize, usize>>>,
 }
 
 impl<const H: usize> PLICDomainImpl<H> {
     pub fn new(region: SafeIORegion, privileges: [u8; H]) -> Self {
         Self {
             plic: PLIC::new(region, privileges),
-            table: Mutex::new(BTreeMap::new()),
-            count: Mutex::new(BTreeMap::new()),
+            table: Arc::new(Mutex::new(BTreeMap::new())),
+            count: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 }
@@ -41,7 +41,7 @@ impl<const H: usize> PLICDomain for PLICDomainImpl<H> {
         let plic = &self.plic;
         let hart_id = arch::hart_id();
         let irq = plic.claim(hart_id as u32, Mode::Supervisor) as usize;
-        let mut table = self.table.lock();
+        let table = self.table.lock();
         let device = table
             .get(&irq)
             .or_else(|| panic!("no device for irq {}", irq))
@@ -77,14 +77,14 @@ impl<const H: usize> PLICDomain for PLICDomainImpl<H> {
         Ok(())
     }
 
-    fn irq_info(&self, buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>> {
+    fn irq_info(&self, mut buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>> {
         let interrupts = self.count.lock();
         let mut res = String::new();
         interrupts.iter().for_each(|(irq, value)| {
             res.push_str(&format!("{}: {}\r\n", irq, value));
         });
         let copy_len = min(buf.len(), res.as_bytes().len());
-        buf.as_slice()[..copy_len].copy_from_slice(&res.as_bytes()[..copy_len]);
+        buf.as_mut_slice()[..copy_len].copy_from_slice(&res.as_bytes()[..copy_len]);
         Ok(buf)
     }
 }

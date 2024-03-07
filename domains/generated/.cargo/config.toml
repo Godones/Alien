@@ -18,5 +18,6 @@ linker = "riscv64-linux-gnu-gcc"
 
 [profile.release]
 panic = "abort"
-#lto = true
-#strip = true
+lto = true
+strip = true
+opt-level = "z"  # Optimize for size.
