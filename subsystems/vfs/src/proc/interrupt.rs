@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 use core::cmp::min;
-use interrupt::record::interrupts_info;
+use interrupt::interrupts_info;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
 use vfscore::inode::{InodeAttr, VfsInode};
