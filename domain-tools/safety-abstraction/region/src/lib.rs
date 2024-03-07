@@ -1,5 +1,7 @@
 #![no_std]
+
 use constants::{AlienError, AlienResult};
+use core::ops::Range;
 
 #[derive(Debug, Copy, Clone)]
 pub struct SafeIORegion {
@@ -15,6 +17,11 @@ impl SafeIORegion {
             .ok_or(AlienError::EINVAL)?;
         Ok(Self { start, size })
     }
+
+    pub fn from(range: Range<usize>) -> AlienResult<Self> {
+        Self::new(range.start, range.end - range.start)
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(self.start as *const u8, self.size) }
     }

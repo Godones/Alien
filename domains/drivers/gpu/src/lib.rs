@@ -1,4 +1,4 @@
-use interface::{Basic, GpuDomain};
+use interface::{Basic, DeviceBase, GpuDomain};
 use rref::{RRef, RRefVec, RpcResult};
 use std::sync::Arc;
 #[derive(Debug)]
@@ -12,6 +12,12 @@ impl GPUDomain {
 
 impl Basic for GPUDomain {}
 
+impl DeviceBase for GPUDomain {
+    fn handle_irq(&self) -> RpcResult<()> {
+        unimplemented!()
+    }
+}
+
 impl GpuDomain for GPUDomain {
     fn flush(&self) -> RpcResult<()> {
         todo!()
@@ -19,10 +25,6 @@ impl GpuDomain for GPUDomain {
 
     fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> RpcResult<()> {
         todo!()
-    }
-
-    fn handle_irq(&self) -> RpcResult<()> {
-        unimplemented!()
     }
 }
 

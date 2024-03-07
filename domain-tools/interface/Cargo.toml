@@ -10,7 +10,7 @@ rref = { path = "../rref" }
 
 
 [features]
-default = ["blk","fs","uart","gpu","input","vfs", "rtc", "cache_blk"]
+default = ["blk","fs","uart","gpu","input","vfs", "rtc", "cache_blk","plic"]
 domain = []
 blk = []
 cache_blk = []
@@ -20,3 +20,4 @@ gpu = []
 input = []
 vfs = []
 rtc = []
+plic = []

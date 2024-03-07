@@ -4,7 +4,7 @@ extern crate malloc;
 
 use alloc::sync::Arc;
 use core::ops::Range;
-use interface::{Basic, UartDomain};
+use interface::{Basic, DeviceBase, UartDomain};
 use region::SafeIORegion;
 use rref::RpcResult;
 
@@ -23,6 +23,12 @@ impl UartDomainImpl {
 
 impl Basic for UartDomainImpl {}
 
+impl DeviceBase for UartDomainImpl {
+    fn handle_irq(&self) -> RpcResult<()> {
+        todo!()
+    }
+}
+
 impl UartDomain for UartDomainImpl {
     fn putc(&self, _ch: u8) -> RpcResult<()> {
         todo!()
@@ -33,10 +39,6 @@ impl UartDomain for UartDomainImpl {
     }
 
     fn have_data_to_get(&self) -> bool {
-        todo!()
-    }
-
-    fn handle_irq(&self) -> RpcResult<()> {
         todo!()
     }
 }

@@ -9,11 +9,8 @@ use alloc::sync::Arc;
 use core::arch::asm;
 use core::fmt::Debug;
 use domain_loader::DomainLoader;
-use interface::{
-    Basic, BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, RtcDomain, RtcTime, VfsDomain,
-};
+use interface::*;
 use ksync::RwLock;
-use platform::println;
 use rref::{RRef, RRefVec, RpcError, RpcResult};
 
 #[derive(Debug)]
@@ -40,6 +37,15 @@ impl BlkDomainProxy {
 impl Basic for BlkDomainProxy {
     fn is_active(&self) -> bool {
         self.domain.read().is_active()
+    }
+}
+
+impl DeviceBase for BlkDomainProxy {
+    fn handle_irq(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.read().handle_irq()
     }
 }
 
@@ -74,12 +80,6 @@ impl BlkDeviceDomain for BlkDomainProxy {
         self.domain.read().flush()
     }
 
-    fn handle_irq(&self) -> RpcResult<()> {
-        if !self.is_active() {
-            return Err(RpcError::DomainCrash);
-        }
-        self.domain.read().handle_irq()
-    }
     // todo!()
     fn restart(&self) -> bool {
         let mut domain = self.domain.write();
@@ -87,16 +87,11 @@ impl BlkDeviceDomain for BlkDomainProxy {
         // let mut loader = DomainLoader::new(self.domain_loader.data());
         // loader.load().unwrap();
         // let new_domain = loader.call(self.domain_id);
-        let old_domain = domain.clone();
+
         let mut new_domain = self.domain_loader.call(self.domain_id);
-        assert_eq!(Arc::strong_count(&old_domain), 1);
-        println!(
-            "old domain ref count: {}, ptr: {:#x?}",
-            Arc::strong_count(&old_domain),
-            Arc::into_raw(old_domain) as *const u8 as usize
-        );
-        // *domain = new_domain;
         core::mem::swap(&mut *domain, &mut new_domain);
+        // The new_domain now is the old domain, but it has been recycled so we
+        // can't drop it again
         core::mem::forget(new_domain);
         true
     }
@@ -228,17 +223,20 @@ impl Basic for RtcDomainProxy {
     }
 }
 
-impl RtcDomain for RtcDomainProxy {
-    fn read_time(&self, time: RRef<RtcTime>) -> RpcResult<RRef<RtcTime>> {
+impl DeviceBase for RtcDomainProxy {
+    fn handle_irq(&self) -> RpcResult<()> {
         if self.domain.is_active() {
-            self.domain.read_time(time)
+            self.domain.handle_irq()
         } else {
             Err(RpcError::DomainCrash)
         }
     }
-    fn handle_irq(&self) -> RpcResult<()> {
+}
+
+impl RtcDomain for RtcDomainProxy {
+    fn read_time(&self, time: RRef<RtcTime>) -> RpcResult<RRef<RtcTime>> {
         if self.domain.is_active() {
-            self.domain.handle_irq()
+            self.domain.read_time(time)
         } else {
             Err(RpcError::DomainCrash)
         }
@@ -282,6 +280,15 @@ impl Basic for CacheBlkDomainProxy {
     }
 }
 
+impl DeviceBase for CacheBlkDomainProxy {
+    fn handle_irq(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.handle_irq()
+    }
+}
+
 impl CacheBlkDeviceDomain for CacheBlkDomainProxy {
     fn read(&self, offset: u64, buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>> {
         if !self.is_active() {
@@ -309,12 +316,5 @@ impl CacheBlkDeviceDomain for CacheBlkDomainProxy {
             return Err(RpcError::DomainCrash);
         }
         self.domain.flush()
-    }
-
-    fn handle_irq(&self) -> RpcResult<()> {
-        if !self.is_active() {
-            return Err(RpcError::DomainCrash);
-        }
-        self.domain.handle_irq()
     }
 }

@@ -3,7 +3,7 @@ extern crate alloc;
 extern crate malloc;
 
 use alloc::sync::Arc;
-use interface::{Basic, BlkDeviceDomain};
+use interface::{Basic, BlkDeviceDomain, DeviceBase};
 use log::error;
 use rref::{RRef, RpcError, RpcResult};
 
@@ -19,6 +19,12 @@ impl ShadowBlockDomain {
 }
 
 impl Basic for ShadowBlockDomain {}
+
+impl DeviceBase for ShadowBlockDomain {
+    fn handle_irq(&self) -> RpcResult<()> {
+        self.block_domain.handle_irq()
+    }
+}
 
 impl BlkDeviceDomain for ShadowBlockDomain {
     fn read_block(&self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {
@@ -51,10 +57,6 @@ impl BlkDeviceDomain for ShadowBlockDomain {
 
     fn flush(&self) -> RpcResult<()> {
         self.block_domain.flush()
-    }
-
-    fn handle_irq(&self) -> RpcResult<()> {
-        self.block_domain.handle_irq()
     }
 }
 

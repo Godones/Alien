@@ -87,6 +87,7 @@ pub enum DeviceType {
     Gpu,
     Input,
     Rtc,
+    PLIC,
 }
 
 #[allow(unused)]

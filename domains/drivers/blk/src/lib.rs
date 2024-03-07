@@ -8,7 +8,7 @@ extern crate malloc;
 
 use alloc::sync::Arc;
 use core::fmt::Debug;
-use interface::Basic;
+use interface::{Basic, DeviceBase};
 use ksync::Mutex;
 use libsyscall::{println, DeviceType};
 use log::info;
@@ -46,6 +46,12 @@ impl Basic for VirtIOBlk {
     // }
 }
 
+impl DeviceBase for VirtIOBlk {
+    fn handle_irq(&self) -> RpcResult<()> {
+        todo!()
+    }
+}
+
 impl interface::BlkDeviceDomain for VirtIOBlk {
     fn read_block(
         &self,
@@ -78,10 +84,6 @@ impl interface::BlkDeviceDomain for VirtIOBlk {
 
     fn flush(&self) -> RpcResult<()> {
         Ok(())
-    }
-
-    fn handle_irq(&self) -> RpcResult<()> {
-        unimplemented!()
     }
 }
 

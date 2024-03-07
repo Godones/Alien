@@ -1,0 +1,20 @@
+[package]
+name = "extern-interrupt"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+malloc = { path = "../../domain-tools/malloc" }
+interface = { path = "../../domain-tools/interface", default-features = false, features = ["plic"] }
+rref = { path = "../../domain-tools/rref" }
+libsyscall = { path = "../../domain-tools/libsyscall",features = ["domain"] }
+
+
+# use arch in domain?
+arch = { path = "../../subsystems/arch" }
+config = { path = "../../subsystems/config" }
+region = { path = "../../domain-tools/safety-abstraction/region" }
+plic = { path = "../../safe-crates/plic" }
+ksync = { path = "../../subsystems/ksync" }

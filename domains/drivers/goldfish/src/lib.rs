@@ -8,7 +8,7 @@ extern crate malloc;
 
 use crate::rtc::GoldFishRtc;
 use alloc::sync::Arc;
-use interface::{Basic, RtcDomain, RtcTime};
+use interface::{Basic, DeviceBase, RtcDomain, RtcTime};
 use libsyscall::{println, DeviceType};
 use region::SafeIORegion;
 use rref::{RRef, RpcResult};
@@ -17,16 +17,18 @@ use time::OffsetDateTime;
 
 impl Basic for GoldFishRtc {}
 
+impl DeviceBase for GoldFishRtc {
+    fn handle_irq(&self) -> RpcResult<()> {
+        unimplemented!()
+    }
+}
+
 impl RtcDomain for GoldFishRtc {
     fn read_time(&self, mut time: RRef<RtcTime>) -> RpcResult<RRef<RtcTime>> {
         let time_stamp = self.read_raw_time();
         let t = self.read_time_fmt();
         *time = t;
         Ok(time)
-    }
-
-    fn handle_irq(&self) -> RpcResult<()> {
-        unimplemented!()
     }
 }
 

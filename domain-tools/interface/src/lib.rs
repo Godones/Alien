@@ -2,11 +2,12 @@
 
 extern crate alloc;
 
+use alloc::sync::Arc;
 use core::any::Any;
 use core::fmt::Debug;
 use rref::{RRef, RRefVec, RpcResult};
 
-pub trait Basic: Any {
+pub trait Basic: Send + Sync + Debug + Any {
     // may be deleted
     // fn drop_self(self: Arc<Self>) {
     //     drop(self);
@@ -20,32 +21,34 @@ pub trait Basic: Any {
     fn is_active(&self) -> bool;
 }
 
+pub trait DeviceBase {
+    fn handle_irq(&self) -> RpcResult<()>;
+}
+
 #[cfg(feature = "blk")]
-pub trait BlkDeviceDomain: Send + Sync + Basic + Debug {
+pub trait BlkDeviceDomain: DeviceBase + Basic {
     fn read_block(&self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>>;
     fn write_block(&self, block: u32, data: &RRef<[u8; 512]>) -> RpcResult<usize>;
     fn get_capacity(&self) -> RpcResult<u64>;
     fn flush(&self) -> RpcResult<()>;
-    fn handle_irq(&self) -> RpcResult<()>;
     fn restart(&self) -> bool {
         false
     }
 }
 
 #[cfg(feature = "cache_blk")]
-pub trait CacheBlkDeviceDomain: Send + Sync + Basic + Debug {
+pub trait CacheBlkDeviceDomain: Basic + DeviceBase {
     fn read(&self, offset: u64, buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>>;
     fn write(&self, offset: u64, buf: &RRefVec<u8>) -> RpcResult<usize>;
     fn get_capacity(&self) -> RpcResult<u64>;
     fn flush(&self) -> RpcResult<()>;
-    fn handle_irq(&self) -> RpcResult<()>;
 }
 
 #[cfg(feature = "fs")]
-pub trait FsDomain: Send + Sync + Basic + Debug {}
+pub trait FsDomain: Basic {}
 
 #[cfg(feature = "uart")]
-pub trait UartDomain: Send + Sync + Basic + Debug {
+pub trait UartDomain: Basic + DeviceBase {
     /// Write a character to the UART
     fn putc(&self, ch: u8) -> RpcResult<()>;
     /// Read a character from the UART
@@ -56,25 +59,22 @@ pub trait UartDomain: Send + Sync + Basic + Debug {
     fn have_space_to_put(&self) -> bool {
         true
     }
-    fn handle_irq(&self) -> RpcResult<()>;
 }
 
 #[cfg(feature = "gpu")]
-pub trait GpuDomain: Send + Sync + Basic + Debug {
+pub trait GpuDomain: Basic + DeviceBase {
     fn flush(&self) -> RpcResult<()>;
     fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> RpcResult<usize>;
-    fn handle_irq(&self) -> RpcResult<()>;
 }
 
 #[cfg(feature = "input")]
-pub trait InputDomain: Send + Sync + Basic + Debug {
+pub trait InputDomain: Basic + DeviceBase {
     /// Read an input event from the input device
     fn event(&self) -> RpcResult<Option<u64>>;
-    fn handle_irq(&self) -> RpcResult<()>;
 }
 
 #[cfg(feature = "vfs")]
-pub trait VfsDomain: Send + Sync + Basic + Debug {}
+pub trait VfsDomain: Basic {}
 
 #[cfg(feature = "rtc")]
 #[repr(C)]
@@ -92,9 +92,15 @@ pub struct RtcTime {
 }
 
 #[cfg(feature = "rtc")]
-pub trait RtcDomain: Send + Sync + Basic + Debug {
+pub trait RtcDomain: Basic + DeviceBase {
     fn read_time(&self, time: RRef<RtcTime>) -> RpcResult<RRef<RtcTime>>;
+}
+
+#[cfg(feature = "plic")]
+pub trait PLICDomain: Basic {
     fn handle_irq(&self) -> RpcResult<()>;
+    fn register_irq(&self, irq: usize, device: Arc<dyn DeviceBase>) -> RpcResult<()>;
+    fn irq_info(&self, buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>>;
 }
 
 #[cfg(feature = "domain")]

@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
-use interface::{Basic, UartDomain};
+use interface::{Basic, DeviceBase, UartDomain};
 use ksync::Mutex;
 use libsyscall::KTask;
 use rref::RpcResult;
@@ -38,6 +38,24 @@ impl Basic for Uart {}
 impl Debug for Uart {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Uart").finish()
+    }
+}
+
+impl DeviceBase for Uart {
+    fn handle_irq(&self) {
+        loop {
+            let mut inner = self.inner.lock();
+            if let Some(c) = inner.0._read() {
+                inner.1.rx_buf.push_back(c);
+                if !inner.1.wait_queue.is_empty() {
+                    let task = inner.1.wait_queue.pop_front().unwrap();
+                    task.to_wakeup();
+                    libsyscall::put_task(task);
+                }
+            } else {
+                break;
+            }
+        }
     }
 }
 
@@ -74,22 +92,6 @@ impl UartDomain for Uart {
 
     fn have_space_to_put(&self) -> bool {
         true
-    }
-
-    fn handle_irq(&self) {
-        loop {
-            let mut inner = self.inner.lock();
-            if let Some(c) = inner.0._read() {
-                inner.1.rx_buf.push_back(c);
-                if !inner.1.wait_queue.is_empty() {
-                    let task = inner.1.wait_queue.pop_front().unwrap();
-                    task.to_wakeup();
-                    libsyscall::put_task(task);
-                }
-            } else {
-                break;
-            }
-        }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{SharedHeapAllocator, TaskShimImpl};
+use crate::{DomainType, SharedHeapAllocator, TaskShimImpl};
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
@@ -6,9 +6,7 @@ use alloc::vec::Vec;
 use config::{FRAME_BITS, FRAME_SIZE};
 use core::ops::Range;
 use core::sync::atomic::AtomicBool;
-use interface::{
-    BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, GpuDomain, InputDomain, RtcDomain,
-};
+use interface::*;
 use ksync::Mutex;
 use libsyscall::{DeviceType, Syscall};
 use log::{info, warn};
@@ -132,6 +130,7 @@ impl Syscall for DomainSyscall {
             DeviceType::Gpu => find_f("virtio-mmio-gpu"),
             DeviceType::Input => find_f("virtio-mmio-mouse"),
             DeviceType::Rtc => find_f("rtc"),
+            DeviceType::PLIC => find_f("plic"),
         }
     }
 
@@ -140,30 +139,51 @@ impl Syscall for DomainSyscall {
     }
 
     fn sys_get_blk_domain(&self) -> Option<Arc<dyn interface::BlkDeviceDomain>> {
-        crate::query_domain("blk").map(|blk| unsafe { core::mem::transmute(blk) })
+        crate::query_domain("blk").map(|blk| match blk {
+            DomainType::BlkDeviceDomain(blk) => blk,
+            _ => panic!("blk domain type error"),
+        })
     }
 
     fn sys_get_shadow_blk_domain(&self) -> Option<Arc<dyn BlkDeviceDomain>> {
-        crate::query_domain("shadow_blk").map(|blk| unsafe { core::mem::transmute(blk) })
+        crate::query_domain("shadow_blk").map(|blk| match blk {
+            DomainType::BlkDeviceDomain(blk) => blk,
+            _ => panic!("blk domain type error"),
+        })
     }
 
     fn sys_get_uart_domain(&self) -> Option<Arc<dyn interface::UartDomain>> {
-        crate::query_domain("uart").map(|uart| unsafe { core::mem::transmute(uart) })
+        crate::query_domain("uart").map(|uart| match uart {
+            DomainType::UartDomain(uart) => uart,
+            _ => panic!("uart domain type error"),
+        })
     }
 
     fn sys_get_gpu_domain(&self) -> Option<Arc<dyn GpuDomain>> {
-        crate::query_domain("gpu").map(|gpu| unsafe { core::mem::transmute(gpu) })
+        crate::query_domain("gpu").map(|gpu| match gpu {
+            DomainType::GpuDomain(gpu) => gpu,
+            _ => panic!("gpu domain type error"),
+        })
     }
 
     fn sys_get_input_domain(&self, ty: &str) -> Option<Arc<dyn InputDomain>> {
-        crate::query_domain(ty).map(|input| unsafe { core::mem::transmute(input) })
+        crate::query_domain(ty).map(|input| match input {
+            DomainType::InputDomain(input) => input,
+            _ => panic!("input domain type error"),
+        })
     }
 
     fn sys_get_rtc_domain(&self) -> Option<Arc<dyn RtcDomain>> {
-        crate::query_domain("rtc").map(|rtc| unsafe { core::mem::transmute(rtc) })
+        crate::query_domain("rtc").map(|rtc| match rtc {
+            DomainType::RtcDomain(rtc) => rtc,
+            _ => panic!("rtc domain type error"),
+        })
     }
     fn sys_get_cache_blk_domain(&self) -> Option<Arc<dyn CacheBlkDeviceDomain>> {
-        crate::query_domain("cache_blk").map(|cache_blk| unsafe { core::mem::transmute(cache_blk) })
+        crate::query_domain("cache_blk").map(|cache_blk| match cache_blk {
+            DomainType::CacheBlkDeviceDomain(cache_blk) => cache_blk,
+            _ => panic!("cache_blk domain type error"),
+        })
     }
 
     fn blk_crash_trick(&self) -> bool {

@@ -8,7 +8,7 @@ use core::cmp::min;
 use core::fmt::Debug;
 use core::num::NonZeroUsize;
 use core::ops::Deref;
-use interface::{Basic, BlkDeviceDomain, CacheBlkDeviceDomain};
+use interface::{Basic, BlkDeviceDomain, CacheBlkDeviceDomain, DeviceBase};
 use ksync::Mutex;
 use libsyscall::{FrameTracker, FRAME_SIZE};
 use log::info;
@@ -37,6 +37,12 @@ impl GenericBlockDevice {
 }
 
 impl Basic for GenericBlockDevice {}
+
+impl DeviceBase for GenericBlockDevice {
+    fn handle_irq(&self) -> RpcResult<()> {
+        self.device.lock().handle_irq()
+    }
+}
 
 impl CacheBlkDeviceDomain for GenericBlockDevice {
     fn read(&self, offset: u64, mut buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>> {
@@ -154,16 +160,13 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
         // self.dirty.lock().clear();
         Ok(())
     }
-
-    fn handle_irq(&self) -> RpcResult<()> {
-        self.device.lock().handle_irq()
-    }
 }
 
 pub const MAX_BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 
 pub fn main() -> Arc<dyn CacheBlkDeviceDomain> {
     let blk = libsyscall::get_shadow_blk_domain().unwrap();
+    libsyscall::println!("xxxxx");
     info!(
         "max_cache_frames: {}, blk size: {}MB",
         MAX_BLOCK_CACHE_FRAMES,

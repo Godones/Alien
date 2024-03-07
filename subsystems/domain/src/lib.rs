@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::sync::Arc;
-use domain_helper::alloc_domain_id;
+use domain_helper::{alloc_domain_id, DomainType};
 use domain_loader::DomainLoader;
 use interface::{BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, RtcDomain, VfsDomain};
 use log::info;
@@ -99,7 +99,7 @@ fn shadow_blk_domain() -> Arc<dyn BlkDeviceDomain> {
 pub fn load_domains() {
     info!("Load blk domain, size: {}KB", BLK_DOMAIN.len() / 1024);
     let dev = blk_domain();
-    domain_helper::register_domain("blk", dev);
+    domain_helper::register_domain("blk", DomainType::BlkDeviceDomain(dev));
     // info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
     // let fs = fatfs_domain();
     // domain_helper::register_domain("fatfs", fs);
@@ -109,19 +109,19 @@ pub fn load_domains() {
         SHADOW_BLK_DOMAIN.len() / 1024
     );
     let shadow_blk = shadow_blk_domain();
-    domain_helper::register_domain("shadow_blk", shadow_blk);
+    domain_helper::register_domain("shadow_blk", DomainType::BlkDeviceDomain(shadow_blk));
 
     info!("Load rtc domain, size: {}KB", RTC_DOMAIN.len() / 1024);
     let rtc = rtc_domain();
-    domain_helper::register_domain("rtc", rtc);
+    domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc));
     info!(
         "Load cache blk domain, size: {}KB",
         CACHE_BLK_DOMAIN.len() / 1024
     );
     let cache_blk = cache_blk_domain();
-    domain_helper::register_domain("cache_blk", cache_blk);
+    domain_helper::register_domain("cache_blk", DomainType::CacheBlkDeviceDomain(cache_blk));
     info!("Load vfs domain, size: {}KB", VFS_DOMAIN.len() / 1024);
     let vfs = vfs_domain();
-    domain_helper::register_domain("vfs", vfs);
+    domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs));
     platform::println!("Load domains done");
 }

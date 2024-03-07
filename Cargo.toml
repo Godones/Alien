@@ -42,6 +42,8 @@ members = [
     "subsystems/domain",
     "domains/drivers/shadow_blk",
     "domains/generated/gshadow_blk",
+    "domains/extern-interrupt",
+    "safe-crates/plic",
 ]
 
 resolver = "2"
