@@ -1,5 +1,5 @@
 #![no_std]
-
+#![deny(unsafe_code)]
 extern crate alloc;
 extern crate malloc;
 use crate::devfs::DevFsProviderImpl;
@@ -114,8 +114,7 @@ pub fn init_filesystem() -> VfsResult<()> {
     let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
     path.join("tests")?.mount(diskfs_root, 0)?;
     libsyscall::println!("Vfs Tree:");
-    vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
-        .unwrap();
+    vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), true).unwrap();
 
     // initrd::populate_initrd(ramfs_root.clone())?;
 

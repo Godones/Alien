@@ -41,7 +41,8 @@ impl UartDomain for UartDomainImpl {
     }
 }
 
-pub fn main(region: Range<usize>) -> Arc<dyn UartDomain> {
+pub fn main() -> Arc<dyn UartDomain> {
+    let region = libsyscall::get_device_space(libsyscall::DeviceType::Uart).unwrap();
     libsyscall::println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
     Arc::new(UartDomain::new(region.start, region.end - region.start))
 }

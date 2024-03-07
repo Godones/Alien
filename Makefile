@@ -16,7 +16,7 @@ endif
 
 
 
-domains += 	gblk gfatfs gcache_blk ggoldfish gvfs
+domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk
 
 all:run
 
@@ -48,7 +48,8 @@ img:
 	@-mkdir -p mnt
 	@-sudo mount $(IMG) mnt
 	@sudo touch mnt/empty
-	@sudo mkdir -p mnt/EFI/BOOT
+	@sudo touch mnt/f1.txt
+	@echo "Hello, world!" | sudo tee mnt/f1.txt
 	@sudo umount mnt
 	@sudo rm -rf mnt
 

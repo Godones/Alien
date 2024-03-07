@@ -16,8 +16,8 @@ timer = { path = "../timer" }
 
 libsyscall = { path = "../../domain-tools/libsyscall" }
 rref = { path = "../../domain-tools/rref" }
-continuation = { path = "../../domain-tools/continuation" }
-proxy = { path = "../proxy" }
+continuation = { path = "../continuation" }
+#proxy = { path = "../proxy" }
 interface = { path = "../../domain-tools/interface" }
 
 log = "0"

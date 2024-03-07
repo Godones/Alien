@@ -36,7 +36,6 @@ SECTIONS
     }
 
     .bss :  ALIGN(4096){
-        . = ALIGN(4K);
         sbss = .;
         *(.bss .bss.*)
         *(.sbss .sbss.*)

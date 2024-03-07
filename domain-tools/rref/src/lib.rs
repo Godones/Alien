@@ -96,8 +96,22 @@ static CRATE_DOMAIN_ID: Once<u64> = Once::new();
 
 static HEAP: Once<Box<dyn SharedHeap>> = Once::new();
 
+extern "C" {
+    fn sbss();
+    fn ebss();
+}
+
+/// 清空.bss段
+fn clear_bss() {
+    unsafe {
+        core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
+            .fill(0);
+    }
+}
+
 /// Init the shared heap
 pub fn init(heap: Box<dyn SharedHeap>, domain_id: u64) {
+    clear_bss();
     HEAP.call_once(|| heap);
     CRATE_DOMAIN_ID.call_once(|| domain_id);
     info!("shared heap and domain id initialized");

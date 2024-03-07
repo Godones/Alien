@@ -9,13 +9,11 @@ edition = "2021"
 arch = { path = "../arch" }
 mem = { path = "../mem" }
 config = { path = "../config" }
-platform = { path = "../platform" }
 constants = { path = "../constants" }
-
-proxy = { path = "../proxy" }
 domain-helper = { path = "../domain-helper" }
+
+
 libsyscall = { path = "../../domain-tools/libsyscall" }
-interface = { path = "../../domain-tools/interface" }
 rref = { path = "../../domain-tools/rref" }
 xmas-elf = "0.9"
 log = "0"

@@ -6,11 +6,9 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::Range;
 use core::panic::PanicInfo;
 use interface::RtcDomain;
 use libsyscall::{KTaskShim, Syscall};
-use region::SafeIORegion;
 use rref::SharedHeap;
 
 #[no_mangle]
@@ -19,7 +17,6 @@ fn main(
     domain_id: u64,
     shared_heap: Box<dyn SharedHeap>,
     ktask_shim: Box<dyn KTaskShim>,
-    region: Range<usize>,
 ) -> Arc<dyn RtcDomain> {
     // init rref's shared heap
     rref::init(shared_heap, domain_id);
@@ -27,10 +24,7 @@ fn main(
     libsyscall::init(sys, ktask_shim);
     // activate the domain
     interface::activate_domain();
-    // call the real uart driver
-    libsyscall::println!("Rtc region: {:#x?}", region);
-    let region = SafeIORegion::new(region.start, region.end - region.start).unwrap();
-    goldfish::main(region)
+    goldfish::main()
 }
 
 #[panic_handler]

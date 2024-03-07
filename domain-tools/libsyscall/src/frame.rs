@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut};
 
-pub const FRAME_SIZE: usize = 4196;
+pub const FRAME_SIZE: usize = 4096;
 #[derive(Debug)]
 pub struct FrameTracker {
     ptr: usize,

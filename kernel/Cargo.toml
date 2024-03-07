@@ -10,7 +10,7 @@ config = { path = "../subsystems/config" }
 arch = { path = "../subsystems/arch" }
 platform = { path = "../subsystems/platform" }
 mem = { path = "../subsystems/mem" }
-domain-loader = { path = "../subsystems/domain-loader" }
+domain = { path = "../subsystems/domain" }
 
 
 

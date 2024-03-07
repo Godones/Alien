@@ -31,7 +31,7 @@ fn main(hart_id: usize) {
         // task::init_task();
         // register all syscall
         // syscall_table::init_init_array!();
-        domain_loader::load_domains();
+        domain::load_domains();
         STARTED.store(false, Ordering::Relaxed);
     } else {
         while STARTED.load(Ordering::Relaxed) {

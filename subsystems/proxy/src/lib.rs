@@ -5,67 +5,100 @@ extern crate alloc;
 
 mod trampoline;
 
-pub use trampoline::pop_continuation;
-
 use alloc::sync::Arc;
 use core::arch::asm;
 use core::fmt::Debug;
+use domain_loader::DomainLoader;
 use interface::{
     Basic, BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, RtcDomain, RtcTime, VfsDomain,
 };
+use ksync::RwLock;
+use platform::println;
 use rref::{RRef, RRefVec, RpcError, RpcResult};
 
 #[derive(Debug)]
 pub struct BlkDomainProxy {
     domain_id: u64,
-    domain: Arc<dyn BlkDeviceDomain>,
+    domain: RwLock<Arc<dyn BlkDeviceDomain>>,
+    domain_loader: DomainLoader,
 }
 
 impl BlkDomainProxy {
-    pub fn new(domain_id: u64, domain: Arc<dyn BlkDeviceDomain>) -> Self {
-        Self { domain_id, domain }
+    pub fn new(
+        domain_id: u64,
+        domain: Arc<dyn BlkDeviceDomain>,
+        domain_loader: DomainLoader,
+    ) -> Self {
+        Self {
+            domain_id,
+            domain: RwLock::new(domain),
+            domain_loader,
+        }
     }
 }
 
 impl Basic for BlkDomainProxy {
     fn is_active(&self) -> bool {
-        self.domain.is_active()
+        self.domain.read().is_active()
     }
 }
 
 impl BlkDeviceDomain for BlkDomainProxy {
     fn read_block(&self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {
-        if !self.domain.is_active() {
+        if !self.is_active() {
             return Err(RpcError::DomainCrash);
         }
-        // trace!("BlkDomainProxy_read: block: {}", block);
         // self.domain.read(block, data)
-        unsafe { blk_domain_proxy_read_trampoline(&self.domain, block, data) }
+        let res = {
+            let guard = self.domain.read();
+            unsafe { blk_domain_proxy_read_trampoline(&guard, block, data) }
+        };
+        res
     }
     fn write_block(&self, block: u32, data: &RRef<[u8; 512]>) -> RpcResult<usize> {
-        if !self.domain.is_active() {
+        if !self.is_active() {
             return Err(RpcError::DomainCrash);
         }
-        self.domain.write_block(block, data)
+        self.domain.read().write_block(block, data)
     }
     fn get_capacity(&self) -> RpcResult<u64> {
         if !self.is_active() {
             return Err(RpcError::DomainCrash);
         }
-        self.domain.get_capacity()
+        self.domain.read().get_capacity()
     }
     fn flush(&self) -> RpcResult<()> {
         if !self.is_active() {
             return Err(RpcError::DomainCrash);
         }
-        self.domain.flush()
+        self.domain.read().flush()
     }
 
     fn handle_irq(&self) -> RpcResult<()> {
         if !self.is_active() {
             return Err(RpcError::DomainCrash);
         }
-        self.domain.handle_irq()
+        self.domain.read().handle_irq()
+    }
+    // todo!()
+    fn restart(&self) -> bool {
+        let mut domain = self.domain.write();
+        self.domain_loader.reload().unwrap();
+        // let mut loader = DomainLoader::new(self.domain_loader.data());
+        // loader.load().unwrap();
+        // let new_domain = loader.call(self.domain_id);
+        let old_domain = domain.clone();
+        let mut new_domain = self.domain_loader.call(self.domain_id);
+        assert_eq!(Arc::strong_count(&old_domain), 1);
+        println!(
+            "old domain ref count: {}, ptr: {:#x?}",
+            Arc::strong_count(&old_domain),
+            Arc::into_raw(old_domain) as *const u8 as usize
+        );
+        // *domain = new_domain;
+        core::mem::swap(&mut *domain, &mut new_domain);
+        core::mem::forget(new_domain);
+        true
     }
 }
 #[naked]
@@ -148,11 +181,7 @@ fn blk_domain_proxy_read(
     blk_domain.read_block(block, data)
 }
 #[no_mangle]
-fn blk_domain_proxy_read_err(
-    _blk_domain: &Arc<dyn BlkDeviceDomain>,
-    _block: u32,
-    _data: RRef<[u8; 512]>,
-) -> RpcResult<RRef<[u8; 512]>> {
+fn blk_domain_proxy_read_err() -> RpcResult<RRef<[u8; 512]>> {
     platform::println!("BlkDomainProxy_read should return error");
     Err(RpcError::DomainCrash)
 }

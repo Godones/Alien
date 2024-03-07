@@ -1,0 +1,21 @@
+[package]
+name = "domain"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ksync = { path = "../ksync" }
+arch = { path = "../arch" }
+platform = { path = "../platform" }
+domain-helper = { path = "../domain-helper" }
+domain-loader = { path = "../domain-loader" }
+proxy = { path = "../proxy" }
+
+
+interface = { path = "../../domain-tools/interface" }
+
+
+
+log = "0"

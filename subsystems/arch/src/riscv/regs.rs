@@ -1,5 +1,4 @@
 use core::arch::asm;
-use riscv::asm::sfence_vma_all;
 use riscv::register::satp;
 
 /// 获取当前的 hart id
@@ -72,6 +71,10 @@ pub fn activate_paging_mode(root_ppn: usize) {
         satp::set(satp::Mode::Sv39, 0, root_ppn);
         sfence_vma_all();
     }
+}
+
+pub fn sfence_vma_all() {
+    unsafe { riscv::asm::sfence_vma_all() }
 }
 
 pub fn allow_access_user_memory() {

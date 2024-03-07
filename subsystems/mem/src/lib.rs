@@ -5,6 +5,7 @@ use arch::activate_paging_mode;
 use config::FRAME_BITS;
 use heap::HeapAllocator;
 use platform::println;
+pub mod area;
 mod frame;
 mod heap;
 mod manager;

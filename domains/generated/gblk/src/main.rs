@@ -17,7 +17,6 @@ fn main(
     domain_id: u64,
     shared_heap: Box<dyn SharedHeap>,
     ktask_shim: Box<dyn KTaskShim>,
-    virtio_blk_addr: usize,
 ) -> Arc<dyn BlkDeviceDomain> {
     // init rref's shared heap
     rref::init(shared_heap, domain_id);
@@ -26,7 +25,7 @@ fn main(
     // activate the domain
     interface::activate_domain();
     // call the real blk driver
-    blk::main(virtio_blk_addr)
+    blk::main()
 }
 
 #[panic_handler]

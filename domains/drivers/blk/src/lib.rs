@@ -10,7 +10,7 @@ use alloc::sync::Arc;
 use core::fmt::Debug;
 use interface::Basic;
 use ksync::Mutex;
-use libsyscall::println;
+use libsyscall::{println, DeviceType};
 use log::info;
 use rref::RpcResult;
 use virtio_blk::VirtIoBlk;
@@ -58,7 +58,10 @@ impl interface::BlkDeviceDomain for VirtIOBlk {
             .read_block(block as usize, buf.as_mut())
             .unwrap();
         // warn!("read block: {}, buf:{:#x}", block, buf[0]);
-        // panic!("read block: {}, buf:{:#x}", block, buf[0]);
+        // trick
+        if libsyscall::blk_crash_trick() {
+            panic!("read block: {}, buf:{:#x}", block, buf[0]);
+        }
         Ok(buf)
     }
     fn write_block(&self, block: u32, data: &rref::RRef<[u8; 512]>) -> RpcResult<usize> {
@@ -70,7 +73,6 @@ impl interface::BlkDeviceDomain for VirtIOBlk {
     }
 
     fn get_capacity(&self) -> RpcResult<u64> {
-        println!("get_capacity: {}", self.driver.lock().capacity() as u64);
         Ok(self.driver.lock().capacity() as u64)
     }
 
@@ -83,7 +85,8 @@ impl interface::BlkDeviceDomain for VirtIOBlk {
     }
 }
 
-pub fn main(virtio_blk_addr: usize) -> Arc<dyn interface::BlkDeviceDomain> {
-    println!("virtio_blk_addr: {:#x}", virtio_blk_addr);
-    Arc::new(VirtIOBlk::new(virtio_blk_addr))
+pub fn main() -> Arc<dyn interface::BlkDeviceDomain> {
+    let virtio_blk_addr = libsyscall::get_device_space(DeviceType::Block).unwrap();
+    println!("virtio_blk_addr: {:#x?}", virtio_blk_addr);
+    Arc::new(VirtIOBlk::new(virtio_blk_addr.start))
 }

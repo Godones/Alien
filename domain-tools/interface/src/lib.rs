@@ -27,6 +27,9 @@ pub trait BlkDeviceDomain: Send + Sync + Basic + Debug {
     fn get_capacity(&self) -> RpcResult<u64>;
     fn flush(&self) -> RpcResult<()>;
     fn handle_irq(&self) -> RpcResult<()>;
+    fn restart(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(feature = "cache_blk")]

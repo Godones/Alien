@@ -15,7 +15,10 @@ use ksync::Mutex;
 use spin::Lazy;
 
 pub use sheap::SharedHeapAllocator;
-pub use syscall::DomainSyscall;
+pub use syscall::{
+    register_domain_heap_resource, register_domain_syscall_resource,
+    register_domain_taskshim_resource, DomainSyscall,
+};
 pub use task::TaskShimImpl;
 
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);

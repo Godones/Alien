@@ -7,7 +7,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::panic::PanicInfo;
-use interface::CacheBlkDeviceDomain;
+use interface::BlkDeviceDomain;
 use libsyscall::{println, KTaskShim, Syscall};
 use rref::SharedHeap;
 
@@ -17,7 +17,7 @@ fn main(
     domain_id: u64,
     shared_heap: Box<dyn SharedHeap>,
     ktask_shim: Box<dyn KTaskShim>,
-) -> Arc<dyn CacheBlkDeviceDomain> {
+) -> Arc<dyn BlkDeviceDomain> {
     // init rref's shared heap
     rref::init(shared_heap, domain_id);
     // init libsyscall
@@ -25,7 +25,7 @@ fn main(
     // activate the domain
     interface::activate_domain();
     // call the real blk driver
-    cache_blk::main()
+    shadow_blk::main()
 }
 
 #[panic_handler]

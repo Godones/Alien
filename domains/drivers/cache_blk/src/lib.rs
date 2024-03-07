@@ -160,12 +160,14 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
     }
 }
 
-pub fn main(max_cache_frames: usize) -> Arc<dyn CacheBlkDeviceDomain> {
-    let blk = libsyscall::get_blk_domain().unwrap();
+pub const MAX_BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
+
+pub fn main() -> Arc<dyn CacheBlkDeviceDomain> {
+    let blk = libsyscall::get_shadow_blk_domain().unwrap();
     info!(
         "max_cache_frames: {}, blk size: {}MB",
-        max_cache_frames,
+        MAX_BLOCK_CACHE_FRAMES,
         blk.get_capacity().unwrap() / (1024 * 1024)
     );
-    Arc::new(GenericBlockDevice::new(blk, max_cache_frames))
+    Arc::new(GenericBlockDevice::new(blk, MAX_BLOCK_CACHE_FRAMES))
 }

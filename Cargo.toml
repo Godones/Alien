@@ -17,7 +17,7 @@ members = [
     "subsystems/timer",
     "domain-tools/interface",
     "domain-tools/rref",
-    "domain-tools/continuation",
+    "subsystems/continuation",
     "domain-tools/libsyscall",
     "domain-tools/malloc",
     "domains/fs/fatfs",
@@ -37,7 +37,11 @@ members = [
     "domains/drivers/goldfish",
     "domains/generated/gvfs",
     "domains/generated/gcache_blk",
-    "domains/generated/ggoldfish", "domains/exception",
+    "domains/generated/ggoldfish",
+    "domains/exception",
+    "subsystems/domain",
+    "domains/drivers/shadow_blk",
+    "domains/generated/gshadow_blk",
 ]
 
 resolver = "2"

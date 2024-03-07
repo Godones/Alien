@@ -9,14 +9,18 @@ edition = "2021"
 platform = { path = "../platform" }
 arch = { path = "../arch" }
 ksync = { path = "../ksync" }
+domain-loader = { path = "../domain-loader" }
 
 interface = { path = "../../domain-tools/interface" }
 rref = { path = "../../domain-tools/rref" }
-continuation = { path = "../../domain-tools/continuation" }
+continuation = { path = "../continuation" }
 
 
 spin = "0"
 log = "0"
+
+
+
 [features]
 default = ["fault_isolation"]
 fault_isolation = []

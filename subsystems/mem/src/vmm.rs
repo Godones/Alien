@@ -8,7 +8,7 @@ use log::info;
 pub use page_table::addr::{PhysAddr, VirtAddr};
 pub use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
-use platform::config::MMIO;
+use platform::config::DEVICE_SPACE;
 use platform::println;
 use spin::Lazy;
 
@@ -121,7 +121,7 @@ pub fn build_kernel_address_space(memory_end: usize) {
             true,
         )
         .unwrap();
-    for pair in MMIO {
+    for pair in DEVICE_SPACE {
         kernel_space
             .map_region(
                 VirtAddr::from(pair.1),
@@ -144,6 +144,8 @@ pub fn kernel_pgd() -> usize {
 pub fn kernel_satp() -> usize {
     8usize << 60 | (kernel_pgd() >> FRAME_BITS)
 }
+
+/// Allocate a free region in kernel space.
 pub fn alloc_free_region(size: usize) -> Option<usize> {
     assert!(size > 0 && size % FRAME_SIZE == 0);
     Some(KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::SeqCst))
