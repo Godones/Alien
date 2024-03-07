@@ -13,7 +13,7 @@ use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
 use crate::time::{check_timer_queue, set_next_trigger, set_next_trigger_in_kernel};
 use ::interrupt::external_interrupt_handler;
-use ::interrupt::record::write_irq_info;
+use ::interrupt::record_irq;
 use arch::{
     external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable,
     timer_interrupt_enable,
@@ -193,10 +193,9 @@ impl TrapHandler for Trap {
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 trace!("[kernel] timer interrupt");
-                write_irq_info(1);
+                record_irq(1);
                 check_timer_queue();
                 solve_futex_wait();
-                // set_next_trigger();
                 set_next_trigger_in_kernel();
             }
             Trap::Exception(Exception::StorePageFault) => {
