@@ -70,6 +70,8 @@ gdb-server: domains build img
 gdb-client:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
-
+clean:
+	rm -rf target/
+	rm build/*.bin
 
 .PHONY:build domains gdb-client gdb-server img
