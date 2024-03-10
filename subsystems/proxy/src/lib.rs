@@ -385,3 +385,46 @@ impl DevicesDomain for DevicesDomainProxy {
         self.domain.get_device(name, info)
     }
 }
+
+#[derive(Debug)]
+pub struct GpuDomainProxy {
+    id: u64,
+    domain: Arc<dyn GpuDomain>,
+}
+
+impl GpuDomainProxy {
+    pub fn new(id: u64, domain: Arc<dyn GpuDomain>) -> Self {
+        Self { id, domain }
+    }
+}
+
+impl GpuDomain for GpuDomainProxy {
+    fn flush(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.flush()
+    }
+
+    fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> RpcResult<usize> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        todo!()
+    }
+}
+
+impl DeviceBase for GpuDomainProxy {
+    fn handle_irq(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.handle_irq()
+    }
+}
+
+impl Basic for GpuDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}

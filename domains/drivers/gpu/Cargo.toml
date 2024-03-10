@@ -9,3 +9,6 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface", default-features = false, features = ["gpu","domain"] }
 rref = { path = "../../../domain-tools/rref" }
 libsyscall = { path = "../../../domain-tools/libsyscall", features = ["domain"] }
+virtio-gpu = { path = "../../../domain-tools/safety-abstraction/virtio-gpu" }
+ksync = { path = "../../../subsystems/ksync" }
+malloc = { path = "../../../domain-tools/malloc" }

@@ -1,4 +1,5 @@
 #![no_std]
+#![no_main]
 #![feature(panic_info_message)]
 
 extern crate alloc;
@@ -25,7 +26,7 @@ fn main(
     interface::activate_domain();
     // call the real gpu driver
     // gpu::main()
-    unimplemented!()
+    gpu::main()
 }
 
 #[panic_handler]

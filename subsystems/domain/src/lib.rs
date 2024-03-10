@@ -6,6 +6,14 @@ use alloc::sync::Arc;
 use domain_helper::{alloc_domain_id, DomainType};
 use domain_loader::DomainLoader;
 use interface::{
+<<<<<<< HEAD
+    BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, PLICDomain, RtcDomain, VfsDomain, GpuDomain,
+};
+use log::info;
+use proxy::{
+    BlkDomainProxy, CacheBlkDomainProxy, EIntrDomainProxy, FsDomainProxy, RtcDomainProxy,
+    VfsDomainProxy, GpuDomainProxy,
+=======
     BlkDeviceDomain, CacheBlkDeviceDomain, DevicesDomain, FsDomain, PLICDomain, RtcDomain,
     VfsDomain,
 };
@@ -13,6 +21,7 @@ use log::info;
 use proxy::{
     BlkDomainProxy, CacheBlkDomainProxy, DevicesDomainProxy, EIntrDomainProxy, FsDomainProxy,
     RtcDomainProxy, VfsDomainProxy,
+>>>>>>> isolation
 };
 
 #[macro_use]
@@ -38,6 +47,7 @@ mod macros {
         }};
     }
 }
+static GPU_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/ggpu_domain.bin");
 static BLK_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/gblk_domain.bin");
 static FATFS_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gfatfs_domain.bin");
@@ -61,6 +71,14 @@ fn fatfs_domain() -> Arc<dyn FsDomain> {
     let id = alloc_domain_id();
     let fatfs = domain.call(id);
     Arc::new(FsDomainProxy::new(id, fatfs))
+}
+
+fn gpu_domain() -> Arc<dyn GpuDomain> {
+    let mut domain = DomainLoader::new(GPU_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let gpu : Arc<dyn GpuDomain>= domain.call(id);
+    Arc::new(GpuDomainProxy::new(id, gpu))
 }
 
 fn blk_domain() -> Arc<dyn BlkDeviceDomain> {
@@ -155,16 +173,29 @@ pub fn load_domains() {
     info!("Load rtc domain, size: {}KB", RTC_DOMAIN.len() / 1024);
     let rtc = rtc_domain();
     domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc));
+<<<<<<< HEAD
+    
+=======
 
+>>>>>>> isolation
     info!(
         "Load cache blk domain, size: {}KB",
         CACHE_BLK_DOMAIN.len() / 1024
     );
     let cache_blk = cache_blk_domain();
     domain_helper::register_domain("cache_blk", DomainType::CacheBlkDeviceDomain(cache_blk));
+<<<<<<< HEAD
+    
+=======
 
+>>>>>>> isolation
     info!("Load vfs domain, size: {}KB", VFS_DOMAIN.len() / 1024);
     let vfs = vfs_domain();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs));
+    
+    info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
+    let gpu = gpu_domain();
+    domain_helper::register_domain("gpu", DomainType::GpuDomain(gpu));
+
     platform::println!("Load domains done");
 }
