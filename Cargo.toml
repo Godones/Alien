@@ -43,7 +43,11 @@ members = [
     "domains/drivers/shadow_blk",
     "domains/generated/gshadow_blk",
     "domains/extern-interrupt",
-    "safe-crates/plic", "domains/generated/gextern-interrupt",
+    "domains/generated/gextern-interrupt",
+    "domains/devices",
+    "safe-crates/plic",
+    "safe-crates/fdt",
+    "domains/generated/gdevices",
 ]
 
 resolver = "2"

@@ -4,9 +4,9 @@ extern crate malloc;
 
 use alloc::sync::Arc;
 use core::ops::Range;
-use interface::{Basic, DeviceBase, UartDomain};
+use interface::{Basic, DeviceBase, DeviceInfo, UartDomain};
 use region::SafeIORegion;
-use rref::RpcResult;
+use rref::{RRef, RRefVec, RpcResult};
 
 #[derive(Debug)]
 pub struct UartDomainImpl {
@@ -44,7 +44,17 @@ impl UartDomain for UartDomainImpl {
 }
 
 pub fn main() -> Arc<dyn UartDomain> {
-    let region = libsyscall::get_device_space(libsyscall::DeviceType::Uart).unwrap();
+    let devices_domain = libsyscall::get_devices_domain().unwrap();
+    let name = RRefVec::from_slice("uart".as_bytes());
+
+    let info = RRef::new(DeviceInfo {
+        address_range: Default::default(),
+        irq: RRef::new(0),
+        compatible: RRefVec::new(0, 64),
+    });
+
+    let info = devices_domain.get_device(name, info).unwrap();
+    let region = &info.address_range;
     libsyscall::println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
     Arc::new(UartDomain::new(region.start, region.end - region.start))
 }

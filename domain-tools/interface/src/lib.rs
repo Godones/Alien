@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::sync::Arc;
 use core::any::Any;
 use core::fmt::Debug;
+use core::ops::Range;
 use rref::{RRef, RRefVec, RpcResult};
 
 pub trait Basic: Send + Sync + Debug + Any {
@@ -101,6 +102,19 @@ pub trait PLICDomain: Basic {
     fn handle_irq(&self) -> RpcResult<()>;
     fn register_irq(&self, irq: usize, device: Arc<dyn DeviceBase>) -> RpcResult<()>;
     fn irq_info(&self, buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>>;
+}
+
+#[cfg(feature = "devices")]
+#[derive(Debug)]
+pub struct DeviceInfo {
+    pub address_range: Range<usize>,
+    pub irq: RRef<u32>,
+    pub compatible: RRefVec<u8>,
+}
+
+#[cfg(feature = "devices")]
+pub trait DevicesDomain: Basic {
+    fn get_device(&self, name: RRefVec<u8>, info: RRef<DeviceInfo>) -> Option<RRef<DeviceInfo>>;
 }
 
 #[cfg(feature = "domain")]

@@ -358,3 +358,30 @@ impl PLICDomain for EIntrDomainProxy {
         self.domain.irq_info(buf)
     }
 }
+
+#[derive(Debug)]
+pub struct DevicesDomainProxy {
+    id: u64,
+    domain: Arc<dyn DevicesDomain>,
+}
+
+impl DevicesDomainProxy {
+    pub fn new(id: u64, domain: Arc<dyn DevicesDomain>) -> Self {
+        Self { id, domain }
+    }
+}
+
+impl Basic for DevicesDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
+
+impl DevicesDomain for DevicesDomainProxy {
+    fn get_device(&self, name: RRefVec<u8>, info: RRef<DeviceInfo>) -> Option<RRef<DeviceInfo>> {
+        if !self.is_active() {
+            return None;
+        }
+        self.domain.get_device(name, info)
+    }
+}

@@ -6,11 +6,11 @@ use alloc::vec::Vec;
 use config::{FRAME_BITS, FRAME_SIZE};
 use core::ops::Range;
 use core::sync::atomic::AtomicBool;
+use fdt::Fdt;
 use interface::*;
 use ksync::Mutex;
-use libsyscall::{DeviceType, Syscall};
+use libsyscall::Syscall;
 use log::{info, warn};
-use platform::config::DEVICE_SPACE;
 use platform::iprint;
 use spin::Lazy;
 
@@ -114,26 +114,6 @@ impl Syscall for DomainSyscall {
         timer::read_timer() as u64
     }
 
-    fn sys_device_space(&self, ty: DeviceType) -> Option<Range<usize>> {
-        let find_f = |name: &str| -> Option<Range<usize>> {
-            DEVICE_SPACE.iter().find_map(|(n, start, size)| {
-                if *n == name {
-                    Some(*start..*start + *size)
-                } else {
-                    None
-                }
-            })
-        };
-        match ty {
-            DeviceType::Block => find_f("virtio-mmio-blk"),
-            DeviceType::Uart => find_f("uart"),
-            DeviceType::Gpu => find_f("virtio-mmio-gpu"),
-            DeviceType::Input => find_f("virtio-mmio-mouse"),
-            DeviceType::Rtc => find_f("rtc"),
-            DeviceType::PLIC => find_f("plic"),
-        }
-    }
-
     fn check_kernel_space(&self, start: usize, size: usize) -> bool {
         mem::is_in_kernel_space(start, size)
     }
@@ -186,8 +166,22 @@ impl Syscall for DomainSyscall {
         })
     }
 
+    fn sys_get_devices_domain(&self) -> Option<Arc<dyn DevicesDomain>> {
+        crate::query_domain("devices").map(|devices| match devices {
+            DomainType::DevicesDomain(devices) => devices,
+            _ => panic!("devices domain type error"),
+        })
+    }
+
     fn blk_crash_trick(&self) -> bool {
         BLK_CRASH.load(core::sync::atomic::Ordering::Relaxed)
+    }
+
+    fn sys_get_dtb(&self) -> &'static [u8] {
+        let ptr = platform::platform_dtb_ptr();
+        let fdt = unsafe { Fdt::from_ptr(ptr as *const u8) }.unwrap();
+        let size = fdt.total_size();
+        unsafe { core::slice::from_raw_parts(ptr as _, size) }
     }
 }
 
