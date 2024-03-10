@@ -44,15 +44,12 @@ members = [
     "domains/drivers/shadow_blk",
     "domains/generated/gshadow_blk",
     "domains/extern-interrupt",
-<<<<<<< HEAD
     "safe-crates/plic", "domains/generated/gextern-interrupt", "domain-tools/safety-abstraction/virtio-gpu",
-=======
     "domains/generated/gextern-interrupt",
     "domains/devices",
     "safe-crates/plic",
     "safe-crates/fdt",
     "domains/generated/gdevices",
->>>>>>> isolation
 ]
 
 resolver = "2"
