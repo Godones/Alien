@@ -117,7 +117,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
     blk.map(|blk| {
         let block_device = Arc::new(BLKDevice::new(
             alloc_device_id(VfsNodeType::BlockDevice),
-            blk.clone(),
+            blk,
         ));
         root.create(
             "sda",
@@ -132,7 +132,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
     gpu.map(|gpu| {
         let gpu_device = Arc::new(GPUDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
-            gpu.clone(),
+            gpu,
         ));
         root.create(
             "gpu",
@@ -179,7 +179,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
     rtc.map(|rtc| {
         let rtc_device = Arc::new(RTCDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
-            rtc.clone(),
+            rtc,
         ));
         root.create(
             "rtc",
@@ -194,7 +194,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
     uart.map(|uart| {
         let uart_device = Arc::new(UARTDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),
-            uart.clone(),
+            uart,
         ));
         root.create(
             "tty",

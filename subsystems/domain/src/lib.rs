@@ -6,12 +6,22 @@ use alloc::sync::Arc;
 use domain_helper::{alloc_domain_id, DomainType};
 use domain_loader::DomainLoader;
 use interface::{
+<<<<<<< HEAD
     BlkDeviceDomain, CacheBlkDeviceDomain, FsDomain, PLICDomain, RtcDomain, VfsDomain, GpuDomain,
 };
 use log::info;
 use proxy::{
     BlkDomainProxy, CacheBlkDomainProxy, EIntrDomainProxy, FsDomainProxy, RtcDomainProxy,
     VfsDomainProxy, GpuDomainProxy,
+=======
+    BlkDeviceDomain, CacheBlkDeviceDomain, DevicesDomain, FsDomain, PLICDomain, RtcDomain,
+    VfsDomain,
+};
+use log::info;
+use proxy::{
+    BlkDomainProxy, CacheBlkDomainProxy, DevicesDomainProxy, EIntrDomainProxy, FsDomainProxy,
+    RtcDomainProxy, VfsDomainProxy,
+>>>>>>> isolation
 };
 
 #[macro_use]
@@ -51,6 +61,9 @@ static SHADOW_BLK_DOMAIN: &'static [u8] =
 
 static EXTERN_INTR: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gextern-interrupt_domain.bin");
+
+static DEVICES_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gdevices_domain.bin");
 
 fn fatfs_domain() -> Arc<dyn FsDomain> {
     let mut domain = DomainLoader::new(FATFS_DOMAIN);
@@ -120,19 +133,36 @@ fn extern_interrupt_domain() -> Arc<dyn PLICDomain> {
     Arc::new(EIntrDomainProxy::new(id, extern_intr_domain))
 }
 
+fn devices_domain() -> Arc<dyn DevicesDomain> {
+    let mut domain = DomainLoader::new(DEVICES_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let devices_domain = domain.call(id);
+    Arc::new(DevicesDomainProxy::new(id, devices_domain))
+}
+
 pub fn load_domains() {
+    info!(
+        "Load devices domain, size: {}KB",
+        DEVICES_DOMAIN.len() / 1024
+    );
+    let devices = devices_domain();
+    domain_helper::register_domain("devices", DomainType::DevicesDomain(devices));
+
     info!(
         "Load extern-interrupt domain, size: {}KB",
         EXTERN_INTR.len() / 1024
     );
     let plic = extern_interrupt_domain();
     domain_helper::register_domain("plic", DomainType::PLICDomain(plic));
+
     info!("Load blk domain, size: {}KB", BLK_DOMAIN.len() / 1024);
     let dev = blk_domain();
     domain_helper::register_domain("blk", DomainType::BlkDeviceDomain(dev));
     // info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
     // let fs = fatfs_domain();
     // domain_helper::register_domain("fatfs", fs);
+
     info!(
         "Load shadow blk domain, size: {}KB",
         SHADOW_BLK_DOMAIN.len() / 1024
@@ -143,14 +173,22 @@ pub fn load_domains() {
     info!("Load rtc domain, size: {}KB", RTC_DOMAIN.len() / 1024);
     let rtc = rtc_domain();
     domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc));
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> isolation
     info!(
         "Load cache blk domain, size: {}KB",
         CACHE_BLK_DOMAIN.len() / 1024
     );
     let cache_blk = cache_blk_domain();
     domain_helper::register_domain("cache_blk", DomainType::CacheBlkDeviceDomain(cache_blk));
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> isolation
     info!("Load vfs domain, size: {}KB", VFS_DOMAIN.len() / 1024);
     let vfs = vfs_domain();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs));

@@ -33,7 +33,6 @@ const MAX_INTERRUPT: usize = 1024;
 /// be individually masked and has a programmable priority level.
 #[derive(Debug)]
 pub struct PLIC<const H: usize> {
-    base_addr: usize,
     region: SafeIORegion,
     privileges: [u8; H],
 }
@@ -50,11 +49,7 @@ pub enum Mode {
 impl<const H: usize> PLIC<H> {
     /// Create a new PLIC instance.
     pub fn new(region: SafeIORegion, privileges: [u8; H]) -> Self {
-        Self {
-            base_addr: 0,
-            region,
-            privileges,
-        }
+        Self { region, privileges }
     }
 
     /// enable the interrupt

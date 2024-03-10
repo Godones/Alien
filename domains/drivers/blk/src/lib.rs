@@ -8,24 +8,24 @@ extern crate malloc;
 
 use alloc::sync::Arc;
 use core::fmt::Debug;
-use interface::{Basic, DeviceBase};
+use interface::{Basic, DeviceBase, DeviceInfo};
 use ksync::Mutex;
-use libsyscall::{println, DeviceType};
+use libsyscall::println;
 use log::info;
-use rref::RpcResult;
+use rref::{RRef, RRefVec, RpcResult};
 use virtio_blk::VirtIoBlk;
 
-pub struct VirtIOBlk {
+pub struct VirtIOBlkDomain {
     driver: Arc<Mutex<VirtIoBlk>>,
 }
 
-impl Debug for VirtIOBlk {
+impl Debug for VirtIOBlkDomain {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "VirtIOBlk")
     }
 }
 
-impl VirtIOBlk {
+impl VirtIOBlkDomain {
     pub fn new(virtio_blk_addr: usize) -> Self {
         Self {
             driver: Arc::new(Mutex::new(VirtIoBlk::new(virtio_blk_addr))),
@@ -33,26 +33,26 @@ impl VirtIOBlk {
     }
 }
 
-impl Drop for VirtIOBlk {
+impl Drop for VirtIOBlkDomain {
     fn drop(&mut self) {
         info!("Drop VirtIOBlk");
     }
 }
 
-impl Basic for VirtIOBlk {
+impl Basic for VirtIOBlkDomain {
     // fn drop_self(self: Box<Self>) {
     //     info!("Drop VirtIOBlk");
     //     drop(self);
     // }
 }
 
-impl DeviceBase for VirtIOBlk {
+impl DeviceBase for VirtIOBlkDomain {
     fn handle_irq(&self) -> RpcResult<()> {
         todo!()
     }
 }
 
-impl interface::BlkDeviceDomain for VirtIOBlk {
+impl interface::BlkDeviceDomain for VirtIOBlkDomain {
     fn read_block(
         &self,
         block: u32,
@@ -88,7 +88,19 @@ impl interface::BlkDeviceDomain for VirtIOBlk {
 }
 
 pub fn main() -> Arc<dyn interface::BlkDeviceDomain> {
-    let virtio_blk_addr = libsyscall::get_device_space(DeviceType::Block).unwrap();
+    let devices_domain = libsyscall::get_devices_domain().unwrap();
+    let name = RRefVec::from_slice("virtio-mmio-block".as_bytes());
+
+    let info = RRef::new(DeviceInfo {
+        address_range: Default::default(),
+        irq: RRef::new(0),
+        compatible: RRefVec::new(0, 64),
+    });
+
+    let info = devices_domain.get_device(name, info).unwrap();
+
+    let virtio_blk_addr = &info.address_range;
+
     println!("virtio_blk_addr: {:#x?}", virtio_blk_addr);
-    Arc::new(VirtIOBlk::new(virtio_blk_addr.start))
+    Arc::new(VirtIOBlkDomain::new(virtio_blk_addr.start))
 }

@@ -32,13 +32,13 @@ impl VirtIoBlk {
 impl VirtIoBlk {
     pub fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> Result<usize, &'static str> {
         self.device
-            .read_block(block_id, buf)
+            .read_blocks(block_id, buf)
             .map_err(|_| "failed to read block")?;
         Ok(buf.len())
     }
     pub fn write_block(&mut self, block_id: usize, buf: &[u8]) -> Result<usize, &'static str> {
         self.device
-            .write_block(block_id, buf)
+            .write_blocks(block_id, buf)
             .map_err(|_| "failed to write block")?;
         Ok(buf.len())
     }

@@ -12,7 +12,6 @@ extern crate alloc;
 
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::ops::Range;
 use downcast_rs::{impl_downcast, DowncastSync};
 #[cfg(feature = "domain")]
 pub use frame::{FrameTracker, FRAME_SIZE};
@@ -90,23 +89,12 @@ pub enum DeviceType {
     PLIC,
 }
 
-#[allow(unused)]
-pub enum DomainType<'a> {
-    Block,
-    Uart,
-    Gpu,
-    Input(&'a str),
-    Rtc,
-    CacheBlock,
-}
-
 pub trait Syscall: Send + Sync {
     fn sys_alloc_pages(&self, domain_id: u64, n: usize) -> *mut u8;
     fn sys_free_pages(&self, domain_id: u64, p: *mut u8, n: usize);
     fn sys_write_console(&self, s: &str);
     fn sys_backtrace(&self, domain_id: u64);
     fn sys_read_timer(&self) -> u64;
-    fn sys_device_space(&self, ty: DeviceType) -> Option<Range<usize>>;
     fn check_kernel_space(&self, start: usize, size: usize) -> bool;
     fn sys_get_blk_domain(&self) -> Option<Arc<dyn interface::BlkDeviceDomain>>;
     fn sys_get_shadow_blk_domain(&self) -> Option<Arc<dyn interface::BlkDeviceDomain>>;
@@ -115,17 +103,18 @@ pub trait Syscall: Send + Sync {
     fn sys_get_input_domain(&self, ty: &str) -> Option<Arc<dyn interface::InputDomain>>;
     fn sys_get_rtc_domain(&self) -> Option<Arc<dyn interface::RtcDomain>>;
     fn sys_get_cache_blk_domain(&self) -> Option<Arc<dyn interface::CacheBlkDeviceDomain>>;
-
+    fn sys_get_devices_domain(&self) -> Option<Arc<dyn interface::DevicesDomain>>;
     /// This func will be deleted
     fn blk_crash_trick(&self) -> bool;
+
+    fn sys_get_dtb(&self) -> &'static [u8];
 }
 #[cfg(feature = "domain")]
 mod __impl {
     use crate::frame::FrameTracker;
-    use crate::{logging, DeviceType, KTask, KTaskShim, Syscall};
+    use crate::{logging, KTask, KTaskShim, Syscall};
     use alloc::boxed::Box;
     use alloc::sync::Arc;
-    use core::ops::Range;
     use rref::domain_id;
     use spin::Once;
 
@@ -275,14 +264,6 @@ mod __impl {
             .expect("syscall not initialized")
             .sys_read_timer()
     }
-
-    pub fn get_device_space(ty: DeviceType) -> Option<Range<usize>> {
-        SYSCALL
-            .get()
-            .expect("syscall not initialized")
-            .sys_device_space(ty)
-    }
-
     pub fn get_rtc_domain() -> Option<Arc<dyn interface::RtcDomain>> {
         SYSCALL
             .get()
@@ -297,11 +278,26 @@ mod __impl {
             .sys_get_cache_blk_domain()
     }
 
+    pub fn get_devices_domain() -> Option<Arc<dyn interface::DevicesDomain>> {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_get_devices_domain()
+    }
+
+    // todo!(delete)
     pub fn blk_crash_trick() -> bool {
         SYSCALL
             .get()
             .expect("syscall not initialized")
             .blk_crash_trick()
+    }
+
+    pub fn get_dtb() -> &'static [u8] {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_get_dtb()
     }
 }
 

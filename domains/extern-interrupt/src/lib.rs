@@ -10,12 +10,11 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use config::CPU_NUM;
 use core::cmp::min;
-use interface::{Basic, DeviceBase, PLICDomain};
+use interface::{Basic, DeviceBase, DeviceInfo, PLICDomain};
 use ksync::Mutex;
-use libsyscall::DeviceType;
 use plic::{Mode, PLIC};
 use region::SafeIORegion;
-use rref::{RRefVec, RpcResult};
+use rref::{RRef, RRefVec, RpcResult};
 
 #[derive(Debug)]
 pub struct PLICDomainImpl<const H: usize> {
@@ -90,8 +89,19 @@ impl<const H: usize> PLICDomain for PLICDomainImpl<H> {
 }
 
 pub fn main() -> Arc<dyn PLICDomain> {
-    let plic_space = libsyscall::get_device_space(DeviceType::PLIC).unwrap();
-    let plic_space = SafeIORegion::from(plic_space).unwrap();
+    let devices_domain = libsyscall::get_devices_domain().unwrap();
+    let name = RRefVec::from_slice("plic".as_bytes());
+
+    let info = RRef::new(DeviceInfo {
+        address_range: Default::default(),
+        irq: RRef::new(0),
+        compatible: RRefVec::new(0, 64),
+    });
+
+    let info = devices_domain.get_device(name, info).unwrap();
+
+    libsyscall::println!("plic region: {:#x?}", info.address_range);
+    let plic_space = SafeIORegion::from(info.address_range.clone()).unwrap();
     let privileges = [2; CPU_NUM];
     let domain_impl = PLICDomainImpl::<CPU_NUM>::new(plic_space, privileges);
     libsyscall::println!("Init qemu plic success");

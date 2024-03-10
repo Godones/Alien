@@ -1,5 +1,6 @@
 use crate::{RRef, RRefable, TypeIdentifiable};
 use core::alloc::Layout;
+use core::fmt::{Debug, Formatter};
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 
@@ -72,5 +73,17 @@ where
 {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.data
+    }
+}
+
+impl<T> Debug for RRefVec<T>
+where
+    T: 'static + RRefable + Copy + TypeIdentifiable + Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RRefVec")
+            .field("data", &self.data)
+            .field("size", &self.size)
+            .finish()
     }
 }

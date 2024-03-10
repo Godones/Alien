@@ -1,5 +1,6 @@
 use crate::{domain_id, RRefable, TypeIdentifiable, HEAP};
 use core::alloc::Layout;
+use core::fmt::{Debug, Formatter};
 use core::ops::{Deref, DerefMut};
 
 #[repr(C)]
@@ -72,5 +73,18 @@ impl<T: RRefable> DerefMut for RRef<T> {
 impl<T: RRefable> Drop for RRef<T> {
     fn drop(&mut self) {
         unsafe { HEAP.get().unwrap().dealloc(self.value_pointer as _) }
+    }
+}
+
+impl<T: RRefable + Debug> Debug for RRef<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        let value = unsafe { &*self.value_pointer };
+        let domain_id = unsafe { *self.domain_id_pointer };
+        let borrow_count = unsafe { *self.borrow_count_pointer };
+        f.debug_struct("RRef")
+            .field("value", value)
+            .field("domain_id", &domain_id)
+            .field("borrow_count", &borrow_count)
+            .finish()
     }
 }
