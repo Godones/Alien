@@ -24,7 +24,7 @@ impl GoldFishRtc {
 }
 
 impl DeviceBase for GoldFishRtc {
-    fn hand_irq(&self) {
+    fn handle_irq(&self) {
         let alarm = self.gold_fish_rtc.read_alarm_fmt();
         let time = self.gold_fish_rtc.read_time_fmt();
         trace!("rtc interrupt, time: {:?}, alarm: {:?}", time, alarm);

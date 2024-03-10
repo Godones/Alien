@@ -60,18 +60,19 @@ impl InputDevice for VirtIOInputDriver {
         inner.events.is_empty()
     }
 
-    fn read_event_with_block(&self) -> u64 {
+    fn read_event_async(&self) -> u64 {
         loop {
-            {
+            let task = {
                 let mut inner = self.inner.lock();
                 if let Some(event) = inner.events.pop_front() {
                     return event;
                 }
-                let task = shim::current_task();
+                let task = shim::take_current_task().unwrap();
                 task.to_wait();
-                inner.wait_queue.push_back(task);
-            } // drop the lock
-            shim::suspend(); // yield current task
+                inner.wait_queue.push_back(task.clone());
+                task
+            }; // drop the lock
+            shim::schedule_now(task); // yield current task
         }
     }
 
@@ -82,7 +83,7 @@ impl InputDevice for VirtIOInputDriver {
 }
 
 impl DeviceBase for VirtIOInputDriver {
-    fn hand_irq(&self) {
+    fn handle_irq(&self) {
         let mut inner = self.inner.lock();
         inner.driver.ack_interrupt();
         let mut count = 0;

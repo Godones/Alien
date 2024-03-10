@@ -43,11 +43,6 @@ fn user_path_at(fd: isize, path: &str) -> AlienResult<VfsPath> {
 
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
     let task = current_task();
-    // let cwd = if task.is_some() {
-    //     task.unwrap().access_inner().cwd().cwd
-    // } else {
-    //     vfs::system_root_fs()
-    // };
     let path = if task.is_none() {
         VfsPath::new(system_root_fs(), system_root_fs())
             .join(file_name)
@@ -61,16 +56,16 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
         info!("open file {} failed, err:{:?}", file_name, dentry.err());
         return false;
     }
-    let dentry = dentry.unwrap();
-    if dentry.inode().unwrap().inode_type() != VfsNodeType::File {
+    let inode = dentry.unwrap().inode().unwrap();
+    if inode.inode_type() != VfsNodeType::File {
         info!("{} is not a file", file_name);
         return false;
     }
-    let size = dentry.inode().unwrap().get_attr().unwrap().st_size;
+    let size = inode.get_attr().unwrap().st_size;
     let mut offset = 0;
     while offset < size {
         let mut tmp = [0; 512];
-        let res = dentry.inode().unwrap().read_at(offset, &mut tmp).unwrap();
+        let res = inode.read_at(offset, &mut tmp).unwrap();
         offset += res as u64;
         buf.extend_from_slice(&tmp);
     }

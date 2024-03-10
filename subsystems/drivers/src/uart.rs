@@ -124,11 +124,11 @@ impl UartDevice for Uart {
         loop {
             let mut inner = self.inner.lock();
             if inner.1.rx_buf.is_empty() {
-                let task = shim::current_task();
+                let task = shim::take_current_task().unwrap();
                 task.to_wait();
-                inner.1.wait_queue.push_back(task);
+                inner.1.wait_queue.push_back(task.clone());
                 drop(inner);
-                shim::suspend();
+                shim::schedule_now(task);
             } else {
                 return inner.1.rx_buf.pop_front();
             }
@@ -154,7 +154,7 @@ impl UartDevice for Uart {
 }
 
 impl DeviceBase for Uart {
-    fn hand_irq(&self) {
+    fn handle_irq(&self) {
         loop {
             let mut inner = self.inner.lock();
             if let Some(c) = inner.0._read() {

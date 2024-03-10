@@ -22,7 +22,6 @@ use crate::task::schedule::schedule;
 use crate::task::task::{Task, TaskState};
 use crate::task::INIT_PROCESS;
 use crate::trap::{check_task_timer_expired, TrapFrame};
-use arch::hart_id;
 use config::CPU_NUM;
 use platform::system_shutdown;
 
@@ -71,7 +70,7 @@ pub struct ScheduleHartImpl;
 
 impl ScheduleHart for ScheduleHartImpl {
     fn hart_id() -> usize {
-        hart_id()
+        arch::hart_id()
     }
 }
 /// 多核调度器
@@ -89,6 +88,11 @@ pub fn current_cpu() -> &'static mut CPU {
 pub fn current_task() -> Option<&'static Arc<Task>> {
     let cpu = current_cpu();
     cpu.task.as_ref()
+}
+
+pub fn take_current_task() -> Option<Arc<Task>> {
+    let cpu = current_cpu();
+    cpu.task.take()
 }
 
 /// 获取当前进程的虚拟页表的 token (root ppn)
@@ -145,7 +149,7 @@ pub fn do_exit(exit_code: i32) -> isize {
     // 在wait系统调用中，会回收内核栈页
     task.pre_recycle();
     info!("pre recycle done");
-    let clear_child_tid = task.futex_wake();
+    let clear_child_tid = task.clear_child_tid();
     if clear_child_tid != 0 {
         let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
         *phy_addr = 0;

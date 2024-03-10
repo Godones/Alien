@@ -6,9 +6,8 @@ use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 
 use crate::CommonFsProviderImpl;
-use ksync::Mutex;
 
-pub type PipeFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;
+pub type PipeFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, spin::Mutex<()>>;
 pub static PIPE_FS_ROOT: Once<Arc<dyn VfsDentry>> = Once::new();
 
 pub fn init_pipefs(fs: Arc<dyn VfsFsType>) {

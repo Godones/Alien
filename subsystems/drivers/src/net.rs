@@ -49,17 +49,9 @@ impl KernelNetFunc for NetNeedFunc {
         }
     }
     fn yield_now(&self) -> bool {
-        // do_suspend();
         shim::suspend();
-
-        // interrupt by signal
-        // let task = current_task().unwrap();
-        // let task_inner = task.access_inner();
-        // let receiver = task_inner.signal_receivers.lock();
-        // if receiver.have_signal() {
-        //     return true;
-        // }
-        let task = shim::current_task();
+        // interrupt by signal ?
+        let task = shim::current_task().unwrap();
         task.have_signal()
     }
 }

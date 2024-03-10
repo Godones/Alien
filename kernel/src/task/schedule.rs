@@ -9,8 +9,7 @@ use crate::ipc::send_signal;
 use crate::task::context::switch;
 use crate::task::cpu::current_cpu;
 use crate::task::task::TaskState;
-use crate::task::GLOBAL_TASK_MANAGER;
-use crate::trap::check_timer_interrupt_pending;
+use crate::task::{take_current_task, Task, GLOBAL_TASK_MANAGER};
 
 /// 在 CPU 启动并初始化完毕后初次进入用户态时，或者在一个任务将要让渡 CPU 时 将会执行该函数。
 ///
@@ -24,35 +23,7 @@ use crate::trap::check_timer_interrupt_pending;
 pub fn run_task() -> ! {
     loop {
         let cpu = current_cpu();
-        if cpu.task.is_some() {
-            let task = cpu.task.take().unwrap();
-            match task.state() {
-                TaskState::Waiting => {
-                    // drop(task);
-                }
-                TaskState::Zombie => {
-                    // 退出时向父进程发送信号，其中选项可被 sys_clone 控制
-                    if task.send_sigchld_when_exit || task.pid == task.tid.0 {
-                        let parent = task
-                            .access_inner()
-                            .parent
-                            .as_ref()
-                            .unwrap()
-                            .upgrade()
-                            .unwrap();
-                        send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
-                    }
-                    task.terminate();
-                }
-                _ => {
-                    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
-                }
-            }
-        }
         if let Some(task) = GLOBAL_TASK_MANAGER.pick_next_task() {
-            // if process.get_tid() >= 1 {
-            //     warn!("switch to task {}", task.get_tid());
-            // }
             // update state to running
             task.inner().update_state(TaskState::Running);
             // get the process context
@@ -71,11 +42,36 @@ pub fn run_task() -> ! {
 
 /// 切换线程上下文，调度当前在 CPU 上执行的线程 让渡出 CPU
 pub fn schedule() {
-    check_timer_interrupt_pending();
-    let cpu = current_cpu();
-    let task = cpu.task.clone().unwrap();
-    let cpu_context = cpu.get_context_raw_ptr();
+    let task = take_current_task().unwrap();
+    schedule_now(task)
+}
+
+// todo!(fix bugs)
+pub fn schedule_now(task: Arc<Task>) {
     let context = task.get_context_mut_raw_ptr();
-    drop(task);
+    match task.state() {
+        TaskState::Waiting => {
+            drop(task);
+        }
+        TaskState::Zombie => {
+            // 退出时向父进程发送信号，其中选项可被 sys_clone 控制
+            if task.send_sigchld_when_exit || task.pid == task.tid.0 {
+                let parent = task
+                    .access_inner()
+                    .parent
+                    .as_ref()
+                    .unwrap()
+                    .upgrade()
+                    .unwrap();
+                send_signal(parent.pid, SignalNumber::SIGCHLD as usize);
+            }
+            task.terminate(); // release some resources
+        }
+        _ => {
+            GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
+        }
+    }
+    let cpu = current_cpu();
+    let cpu_context = cpu.get_context_raw_ptr();
     switch(context, cpu_context);
 }

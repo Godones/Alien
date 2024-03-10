@@ -34,18 +34,18 @@ pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsFsType>>>> =
 
 static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDentry>> = Once::new();
 
-type SysFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
-type ProcFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
-type RamFs = ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
-type DevFs = devfs::DevFs<DevFsProviderImpl, Mutex<()>>;
-type TmpFs = ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
-type PipeFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
+type SysFs = dynfs::DynFs<CommonFsProviderImpl, spin::Mutex<()>>;
+type ProcFs = dynfs::DynFs<CommonFsProviderImpl, spin::Mutex<()>>;
+type RamFs = ramfs::RamFs<CommonFsProviderImpl, spin::Mutex<()>>;
+type DevFs = devfs::DevFs<DevFsProviderImpl, spin::Mutex<()>>;
+type TmpFs = ramfs::RamFs<CommonFsProviderImpl, spin::Mutex<()>>;
+type PipeFs = dynfs::DynFs<CommonFsProviderImpl, spin::Mutex<()>>;
 
 #[cfg(feature = "fat")]
-type DiskFs = fat_vfs::FatFs<CommonFsProviderImpl, Mutex<()>>;
+type DiskFs = fat_vfs::FatFs<CommonFsProviderImpl, spin::Mutex<()>>;
 
 #[cfg(feature = "ext")]
-type DiskFs = lwext4_vfs::ExtFs<CommonFsProviderImpl, Mutex<()>>;
+type DiskFs = lwext4_vfs::ExtFs<CommonFsProviderImpl, spin::Mutex<()>>;
 
 #[derive(Clone)]
 pub struct CommonFsProviderImpl;

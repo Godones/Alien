@@ -41,7 +41,7 @@ impl VirtIOGpuWrapper {
 }
 
 impl DeviceBase for VirtIOGpuWrapper {
-    fn hand_irq(&self) {
+    fn handle_irq(&self) {
         self.gpu.lock().ack_interrupt();
     }
 }

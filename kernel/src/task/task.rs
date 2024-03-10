@@ -1384,7 +1384,7 @@ impl Task {
     }
 
     /// 获取进程的 `clear_child_tid` 字段
-    pub fn futex_wake(&self) -> usize {
+    pub fn clear_child_tid(&self) -> usize {
         self.access_inner().clear_child_tid
     }
 

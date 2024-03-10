@@ -65,7 +65,7 @@ pub fn external_interrupt_handler() {
         .get(&(irq as usize))
         .or_else(|| panic!("no device for irq {}", irq))
         .unwrap();
-    device.hand_irq();
+    device.handle_irq();
     plic.complete(hart_id as u32, Mode::Supervisor, irq);
     let mut interrupts = INTERRUPT_RECORD.lock();
     let value = interrupts.entry(irq as usize).or_insert(0);

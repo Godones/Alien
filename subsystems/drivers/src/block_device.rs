@@ -1,4 +1,6 @@
 use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use constants::LinuxErrno;
 use core::cmp::min;
@@ -11,18 +13,19 @@ use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 
 use constants::AlienResult;
-use ksync::Mutex;
+use ksync::{Mutex, RwLock};
 
 use crate::hal::HalImpl;
 use config::FRAME_SIZE;
 use device_interface::{BlockDevice, DeviceBase, LowBlockDevice};
 use mem::{alloc_frames, free_frames};
 use platform::config::BLOCK_CACHE_FRAMES;
-
+use shim::KTask;
+pub use visionfive2_sd::Vf2SdDriver;
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 
 pub struct GenericBlockDevice {
-    pub device: Mutex<Box<dyn LowBlockDevice>>,
+    device: Box<dyn LowBlockDevice>,
     cache: Mutex<LruCache<usize, FrameTracker>>,
     dirty: Mutex<Vec<usize>>,
 }
@@ -65,7 +68,7 @@ unsafe impl Sync for GenericBlockDevice {}
 impl GenericBlockDevice {
     pub fn new(device: Box<dyn LowBlockDevice>) -> Self {
         Self {
-            device: Mutex::new(device),
+            device,
             cache: Mutex::new(LruCache::new(
                 NonZeroUsize::new(BLOCK_CACHE_FRAMES).unwrap(),
             )),
@@ -75,8 +78,8 @@ impl GenericBlockDevice {
 }
 
 impl DeviceBase for GenericBlockDevice {
-    fn hand_irq(&self) {
-        unimplemented!()
+    fn handle_irq(&self) {
+        self.device.handle_irq();
     }
 }
 
@@ -97,7 +100,7 @@ impl BlockDevice for GenericBlockDevice {
 
         while count < len {
             if !cache_lock.contains(&page_id) {
-                let mut device = self.device.lock();
+                let device = &self.device;
                 let cache = alloc_frames(1);
                 let mut cache = FrameTracker::new(cache as usize);
                 let start_block = page_id * PAGE_CACHE_SIZE / 512;
@@ -131,13 +134,12 @@ impl BlockDevice for GenericBlockDevice {
     fn write(&self, buf: &[u8], offset: usize) -> AlienResult<usize> {
         let mut page_id = offset / PAGE_CACHE_SIZE;
         let mut offset = offset % PAGE_CACHE_SIZE;
-
         let mut cache_lock = self.cache.lock();
         let len = buf.len();
         let mut count = 0;
         while count < len {
             if !cache_lock.contains(&page_id) {
-                let mut device = self.device.lock();
+                let device = &self.device;
                 let cache = alloc_frames(1);
                 let mut cache = FrameTracker::new(cache as usize);
                 let start_block = page_id * PAGE_CACHE_SIZE / 512;
@@ -160,10 +162,6 @@ impl BlockDevice for GenericBlockDevice {
                 }
             }
             let cache = cache_lock.get_mut(&page_id).unwrap();
-            if cache.as_ptr() as usize == 0x9000_0000 {
-                panic!("cache is null");
-            }
-            // self.dirty.lock().push(page_id);
             let copy_len = min(PAGE_CACHE_SIZE - offset, len - count);
             cache[offset..offset + copy_len].copy_from_slice(&buf[count..count + copy_len]);
             count += copy_len;
@@ -173,7 +171,7 @@ impl BlockDevice for GenericBlockDevice {
         Ok(buf.len())
     }
     fn size(&self) -> usize {
-        self.device.lock().capacity() * 512
+        self.device.capacity() * 512
     }
     fn flush(&self) -> AlienResult<()> {
         // let mut device = self.device.lock();
@@ -194,7 +192,8 @@ impl BlockDevice for GenericBlockDevice {
 }
 
 pub struct VirtIOBlkWrapper {
-    device: VirtIOBlk<HalImpl, MmioTransport>,
+    device: Mutex<VirtIOBlk<HalImpl, MmioTransport>>,
+    wait_queue: Mutex<BTreeMap<u16, Arc<dyn KTask>>>,
 }
 
 impl VirtIOBlkWrapper {
@@ -203,65 +202,170 @@ impl VirtIOBlkWrapper {
         let transport = unsafe { MmioTransport::new(header) }.unwrap();
         let blk = VirtIOBlk::<HalImpl, MmioTransport>::new(transport)
             .expect("failed to create blk driver");
-        Self { device: blk }
+        Self {
+            device: Mutex::new(blk),
+            wait_queue: Mutex::new(BTreeMap::new()),
+        }
     }
 
     pub fn from_mmio(mmio_transport: MmioTransport) -> Self {
         let blk = VirtIOBlk::<HalImpl, MmioTransport>::new(mmio_transport)
             .expect("failed to create blk driver");
-        Self { device: blk }
+        Self {
+            device: Mutex::new(blk),
+            wait_queue: Mutex::new(BTreeMap::new()),
+        }
     }
 }
 
 impl LowBlockDevice for VirtIOBlkWrapper {
-    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+    fn read_block(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
         let res = self
             .device
+            .lock()
             .read_block(block_id, buf)
             .map_err(|_| LinuxErrno::EIO.into());
         res
     }
-    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+    fn write_block(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
         self.device
+            .lock()
             .write_block(block_id, buf)
             .map_err(|_| LinuxErrno::EIO.into())
     }
 
     fn capacity(&self) -> usize {
-        self.device.capacity() as usize
+        self.device.lock().capacity() as usize
+    }
+
+    fn read_block_async(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+        return self.read_block(block_id, buf);
+        // let task = shim::take_current_task();
+        // if task.is_none() {
+        //     return self.read_block(block_id, buf);
+        // }
+        // let task = task.unwrap();
+        //
+        // use virtio_drivers::device::blk::{BlkReq,BlkResp,RespStatus};
+        //
+        // let mut resp = BlkResp::default();
+        // let mut req = BlkReq::default();
+        // let mut device = self.device.lock();
+        // let token = unsafe { device.read_block_nb(block_id, &mut req, buf, &mut resp) };
+        // match token {
+        //     Ok(token) => {
+        //         task.to_wait();
+        //         self.wait_queue.lock().insert(token, task.clone());
+        //         // platform::println!("insert token:{}, intr: {}", token, arch::is_interrupt_enable());
+        //         drop(device);
+        //         shim::schedule_now(task);
+        //         unsafe {
+        //             self.device
+        //                 .lock()
+        //                 .complete_read_block(token, &req, buf, &mut resp)
+        //                 .unwrap();
+        //         }
+        //         assert_eq!(
+        //             resp.status(),
+        //             RespStatus::OK,
+        //             "Error {:?} reading block.",
+        //             resp.status()
+        //         );
+        //         Ok(())
+        //     }
+        //     Err(virtio_drivers::Error::QueueFull) => self.read_block(block_id, buf),
+        //     Err(_) => Err(LinuxErrno::EIO.into()),
+        // }
+    }
+
+    fn write_block_async(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+        return self.write_block(block_id, buf);
+        // let task = shim::take_current_task();
+        // if task.is_none() {
+        //     return self.write_block(block_id, buf);
+        // }
+        // let task = task.unwrap();
+        // let mut resp = BlkResp::default();
+        // let mut req = BlkReq::default();
+        //
+        // let mut device = self.device.lock();
+        //
+        // let token = unsafe { device.write_block_nb(block_id, &mut req, buf, &mut resp) };
+        // match token {
+        //     Ok(token) => {
+        //         task.to_wait();
+        //         self.wait_queue.lock().insert(token, task.clone());
+        //         drop(device);
+        //         shim::schedule_now(task);
+        //         unsafe {
+        //             self.device
+        //                 .lock()
+        //                 .complete_write_block(token, &req, buf, &mut resp)
+        //                 .unwrap();
+        //         }
+        //         assert_eq!(
+        //             resp.status(),
+        //             RespStatus::OK,
+        //             "Error {:?} writing block.",
+        //             resp.status()
+        //         );
+        //         Ok(())
+        //     }
+        //     Err(virtio_drivers::Error::QueueFull) => self.write_block(block_id, buf),
+        //     Err(_) => Err(LinuxErrno::EIO.into()),
+        // }
+    }
+
+    fn handle_irq(&self) {
+        let mut device = self.device.lock();
+        device.ack_interrupt();
+        if let Some(token) = device.peek_used() {
+            let mut wait_queue = self.wait_queue.lock();
+            let task = wait_queue.remove(&token).unwrap();
+            task.to_wakeup();
+            shim::put_task(task);
+        }
     }
 }
 
 pub struct MemoryFat32Img {
-    data: &'static mut [u8],
+    data: RwLock<&'static mut [u8]>,
 }
 
 impl LowBlockDevice for MemoryFat32Img {
-    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+    fn read_block(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
         let start = block_id * 512;
         let end = start + 512;
-        buf.copy_from_slice(&self.data[start..end]);
+        buf.copy_from_slice(&self.data.read()[start..end]);
         Ok(())
     }
-    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+    fn write_block(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
         let start = block_id * 512;
         let end = start + 512;
-        self.data[start..end].copy_from_slice(buf);
+        self.data.write()[start..end].copy_from_slice(buf);
         Ok(())
+    }
+    fn capacity(&self) -> usize {
+        self.data.read().len() / 512
+    }
+    fn read_block_async(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+        self.read_block(block_id, buf)
     }
 
-    fn capacity(&self) -> usize {
-        self.data.len() / 512
+    fn write_block_async(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+        self.write_block(block_id, buf)
     }
+    fn handle_irq(&self) {}
 }
 
 impl MemoryFat32Img {
     pub fn new(data: &'static mut [u8]) -> Self {
-        Self { data }
+        Self {
+            data: RwLock::new(data),
+        }
     }
 }
 
-pub use visionfive2_sd::Vf2SdDriver;
 pub struct VF2SDDriver {
     driver: Vf2SdDriver,
 }
@@ -278,19 +382,28 @@ impl VF2SDDriver {
 }
 
 impl LowBlockDevice for VF2SDDriver {
-    fn read_block(&mut self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+    fn read_block(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
         self.driver.read_block(block_id, buf);
         Ok(())
     }
 
-    fn write_block(&mut self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+    fn write_block(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
         self.driver.write_block(block_id, buf);
         Ok(())
     }
-
     fn capacity(&self) -> usize {
         // unimplemented!()
         // 32GB
         32 * 1024 * 1024 * 1024 / 512
+    }
+    fn read_block_async(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
+        self.read_block(block_id, buf)
+    }
+
+    fn write_block_async(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
+        self.write_block(block_id, buf)
+    }
+    fn handle_irq(&self) {
+        unimplemented!()
     }
 }
