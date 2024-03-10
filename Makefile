@@ -17,7 +17,9 @@ endif
 
 
 
+
 domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu
+
 
 all:run
 

@@ -19,11 +19,10 @@ impl VirtIoGpu {
             .expect("failed to create gpu driver");
         Self { gpu }
     }
-    
+
     pub fn flush(&mut self) -> Result<(), virtio_drivers::Error> {
         self.gpu.flush()
     }
-    
 }
 
 // Same code to other crates. Will be deleted so simply pasted here.
