@@ -2,7 +2,7 @@
 extern crate alloc;
 extern crate malloc;
 
-use interface::{Basic, DeviceBase, GpuDomain};
+use interface::{Basic, DeviceBase, GpuDomain, DeviceInfo};
 use rref::{RRef, RRefVec, RpcError, RpcResult};
 use virtio_gpu::VirtIoGpu;
 use ksync::Mutex;
@@ -52,7 +52,19 @@ impl GpuDomain for GPUDomain {
 }
 
 pub fn main() -> Arc<dyn GpuDomain> {
-    let virtio_gpu_addr = libsyscall::get_device_space(libsyscall::DeviceType::Gpu).unwrap();
+    let devices_domain = libsyscall::get_devices_domain().unwrap();
+    let name = RRefVec::from_slice("virtio-mmio-gpu".as_bytes());
+
+    let info = RRef::new(DeviceInfo {
+        address_range: Default::default(),
+        irq: RRef::new(0),
+        compatible: RRefVec::new(0, 64),
+    });
+
+    let info = devices_domain.get_device(name, info).unwrap();
+
+    let virtio_gpu_addr = &info.address_range;
+
     libsyscall::println!("virtio_gpu_addr: {:#x?}", virtio_gpu_addr);
     Arc::new(GPUDomain::new(virtio_gpu_addr.start))
 }
