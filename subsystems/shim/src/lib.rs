@@ -16,9 +16,11 @@ pub trait KTask: Send + Sync + DowncastSync {
 impl_downcast!(sync KTask);
 
 pub trait KTaskShim: Send + Sync {
-    fn get_task(&self) -> Arc<dyn KTask>;
+    fn take_current_task(&self) -> Option<Arc<dyn KTask>>;
+    fn current_task(&self) -> Option<Arc<dyn KTask>>;
     fn put_task(&self, task: Arc<dyn KTask>);
     fn suspend(&self);
+    fn schedule_now(&self, task: Arc<dyn KTask>);
     fn transfer_ptr_raw(&self, ptr: usize) -> usize;
     fn transfer_buf_raw(&self, src: usize, size: usize) -> Vec<&mut [u8]>;
 }
@@ -79,11 +81,25 @@ pub fn register_task_func(task_shim: Box<dyn KTaskShim>) {
 
 #[cfg(feature = "lib")]
 /// Get the current task.
-pub fn current_task() -> Arc<dyn KTask> {
+pub fn take_current_task() -> Option<Arc<dyn KTask>> {
     KTASK_SHIM
         .get()
         .expect("ktask_shim not initialized")
-        .get_task()
+        .take_current_task()
+}
+#[cfg(feature = "lib")]
+pub fn current_task() -> Option<Arc<dyn KTask>> {
+    KTASK_SHIM
+        .get()
+        .expect("ktask_shim not initialized")
+        .current_task()
+}
+#[cfg(feature = "lib")]
+pub fn suspend() {
+    KTASK_SHIM
+        .get()
+        .expect("ktask_shim not initialized")
+        .suspend()
 }
 #[cfg(feature = "lib")]
 /// Put the task back to the task queue.
@@ -95,11 +111,11 @@ pub fn put_task(task: Arc<dyn KTask>) {
 }
 #[cfg(feature = "lib")]
 /// Suspend the current task.
-pub fn suspend() {
+pub fn schedule_now(task: Arc<dyn KTask>) {
     KTASK_SHIM
         .get()
         .expect("ktask_shim not initialized")
-        .suspend();
+        .schedule_now(task);
 }
 #[cfg(feature = "lib")]
 pub fn copy_data_to_task<T: 'static + Copy>(src: *const T, dst: *mut T) {

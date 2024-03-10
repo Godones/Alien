@@ -11,7 +11,7 @@ pub use exception::trap_common_read_file;
 
 use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
 use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
-use crate::time::{check_timer_queue, set_next_trigger, set_next_trigger_in_kernel};
+use crate::time::{check_timer_queue, set_next_trigger_in_kernel};
 use ::interrupt::external_interrupt_handler;
 use ::interrupt::record_irq;
 use arch::{
@@ -41,7 +41,6 @@ extern "C" {
 /// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 pub fn trap_return() -> ! {
-    check_timer_interrupt_pending();
     signal_handler();
     interrupt_disable();
     set_user_trap_entry();
@@ -224,21 +223,6 @@ impl TrapHandler for Trap {
                 )
             }
         }
-        // check timer interrupt
-        check_timer_interrupt_pending();
-    }
-}
-
-/// 检查时钟中断是否被屏蔽
-pub fn check_timer_interrupt_pending() {
-    let sip = riscv::register::sip::read();
-    if sip.stimer() {
-        debug!("timer interrupt pending");
-        set_next_trigger();
-    }
-    let sie = riscv::register::sie::read();
-    if !sie.stimer() {
-        panic!("[check_timer_interrupt_pending] timer interrupt not enable");
     }
 }
 

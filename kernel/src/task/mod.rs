@@ -7,6 +7,7 @@
 //! [`stack`] 子模块定义了 Alien 中有关内核栈的相关结构。
 //! [`task`] 子模块定义了 Alien 中有关进程控制块的定义。
 use crate::fs::read_all;
+use crate::task::schedule::schedule_now;
 pub use crate::task::task::FsContext;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -37,13 +38,13 @@ pub static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
 /// 将初始进程加入进程池中进行调度
 pub fn init_task() {
     kthread::ktread_create(kthread_init, "kthread_test").unwrap();
+    let task = INIT_PROCESS.clone();
+    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
     println!("Init task success");
 }
 
 fn kthread_init() {
     println!("kthread_init start...");
-    let task = INIT_PROCESS.clone();
-    GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
     let mut time = get_time_ms();
     loop {
         let now = get_time_ms();
@@ -59,22 +60,23 @@ impl KTask for Task {
     fn to_wait(&self) {
         self.update_state(TaskState::Waiting)
     }
-
     fn to_wakeup(&self) {
         self.update_state(TaskState::Ready)
     }
-
     fn have_signal(&self) -> bool {
         self.access_inner().signal_receivers.lock().have_signal()
     }
 }
 pub struct DriverTaskImpl;
 impl KTaskShim for DriverTaskImpl {
-    fn get_task(&self) -> Arc<dyn KTask> {
-        let task = current_task().unwrap();
-        task.clone()
+    fn take_current_task(&self) -> Option<Arc<dyn KTask>> {
+        take_current_task().map(|t| t as Arc<dyn KTask>)
     }
 
+    fn current_task(&self) -> Option<Arc<dyn KTask>> {
+        let task = current_task();
+        task.map(|t| t.clone() as Arc<dyn KTask>)
+    }
     fn put_task(&self, task: Arc<dyn KTask>) {
         let task = task.downcast_arc::<Task>().map_err(|_| ()).unwrap();
         GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(task)));
@@ -83,6 +85,9 @@ impl KTaskShim for DriverTaskImpl {
         do_suspend();
     }
 
+    fn schedule_now(&self, task: Arc<dyn KTask>) {
+        schedule_now(task.downcast_arc::<Task>().map_err(|_| ()).unwrap());
+    }
     fn transfer_ptr_raw(&self, ptr: usize) -> usize {
         let task = current_task().unwrap();
         task.transfer_raw(ptr)

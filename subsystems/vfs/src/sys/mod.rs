@@ -1,11 +1,10 @@
 use crate::CommonFsProviderImpl;
 use alloc::sync::Arc;
 use dynfs::DynFsDirInode;
-use ksync::Mutex;
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 
-pub type SysFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;
+pub type SysFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, spin::Mutex<()>>;
 
 pub fn init_sysfs(sysfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
     let root_dt = sysfs.i_mount(0, "/sys", None, &[]).unwrap();

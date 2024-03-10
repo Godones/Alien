@@ -67,9 +67,9 @@ fn read_event() -> u64 {
         (kb, mouse)
     };
     if !keyboard.is_empty() {
-        keyboard.read_event_with_block()
+        keyboard.read_event_async()
     } else if !mouse.is_empty() {
-        mouse.read_event_with_block()
+        mouse.read_event_async()
     } else {
         0
     }

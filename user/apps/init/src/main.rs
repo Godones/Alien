@@ -14,17 +14,24 @@ fn main() -> isize {
         exec("/tests/bash\0", &[0 as *const u8], BASH_ENV);
         // exec("/bin/shell\0", &[0 as *const u8], BASH_ENV);
     } else {
-        loop {
-            let mut exit_code: i32 = 0;
-            let tid = wait(&mut exit_code);
-            if tid == -1 {
+        if fork() == 0 {
+            loop {
+                // println!("I'm a fake task, I'm running...");
                 m_yield();
-                continue;
             }
-            println!(
-                "[Init] Released a task, tid={}, exit_code={}",
-                tid, exit_code,
-            );
+        } else {
+            loop {
+                let mut exit_code: i32 = 0;
+                let tid = wait(&mut exit_code);
+                if tid == -1 {
+                    m_yield();
+                    continue;
+                }
+                println!(
+                    "[Init] Released a task, tid={}, exit_code={}",
+                    tid, exit_code,
+                );
+            }
         }
     }
     0

@@ -36,7 +36,7 @@ impl VfsFile for INPUTDevice {
             return Err(VfsError::Invalid);
         }
         let buf = unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u64, 1) };
-        let event = self.device.read_event_with_block();
+        let event = self.device.read_event_async();
         buf[0] = event;
         Ok(1)
     }
