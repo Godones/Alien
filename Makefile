@@ -16,7 +16,7 @@ endif
 
 
 
-domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt
+domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt ggpu
 
 all:run
 
