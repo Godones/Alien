@@ -7,7 +7,8 @@ SMP ?= 1
 MEMORY_SIZE := 1024M
 LOG ?=INFO
 
-QEMU_ARGS += -nographic
+# QEMU_ARGS += -nographic
+QEMU_ARGS += -device virtio-gpu-device
 ifeq ($(NET),y)
 QEMU_ARGS += -device virtio-net-device,netdev=net0 \
 			 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
@@ -69,6 +70,8 @@ gdb-server: domains build img
 gdb-client:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
-
+clean:
+	rm -rf target/
+	rm build/*.bin
 
 .PHONY:build domains gdb-client gdb-server img

@@ -168,9 +168,9 @@ pub fn load_domains() {
     let vfs = vfs_domain();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs));
 
-    // info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
-    // let gpu = gpu_domain();
-    // domain_helper::register_domain("gpu", DomainType::GpuDomain(gpu));
+    info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
+    let gpu = gpu_domain();
+    domain_helper::register_domain("gpu", DomainType::GpuDomain(gpu));
 
     platform::println!("Load domains done");
 }
