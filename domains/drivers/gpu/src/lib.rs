@@ -54,7 +54,7 @@ impl GpuDomain for GPUDomain {
         }
     }
 
-    fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> RpcResult<usize> {
+    fn fill(&self, _offset: u32, _buf: &RRefVec<u8>) -> RpcResult<usize> {
         todo!()
     }
 }

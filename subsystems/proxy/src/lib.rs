@@ -428,3 +428,54 @@ impl Basic for GpuDomainProxy {
         self.domain.is_active()
     }
 }
+
+
+#[derive(Debug)]
+pub struct UartDomainProxy {
+    id: u64,
+    domain: Arc<dyn UartDomain>,
+}
+
+impl UartDomainProxy {
+    pub fn new(id: u64, domain: Arc<dyn UartDomain>) -> Self {
+        Self { id, domain }
+    }
+}
+
+impl UartDomain for UartDomainProxy {
+    fn putc(&self, ch: u8) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.putc(ch)
+    }
+
+    fn getc(&self) -> RpcResult<Option<u8>> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.getc()
+    }
+
+    fn have_data_to_get(&self) -> RpcResult<bool> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.have_data_to_get()
+    }
+}
+
+impl DeviceBase for UartDomainProxy {
+    fn handle_irq(&self) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.handle_irq()
+    }
+}
+
+impl Basic for UartDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
