@@ -24,7 +24,7 @@ fn main(
     libsyscall::init(sys, ktask_shim);
     // activate the domain
     interface::activate_domain();
-    // call the real uart driver
+    // call the real domain
     devices::main()
 }
 

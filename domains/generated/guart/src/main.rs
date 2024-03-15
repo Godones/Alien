@@ -1,11 +1,11 @@
 #![no_std]
+#![no_main]
 #![feature(panic_info_message)]
 
 extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::ops::Range;
 use core::panic::PanicInfo;
 use interface::UartDomain;
 use libsyscall::{KTaskShim, Syscall};

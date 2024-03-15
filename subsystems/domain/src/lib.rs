@@ -32,6 +32,7 @@ mod macros {
         }};
     }
 }
+static UART_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/guart_domain.bin");
 static GPU_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/ggpu_domain.bin");
 static BLK_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/gblk_domain.bin");
 static FATFS_DOMAIN: &'static [u8] =
@@ -56,6 +57,14 @@ fn fatfs_domain() -> Arc<dyn FsDomain> {
     let id = alloc_domain_id();
     let fatfs = domain.call(id);
     Arc::new(FsDomainProxy::new(id, fatfs))
+}
+
+fn uart_domain() -> Arc<dyn UartDomain> {
+    let mut domain = DomainLoader::new(UART_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let uart: Arc<dyn UartDomain> = domain.call(id);
+    Arc::new(UartDomainProxy::new(id, uart))
 }
 
 fn gpu_domain() -> Arc<dyn GpuDomain> {
@@ -171,6 +180,27 @@ pub fn load_domains() {
     info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
     let gpu = gpu_domain();
     domain_helper::register_domain("gpu", DomainType::GpuDomain(gpu));
+
+    info!("Loading uart domain, size: {}KB", UART_DOMAIN.len() / 1024);
+    let uart = uart_domain();
+    domain_helper::register_domain("uart", DomainType::UartDomain(uart));
+
+    // test uart output
+    let uart = domain_helper::query_domain("uart").unwrap();
+    let uart = match uart {
+        DomainType::UartDomain(u) => u,
+        _ => panic!(),
+    };
+    uart.putc('T' as u8);
+    uart.putc('E' as u8);
+    uart.putc('S' as u8);
+    uart.putc('T' as u8);
+    uart.putc(' ' as u8);
+    uart.putc('U' as u8);
+    uart.putc('A' as u8);
+    uart.putc('R' as u8);
+    uart.putc('T' as u8);
+    uart.putc('\n' as u8);
 
     platform::println!("Load domains done");
 }

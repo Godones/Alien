@@ -73,12 +73,12 @@ impl VfsFile for UARTDevice {
     fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
         let mut res = VfsPollEvents::empty();
         if event.contains(VfsPollEvents::IN) {
-            if self.device.have_data_to_get() {
+            if self.device.have_data_to_get().unwrap() {
                 res |= VfsPollEvents::IN;
             }
         }
         if event.contains(VfsPollEvents::OUT) {
-            if self.device.have_space_to_put() {
+            if self.device.have_space_to_put().unwrap() {
                 res |= VfsPollEvents::OUT
             }
         }
