@@ -6,12 +6,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config = { path = "../subsystems/config" }
-arch = { path = "../subsystems/arch" }
-platform = { path = "../subsystems/platform" }
-mem = { path = "../subsystems/mem" }
-domain = { path = "../subsystems/domain" }
+log = "0"
+ksync = { path = "../tcb/ksync" }
+kcore = { path = "../tcb/kcore" }
+platform = { path = "../tcb/platform" }
+mem = { path = "../tcb/mem" }
+arch = { path = "../tcb/arch" }
+timer = { path = "../tcb/timer" }
 
+
+domain-helper = { path = "../tcb/domain-helper" }
+domain-loader = { path = "../tcb/domain-loader" }
+proxy = { path = "../tcb/proxy" }
+interface = { path = "../domain-tools/interface" }
 
 
 [features]

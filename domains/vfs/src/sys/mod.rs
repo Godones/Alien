@@ -1,4 +1,4 @@
-use crate::CommonFsProviderImpl;
+use crate::tree::CommonFsProviderImpl;
 use alloc::sync::Arc;
 use dynfs::DynFsDirInode;
 use ksync::Mutex;

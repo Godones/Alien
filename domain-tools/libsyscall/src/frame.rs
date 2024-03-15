@@ -11,6 +11,14 @@ impl FrameTracker {
     pub fn new(ptr: usize, count: usize) -> Self {
         Self { ptr, count }
     }
+
+    pub fn end(&self) -> usize {
+        self.ptr + self.count * FRAME_SIZE
+    }
+
+    pub fn start(&self) -> usize {
+        self.ptr
+    }
 }
 
 impl Deref for FrameTracker {

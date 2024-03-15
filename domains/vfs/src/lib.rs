@@ -1,152 +1,49 @@
 #![no_std]
-#![deny(unsafe_code)]
+// #![deny(unsafe_code)]
 extern crate alloc;
 extern crate malloc;
-use crate::devfs::DevFsProviderImpl;
+
+use crate::kfile::{File, KernelFile};
+use crate::tree::system_root_fs;
 use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use core::ops::Index;
-use dynfs::DynFsKernelProvider;
-use interface::{Basic, VfsDomain};
-use ksync::Mutex;
-use spin::{Lazy, Once};
+use constants::io::{FileStat, OpenFlags};
+use constants::AlienError;
+use core::sync::atomic::AtomicU64;
+use interface::{Basic, InodeId, VfsDomain};
+use ksync::RwLock;
+use log::info;
+use rref::{RRef, RRefVec, RpcError, RpcResult};
 use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
 use vfscore::path::VfsPath;
-use vfscore::utils::VfsTimeSpec;
-use vfscore::VfsResult;
+use vfscore::utils::VfsInodeMode;
 
 mod devfs;
+mod kfile;
 mod pipefs;
 mod procfs;
 mod ramfs;
 mod sys;
+mod tree;
 
-type SysFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
-type ProcFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
-type TmpFs = ::ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
-type RamFs = ::ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
-type DevFs = ::devfs::DevFs<DevFsProviderImpl, Mutex<()>>;
-type PipeFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
-type DiskFs = fat_vfs::FatFs<CommonFsProviderImpl, Mutex<()>>;
-#[derive(Clone)]
-pub struct CommonFsProviderImpl;
+static VFS_MAP: RwLock<BTreeMap<InodeId, Arc<KernelFile>>> = RwLock::new(BTreeMap::new());
+static INODE_ID: AtomicU64 = AtomicU64::new(4);
 
-impl DynFsKernelProvider for CommonFsProviderImpl {
-    fn current_time(&self) -> VfsTimeSpec {
-        VfsTimeSpec::new(0, 0)
-    }
+fn alloc_inode_id() -> InodeId {
+    INODE_ID.fetch_add(1, core::sync::atomic::Ordering::SeqCst)
 }
 
-impl ::ramfs::RamFsProvider for CommonFsProviderImpl {
-    fn current_time(&self) -> VfsTimeSpec {
-        DynFsKernelProvider::current_time(self)
-    }
+fn insert_dentry(inode: InodeId, dentry: Arc<dyn VfsDentry>, open_flags: OpenFlags) {
+    let file = KernelFile::new(dentry.clone(), open_flags);
+    VFS_MAP.write().insert(inode, Arc::new(file));
 }
 
-impl fat_vfs::FatFsProvider for CommonFsProviderImpl {
-    fn current_time(&self) -> VfsTimeSpec {
-        DynFsKernelProvider::current_time(self)
-    }
+fn remove_dentry(inode: InodeId) {
+    VFS_MAP.write().remove(&inode);
 }
 
-pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsFsType>>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
-
-static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDentry>> = Once::new();
-
-fn register_all_fs() {
-    let procfs = Arc::new(ProcFs::new(CommonFsProviderImpl, "procfs"));
-    let sysfs = Arc::new(SysFs::new(CommonFsProviderImpl, "sysfs"));
-    let ramfs = Arc::new(RamFs::new(CommonFsProviderImpl));
-    let devfs = Arc::new(DevFs::new(DevFsProviderImpl));
-    let tmpfs = Arc::new(TmpFs::new(CommonFsProviderImpl));
-    let pipefs = Arc::new(PipeFs::new(CommonFsProviderImpl, "pipefs"));
-    let diskfs = Arc::new(DiskFs::new(CommonFsProviderImpl));
-
-    FS.lock().insert("procfs".to_string(), procfs);
-    FS.lock().insert("sysfs".to_string(), sysfs);
-    FS.lock().insert("ramfs".to_string(), ramfs);
-    FS.lock().insert("devfs".to_string(), devfs);
-    FS.lock().insert("tmpfs".to_string(), tmpfs);
-    FS.lock().insert("pipefs".to_string(), pipefs);
-    FS.lock().insert("diskfs".to_string(), diskfs);
-
-    libsyscall::println!("register fs success");
-}
-
-/// Init the filesystem
-pub fn init_filesystem() -> VfsResult<()> {
-    register_all_fs();
-    let ramfs_root = ramfs::init_ramfs(FS.lock().index("ramfs").clone());
-    let procfs = FS.lock().index("procfs").clone();
-    let procfs_root = procfs::init_procfs(procfs);
-    let devfs_root = devfs::init_devfs(FS.lock().index("devfs").clone());
-    let sysfs_root = sys::init_sysfs(FS.lock().index("sysfs").clone());
-    let tmpfs_root = FS
-        .lock()
-        .index("tmpfs")
-        .clone()
-        .i_mount(0, "/tmp", None, &[])?;
-
-    pipefs::init_pipefs(FS.lock().index("pipefs").clone());
-
-    let path = VfsPath::new(ramfs_root.clone(), ramfs_root.clone());
-    path.join("proc")?.mount(procfs_root, 0)?;
-    path.join("sys")?.mount(sysfs_root, 0)?;
-    path.join("dev")?.mount(devfs_root, 0)?;
-    path.join("tmp")?.mount(tmpfs_root.clone(), 0)?;
-
-    let shm_ramfs = FS
-        .lock()
-        .index("ramfs")
-        .clone()
-        .i_mount(0, "/dev/shm", None, &[])?;
-    path.join("dev/shm")?.mount(shm_ramfs, 0)?;
-
-    let diskfs = FS.lock().index("diskfs").clone();
-    let blk_inode = path
-        .join("/dev/sda")?
-        .open(None)
-        .expect("open /dev/sda failed")
-        .inode()?;
-    let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
-    path.join("tests")?.mount(diskfs_root, 0)?;
-    libsyscall::println!("Vfs Tree:");
-    vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), true).unwrap();
-
-    // initrd::populate_initrd(ramfs_root.clone())?;
-
-    SYSTEM_ROOT_FS.call_once(|| ramfs_root);
-    libsyscall::println!("Init filesystem success");
-    Ok(())
-}
-
-struct VfsOutPut;
-impl core::fmt::Write for VfsOutPut {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        libsyscall::write_console(s);
-        Ok(())
-    }
-}
-
-/// Get the root filesystem of the system
-#[inline]
-pub fn system_root_fs() -> Arc<dyn VfsDentry> {
-    SYSTEM_ROOT_FS.get().unwrap().clone()
-}
-
-/// Get the filesystem by name
-#[inline]
-pub fn system_support_fs(fs_name: &str) -> Option<Arc<dyn VfsFsType>> {
-    FS.lock().iter().find_map(|(name, fs)| {
-        if name == fs_name {
-            Some(fs.clone())
-        } else {
-            None
-        }
-    })
+fn get_dentry(inode: InodeId) -> Option<Arc<dyn VfsDentry>> {
+    VFS_MAP.read().get(&inode).map(|f| f.dentry())
 }
 
 #[derive(Debug)]
@@ -154,9 +51,79 @@ struct VfsDomainImpl;
 
 impl Basic for VfsDomainImpl {}
 
-impl VfsDomain for VfsDomainImpl {}
+impl VfsDomain for VfsDomainImpl {
+    fn vfs_open(
+        &self,
+        root: InodeId,
+        path: &RRefVec<u8>,
+        mode: u32,
+        open_flags: usize,
+    ) -> RpcResult<InodeId> {
+        let start = get_dentry(root).ok_or(RpcError::Alien(AlienError::EINVAL))?;
+        let root = system_root_fs();
+        let path = core::str::from_utf8(path.as_slice()).unwrap();
+        let mode = if mode == 0 {
+            None
+        } else {
+            Some(VfsInodeMode::from_bits_truncate(mode))
+        };
+
+        info!("vfs_open:  path: {:?}, mode: {:?}", path, mode);
+        let open_flags = OpenFlags::from_bits_truncate(open_flags);
+        let path = VfsPath::new(root, start)
+            .join(path)
+            .map_err(|e| AlienError::from(e))?
+            .open(mode)
+            .map_err(|e| AlienError::from(e))?;
+        let id = alloc_inode_id();
+        insert_dentry(id, path, open_flags);
+        Ok(id)
+    }
+
+    fn vfs_getattr(&self, inode: InodeId, mut attr: RRef<FileStat>) -> RpcResult<RRef<FileStat>> {
+        let dentry = get_dentry(inode).unwrap();
+        let vfs_attr = dentry
+            .inode()
+            .map_err(|e| AlienError::from(e))?
+            .get_attr()
+            .map_err(|e| AlienError::from(e))?;
+        let mut file_attr = FileStat::default();
+        file_attr.st_dev = vfs_attr.st_dev;
+        file_attr.st_ino = vfs_attr.st_ino;
+        file_attr.st_mode = vfs_attr.st_mode;
+        file_attr.st_nlink = vfs_attr.st_nlink;
+        file_attr.st_uid = vfs_attr.st_uid;
+        file_attr.st_gid = vfs_attr.st_gid;
+        file_attr.st_rdev = vfs_attr.st_rdev;
+        file_attr.st_size = vfs_attr.st_size;
+        file_attr.st_blksize = vfs_attr.st_blksize;
+        file_attr.st_blocks = vfs_attr.st_blocks;
+        file_attr.st_atime_sec = vfs_attr.st_atime.sec;
+        file_attr.st_atime_nsec = vfs_attr.st_atime.nsec;
+        file_attr.st_mtime_sec = vfs_attr.st_mtime.sec;
+        file_attr.st_mtime_nsec = vfs_attr.st_mtime.nsec;
+        file_attr.st_ctime_sec = vfs_attr.st_ctime.sec;
+        file_attr.st_ctime_nsec = vfs_attr.st_ctime.nsec;
+        *attr = file_attr;
+        Ok(attr)
+    }
+    fn vfs_read_at(
+        &self,
+        inode: InodeId,
+        offset: u64,
+        mut buf: RRefVec<u8>,
+    ) -> RpcResult<(RRefVec<u8>, usize)> {
+        let dentry = get_dentry(inode).unwrap();
+        let res = dentry
+            .inode()
+            .map_err(|e| AlienError::from(e))?
+            .read_at(offset, buf.as_mut_slice())
+            .map_err(|e| AlienError::from(e))?;
+        Ok((buf, res))
+    }
+}
 
 pub fn main() -> Arc<dyn VfsDomain> {
-    init_filesystem().unwrap();
+    tree::init_filesystem().unwrap();
     Arc::new(VfsDomainImpl)
 }

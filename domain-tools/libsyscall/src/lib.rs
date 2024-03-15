@@ -8,6 +8,11 @@ mod frame;
 #[cfg(feature = "domain")]
 mod logging;
 
+#[cfg(feature = "domain")]
+pub mod task;
+#[cfg(feature = "domain")]
+pub mod trap;
+
 extern crate alloc;
 
 use alloc::sync::Arc;
@@ -94,7 +99,6 @@ pub trait Syscall: Send + Sync {
     fn sys_free_pages(&self, domain_id: u64, p: *mut u8, n: usize);
     fn sys_write_console(&self, s: &str);
     fn sys_backtrace(&self, domain_id: u64);
-    fn sys_read_timer(&self) -> u64;
     fn check_kernel_space(&self, start: usize, size: usize) -> bool;
     fn sys_get_blk_domain(&self) -> Option<Arc<dyn interface::BlkDeviceDomain>>;
     fn sys_get_shadow_blk_domain(&self) -> Option<Arc<dyn interface::BlkDeviceDomain>>;
@@ -104,10 +108,16 @@ pub trait Syscall: Send + Sync {
     fn sys_get_rtc_domain(&self) -> Option<Arc<dyn interface::RtcDomain>>;
     fn sys_get_cache_blk_domain(&self) -> Option<Arc<dyn interface::CacheBlkDeviceDomain>>;
     fn sys_get_devices_domain(&self) -> Option<Arc<dyn interface::DevicesDomain>>;
+    fn sys_get_vfs_domain(&self) -> Option<Arc<dyn interface::VfsDomain>>;
     /// This func will be deleted
     fn blk_crash_trick(&self) -> bool;
-
     fn sys_get_dtb(&self) -> &'static [u8];
+    fn sys_switch_task(&self, now: *mut TaskContext, next: *const TaskContext);
+    fn sys_trampoline_addr(&self) -> usize;
+    fn sys_kernel_satp(&self) -> usize;
+    fn sys_trap_from_user(&self) -> usize;
+    fn sys_trap_to_user(&self) -> usize;
+    fn sys_read_timer_ms(&self) -> u64;
 }
 #[cfg(feature = "domain")]
 mod __impl {
@@ -115,6 +125,7 @@ mod __impl {
     use crate::{logging, KTask, KTaskShim, Syscall};
     use alloc::boxed::Box;
     use alloc::sync::Arc;
+    use context::TaskContext;
     use rref::domain_id;
     use spin::Once;
 
@@ -258,12 +269,6 @@ mod __impl {
             .expect("syscall not initialized")
             .sys_get_input_domain(ty)
     }
-    pub fn read_timer() -> u64 {
-        SYSCALL
-            .get()
-            .expect("syscall not initialized")
-            .sys_read_timer()
-    }
     pub fn get_rtc_domain() -> Option<Arc<dyn interface::RtcDomain>> {
         SYSCALL
             .get()
@@ -285,6 +290,13 @@ mod __impl {
             .sys_get_devices_domain()
     }
 
+    pub fn get_vfs_domain() -> Option<Arc<dyn interface::VfsDomain>> {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_get_vfs_domain()
+    }
+
     // todo!(delete)
     pub fn blk_crash_trick() -> bool {
         SYSCALL
@@ -299,7 +311,50 @@ mod __impl {
             .expect("syscall not initialized")
             .sys_get_dtb()
     }
+
+    pub fn trampoline_addr() -> usize {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_trampoline_addr()
+    }
+
+    pub fn kernel_satp() -> usize {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_kernel_satp()
+    }
+
+    pub fn trap_from_user() -> usize {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_trap_from_user()
+    }
+
+    pub fn trap_to_user() -> usize {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_trap_to_user()
+    }
+
+    pub fn switch_task(now: *mut TaskContext, next: *const TaskContext) {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_switch_task(now, next)
+    }
+
+    pub fn get_time_ms() -> u64 {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_read_timer_ms()
+    }
 }
 
 #[cfg(feature = "domain")]
 pub use __impl::*;
+use context::TaskContext;

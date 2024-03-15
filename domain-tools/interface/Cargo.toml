@@ -7,10 +7,10 @@ edition = "2021"
 
 [dependencies]
 rref = { path = "../rref" }
-
+constants = { path = "../../tcb/constants" }
 
 [features]
-default = ["blk","fs","uart","gpu","input","vfs", "rtc", "cache_blk","plic", "devices"]
+default = ["blk","fs","uart","gpu","input","vfs", "rtc", "cache_blk","plic", "devices", "task"]
 domain = []
 blk = []
 cache_blk = []
@@ -22,3 +22,4 @@ vfs = []
 rtc = []
 plic = []
 devices = []
+task = []

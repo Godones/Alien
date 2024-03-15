@@ -166,7 +166,6 @@ pub const MAX_BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 
 pub fn main() -> Arc<dyn CacheBlkDeviceDomain> {
     let blk = libsyscall::get_shadow_blk_domain().unwrap();
-    libsyscall::println!("xxxxx");
     info!(
         "max_cache_frames: {}, blk size: {}MB",
         MAX_BLOCK_CACHE_FRAMES,

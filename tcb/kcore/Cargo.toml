@@ -1,0 +1,21 @@
+[package]
+name = "kcore"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+config = { path = "../config" }
+arch = { path = "../arch" }
+context = { path = "../../safe-crates/context" }
+platform = { path = "../platform" }
+constants = { path = "../constants" }
+timer = { path = "../timer" }
+
+interface = { path = "../../domain-tools/interface" }
+
+riscv = "0"
+spin = "0"
+log = "0"
+bit_field = "0.10"

@@ -6,8 +6,18 @@ IMG := /tmp/fat32.img
 SMP ?= 1
 MEMORY_SIZE := 1024M
 LOG ?=INFO
+GUI ?=n
 
-# QEMU_ARGS += -nographic
+
+
+QEMU_ARGS += -nographic
+
+ifeq ($(GUI),y)
+	QEMU_ARGS += -device virtio-gpu-device
+else
+	QEMU_ARGS += -nographic
+endif
+
 QEMU_ARGS += -device virtio-gpu-device
 ifeq ($(NET),y)
 QEMU_ARGS += -device virtio-net-device,netdev=net0 \
@@ -18,7 +28,7 @@ endif
 
 
 
-domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart
+domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask
 
 
 all:run

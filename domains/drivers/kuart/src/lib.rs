@@ -73,8 +73,6 @@ impl UartDomain for Uart {
         loop {
             let mut inner = self.inner.lock();
             if inner.1.rx_buf.is_empty() {
-                // let current_process = current_task().unwrap();
-                // current_process.update_state(TaskState::Waiting);
                 let task = libsyscall::current_task();
                 task.to_wait();
                 inner.1.wait_queue.push_back(task);

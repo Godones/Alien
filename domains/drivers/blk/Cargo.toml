@@ -11,7 +11,7 @@ interface = { path = "../../../domain-tools/interface", default-features = false
 rref = { path = "../../../domain-tools/rref" }
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers"}
 libsyscall = { path = "../../../domain-tools/libsyscall", features = ["domain"] }
-ksync = { path = "../../../subsystems/ksync" }
+ksync = { path = "../../../tcb/ksync" }
 
 
 log = "0"

@@ -3,7 +3,7 @@ mod interrupt;
 mod mem;
 mod mounts;
 
-use crate::{CommonFsProviderImpl, FS};
+use crate::tree::{CommonFsProviderImpl, FS};
 use alloc::sync::Arc;
 use core::ops::Index;
 use dynfs::DynFsDirInode;
@@ -16,6 +16,7 @@ use vfscore::dentry::VfsDentry;
 use vfscore::error::VfsError;
 use vfscore::fstype::VfsFsType;
 use vfscore::path::VfsPath;
+
 pub type ProcFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;
 
 ///

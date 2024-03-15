@@ -6,16 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ksync = { path = "../../subsystems/ksync" }
-libsyscall = { path = "../../domain-tools/libsyscall",features = ["domain"] }
+libsyscall = { path = "../../domain-tools/libsyscall" }
+interface = { path = "../../domain-tools/interface", default-features = false, features = ["task", "vfs"]}
 rref = { path = "../../domain-tools/rref" }
-interface = { path = "../../domain-tools/interface" }
-malloc = { path = "../../domain-tools/malloc" }
 
-config = { path = "../../subsystems/config" }
-arch = { path = "../../subsystems/arch" }
-constants = { path = "../../subsystems/constants" }
-
-smpscheduler = { git = "https://github.com/os-module/smpscheduler.git" }
+small-index = { git = "https://github.com/os-module/small-index" }
 spin = "0"
+ksync = { path = "../../tcb/ksync" }
+config = { path = "../../tcb/config" }
+ptable = { path = "../../safe-crates/ptable" }
+context = { path = "../../safe-crates/context" }
+constants = { path = "../../tcb/constants" }
+
+
+# now we trust the elf loader
+xmas-elf = "0.9"
+
 log = "0"

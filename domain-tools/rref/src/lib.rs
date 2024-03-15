@@ -81,6 +81,15 @@ impl From<AlienError> for RpcError {
     }
 }
 
+impl Into<AlienError> for RpcError {
+    fn into(self) -> AlienError {
+        match self {
+            RpcError::DomainCrash => AlienError::ETMP,
+            RpcError::Alien(e) => e,
+        }
+    }
+}
+
 impl Display for RpcError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {

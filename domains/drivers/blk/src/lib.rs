@@ -35,8 +35,10 @@ impl VirtIOBlkDomain {
         let header = NonNull::new(virtio_blk_addr as *mut VirtIOHeader).unwrap();
         let transport = unsafe { MmioTransport::new(header) }.unwrap();
         Self {
-            device: Arc::new(Mutex::new(VirtIOBlk::<HalImpl, MmioTransport>::new(transport)
-            .expect("failed to create blk driver"))),
+            device: Arc::new(Mutex::new(
+                VirtIOBlk::<HalImpl, MmioTransport>::new(transport)
+                    .expect("failed to create blk driver"),
+            )),
         }
     }
 }

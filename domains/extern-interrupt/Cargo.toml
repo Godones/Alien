@@ -13,8 +13,8 @@ libsyscall = { path = "../../domain-tools/libsyscall",features = ["domain"] }
 
 
 # use arch in domain?
-arch = { path = "../../subsystems/arch" }
-config = { path = "../../subsystems/config" }
+arch = { path = "../../tcb/arch" }
+config = { path = "../../tcb/config" }
 region = { path = "../../domain-tools/safety-abstraction/region" }
 plic = { path = "../../safe-crates/plic" }
-ksync = { path = "../../subsystems/ksync" }
+ksync = { path = "../../tcb/ksync" }

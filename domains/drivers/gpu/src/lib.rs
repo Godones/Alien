@@ -27,7 +27,10 @@ impl GPUDomain {
         let header = NonNull::new(virtio_gpu_addr as *mut VirtIOHeader).unwrap();
         let transport = unsafe { MmioTransport::new(header) }.unwrap();
         Self {
-            gpu: Arc::new(Mutex::new(VirtIOGpu::<HalImpl, MmioTransport>::new(transport).expect("failed to create gpu driver"))),
+            gpu: Arc::new(Mutex::new(
+                VirtIOGpu::<HalImpl, MmioTransport>::new(transport)
+                    .expect("failed to create gpu driver"),
+            )),
         }
     }
 }

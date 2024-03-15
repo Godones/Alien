@@ -9,6 +9,6 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface", default-features = false, features = ["gpu","domain"] }
 rref = { path = "../../../domain-tools/rref" }
 libsyscall = { path = "../../../domain-tools/libsyscall", features = ["domain"] }
-ksync = { path = "../../../subsystems/ksync" }
+ksync = { path = "../../../tcb/ksync" }
 malloc = { path = "../../../domain-tools/malloc" }
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}

@@ -5,8 +5,9 @@ use spin::Once;
 use vfscore::dentry::VfsDentry;
 use vfscore::fstype::VfsFsType;
 
-use crate::CommonFsProviderImpl;
+use crate::tree::CommonFsProviderImpl;
 use ksync::Mutex;
+
 #[allow(unused)]
 type PipeFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;
 pub static PIPE_FS_ROOT: Once<Arc<dyn VfsDentry>> = Once::new();

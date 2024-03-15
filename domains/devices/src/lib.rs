@@ -115,7 +115,7 @@ pub fn main() -> Arc<dyn DevicesDomain> {
             domain.push(ty);
         }
     }
-    println!("{:#x?}", domain);
+    // println!("{:#x?}", domain);
     println!("Probe {} devices.", domain.devices_count());
     Arc::new(domain)
 }

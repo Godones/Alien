@@ -13,7 +13,6 @@ pub struct Uart16550 {
 }
 
 impl Uart16550 {
-    
     /*
     https://caro.su/msx/ocm_de1/16550.pdf
     Address	Register	Access Type	Reset Value Description
@@ -26,7 +25,7 @@ impl Uart16550 {
     0x05	    LSR	        Read only	0x60	    Information about state of the UART. After the UART is reset, 0x60 indicates when it is ready to transmit data.
         0 =1 RHR ready to receive
         5 =1 THR empty to transmit
-    */    
+    */
 
     pub fn new(uart_addr: usize, size: usize) -> Self {
         let res = Self {
@@ -65,8 +64,7 @@ impl UartDomain for Uart16550 {
         if (lsr & 1) == 1 {
             // read
             Ok(Some(self.region.read_at::<u8>(0).unwrap()))
-        }
-        else {
+        } else {
             Ok(None)
         }
         // read from RHR

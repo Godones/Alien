@@ -5,6 +5,8 @@ mod panic;
 
 #[macro_use]
 extern crate platform;
+extern crate alloc;
+mod domain;
 
 use core::hint::spin_loop;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -26,12 +28,13 @@ fn main(hart_id: usize) {
         // drivers::register_task_func(Box::new(DriverTaskImpl));
         // devices::init_device(Box::new(DriverTaskImpl));
         // vfs::init_filesystem().expect("init filesystem failed");
-        // trap::init_trap_subsystem();
-        // arch::allow_access_user_memory();
+        kcore::trap::init_trap_subsystem();
+        arch::allow_access_user_memory();
         // task::init_task();
         // register all syscall
         // syscall_table::init_init_array!();
-        domain::load_domains();
+        let task_domain = domain::load_domains();
+        kcore::register_task_domain(task_domain);
         STARTED.store(false, Ordering::Relaxed);
     } else {
         while STARTED.load(Ordering::Relaxed) {
@@ -39,11 +42,11 @@ fn main(hart_id: usize) {
         }
         mem::init_memory_system(0, false);
         arch::allow_access_user_memory();
-        // trap::init_trap_subsystem();
+        kcore::trap::init_trap_subsystem();
         println!("hart {} start", arch::hart_id());
     }
-    // time::set_next_trigger();
+    timer::set_next_trigger();
     println!("Begin run task...");
-    // task::schedule::run_task();
+    kcore::run_task();
     platform::system_shutdown();
 }

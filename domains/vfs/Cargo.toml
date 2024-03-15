@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ksync = { path = "../../subsystems/ksync" }
+ksync = { path = "../../tcb/ksync" }
 libsyscall = { path = "../../domain-tools/libsyscall",features = ["domain"] }
 rref = { path = "../../domain-tools/rref" }
-interface = { path = "../../domain-tools/interface" }
+interface = { path = "../../domain-tools/interface",default-features = false, features = ["vfs"] }
 malloc = { path = "../../domain-tools/malloc" }
 
-constants = { path = "../../subsystems/constants" }
+constants = { path = "../../tcb/constants" }
 spin = "0"
 log = "0"
 vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
@@ -22,3 +22,6 @@ devfs = { git = "https://github.com/os-module/rvfs.git" }
 dynfs = { git = "https://github.com/os-module/rvfs.git" }
 ramfs = { git = "https://github.com/os-module/rvfs.git" }
 fat-vfs = { git = "https://github.com/os-module/rvfs.git"}
+
+# it might be deleted
+downcast-rs = { version = "1.2.0", default-features = false }

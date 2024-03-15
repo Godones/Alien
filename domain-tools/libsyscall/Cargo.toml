@@ -6,14 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-continuation = { path = "../../subsystems/continuation" }
+continuation = { path = "../../tcb/continuation" }
 rref = { path = "../rref" }
 interface = { path = "../interface" }
+context = { path = "../../safe-crates/context" }
+
 
 spin = "0"
 log = "0"
 downcast-rs = { version = "1.2.0", default-features = false }
-
+ptable = { path = "../../safe-crates/ptable" }
 
 [features]
 domain = []
