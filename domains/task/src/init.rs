@@ -1,4 +1,5 @@
 use crate::kthread;
+use crate::processor::add_task;
 use crate::scheduler::do_suspend;
 use crate::task::Task;
 use crate::vfs_shim::read_all;
@@ -18,9 +19,9 @@ static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
 /// 将初始进程加入进程池中进行调度
 pub fn init_task() {
     kthread::ktread_create(kthread_init, "kthread_test").unwrap();
-    // let task = INIT_PROCESS.clone();
-    // add_task(task);
-    println!("Init task success");
+    let task = INIT_PROCESS.clone();
+    add_task(task);
+    println!("Init task domain success");
 }
 
 fn kthread_init() {

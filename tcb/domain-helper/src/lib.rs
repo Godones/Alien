@@ -34,6 +34,7 @@ pub enum DomainType {
     PLICDomain(Arc<dyn PLICDomain>),
     DevicesDomain(Arc<dyn DevicesDomain>),
     TaskDomain(Arc<dyn TaskDomain>),
+    SysCallDomain(Arc<dyn SysCallDomain>),
 }
 
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);

@@ -109,6 +109,9 @@ pub trait Syscall: Send + Sync {
     fn sys_get_cache_blk_domain(&self) -> Option<Arc<dyn interface::CacheBlkDeviceDomain>>;
     fn sys_get_devices_domain(&self) -> Option<Arc<dyn interface::DevicesDomain>>;
     fn sys_get_vfs_domain(&self) -> Option<Arc<dyn interface::VfsDomain>>;
+
+    fn sys_get_task_domain(&self) -> Option<Arc<dyn interface::TaskDomain>>;
+
     /// This func will be deleted
     fn blk_crash_trick(&self) -> bool;
     fn sys_get_dtb(&self) -> &'static [u8];
@@ -295,6 +298,13 @@ mod __impl {
             .get()
             .expect("syscall not initialized")
             .sys_get_vfs_domain()
+    }
+
+    pub fn get_task_domain() -> Option<Arc<dyn interface::TaskDomain>> {
+        SYSCALL
+            .get()
+            .expect("syscall not initialized")
+            .sys_get_task_domain()
     }
 
     // todo!(delete)

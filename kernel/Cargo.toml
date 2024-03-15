@@ -13,7 +13,7 @@ platform = { path = "../tcb/platform" }
 mem = { path = "../tcb/mem" }
 arch = { path = "../tcb/arch" }
 timer = { path = "../tcb/timer" }
-
+riscv = "0"
 
 domain-helper = { path = "../tcb/domain-helper" }
 domain-loader = { path = "../tcb/domain-loader" }

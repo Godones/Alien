@@ -2,11 +2,14 @@ TARGET := riscv64gc-unknown-none-elf
 PROFILE := release
 KERNEL := target/$(TARGET)/$(PROFILE)/kernel
 NET ?=n
-IMG := /tmp/fat32.img
 SMP ?= 1
 MEMORY_SIZE := 1024M
 LOG ?=INFO
 GUI ?=n
+FS ?=fat
+IMG := build/sdcard.img
+FSMOUNT := ./diskfs
+
 
 
 
@@ -28,7 +31,8 @@ endif
 
 
 
-domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask
+domains += 	gblk gfatfs gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask \
+		gsyscall
 
 
 all:run
@@ -37,11 +41,7 @@ build:
 	@echo "Building..."
 	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET)
 
-domains:
-	make -C domains all  DOMAIN_LIST="$(domains)" LOG=$(LOG)
-	$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
-
-run:domains build img
+run: sdcard domains build
 	qemu-system-riscv64 \
             -M virt \
             -bios default \
@@ -51,22 +51,39 @@ run:domains build img
             -$(QEMU_ARGS) \
             -smp $(SMP) -m $(MEMORY_SIZE) \
             -serial mon:stdio
+	-rm $(IMG)
 
-img:
-	@echo "Creating fat32.img..."
-	if [ ! -f $(IMG) ]; then \
-		dd if=/dev/zero of=$(IMG) bs=1M count=64; \
-	fi
+user:
+	@echo "Building user apps"
+	@make all -C ./user/apps
+	@echo "Building user apps done"
+
+sdcard:$(FS) mount user
+	@sudo ls $(FSMOUNT)
+	@sudo umount $(FSMOUNT)
+	@rm -rf $(FSMOUNT)
+
+fat:
+	dd if=/dev/zero of=$(IMG) bs=1M count=72;
 	@mkfs.fat -F 32 $(IMG)
-	@-mkdir -p mnt
-	@-sudo mount $(IMG) mnt
-	@sudo touch mnt/empty
-	@sudo touch mnt/f1.txt
-	@echo "Hello, world!" | sudo tee mnt/f1.txt
-	@sudo umount mnt
-	@sudo rm -rf mnt
 
-gdb-server: domains build img
+
+mount:
+	@echo "Mounting $(IMG) to $(FSMOUNT)"
+	@-sudo umount $(FSMOUNT);
+	@sudo rm -rf $(FSMOUNT)
+	@-mkdir $(FSMOUNT)
+	@sudo mount $(IMG) $(FSMOUNT)
+	@sudo rm -rf $(FSMOUNT)/*
+
+
+
+domains:
+	make -C domains all  DOMAIN_LIST="$(domains)" LOG=$(LOG)
+	$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
+
+
+gdb-server: domains build sdcard
 	@qemu-system-riscv64 \
             -M virt\
             -bios default \
@@ -84,4 +101,4 @@ clean:
 	rm -rf target/
 	rm build/*.bin
 
-.PHONY:build domains gdb-client gdb-server img
+.PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS)

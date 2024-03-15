@@ -3,9 +3,12 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use config::{ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
+use config::{
+    ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
+};
 use constants::{AlienError, AlienResult};
 use core::cmp::min;
+use libsyscall::println;
 use ptable::*;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
@@ -48,7 +51,7 @@ impl FrameTracker {
 
     pub fn from_addr(start: usize, pages: usize, dealloc: bool) -> Self {
         Self {
-            start,
+            start: start >> FRAME_BITS,
             size: pages,
             dealloc,
         }
@@ -173,7 +176,7 @@ pub fn load_to_vm_space(
         let mut phy_frames = vec![];
         for _ in 0..len / FRAME_SIZE {
             let frame = VmmPageAllocator::alloc_frame().unwrap();
-            phy_frames.push(PhyFrame::new(Box::new(FrameTracker::new(
+            phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
                 frame.as_usize(),
                 FRAME_SIZE,
                 true,
@@ -258,7 +261,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
     let mut user_stack_phy_frames = vec![];
     for _ in 0..USER_STACK_SIZE / FRAME_SIZE {
         let frame = VmmPageAllocator::alloc_frame().unwrap();
-        user_stack_phy_frames.push(PhyFrame::new(Box::new(FrameTracker::new(
+        user_stack_phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
             frame.as_usize(),
             FRAME_SIZE,
             true,
@@ -279,7 +282,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
     let trap_context_area = VmArea::new(
         TRAP_CONTEXT_BASE..(TRAP_CONTEXT_BASE + FRAME_SIZE),
         MappingFlags::USER | MappingFlags::READ | MappingFlags::WRITE,
-        vec![PhyFrame::new(Box::new(FrameTracker::new(
+        vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
             trap_context_phy.as_usize(),
             FRAME_SIZE,
             true,
@@ -293,9 +296,9 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
 
     let trampoline_phy_addr = libsyscall::trampoline_addr();
     let trampoline_area = VmArea::new(
-        trampoline_phy_addr..(trampoline_phy_addr + FRAME_SIZE),
-        MappingFlags::USER | MappingFlags::READ | MappingFlags::EXECUTE,
-        vec![PhyFrame::new(Box::new(FrameTracker::new(
+        TRAMPOLINE..(TRAMPOLINE + FRAME_SIZE),
+        MappingFlags::READ | MappingFlags::EXECUTE,
+        vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
             trampoline_phy_addr,
             FRAME_SIZE,
             false,

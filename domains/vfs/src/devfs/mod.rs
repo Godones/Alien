@@ -1,6 +1,7 @@
 mod block;
 mod gpu;
 mod id;
+mod input;
 mod null;
 mod random;
 mod rtc;
@@ -8,6 +9,7 @@ mod uart;
 
 use crate::devfs::block::BLKDevice;
 use crate::devfs::gpu::GPUDevice;
+use crate::devfs::input::INPUTDevice;
 use crate::devfs::rtc::RTCDevice;
 use crate::devfs::uart::UARTDevice;
 use alloc::sync::Arc;
@@ -109,8 +111,8 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
 fn scan_system_devices(root: Arc<dyn VfsInode>) {
     let uart = libsyscall::get_uart_domain();
     let gpu = libsyscall::get_gpu_domain();
-    // let mouse = libsyscall::get_input_domain("mouse").unwrap();
-    // let keyboard = libsyscall::get_input_domain("keyboard").unwrap();
+    let mouse = libsyscall::get_input_domain("mouse");
+    let keyboard = libsyscall::get_input_domain("keyboard");
     let blk = libsyscall::get_cache_blk_domain();
     let rtc = libsyscall::get_rtc_domain();
 
@@ -144,38 +146,41 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         info!("gpu device id: {}", gpu_device.device_id().id());
         register_device(gpu_device);
     });
-    // KEYBOARD_INPUT_DEVICE.get().map(|input| {
-    //     let input_device = Arc::new(INPUTDevice::new(
-    //         alloc_device_id(VfsNodeType::CharDevice),
-    //         input.clone(),
-    //         false,
-    //     ));
-    //     root.create(
-    //         "keyboard",
-    //         VfsNodeType::BlockDevice,
-    //         "rw-rw----".into(),
-    //         Some(input_device.device_id().id()),
-    //     )
-    //     .unwrap();
-    //     info!("keyboard device id: {}", input_device.device_id().id());
-    //     register_device(input_device);
-    // });
-    // MOUSE_INPUT_DEVICE.get().map(|input| {
-    //     let input_device = Arc::new(INPUTDevice::new(
-    //         alloc_device_id(VfsNodeType::CharDevice),
-    //         input.clone(),
-    //         true,
-    //     ));
-    //     root.create(
-    //         "mouse",
-    //         VfsNodeType::BlockDevice,
-    //         "rw-rw----".into(),
-    //         Some(input_device.device_id().id()),
-    //     )
-    //     .unwrap();
-    //     info!("mouse device id: {}", input_device.device_id().id());
-    //     register_device(input_device);
-    // });
+
+    mouse.map(|input| {
+        let input_device = Arc::new(INPUTDevice::new(
+            alloc_device_id(VfsNodeType::CharDevice),
+            input,
+            false,
+        ));
+        root.create(
+            "keyboard",
+            VfsNodeType::BlockDevice,
+            "rw-rw----".into(),
+            Some(input_device.device_id().id()),
+        )
+        .unwrap();
+        info!("keyboard device id: {}", input_device.device_id().id());
+        register_device(input_device);
+    });
+
+    keyboard.map(|input| {
+        let input_device = Arc::new(INPUTDevice::new(
+            alloc_device_id(VfsNodeType::CharDevice),
+            input.clone(),
+            true,
+        ));
+        root.create(
+            "mouse",
+            VfsNodeType::BlockDevice,
+            "rw-rw----".into(),
+            Some(input_device.device_id().id()),
+        )
+        .unwrap();
+        info!("mouse device id: {}", input_device.device_id().id());
+        register_device(input_device);
+    });
+
     rtc.map(|rtc| {
         let rtc_device = Arc::new(RTCDevice::new(
             alloc_device_id(VfsNodeType::CharDevice),

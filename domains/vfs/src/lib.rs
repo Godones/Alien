@@ -26,7 +26,7 @@ mod ramfs;
 mod sys;
 mod tree;
 
-static VFS_MAP: RwLock<BTreeMap<InodeId, Arc<KernelFile>>> = RwLock::new(BTreeMap::new());
+static VFS_MAP: RwLock<BTreeMap<InodeId, Arc<dyn File>>> = RwLock::new(BTreeMap::new());
 static INODE_ID: AtomicU64 = AtomicU64::new(4);
 
 fn alloc_inode_id() -> InodeId {
@@ -38,12 +38,12 @@ fn insert_dentry(inode: InodeId, dentry: Arc<dyn VfsDentry>, open_flags: OpenFla
     VFS_MAP.write().insert(inode, Arc::new(file));
 }
 
-fn remove_dentry(inode: InodeId) {
+fn remove_file(inode: InodeId) {
     VFS_MAP.write().remove(&inode);
 }
 
-fn get_dentry(inode: InodeId) -> Option<Arc<dyn VfsDentry>> {
-    VFS_MAP.read().get(&inode).map(|f| f.dentry())
+fn get_file(inode: InodeId) -> Option<Arc<dyn File>> {
+    VFS_MAP.read().get(&inode).map(|f| f.clone())
 }
 
 #[derive(Debug)]
@@ -59,7 +59,7 @@ impl VfsDomain for VfsDomainImpl {
         mode: u32,
         open_flags: usize,
     ) -> RpcResult<InodeId> {
-        let start = get_dentry(root).ok_or(RpcError::Alien(AlienError::EINVAL))?;
+        let start = get_file(root).ok_or(RpcError::Alien(AlienError::EINVAL))?;
         let root = system_root_fs();
         let path = core::str::from_utf8(path.as_slice()).unwrap();
         let mode = if mode == 0 {
@@ -70,7 +70,7 @@ impl VfsDomain for VfsDomainImpl {
 
         info!("vfs_open:  path: {:?}, mode: {:?}", path, mode);
         let open_flags = OpenFlags::from_bits_truncate(open_flags);
-        let path = VfsPath::new(root, start)
+        let path = VfsPath::new(root, start.dentry())
             .join(path)
             .map_err(|e| AlienError::from(e))?
             .open(mode)
@@ -81,7 +81,7 @@ impl VfsDomain for VfsDomainImpl {
     }
 
     fn vfs_getattr(&self, inode: InodeId, mut attr: RRef<FileStat>) -> RpcResult<RRef<FileStat>> {
-        let dentry = get_dentry(inode).unwrap();
+        let dentry = get_file(inode).unwrap().dentry();
         let vfs_attr = dentry
             .inode()
             .map_err(|e| AlienError::from(e))?
@@ -113,13 +113,38 @@ impl VfsDomain for VfsDomainImpl {
         offset: u64,
         mut buf: RRefVec<u8>,
     ) -> RpcResult<(RRefVec<u8>, usize)> {
-        let dentry = get_dentry(inode).unwrap();
-        let res = dentry
-            .inode()
-            .map_err(|e| AlienError::from(e))?
+        let file = get_file(inode).unwrap();
+        let res = file
             .read_at(offset, buf.as_mut_slice())
             .map_err(|e| AlienError::from(e))?;
         Ok((buf, res))
+    }
+
+    fn vfs_read(&self, inode: InodeId, mut buf: RRefVec<u8>) -> RpcResult<(RRefVec<u8>, usize)> {
+        let file = get_file(inode).unwrap();
+        let res = file
+            .read(buf.as_mut_slice())
+            .map_err(|e| AlienError::from(e))?;
+        Ok((buf, res))
+    }
+    fn vfs_write_at(
+        &self,
+        inode: InodeId,
+        offset: u64,
+        buf: RRefVec<u8>,
+    ) -> RpcResult<(RRefVec<u8>, usize)> {
+        let file = get_file(inode).unwrap();
+        let res = file
+            .write_at(offset, buf.as_slice())
+            .map_err(|e| AlienError::from(e))?;
+        Ok((buf, res))
+    }
+    fn vfs_write(&self, inode: InodeId, buf: &RRefVec<u8>) -> RpcResult<usize> {
+        let file = get_file(inode).unwrap();
+        let res = file
+            .write(buf.as_slice())
+            .map_err(|e| AlienError::from(e))?;
+        Ok(res)
     }
 }
 

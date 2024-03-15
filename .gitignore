@@ -23,3 +23,4 @@ rust-project.json
 
 build/*.bin
 user/*
+build/*.img

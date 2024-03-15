@@ -50,7 +50,7 @@ members = [
     "domains/generated/gdevices",
     "safe-crates/plic",
     "safe-crates/fdt",
-    "domains/generated/gdevices", "domains/task", "safe-crates/ptable", "safe-crates/context", "tcb/kcore", "domains/generated/gtask",
+    "domains/generated/gdevices", "domains/task", "safe-crates/ptable", "safe-crates/context", "tcb/kcore", "domains/generated/gtask", "domains/generated/gsyscall",
 ]
 
 resolver = "2"

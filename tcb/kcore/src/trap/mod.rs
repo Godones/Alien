@@ -52,22 +52,25 @@ fn set_user_trap_entry() {
 /// 只有在内核态下才能进入这个函数
 /// 避免嵌套中断发生这里不会再开启中断
 #[no_mangle]
-pub fn kernel_trap_vector(trap_frame: &mut TrapFrame) {
+pub fn kernel_trap_vector(sp: usize) {
     let sstatus = sstatus::read();
+
     let spp = sstatus.spp();
+    println!("{:?}", spp);
     if spp == SPP::User {
         panic!("kernel_trap_vector: spp == SPP::User");
     }
     let enable = arch::is_interrupt_enable();
     assert!(!enable);
     let cause = riscv::register::scause::read().cause();
-    cause.do_kernel_handle(trap_frame)
+    cause.do_kernel_handle(sp)
 }
 
 /// 用户态陷入处理
 #[no_mangle]
-pub fn user_trap_vector(trap_frame: &mut TrapFrame) {
-    let sstatus = trap_frame.get_status();
+pub fn user_trap_vector() {
+    // let sstatus = trap_frame.get_status();
+    let sstatus = riscv::register::sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::Supervisor {
         panic!("user_trap_vector: spp == SPP::Supervisor");
@@ -81,7 +84,8 @@ pub fn user_trap_vector(trap_frame: &mut TrapFrame) {
         set_kernel_trap_entry();
         let cause = riscv::register::scause::read();
         let cause = cause.cause();
-        cause.do_user_handle(trap_frame);
+        println!("cause:{:?}", cause);
+        cause.do_user_handle();
         // let task = current_task().unwrap();
         // if cause != Trap::Interrupt(Interrupt::SupervisorTimer) {
         //     // update process statistics
@@ -97,21 +101,19 @@ pub fn trap_return() -> ! {
     // signal_handler();
     arch::interrupt_disable();
     set_user_trap_entry();
-    // let trap_frame = current_trap_frame();
 
-    let trap_frame_ptr = TASK_DOMAIN.get().unwrap().current_task_trap_frame_ptr();
-    let trap_frame = TrapFrame::from_raw_ptr(trap_frame_ptr as _);
+    let trap_frame_ptr = TASK_DOMAIN.get().unwrap().trap_frame_virt_addr().unwrap();
+    // let trap_frame = TrapFrame::from_raw_ptr(trap_frame_ptr as _);
+    // println!("trap_frame_ptr:{:#x?}", trap_frame_ptr);
 
-    let sstatues = trap_frame.get_status();
-    let enable = sstatues.0.get_bit(5);
-    let sie = sstatues.0.get_bit(1);
-    assert!(enable);
-    assert!(!sie);
-    // let trap_cx_ptr = current_task().unwrap().trap_frame_ptr();
-    // let user_satp = current_user_token();
+    // let sstatues = trap_frame.get_status();
+    // let enable = sstatues.0.get_bit(5);
+    // let sie = sstatues.0.get_bit(1);
+    // assert!(enable);
+    // assert!(!sie);
 
     let trap_cx_ptr = trap_frame_ptr as *const TrapFrame;
-    let user_satp = TASK_DOMAIN.get().unwrap().current_task_satp();
+    let user_satp = TASK_DOMAIN.get().unwrap().current_task_satp().unwrap();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
     unsafe {
         asm!(
@@ -126,19 +128,19 @@ pub fn trap_return() -> ! {
 }
 
 pub trait TrapHandler {
-    fn do_user_handle(&self, trap_frame: &mut TrapFrame);
-    fn do_kernel_handle(&self, trap_frame: &mut TrapFrame);
+    fn do_user_handle(&self);
+    fn do_kernel_handle(&self, sp: usize);
 }
 
 impl TrapHandler for Trap {
     /// 用户态下的 trap 例程
-    fn do_user_handle(&self, trap_frame: &mut TrapFrame) {
+    fn do_user_handle(&self) {
         let stval = stval::read();
         let sepc = sepc::read();
         trace!("trap :{:?}", self);
         match self {
             Trap::Exception(Exception::UserEnvCall) => {
-                exception::syscall_exception_handler(trap_frame);
+                exception::syscall_exception_handler();
             }
             Trap::Exception(Exception::StoreFault)
             | Trap::Exception(Exception::LoadFault)
@@ -219,7 +221,7 @@ impl TrapHandler for Trap {
     }
 
     /// 内核态下的 trap 例程
-    fn do_kernel_handle(&self, trap_frame: &mut TrapFrame) {
+    fn do_kernel_handle(&self, sp: usize) {
         let stval = stval::read();
         let sepc = sepc::read();
         match self {

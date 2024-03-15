@@ -41,13 +41,13 @@ impl Syscall for DomainSyscall {
     fn sys_alloc_pages(&self, domain_id: u64, n: usize) -> *mut u8 {
         let n = n.next_power_of_two();
         let page = mem::alloc_frames(n);
-        info!(
-            "[Domain: {}] alloc pages: {}, range:[{:#x}-{:#x}]",
-            domain_id,
-            n,
-            page as usize,
-            page as usize + n * FRAME_SIZE
-        );
+        // info!(
+        //     "[Domain: {}] alloc pages: {}, range:[{:#x}-{:#x}]",
+        //     domain_id,
+        //     n,
+        //     page as usize,
+        //     page as usize + n * FRAME_SIZE
+        // );
         let mut binding = DOMAIN_PAGE_MAP.lock();
         let vec = binding.entry(domain_id).or_insert(Vec::new());
         vec.push((page as usize >> FRAME_BITS, n));
@@ -175,6 +175,12 @@ impl Syscall for DomainSyscall {
         })
     }
 
+    fn sys_get_task_domain(&self) -> Option<Arc<dyn TaskDomain>> {
+        crate::query_domain("task").map(|task| match task {
+            DomainType::TaskDomain(task) => task,
+            _ => panic!("task domain type error"),
+        })
+    }
     fn blk_crash_trick(&self) -> bool {
         BLK_CRASH.load(core::sync::atomic::Ordering::Relaxed)
     }

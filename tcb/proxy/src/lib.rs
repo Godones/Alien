@@ -296,6 +296,32 @@ impl VfsDomain for VfsDomainProxy {
             Err(RpcError::DomainCrash)
         }
     }
+    fn vfs_read(&self, inode: InodeId, buf: RRefVec<u8>) -> RpcResult<(RRefVec<u8>, usize)> {
+        if self.domain.is_active() {
+            self.domain.vfs_read(inode, buf)
+        } else {
+            Err(RpcError::DomainCrash)
+        }
+    }
+    fn vfs_write_at(
+        &self,
+        inode: InodeId,
+        offset: u64,
+        buf: RRefVec<u8>,
+    ) -> RpcResult<(RRefVec<u8>, usize)> {
+        if self.domain.is_active() {
+            self.domain.vfs_write_at(inode, offset, buf)
+        } else {
+            Err(RpcError::DomainCrash)
+        }
+    }
+    fn vfs_write(&self, inode: InodeId, buf: &RRefVec<u8>) -> RpcResult<usize> {
+        if self.domain.is_active() {
+            self.domain.vfs_write(inode, buf)
+        } else {
+            Err(RpcError::DomainCrash)
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -539,17 +565,84 @@ impl TaskDomain for TaskDomainProxy {
         self.domain.run()
     }
 
-    fn current_task_trap_frame_ptr(&self) -> usize {
+    fn trap_frame_virt_addr(&self) -> RpcResult<usize> {
         if !self.is_active() {
-            return 0;
+            return Err(RpcError::DomainCrash);
         }
-        self.domain.current_task_trap_frame_ptr()
+        self.domain.trap_frame_virt_addr()
     }
 
-    fn current_task_satp(&self) -> usize {
+    fn current_task_satp(&self) -> RpcResult<usize> {
         if !self.is_active() {
-            return 0;
+            return Err(RpcError::DomainCrash);
         }
         self.domain.current_task_satp()
+    }
+
+    fn trap_frame_phy_addr(&self) -> RpcResult<usize> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.trap_frame_phy_addr()
+    }
+
+    fn heap_info(&self, tmp_heap_info: RRef<TmpHeapInfo>) -> RpcResult<RRef<TmpHeapInfo>> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.heap_info(tmp_heap_info)
+    }
+
+    fn brk(&self, addr: usize) -> RpcResult<isize> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.brk(addr)
+    }
+
+    fn get_fd(&self, fd: usize) -> RpcResult<InodeId> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.get_fd(fd)
+    }
+    fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.copy_to_user(src, dst, len)
+    }
+    fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) -> RpcResult<()> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.copy_from_user(src, dst, len)
+    }
+}
+
+#[derive(Debug)]
+pub struct SysCallDomainProxy {
+    id: u64,
+    domain: Arc<dyn SysCallDomain>,
+}
+
+impl SysCallDomainProxy {
+    pub fn new(id: u64, domain: Arc<dyn SysCallDomain>) -> Self {
+        Self { id, domain }
+    }
+}
+
+impl Basic for SysCallDomainProxy {
+    fn is_active(&self) -> bool {
+        self.domain.is_active()
+    }
+}
+
+impl SysCallDomain for SysCallDomainProxy {
+    fn call(&self, syscall_id: usize, args: [usize; 6]) -> RpcResult<isize> {
+        if !self.is_active() {
+            return Err(RpcError::DomainCrash);
+        }
+        self.domain.call(syscall_id, args)
     }
 }

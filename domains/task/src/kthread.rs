@@ -1,7 +1,6 @@
 use crate::elf::VmmPageAllocator;
-use crate::kstack::KStack;
 use crate::processor::add_task;
-use crate::resource::{FdManager, HeapInfo, TidHandle};
+use crate::resource::{FdManager, HeapInfo, KStack, TidHandle};
 use crate::task::{FsContext, Task, TaskInner, TaskState};
 use crate::vfs_shim::{STDIN, STDOUT};
 use alloc::collections::BTreeMap;

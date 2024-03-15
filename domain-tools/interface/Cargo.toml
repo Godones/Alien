@@ -10,7 +10,7 @@ rref = { path = "../rref" }
 constants = { path = "../../tcb/constants" }
 
 [features]
-default = ["blk","fs","uart","gpu","input","vfs", "rtc", "cache_blk","plic", "devices", "task"]
+default = ["blk","fs","uart","gpu","input","vfs", "rtc", "cache_blk","plic", "devices", "task", "syscall"]
 domain = []
 blk = []
 cache_blk = []
@@ -23,3 +23,4 @@ rtc = []
 plic = []
 devices = []
 task = []
+syscall = []

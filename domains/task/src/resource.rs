@@ -4,9 +4,9 @@ use alloc::vec::Vec;
 use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM};
 use core::fmt::{Debug, Formatter};
 use ksync::Mutex;
+use libsyscall::{alloc_pages, FrameTracker};
 use small_index::IndexAllocator;
 use spin::Lazy;
-
 pub static TID_MANAGER: Lazy<Mutex<IndexAllocator<MAX_THREAD_NUM>>> =
     Lazy::new(|| Mutex::new(IndexAllocator::new()));
 
@@ -66,6 +66,28 @@ impl FdManager {
         let fd = self.index_map.allocate().unwrap();
         self.fd_table[fd] = Some(file);
         fd
+    }
+}
+
+#[derive(Debug)]
+pub struct KStack {
+    frames: Option<FrameTracker>,
+}
+
+impl KStack {
+    pub fn new(pages: usize) -> Self {
+        let frames = alloc_pages(pages);
+        Self {
+            frames: Some(frames),
+        }
+    }
+
+    pub fn top(&self) -> usize {
+        self.frames.as_ref().unwrap().end()
+    }
+
+    pub fn release(&mut self) {
+        self.frames.take();
     }
 }
 

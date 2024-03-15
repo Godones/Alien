@@ -1,19 +1,21 @@
-use crate::elf::{build_vm_space, VmmPageAllocator};
-use crate::kstack::KStack;
-use crate::resource::{FdManager, HeapInfo, TidHandle, UserStack};
+use crate::elf::{build_vm_space, FrameTracker, VmmPageAllocator};
+use crate::resource::{FdManager, HeapInfo, KStack, TidHandle, UserStack};
 use crate::vfs_shim::{ShimFile, STDIN, STDOUT};
+use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
-use alloc::vec;
+use alloc::vec::Vec;
+use alloc::{format, vec};
 use config::{
     FRAME_SIZE, MAX_THREAD_NUM, TRAP_CONTEXT_BASE, USER_KERNEL_STACK_SIZE, USER_STACK_SIZE,
 };
 use context::{TaskContext, TrapFrame};
+use core::fmt::Debug;
 use core::ops::Range;
 use interface::{InodeId, VFS_ROOT_ID};
 use ksync::{Mutex, MutexGuard};
-use ptable::VmSpace;
+use ptable::{MappingFlags, PagingIf, PhyFrame, VmArea, VmAreaType, VmSpace};
 use small_index::IndexAllocator;
 
 #[derive(Debug)]
@@ -158,6 +160,117 @@ impl Task {
 
         let (physical, _, _) = inner.address_space.lock().query(trap_context_base).unwrap();
         TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
+    }
+
+    pub fn trap_frame_ptr(&self) -> usize {
+        let inner = self.inner();
+        let trap_context_base = TRAP_CONTEXT_BASE - inner.thread_number * FRAME_SIZE;
+        trap_context_base
+    }
+
+    pub fn extend_heap(&self, addr: usize) -> usize {
+        let mut inner = self.inner.lock();
+        let mut heap = inner.heap.lock();
+        heap.current = addr;
+        if addr < heap.end {
+            return heap.current;
+        }
+        let addition = addr - heap.end;
+        // increase heap size
+        let end = heap.end;
+        // align addition to PAGE_SIZE
+        let addition = (addition + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+        warn!(
+            "extend heap: {:#x} -> {:#x}, addition: {:#x}",
+            end,
+            end + addition,
+            addition
+        );
+        let mut phy_frames = vec![];
+        for _ in 0..addition / FRAME_SIZE {
+            let page = VmmPageAllocator::alloc_frame().unwrap();
+            phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
+                page.as_usize(),
+                FRAME_SIZE,
+                true,
+            ))));
+        }
+        let area = VmArea::new(
+            end..end + addition,
+            MappingFlags::READ | MappingFlags::WRITE | MappingFlags::USER,
+            phy_frames,
+        );
+        let mut guard = inner.address_space.lock();
+        guard.map(VmAreaType::VmArea(area)).unwrap();
+        heap.end = end + addition;
+        heap.current
+    }
+
+    pub fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) {
+        let buf = self.transfer_buffer(dst, len);
+        let mut start = 0;
+        let mut src = src as usize;
+        for b in buf {
+            let len = if start + b.len() > len {
+                len - start
+            } else {
+                b.len()
+            };
+            unsafe {
+                core::ptr::copy_nonoverlapping(src as _, b.as_mut_ptr(), len);
+            }
+            start += len;
+            src += len;
+        }
+    }
+
+    pub fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) {
+        let buf = self.transfer_buffer(src, len);
+        let mut start = 0;
+        let mut dst = dst as usize;
+        for b in buf {
+            let len = if start + b.len() > len {
+                len - start
+            } else {
+                b.len()
+            };
+            unsafe {
+                core::ptr::copy_nonoverlapping(b.as_ptr(), dst as _, len);
+            }
+            start += len;
+            dst += len;
+        }
+    }
+
+    fn transfer_buffer<T: Debug>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
+        let mut start = ptr as usize;
+        let end = start + len;
+        let mut v = Vec::new();
+
+        let address_space = self.inner().address_space.clone();
+        let guard = address_space.lock();
+
+        while start < end {
+            let (start_phy, flag, _) = guard
+                .query(start)
+                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
+            // if !flag.contains(MappingFlags::V) {
+            //     panic!("transfer_buffer: {:x} not mapped", start);
+            // }
+            // start_phy向上取整到FRAME_SIZE
+            let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
+            let len = if bound > end {
+                end - start
+            } else {
+                bound - start
+            };
+            unsafe {
+                let buf = core::slice::from_raw_parts_mut(start_phy.as_usize() as *mut T, len);
+                v.push(buf);
+            }
+            start = bound;
+        }
+        v
     }
 }
 

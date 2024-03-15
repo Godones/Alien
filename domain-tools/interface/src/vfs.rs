@@ -23,4 +23,14 @@ pub trait VfsDomain: Basic {
         offset: u64,
         buf: RRefVec<u8>,
     ) -> RpcResult<(RRefVec<u8>, usize)>;
+
+    fn vfs_read(&self, inode: InodeId, buf: RRefVec<u8>) -> RpcResult<(RRefVec<u8>, usize)>;
+
+    fn vfs_write_at(
+        &self,
+        inode: InodeId,
+        offset: u64,
+        buf: RRefVec<u8>,
+    ) -> RpcResult<(RRefVec<u8>, usize)>;
+    fn vfs_write(&self, inode: InodeId, buf: &RRefVec<u8>) -> RpcResult<usize>;
 }

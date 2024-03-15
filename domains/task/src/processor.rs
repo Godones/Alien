@@ -53,6 +53,11 @@ pub fn current_trap_frame() -> &'static mut TrapFrame {
     task.trap_frame()
 }
 
+pub fn current_trap_frame_ptr() -> usize {
+    let task = current_task().unwrap();
+    task.trap_frame_ptr()
+}
+
 static GLOBAL_TASK_MANAGER: Lazy<Arc<Mutex<VecDeque<Arc<Task>>>>> =
     Lazy::new(|| Arc::new(Mutex::new(VecDeque::new())));
 

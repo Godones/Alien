@@ -1,20 +1,23 @@
+use crate::{SYSCALL_DOMAIN, TASK_DOMAIN};
 use alloc::sync::Arc;
 use arch::interrupt_enable;
 use constants::{AlienError, AlienResult};
 use context::TrapFrame;
+use platform::println;
 use riscv::register::scause::{Exception, Trap};
 
 /// 系统调用异常处理
-pub fn syscall_exception_handler(trap_frame: &mut TrapFrame) {
-    unimplemented!()
+pub fn syscall_exception_handler() {
     // enable interrupt
     // interrupt_enable();
-    // // jump to next instruction anyway
-    // let mut cx = trap_frame;
-    // cx.update_sepc();
+    // jump to next instruction anyway
+    let trap_frame_phy_addr = TASK_DOMAIN.get().unwrap().trap_frame_phy_addr().unwrap();
+    let cx = TrapFrame::from_raw_ptr(trap_frame_phy_addr as _);
+
+    cx.update_sepc();
     // // get system call return value
-    // let parameters = cx.parameters();
-    // let syscall_name = constants::syscall_name(parameters[0]);
+    let parameters = cx.parameters();
+    let syscall_name = constants::syscall_name(parameters[0]);
     //
     // let task = current_task().unwrap();
     // let p_name = task.get_name();
@@ -48,8 +51,22 @@ pub fn syscall_exception_handler(trap_frame: &mut TrapFrame) {
     //     parameters[6]
     // );
     // let result = Some(result);
-    // // cx is changed during sys_exec, so we have to call it again
-    // cx = current_trap_frame();
+
+    let result = SYSCALL_DOMAIN.get().unwrap().call(
+        parameters[0],
+        [
+            parameters[1],
+            parameters[2],
+            parameters[3],
+            parameters[4],
+            parameters[5],
+            parameters[6],
+        ],
+    );
+
+    // cx is changed during sys_exec, so we have to call it again
+    let trap_frame_phy_addr = TASK_DOMAIN.get().unwrap().trap_frame_phy_addr().unwrap();
+    let cx = TrapFrame::from_raw_ptr(trap_frame_phy_addr as _);
     //
     // if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
     //     info!(
@@ -61,7 +78,7 @@ pub fn syscall_exception_handler(trap_frame: &mut TrapFrame) {
     //         cx.regs()[4]
     //     );
     // }
-    // cx.update_res(result.unwrap() as usize);
+    cx.update_res(result.unwrap() as usize);
 }
 
 pub fn page_exception_handler(trap: Trap, addr: usize) -> AlienResult<()> {

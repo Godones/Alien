@@ -53,6 +53,9 @@ static DEVICES_DOMAIN: &'static [u8] =
 static TASK_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gtask_domain.bin");
 
+static SYS_CALL_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gsyscall_domain.bin");
+
 fn fatfs_domain() -> Arc<dyn FsDomain> {
     let mut domain = DomainLoader::new(FATFS_DOMAIN);
     domain.load().unwrap();
@@ -145,7 +148,15 @@ fn task_domain() -> Arc<dyn TaskDomain> {
     Arc::new(TaskDomainProxy::new(id, task_domain))
 }
 
-pub fn load_domains() -> Arc<dyn TaskDomain> {
+fn syscall_domain() -> Arc<dyn SysCallDomain> {
+    let mut domain = DomainLoader::new(SYS_CALL_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let task_domain = domain.call(id);
+    Arc::new(SysCallDomainProxy::new(id, task_domain))
+}
+
+pub fn load_domains() {
     info!(
         "Load devices domain, size: {}KB",
         DEVICES_DOMAIN.len() / 1024
@@ -209,6 +220,16 @@ pub fn load_domains() -> Arc<dyn TaskDomain> {
     let task = task_domain();
     domain_helper::register_domain("task", DomainType::TaskDomain(task.clone()));
 
+    info!(
+        "Load syscall domain, size: {}KB",
+        SYS_CALL_DOMAIN.len() / 1024
+    );
+    let syscall = syscall_domain();
+    domain_helper::register_domain("syscall", DomainType::SysCallDomain(syscall.clone()));
+
     platform::println!("Load domains done");
-    task
+
+    kcore::register_task_domain(task);
+    kcore::register_syscall_domain(syscall);
+    platform::println!("Register task domain and syscall domain to trap system done");
 }

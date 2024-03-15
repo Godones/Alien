@@ -7,6 +7,7 @@ mod gpu;
 mod input_device;
 mod plic;
 mod rtc;
+mod syscall;
 mod task;
 mod uart;
 mod vfs;
@@ -36,7 +37,7 @@ pub trait DeviceBase: Basic {
 }
 
 #[cfg(feature = "task")]
-pub use task::TaskDomain;
+pub use task::*;
 
 #[cfg(feature = "blk")]
 pub use block::BlkDeviceDomain;
@@ -67,6 +68,9 @@ pub use plic::PLICDomain;
 
 #[cfg(feature = "devices")]
 pub use devices::{DeviceInfo, DevicesDomain};
+
+#[cfg(feature = "syscall")]
+pub use syscall::SysCallDomain;
 
 #[cfg(feature = "domain")]
 mod __impl {
