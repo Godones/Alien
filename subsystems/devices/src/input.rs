@@ -46,7 +46,7 @@ impl VfsFile for INPUTDevice {
     fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
         let mut res = VfsPollEvents::empty();
         if event.contains(VfsPollEvents::IN) {
-            if self.device.is_empty() {
+            if !self.device.is_empty() {
                 res |= VfsPollEvents::IN;
             }
         }

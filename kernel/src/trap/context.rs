@@ -1,4 +1,4 @@
-//！ Trap 上下文 (Trap帧) 的定义和相关操作
+//! Trap 上下文 (Trap帧) 的定义和相关操作
 use arch::ExtSstatus;
 use riscv::register::sstatus::SPP;
 
