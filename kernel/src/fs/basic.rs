@@ -219,9 +219,9 @@ pub fn sys_read(fd: usize, buf: *mut u8, len: usize) -> AlienResult<isize> {
 /// 写入完成后，将返回写入内容的长度(字节数)；如果发生错误，将返回错误类型。
 #[syscall_func(64)]
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> AlienResult<isize> {
-    let process = current_task().unwrap();
-    let file = process.get_file(fd).ok_or(LinuxErrno::EBADF)?;
-    let mut buf = process.transfer_buffer(buf, len);
+    let task = current_task().unwrap();
+    let file = task.get_file(fd).ok_or(LinuxErrno::EBADF)?;
+    let mut buf = task.transfer_buffer(buf, len);
     let mut count = 0;
     for b in buf.iter_mut() {
         let w = file.write(b)?;
