@@ -6,8 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config = { path = "../../tcb/config" }
-
+config = { path = "../../base/config" }
 page_table = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
 memory_addr = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
 

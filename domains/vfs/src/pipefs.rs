@@ -17,5 +17,5 @@ pub fn init_pipefs(fs: Arc<dyn VfsFsType>) {
         .i_mount(MountFlags::empty().bits(), "", None, &[])
         .unwrap();
     PIPE_FS_ROOT.call_once(|| root);
-    libsyscall::println!("pipefs init success");
+    basic::println!("pipefs init success");
 }

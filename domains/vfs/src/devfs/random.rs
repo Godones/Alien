@@ -21,7 +21,7 @@ impl RandomDevice {
 
 impl VfsFile for RandomDevice {
     fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let mut current_time = libsyscall::get_time_ms();
+        let mut current_time = basic::time::read_time_ms();
         buf.iter_mut().for_each(|x| {
             *x = current_time as u8;
             current_time = current_time.wrapping_sub(1);

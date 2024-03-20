@@ -169,7 +169,7 @@ impl Task {
     }
 
     pub fn extend_heap(&self, addr: usize) -> usize {
-        let mut inner = self.inner.lock();
+        let inner = self.inner.lock();
         let mut heap = inner.heap.lock();
         heap.current = addr;
         if addr < heap.end {
@@ -289,7 +289,7 @@ impl Task {
         let k_stack_top = k_stack.top();
         let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
 
-        let trap_to_user = libsyscall::trap_to_user();
+        let trap_to_user = basic::trap_to_user();
 
         let task = Task {
             tid,
@@ -330,8 +330,8 @@ impl Task {
 
         let trap_frame = task.trap_frame();
 
-        let kernel_satp = libsyscall::kernel_satp();
-        let user_trap_vector = libsyscall::trap_from_user();
+        let kernel_satp = basic::kernel_satp();
+        let user_trap_vector = basic::trap_from_user();
 
         *trap_frame = TrapFrame::init_for_task(
             elf_info.entry,

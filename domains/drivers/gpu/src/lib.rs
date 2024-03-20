@@ -1,94 +1,80 @@
 #![no_std]
-extern crate alloc;
-extern crate malloc;
 
+mod gpu;
+
+extern crate alloc;
+
+use crate::gpu::VirtIOGpuWrapper;
 use alloc::sync::Arc;
+use basic::frame::FrameTracker;
+use constants::AlienResult;
+use core::fmt::Debug;
+use core::mem::forget;
 use core::ptr::NonNull;
-use core::{
-    fmt::Debug,
-    result::Result::{Err, Ok},
-    todo, unimplemented, write,
-};
 use interface::{Basic, DeviceBase, DeviceInfo, GpuDomain};
 use ksync::Mutex;
-use rref::{RRef, RRefVec, RpcResult};
+use rref::RRefVec;
+use spin::Once;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::{BufferDirection, Hal, PhysAddr};
 
-pub struct GPUDomain {
-    gpu: Arc<Mutex<VirtIOGpu<HalImpl, MmioTransport>>>,
-}
-unsafe impl Send for GPUDomain {}
-unsafe impl Sync for GPUDomain {}
+static GPU: Once<Arc<Mutex<VirtIOGpuWrapper>>> = Once::new();
 
-impl GPUDomain {
-    fn new(virtio_gpu_addr: usize) -> Self {
-        let header = NonNull::new(virtio_gpu_addr as *mut VirtIOHeader).unwrap();
-        let transport = unsafe { MmioTransport::new(header) }.unwrap();
-        Self {
-            gpu: Arc::new(Mutex::new(
-                VirtIOGpu::<HalImpl, MmioTransport>::new(transport)
-                    .expect("failed to create gpu driver"),
-            )),
-        }
-    }
-}
+#[derive(Debug)]
+pub struct GPUDomain;
 
 impl Basic for GPUDomain {}
 
-impl Debug for GPUDomain {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Gpu Domain (virtio)")
-    }
-}
-
 impl DeviceBase for GPUDomain {
-    fn handle_irq(&self) -> RpcResult<()> {
+    fn handle_irq(&self) -> AlienResult<()> {
         unimplemented!()
     }
 }
 
 impl GpuDomain for GPUDomain {
-    fn flush(&self) -> RpcResult<()> {
-        match self.gpu.lock().flush() {
-            Ok(_) => Ok(()),
-            Err(_) => todo!(),
-        }
+    fn init(&self, device_info: DeviceInfo) -> AlienResult<()> {
+        let virtio_gpu_addr = device_info.address_range.start;
+        basic::println!("virtio_gpu_addr: {:#x?}", virtio_gpu_addr);
+
+        let header = NonNull::new(virtio_gpu_addr as *mut VirtIOHeader).unwrap();
+        let transport = unsafe { MmioTransport::new(header) }.unwrap();
+
+        let gpu = VirtIOGpu::<HalImpl, MmioTransport>::new(transport)
+            .expect("failed to create gpu driver");
+
+        let gpu = Arc::new(Mutex::new(VirtIOGpuWrapper::new(gpu)));
+        GPU.call_once(|| gpu);
+        Ok(())
     }
 
-    fn fill(&self, _offset: u32, _buf: &RRefVec<u8>) -> RpcResult<usize> {
+    fn flush(&self) -> AlienResult<()> {
+        let gpu = GPU.get().unwrap();
+        gpu.lock().flush().unwrap();
+        Ok(())
+    }
+
+    fn fill(&self, _offset: u32, _buf: &RRefVec<u8>) -> AlienResult<usize> {
         todo!()
     }
 }
 
 pub fn main() -> Arc<dyn GpuDomain> {
-    let devices_domain = libsyscall::get_devices_domain().unwrap();
-    let name = RRefVec::from_slice("virtio-mmio-gpu".as_bytes());
-
-    let info = RRef::new(DeviceInfo {
-        address_range: Default::default(),
-        irq: RRef::new(0),
-        compatible: RRefVec::new(0, 64),
-    });
-
-    let info = devices_domain.get_device(name, info).unwrap();
-
-    let virtio_gpu_addr = &info.address_range;
-    libsyscall::println!("virtio_gpu_addr: {:#x?}", virtio_gpu_addr);
-    Arc::new(GPUDomain::new(virtio_gpu_addr.start))
+    Arc::new(GPUDomain)
 }
 
-struct HalImpl;
+pub struct HalImpl;
 
 unsafe impl Hal for HalImpl {
     fn dma_alloc(pages: usize, _direction: BufferDirection) -> (PhysAddr, NonNull<u8>) {
-        let ptr = libsyscall::alloc_raw_pages(pages);
-        (ptr as usize, NonNull::new(ptr).unwrap())
+        let frame = FrameTracker::new(pages);
+        let ptr = frame.start();
+        forget(frame);
+        (ptr, NonNull::new(ptr as _).unwrap())
     }
 
     unsafe fn dma_dealloc(paddr: PhysAddr, _vaddr: NonNull<u8>, pages: usize) -> i32 {
-        libsyscall::free_raw_pages(paddr as *mut u8, pages);
+        let _frame = FrameTracker::from_raw(paddr, pages);
         0
     }
 

@@ -1,66 +1,78 @@
 #![no_std]
 extern crate alloc;
-extern crate malloc;
 
 use alloc::sync::Arc;
-use interface::{Basic, BlkDeviceDomain, DeviceBase};
+use constants::{AlienError, AlienResult};
+use interface::{Basic, BlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain};
 use log::error;
-use rref::{RRef, RpcError, RpcResult};
+use rref::RRef;
+use spin::Once;
+
+static BLOCK: Once<Arc<dyn BlkDeviceDomain>> = Once::new();
 
 #[derive(Debug)]
-pub struct ShadowBlockDomain {
-    block_domain: Arc<dyn BlkDeviceDomain>,
-}
+pub struct ShadowBlockDomainImpl;
 
-impl ShadowBlockDomain {
-    pub fn new(block_domain: Arc<dyn BlkDeviceDomain>) -> Self {
-        Self { block_domain }
+impl ShadowBlockDomainImpl {
+    pub fn new() -> Self {
+        Self
     }
 }
 
-impl Basic for ShadowBlockDomain {}
+impl Basic for ShadowBlockDomainImpl {}
 
-impl DeviceBase for ShadowBlockDomain {
-    fn handle_irq(&self) -> RpcResult<()> {
-        self.block_domain.handle_irq()
+impl DeviceBase for ShadowBlockDomainImpl {
+    fn handle_irq(&self) -> AlienResult<()> {
+        BLOCK.get().unwrap().handle_irq()
     }
 }
 
-impl BlkDeviceDomain for ShadowBlockDomain {
-    fn read_block(&self, block: u32, data: RRef<[u8; 512]>) -> RpcResult<RRef<[u8; 512]>> {
+impl ShadowBlockDomain for ShadowBlockDomainImpl {
+    fn init(&self, blk_domain: &str) -> AlienResult<()> {
+        let blk = basic::get_domain(blk_domain).unwrap();
+        let blk = match blk {
+            DomainType::BlkDeviceDomain(blk) => blk,
+            _ => panic!("not a block domain"),
+        };
+        BLOCK.call_once(|| blk);
+        Ok(())
+    }
+
+    fn read_block(&self, block: u32, data: RRef<[u8; 512]>) -> AlienResult<RRef<[u8; 512]>> {
+        let blk = BLOCK.get().unwrap();
         let mut data = data;
-        let res = self.block_domain.read_block(block, data);
+        let res = blk.read_block(block, data);
         match res {
             Ok(res) => Ok(res),
-            Err(RpcError::DomainCrash) => {
+            Err(AlienError::DOMAINCRASH) => {
                 error!("domain crash, try restart domain");
                 // try restart domain once
-                if self.block_domain.restart() {
+                if blk.restart() {
                     error!("restart domain ok");
                     data = RRef::new([0u8; 512]);
-                    self.block_domain.read_block(block, data)
+                    blk.read_block(block, data)
                 } else {
-                    Err(RpcError::DomainCrash)
+                    error!("restart domain failed");
+                    Err(AlienError::DOMAINCRASH)
                 }
             }
             Err(e) => Err(e),
         }
     }
 
-    fn write_block(&self, block: u32, data: &RRef<[u8; 512]>) -> RpcResult<usize> {
-        self.block_domain.write_block(block, data)
+    fn write_block(&self, block: u32, data: &RRef<[u8; 512]>) -> AlienResult<usize> {
+        BLOCK.get().unwrap().write_block(block, data)
     }
 
-    fn get_capacity(&self) -> RpcResult<u64> {
-        self.block_domain.get_capacity()
+    fn get_capacity(&self) -> AlienResult<u64> {
+        BLOCK.get().unwrap().get_capacity()
     }
 
-    fn flush(&self) -> RpcResult<()> {
-        self.block_domain.flush()
+    fn flush(&self) -> AlienResult<()> {
+        BLOCK.get().unwrap().flush()
     }
 }
 
-pub fn main() -> Arc<dyn BlkDeviceDomain> {
-    let blk = libsyscall::get_blk_domain().unwrap();
-    Arc::new(ShadowBlockDomain::new(blk))
+pub fn main() -> Arc<dyn ShadowBlockDomain> {
+    Arc::new(ShadowBlockDomainImpl)
 }

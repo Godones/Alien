@@ -8,7 +8,8 @@ edition = "2021"
 [dependencies]
 interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart"] }
 rref = { path = "../../../domain-tools/rref" }
-libsyscall = { path = "../../../domain-tools/libsyscall",features = ["domain"] }
-malloc = { path = "../../../domain-tools/malloc" }
-
+basic = { path = "../../../domain-tools/basic" }
 region = { path = "../../../domain-tools/safety-abstraction/region" }
+constants = { path = "../../../base/constants" }
+
+spin = "0"

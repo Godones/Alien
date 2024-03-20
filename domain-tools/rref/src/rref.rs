@@ -1,4 +1,4 @@
-use crate::{domain_id, RRefable, TypeIdentifiable, HEAP};
+use super::{RRefable, TypeIdentifiable};
 use core::alloc::Layout;
 use core::fmt::{Debug, Formatter};
 use core::ops::{Deref, DerefMut};
@@ -9,8 +9,8 @@ where
     T: 'static + RRefable,
 {
     domain_id_pointer: *mut u64,
-    pub(crate) borrow_count_pointer: *mut u64,
-    pub(crate) value_pointer: *mut T,
+    borrow_count_pointer: *mut u64,
+    value_pointer: *mut T,
 }
 
 unsafe impl<T: RRefable> RRefable for RRef<T> {}
@@ -20,18 +20,14 @@ impl<T: RRefable> RRef<T>
 where
     T: TypeIdentifiable,
 {
-    pub(crate) unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
+    pub unsafe fn new_with_layout(value: T, layout: Layout) -> RRef<T> {
         let type_id = T::type_id();
-        let allocation = match unsafe {
-            HEAP.get()
-                .expect("Shared heap not initialized")
-                .alloc(layout, type_id)
-        } {
+        let allocation = match crate::share_heap_alloc(layout, type_id) {
             Some(allocation) => allocation,
             None => panic!("Shared heap allocation failed"),
         };
         let value_pointer = allocation.value_pointer as *mut T;
-        *allocation.domain_id_pointer = domain_id();
+        *allocation.domain_id_pointer = crate::domain_id();
         *allocation.borrow_count_pointer = 0;
         core::ptr::write(value_pointer, value);
         RRef {
@@ -72,7 +68,7 @@ impl<T: RRefable> DerefMut for RRef<T> {
 
 impl<T: RRefable> Drop for RRef<T> {
     fn drop(&mut self) {
-        unsafe { HEAP.get().unwrap().dealloc(self.value_pointer as _) }
+        crate::share_heap_dealloc(self.value_pointer as *mut u8);
     }
 }
 

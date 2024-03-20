@@ -7,6 +7,7 @@ mod gpu;
 mod input_device;
 mod plic;
 mod rtc;
+mod shadow_block;
 mod syscall;
 mod task;
 mod uart;
@@ -14,9 +15,10 @@ mod vfs;
 
 extern crate alloc;
 
+use alloc::sync::Arc;
+use constants::AlienResult;
 use core::any::Any;
 use core::fmt::Debug;
-use rref::RpcResult;
 
 pub trait Basic: Send + Sync + Debug + Any {
     // may be deleted
@@ -33,7 +35,7 @@ pub trait Basic: Send + Sync + Debug + Any {
 }
 
 pub trait DeviceBase: Basic {
-    fn handle_irq(&self) -> RpcResult<()>;
+    fn handle_irq(&self) -> AlienResult<()>;
 }
 
 #[cfg(feature = "task")]
@@ -71,6 +73,39 @@ pub use devices::{DeviceInfo, DevicesDomain};
 
 #[cfg(feature = "syscall")]
 pub use syscall::SysCallDomain;
+
+#[cfg(feature = "shadow_blk")]
+pub use shadow_block::ShadowBlockDomain;
+
+#[derive(Clone)]
+pub enum DomainType {
+    #[cfg(feature = "fs")]
+    FsDomain(Arc<dyn FsDomain>),
+    #[cfg(feature = "blk")]
+    BlkDeviceDomain(Arc<dyn BlkDeviceDomain>),
+    #[cfg(feature = "cache_blk")]
+    CacheBlkDeviceDomain(Arc<dyn CacheBlkDeviceDomain>),
+    #[cfg(feature = "rtc")]
+    RtcDomain(Arc<dyn RtcDomain>),
+    #[cfg(feature = "gpu")]
+    GpuDomain(Arc<dyn GpuDomain>),
+    #[cfg(feature = "input")]
+    InputDomain(Arc<dyn InputDomain>),
+    #[cfg(feature = "vfs")]
+    VfsDomain(Arc<dyn VfsDomain>),
+    #[cfg(feature = "uart")]
+    UartDomain(Arc<dyn UartDomain>),
+    #[cfg(feature = "plic")]
+    PLICDomain(Arc<dyn PLICDomain>),
+    #[cfg(feature = "devices")]
+    DevicesDomain(Arc<dyn DevicesDomain>),
+    #[cfg(feature = "task")]
+    TaskDomain(Arc<dyn TaskDomain>),
+    #[cfg(feature = "syscall")]
+    SysCallDomain(Arc<dyn SysCallDomain>),
+    #[cfg(feature = "shadow_blk")]
+    ShadowBlockDomain(Arc<dyn ShadowBlockDomain>),
+}
 
 #[cfg(feature = "domain")]
 mod __impl {

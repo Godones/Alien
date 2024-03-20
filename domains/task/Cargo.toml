@@ -6,17 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libsyscall = { path = "../../domain-tools/libsyscall" }
+basic = { path = "../../domain-tools/basic" }
 interface = { path = "../../domain-tools/interface", default-features = false, features = ["task", "vfs"]}
 rref = { path = "../../domain-tools/rref" }
 
 small-index = { git = "https://github.com/os-module/small-index" }
 spin = "0"
-ksync = { path = "../../tcb/ksync" }
-config = { path = "../../tcb/config" }
+ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+config = { path = "../../base/config" }
 ptable = { path = "../../safe-crates/ptable" }
 context = { path = "../../safe-crates/context" }
-constants = { path = "../../tcb/constants" }
+constants = { path = "../../base/constants" }
 
 
 # now we trust the elf loader

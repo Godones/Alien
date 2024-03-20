@@ -1,0 +1,19 @@
+[package]
+name = "basic"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+continuation = { path = "../../base/continuation" }
+corelib = { path = "../corelib", features = ["core_impl"]}
+rref = { path = "../rref" }
+interface = { path = "../interface" }
+context = { path = "../../safe-crates/context" }
+arch = { path = "../../base/arch" }
+spin = "0"
+log = "0"
+downcast-rs = { version = "1.2.0", default-features = false }
+
+ptable = { path = "../../safe-crates/ptable" }

@@ -42,8 +42,8 @@ impl VfsFile for INPUTDevice {
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
         Err(VfsError::Invalid)
     }
-    fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
-        let mut res = VfsPollEvents::empty();
+    fn poll(&self, _event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
+        let res = VfsPollEvents::empty();
         // if event.contains(VfsPollEvents::IN) {
         //     if self.device.is_empty() {
         //         res |= VfsPollEvents::IN;

@@ -2,11 +2,11 @@ use alloc::string::ToString;
 
 use crate::{SystemDeviceInfo, SystemDeviceType};
 use alloc::vec::Vec;
+use basic::println;
 use core::ops::Range;
 use core::ptr::NonNull;
 use fdt::standard_nodes::Compatible;
 use fdt::Fdt;
-use libsyscall::println;
 use log::info;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::transport::{DeviceType, Transport};

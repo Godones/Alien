@@ -76,7 +76,7 @@ pub fn init_ramfs(ramfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
         .create(".bashrc", VfsNodeType::File, "rwxrwxrwx".into(), None)
         .unwrap();
 
-    libsyscall::println!("ramfs init success");
+    basic::println!("ramfs init success");
     root_dt
 }
 

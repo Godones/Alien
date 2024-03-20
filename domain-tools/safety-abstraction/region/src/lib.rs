@@ -12,7 +12,7 @@ pub struct SafeIORegion {
 impl SafeIORegion {
     pub fn new(start: usize, size: usize) -> AlienResult<Self> {
         // check whether the start address is in the kernel space
-        libsyscall::check_kernel_space(start, size)
+        basic::check_kernel_space(start, size)
             .then(|| ())
             .ok_or(AlienError::EINVAL)?;
         Ok(Self { start, size })

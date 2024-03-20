@@ -1,12 +1,13 @@
 use crate::vfs_shim::ShimFile;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use basic::frame::FrameTracker;
 use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM};
 use core::fmt::{Debug, Formatter};
 use ksync::Mutex;
-use libsyscall::{alloc_pages, FrameTracker};
 use small_index::IndexAllocator;
 use spin::Lazy;
+
 pub static TID_MANAGER: Lazy<Mutex<IndexAllocator<MAX_THREAD_NUM>>> =
     Lazy::new(|| Mutex::new(IndexAllocator::new()));
 
@@ -76,7 +77,7 @@ pub struct KStack {
 
 impl KStack {
     pub fn new(pages: usize) -> Self {
-        let frames = alloc_pages(pages);
+        let frames = FrameTracker::new(pages);
         Self {
             frames: Some(frames),
         }

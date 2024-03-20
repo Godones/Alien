@@ -1,11 +1,12 @@
 #![no_std]
 extern crate alloc;
-extern crate malloc;
 
 use alloc::sync::Arc;
+use basic::println;
+use constants::AlienResult;
 use interface::{Basic, DeviceBase, DeviceInfo, UartDomain};
 use region::SafeIORegion;
-use rref::{RRef, RRefVec, RpcResult};
+use spin::Once;
 
 #[derive(Debug)]
 pub struct Uart16550 {
@@ -37,16 +38,8 @@ impl Uart16550 {
     }
 }
 
-impl Basic for Uart16550 {}
-
-impl DeviceBase for Uart16550 {
-    fn handle_irq(&self) -> RpcResult<()> {
-        todo!()
-    }
-}
-
-impl UartDomain for Uart16550 {
-    fn putc(&self, ch: u8) -> RpcResult<()> {
+impl Uart16550 {
+    fn putc(&self, ch: u8) -> AlienResult<()> {
         // check LCR DLAB = 0
         // check LSR empty
         let lsr = self.region.read_at::<u8>(5).unwrap();
@@ -57,7 +50,7 @@ impl UartDomain for Uart16550 {
         Ok(())
     }
 
-    fn getc(&self) -> RpcResult<Option<u8>> {
+    fn getc(&self) -> AlienResult<Option<u8>> {
         // check LCR DLAB = 0
         // check LSR
         let lsr = self.region.read_at::<u8>(5).unwrap();
@@ -70,24 +63,47 @@ impl UartDomain for Uart16550 {
         // read from RHR
     }
 
-    fn have_data_to_get(&self) -> RpcResult<bool> {
+    fn have_data_to_get(&self) -> AlienResult<bool> {
         let lsr = self.region.read_at::<u8>(5).unwrap();
         Ok((lsr & 1) == 1)
     }
 }
 
+static UART: Once<Uart16550> = Once::new();
+
+#[derive(Debug)]
+struct UartDomainImpl;
+
+impl DeviceBase for UartDomainImpl {
+    fn handle_irq(&self) -> AlienResult<()> {
+        todo!()
+    }
+}
+
+impl Basic for UartDomainImpl {}
+
+impl UartDomain for UartDomainImpl {
+    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
+        let region = &device_info.address_range;
+        println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
+        let uart = Uart16550::new(region.start, region.end - region.start);
+        UART.call_once(|| uart);
+        Ok(())
+    }
+
+    fn putc(&self, ch: u8) -> AlienResult<()> {
+        UART.get().unwrap().putc(ch)
+    }
+
+    fn getc(&self) -> AlienResult<Option<u8>> {
+        UART.get().unwrap().getc()
+    }
+
+    fn have_data_to_get(&self) -> AlienResult<bool> {
+        UART.get().unwrap().have_data_to_get()
+    }
+}
+
 pub fn main() -> Arc<dyn UartDomain> {
-    let devices_domain = libsyscall::get_devices_domain().unwrap();
-    let name = RRefVec::from_slice("uart".as_bytes());
-
-    let info = RRef::new(DeviceInfo {
-        address_range: Default::default(),
-        irq: RRef::new(0),
-        compatible: RRefVec::new(0, 64),
-    });
-
-    let info = devices_domain.get_device(name, info).unwrap();
-    let region = &info.address_range;
-    libsyscall::println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
-    Arc::new(Uart16550::new(region.start, region.end - region.start))
+    Arc::new(UartDomainImpl {})
 }

@@ -9,9 +9,9 @@ edition = "2021"
 malloc = { path = "../../../domain-tools/malloc" }
 interface = { path = "../../../domain-tools/interface",default-features = false,features = ["fs","blk","domain"] }
 rref = { path = "../../../domain-tools/rref" }
-libsyscall = { path = "../../../domain-tools/libsyscall" ,features = ["domain"] }
-
+basic = { path = "../../../domain-tools/basic" }
+constants = { path = "../../../base/constants" }
 fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
-ksync = { path = "../../../tcb/ksync" }
+ksync = { path = "../../../domain-tools/safety-abstraction/ksync" }
 log = "0"

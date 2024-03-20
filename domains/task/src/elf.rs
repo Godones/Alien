@@ -8,7 +8,7 @@ use config::{
 };
 use constants::{AlienError, AlienResult};
 use core::cmp::min;
-use libsyscall::println;
+use core::mem::forget;
 use ptable::*;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
@@ -17,12 +17,15 @@ pub struct VmmPageAllocator;
 
 impl PagingIf for VmmPageAllocator {
     fn alloc_frame() -> Option<PhysAddr> {
-        let start_addr = libsyscall::alloc_raw_pages(1);
-        Some(PhysAddr::from(start_addr as usize))
+        let frame = basic::frame::FrameTracker::new(1);
+        let start = frame.start();
+        forget(frame);
+        Some(PhysAddr::from(start as usize))
     }
 
     fn dealloc_frame(paddr: PhysAddr) {
-        libsyscall::free_raw_pages(paddr.as_usize() as _, 1);
+        let frame = basic::frame::FrameTracker::from_raw(paddr.as_usize(), 1);
+        drop(frame);
     }
 
     fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {
@@ -294,7 +297,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
 
     // how to solve trampoline
 
-    let trampoline_phy_addr = libsyscall::trampoline_addr();
+    let trampoline_phy_addr = basic::trampoline_addr();
     let trampoline_area = VmArea::new(
         TRAMPOLINE..(TRAMPOLINE + FRAME_SIZE),
         MappingFlags::READ | MappingFlags::EXECUTE,

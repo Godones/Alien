@@ -7,19 +7,21 @@ edition = "2021"
 
 [dependencies]
 log = "0"
-ksync = { path = "../tcb/ksync" }
-kcore = { path = "../tcb/kcore" }
-platform = { path = "../tcb/platform" }
-mem = { path = "../tcb/mem" }
-arch = { path = "../tcb/arch" }
-timer = { path = "../tcb/timer" }
+ksync = { path = "../domain-tools/safety-abstraction/ksync" }
+kcore = { path = "../base/kcore" }
+platform = { path = "../base/platform" }
+mem = { path = "../base/mem" }
+arch = { path = "../base/arch" }
+timer = { path = "../base/timer" }
 riscv = "0"
 
-domain-helper = { path = "../tcb/domain-helper" }
-domain-loader = { path = "../tcb/domain-loader" }
-proxy = { path = "../tcb/proxy" }
-interface = { path = "../domain-tools/interface" }
 
+rref = { path = "../domain-tools/rref" }
+domain-helper = { path = "../base/domain-helper" }
+domain-loader = { path = "../base/domain-loader" }
+proxy = { path = "../base/proxy" }
+interface = { path = "../domain-tools/interface" }
+fdt = { path = "../safe-crates/fdt" }
 
 [features]
 default = ["smp"]

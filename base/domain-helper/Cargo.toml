@@ -1,0 +1,26 @@
+[package]
+name = "domain-helper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arch = { path = "../arch" }
+config = { path = "../config" }
+mem = { path = "../mem" }
+ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+platform = { path = "../platform" }
+timer = { path = "../timer" }
+kcore = { path = "../kcore" }
+
+context = { path = "../../safe-crates/context" }
+
+
+corelib = { path = "../../domain-tools/corelib" }
+rref = { path = "../../domain-tools/rref" }
+continuation = { path = "../continuation" }
+interface = { path = "../../domain-tools/interface" }
+
+log = "0"
+spin = "0"

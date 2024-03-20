@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart","domain"] }
 rref = { path = "../../../domain-tools/rref" }
-libsyscall = { path = "../../../domain-tools/libsyscall",features = ["domain"] }
-ksync = { path = "../../../tcb/ksync" }
+basic = { path = "../../../domain-tools/basic" }
+ksync = { path = "../../../domain-tools/safety-abstraction/ksync" }
+constants = { path = "../../../base/constants" }

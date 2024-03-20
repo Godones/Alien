@@ -1,0 +1,20 @@
+[package]
+name = "domain-loader"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arch = { path = "../arch" }
+mem = { path = "../mem" }
+config = { path = "../config" }
+constants = { path = "../constants" }
+domain-helper = { path = "../domain-helper" }
+corelib = { path = "../../domain-tools/corelib" }
+
+basic = { path = "../../domain-tools/basic" }
+rref = { path = "../../domain-tools/rref" }
+xmas-elf = "0.9"
+log = "0"
+

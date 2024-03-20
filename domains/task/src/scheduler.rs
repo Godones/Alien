@@ -16,7 +16,7 @@ pub fn run_task() -> ! {
             let cpu_context = cpu.get_idle_task_cx_ptr();
             // println!("hart {} switch to task {}", hart_id(),task.get_tid());
             drop(cpu);
-            libsyscall::switch_task(cpu_context, context);
+            basic::switch_task(cpu_context, context);
         } else {
             spin_loop();
         }
@@ -56,7 +56,7 @@ pub fn schedule_now(task: Arc<Task>) {
     let mut cpu = current_cpu();
     let cpu_context = cpu.get_idle_task_cx_ptr();
     drop(cpu);
-    libsyscall::switch_task(context, cpu_context);
+    basic::switch_task(context, cpu_context);
 }
 
 pub fn do_suspend() -> isize {

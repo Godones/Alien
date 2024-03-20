@@ -4,11 +4,10 @@ extern crate alloc;
 
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use constants::AlienResult;
 use core::fmt::{Debug, Formatter};
 use interface::{Basic, DeviceBase, UartDomain};
 use ksync::Mutex;
-use libsyscall::KTask;
-use rref::RpcResult;
 
 pub struct Uart {
     inner: Mutex<(Arc<dyn UartDomain>, UartInner)>,
@@ -60,7 +59,7 @@ impl DeviceBase for Uart {
 }
 
 impl UartDomain for Uart {
-    fn putc(&self, ch: u8) -> RpcResult<()> {
+    fn putc(&self, ch: u8) -> AlienResult<()> {
         let mut inner = self.inner.lock();
         if ch == b'\n' {
             inner.0.putc(b'\r')
@@ -69,7 +68,7 @@ impl UartDomain for Uart {
         }
     }
 
-    fn getc(&self) -> RpcResult<Option<u8>> {
+    fn getc(&self) -> AlienResult<Option<u8>> {
         loop {
             let mut inner = self.inner.lock();
             if inner.1.rx_buf.is_empty() {

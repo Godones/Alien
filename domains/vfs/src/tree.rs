@@ -4,6 +4,7 @@ use crate::{pipefs, procfs, sys, VFS_MAP};
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
+use basic::println;
 use constants::io::OpenFlags;
 use core::ops::Index;
 use dynfs::DynFsKernelProvider;
@@ -66,7 +67,7 @@ fn register_all_fs() {
     FS.lock().insert("pipefs".to_string(), pipefs);
     FS.lock().insert("diskfs".to_string(), diskfs);
 
-    libsyscall::println!("register fs success");
+    println!("register fs success");
 }
 
 /// Init the filesystem
@@ -99,14 +100,17 @@ pub fn init_filesystem() -> VfsResult<()> {
     path.join("dev/shm")?.mount(shm_ramfs, 0)?;
 
     let diskfs = FS.lock().index("diskfs").clone();
+
     let blk_inode = path
         .join("/dev/sda")?
         .open(None)
         .expect("open /dev/sda failed")
         .inode()?;
+
     let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
+
     path.join("tests")?.mount(diskfs_root, 0)?;
-    libsyscall::println!("Vfs Tree:");
+    println!("Vfs Tree:");
     vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), true).unwrap();
 
     // initrd::populate_initrd(ramfs_root.clone())?;
@@ -121,14 +125,14 @@ pub fn init_filesystem() -> VfsResult<()> {
     map.insert(VFS_STDOUT_ID, STDOUT.clone());
     map.insert(VFS_STDERR_ID, STDOUT.clone());
 
-    libsyscall::println!("Init filesystem success");
+    println!("Init filesystem success");
     Ok(())
 }
 
 struct VfsOutPut;
 impl core::fmt::Write for VfsOutPut {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        libsyscall::write_console(s);
+        basic::write_console(s);
         Ok(())
     }
 }

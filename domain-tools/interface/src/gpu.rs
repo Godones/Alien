@@ -1,7 +1,9 @@
-use crate::DeviceBase;
-use rref::{RRefVec, RpcResult};
+use crate::{DeviceBase, DeviceInfo};
+use constants::AlienResult;
+use rref::RRefVec;
 
 pub trait GpuDomain: DeviceBase {
-    fn flush(&self) -> RpcResult<()>;
-    fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> RpcResult<usize>;
+    fn init(&self, device_info: DeviceInfo) -> AlienResult<()>;
+    fn flush(&self) -> AlienResult<()>;
+    fn fill(&self, offset: u32, buf: &RRefVec<u8>) -> AlienResult<usize>;
 }

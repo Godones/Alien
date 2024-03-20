@@ -1,5 +1,6 @@
-use crate::DeviceBase;
-use rref::{RRef, RpcResult};
+use crate::{DeviceBase, DeviceInfo};
+use constants::AlienResult;
+use rref::RRef;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
@@ -16,5 +17,6 @@ pub struct RtcTime {
 }
 
 pub trait RtcDomain: DeviceBase {
-    fn read_time(&self, time: RRef<RtcTime>) -> RpcResult<RRef<RtcTime>>;
+    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
+    fn read_time(&self, time: RRef<RtcTime>) -> AlienResult<RRef<RtcTime>>;
 }

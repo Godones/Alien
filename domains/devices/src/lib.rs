@@ -1,19 +1,20 @@
 #![no_std]
 
 extern crate alloc;
-extern crate malloc;
 mod prob;
 
 use crate::prob::Probe;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use basic::println;
+use constants::AlienResult;
 use core::cmp::min;
 use core::ops::Range;
 use fdt::Fdt;
 use interface::{Basic, DeviceInfo, DevicesDomain};
-use libsyscall::println;
-use rref::{RRef, RRefVec};
+use ksync::Mutex;
+use rref::RRef;
 
 #[derive(Debug, Clone)]
 pub struct SystemDeviceInfo {
@@ -38,7 +39,7 @@ impl AsRef<str> for SystemDeviceType {
             SystemDeviceType::PLIC(_) => "plic",
             SystemDeviceType::VirtIoMMioBlock(_) => "virtio-mmio-block",
             SystemDeviceType::Uart(_) => "uart",
-            SystemDeviceType::VirtIoMMioNet(_) => "virtio-mmio-net",
+            SystemDeviceType::VirtIoMMioNet(_) => "virtio-mmio-virtio-mmio-net",
             SystemDeviceType::Rtc(_) => "rtc",
             SystemDeviceType::VirtIoMMioInput(_) => "virtio-mmio-input",
             SystemDeviceType::VirtIoMMioGpu(_) => "virtio-mmio-gpu",
@@ -48,74 +49,71 @@ impl AsRef<str> for SystemDeviceType {
 
 #[derive(Debug)]
 pub struct DevicesDomainImpl {
-    devices: Vec<SystemDeviceType>,
+    devices: Mutex<Vec<SystemDeviceType>>,
 }
 
 impl DevicesDomainImpl {
     pub fn new() -> Self {
         Self {
-            devices: Vec::new(),
+            devices: Mutex::new(Vec::new()),
         }
-    }
-
-    pub fn push(&mut self, device_type: SystemDeviceType) {
-        self.devices.push(device_type)
-    }
-
-    pub fn devices_count(&self) -> usize {
-        self.devices.len()
     }
 }
 
 impl Basic for DevicesDomainImpl {}
 
 impl DevicesDomain for DevicesDomainImpl {
-    fn get_device(
+    fn init(&self, dtb: &'static [u8]) -> AlienResult<()> {
+        let dtb = Fdt::new(dtb).unwrap();
+        dtb.probe_rtc().map(|ty| self.devices.lock().push(ty));
+        dtb.probe_uart().map(|ty| self.devices.lock().push(ty));
+        dtb.probe_plic().map(|ty| self.devices.lock().push(ty));
+        let virtio = dtb.probe_virtio();
+        if let Some(virtio) = virtio {
+            for ty in virtio {
+                self.devices.lock().push(ty);
+            }
+        }
+        // println!("{:#x?}", self);
+        println!("Probe {} devices.", self.devices.lock().len());
+        Ok(())
+    }
+
+    fn index_device(
         &self,
-        name: RRefVec<u8>,
+        index: usize,
         mut info: RRef<DeviceInfo>,
-    ) -> Option<RRef<DeviceInfo>> {
-        let name = core::str::from_utf8(name.as_slice()).unwrap();
-
-        libsyscall::println!("get_device: {}", name);
-
-        let ty = self.devices.iter().find(|t| t.as_ref() == name)?;
-        let t = match ty {
-            SystemDeviceType::PLIC(t) => t.clone(),
-            SystemDeviceType::VirtIoMMioBlock(t) => t.clone(),
-            SystemDeviceType::Uart(t) => t.clone(),
-            SystemDeviceType::VirtIoMMioNet(t) => t.clone(),
-            SystemDeviceType::Rtc(t) => t.clone(),
-            SystemDeviceType::VirtIoMMioInput(t) => t.clone(),
-            SystemDeviceType::VirtIoMMioGpu(t) => t.clone(),
-        };
-        info.address_range = t.address_range;
-        *info.irq = t.irq.unwrap_or(0);
-        let slice = info.compatible.as_mut_slice();
-        let compatible = t.compatible.clone().unwrap_or("".to_string());
-
-        let copy_len = min(slice.len(), compatible.len());
-
-        slice[..copy_len].copy_from_slice(compatible.as_bytes());
-
-        Some(info)
+    ) -> AlienResult<RRef<DeviceInfo>> {
+        let devices = self.devices.lock();
+        let device = devices.get(index);
+        match device {
+            Some(ty) => {
+                let t = match ty {
+                    SystemDeviceType::PLIC(t) => t,
+                    SystemDeviceType::VirtIoMMioBlock(t) => t,
+                    SystemDeviceType::Uart(t) => t,
+                    SystemDeviceType::VirtIoMMioNet(t) => t,
+                    SystemDeviceType::Rtc(t) => t,
+                    SystemDeviceType::VirtIoMMioInput(t) => t,
+                    SystemDeviceType::VirtIoMMioGpu(t) => t,
+                };
+                info.address_range = t.address_range.clone();
+                info.irq = t.irq.unwrap_or(0);
+                info.next = index + 1;
+                let name = ty.as_ref();
+                let copy_len = min(info.name.len(), name.len());
+                info.name[..copy_len].copy_from_slice(&name.as_bytes()[..copy_len]);
+                Ok(info)
+            }
+            None => {
+                info.next = 0;
+                Ok(info)
+            }
+        }
     }
 }
 
 pub fn main() -> Arc<dyn DevicesDomain> {
-    let dtb = libsyscall::get_dtb();
-    let dtb = Fdt::new(dtb).unwrap();
-    let mut domain = DevicesDomainImpl::new();
-    dtb.probe_rtc().map(|ty| domain.push(ty));
-    dtb.probe_uart().map(|ty| domain.push(ty));
-    dtb.probe_plic().map(|ty| domain.push(ty));
-    let virtio = dtb.probe_virtio();
-    if let Some(virtio) = virtio {
-        for ty in virtio {
-            domain.push(ty);
-        }
-    }
-    // println!("{:#x?}", domain);
-    println!("Probe {} devices.", domain.devices_count());
+    let domain = DevicesDomainImpl::new();
     Arc::new(domain)
 }

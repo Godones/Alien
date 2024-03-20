@@ -1,7 +1,6 @@
 #![no_std]
 // #![deny(unsafe_code)]
 extern crate alloc;
-extern crate libsyscall;
 #[macro_use]
 extern crate log;
 mod elf;
@@ -17,8 +16,9 @@ use crate::processor::current_task;
 use crate::scheduler::run_task;
 use alloc::sync::Arc;
 use constants::AlienError;
-use interface::{Basic, InodeId, TaskDomain, TmpHeapInfo};
-use rref::{RRef, RpcError, RpcResult};
+use constants::AlienResult;
+use interface::{Basic, DomainType, InodeId, TaskDomain, TmpHeapInfo};
+use rref::RRef;
 
 #[derive(Debug)]
 pub struct TaskDomainImpl {}
@@ -32,22 +32,32 @@ impl TaskDomainImpl {
 impl Basic for TaskDomainImpl {}
 
 impl TaskDomain for TaskDomainImpl {
+    fn init(&self) -> AlienResult<()> {
+        let vfs_domain = basic::get_domain("vfs").unwrap();
+        let vfs_domain = match vfs_domain {
+            DomainType::VfsDomain(vfs_domain) => vfs_domain,
+            _ => panic!("vfs domain not found"),
+        };
+        vfs_shim::init_vfs_domain(vfs_domain);
+        init::init_task();
+        Ok(())
+    }
     fn run(&self) {
         run_task()
     }
 
-    fn trap_frame_virt_addr(&self) -> RpcResult<usize> {
+    fn trap_frame_virt_addr(&self) -> AlienResult<usize> {
         Ok(processor::current_trap_frame_ptr())
     }
-    fn current_task_satp(&self) -> RpcResult<usize> {
+    fn current_task_satp(&self) -> AlienResult<usize> {
         Ok(processor::current_user_token())
     }
 
-    fn trap_frame_phy_addr(&self) -> RpcResult<usize> {
+    fn trap_frame_phy_addr(&self) -> AlienResult<usize> {
         Ok(processor::current_trap_frame() as *mut _ as usize)
     }
 
-    fn heap_info(&self, mut tmp_heap_info: RRef<TmpHeapInfo>) -> RpcResult<RRef<TmpHeapInfo>> {
+    fn heap_info(&self, mut tmp_heap_info: RRef<TmpHeapInfo>) -> AlienResult<RRef<TmpHeapInfo>> {
         let task = current_task().unwrap();
         let inner = task.inner.lock();
         let guard = inner.heap.lock();
@@ -58,27 +68,25 @@ impl TaskDomain for TaskDomainImpl {
         Ok(tmp_heap_info)
     }
 
-    fn brk(&self, addr: usize) -> RpcResult<isize> {
+    fn brk(&self, addr: usize) -> AlienResult<isize> {
         let task = current_task().unwrap();
         let new_addr = task.extend_heap(addr);
         Ok(new_addr as isize)
     }
 
-    fn get_fd(&self, fd: usize) -> RpcResult<InodeId> {
+    fn get_fd(&self, fd: usize) -> AlienResult<InodeId> {
         let task = current_task().unwrap();
-        let file = task
-            .get_file(fd)
-            .ok_or(RpcError::Alien(AlienError::EBADF))?;
+        let file = task.get_file(fd).ok_or(AlienError::EBADF)?;
         Ok(file.inode_id())
     }
 
-    fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) -> RpcResult<()> {
+    fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
         let task = current_task().unwrap();
         task.copy_to_user(src, dst, len);
         Ok(())
     }
 
-    fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) -> RpcResult<()> {
+    fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
         let task = current_task().unwrap();
         task.copy_from_user(src, dst, len);
         Ok(())
@@ -86,8 +94,5 @@ impl TaskDomain for TaskDomainImpl {
 }
 
 pub fn main() -> Arc<dyn TaskDomain> {
-    let vfs_domain = libsyscall::get_vfs_domain().unwrap();
-    vfs_shim::init_vfs_domain(vfs_domain);
-    init::init_task();
     Arc::new(TaskDomainImpl::new())
 }

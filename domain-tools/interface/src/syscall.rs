@@ -1,6 +1,7 @@
 use crate::Basic;
-use rref::RpcResult;
+use constants::AlienResult;
 
 pub trait SysCallDomain: Basic {
-    fn call(&self, syscall_id: usize, args: [usize; 6]) -> RpcResult<isize>;
+    fn init(&self) -> AlienResult<()>;
+    fn call(&self, syscall_id: usize, args: [usize; 6]) -> AlienResult<isize>;
 }

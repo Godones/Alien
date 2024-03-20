@@ -1,16 +1,9 @@
-use crate::{RRef, RRefable, TypeIdentifiable};
+use super::{RRef, RRefable, TypeIdentifiable};
 use core::alloc::Layout;
 use core::fmt::{Debug, Formatter};
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut};
 
-#[doc = " `RRef`ed runtime constant size array."]
-#[doc = " This allow us to pass array across domains without having"]
-#[doc = " its size being limited at complie time like in RRefArray."]
-#[doc = ""]
-#[doc = " Currently, it only support Copy types since we only need"]
-#[doc = " it for passing byte arrays around. We will later merge it"]
-#[doc = " with RRefArray when we have time."]
 pub struct RRefVec<T>
 where
     T: 'static + RRefable + Copy + TypeIdentifiable,

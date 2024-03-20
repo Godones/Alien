@@ -5,11 +5,11 @@ extern crate malloc;
 
 use alloc::string::ToString;
 use alloc::sync::Arc;
+use basic::{println, write_console};
 use core::fmt::{Debug, Formatter, Write};
 use fat_vfs::{FatFs, FatFsProvider};
-use interface::{Basic, BlkDeviceDomain, FsDomain};
+use interface::{Basic, BlkDeviceDomain, DomainType, FsDomain};
 use ksync::Mutex;
-use libsyscall::println;
 use log::debug;
 use rref::RRef;
 use vfscore::dentry::VfsDentry;
@@ -151,7 +151,12 @@ impl VfsInode for FakeInode {
 }
 
 pub fn main() -> Arc<dyn FsDomain> {
-    let blk_device = libsyscall::get_blk_domain().unwrap();
+    let blk_device = basic::get_domain("blk").unwrap();
+    let blk_device = match blk_device {
+        DomainType::BlkDeviceDomain(blk) => blk,
+        _ => panic!("devices domain not found"),
+    };
+
     let fatfs = Arc::new(FatFs::<_, Mutex<()>>::new(ProviderImpl));
     let root = fatfs
         .clone()
@@ -166,7 +171,7 @@ pub fn main() -> Arc<dyn FsDomain> {
 struct FakeOut;
 impl Write for FakeOut {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        libsyscall::write_console(s);
+        write_console(s);
         Ok(())
     }
 }

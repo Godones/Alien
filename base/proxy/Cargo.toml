@@ -1,0 +1,27 @@
+[package]
+name = "proxy"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+platform = { path = "../platform" }
+arch = { path = "../arch" }
+ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+domain-loader = { path = "../domain-loader" }
+constants = { path = "../constants" }
+
+interface = { path = "../../domain-tools/interface" }
+rref = { path = "../../domain-tools/rref" }
+continuation = { path = "../continuation" }
+
+
+spin = "0"
+log = "0"
+
+
+
+[features]
+default = ["fault_isolation"]
+fault_isolation = []

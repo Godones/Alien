@@ -1,0 +1,16 @@
+[package]
+name = "corelib"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+context = { path = "../../safe-crates/context" }
+spin = "0"
+interface = { path = "../interface" }
+
+
+
+[features]
+core_impl = []

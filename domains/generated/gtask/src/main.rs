@@ -2,47 +2,46 @@
 #![no_std]
 #![no_main]
 
-extern crate malloc;
-
 extern crate alloc;
-
+extern crate malloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use basic::println;
 use core::panic::PanicInfo;
+use corelib::CoreFunction;
 use interface::TaskDomain;
-use libsyscall::{KTaskShim, Syscall};
-use rref::SharedHeap;
+use rref::{domain_id, SharedHeapAlloc};
 
 #[no_mangle]
 fn main(
-    sys: Box<dyn Syscall>,
+    sys: Box<dyn CoreFunction>,
     domain_id: u64,
-    shared_heap: Box<dyn SharedHeap>,
-    ktask_shim: Box<dyn KTaskShim>,
+    shared_heap: Box<dyn SharedHeapAlloc>,
 ) -> Arc<dyn TaskDomain> {
+    // init basic
+    corelib::init(sys);
     // init rref's shared heap
     rref::init(shared_heap, domain_id);
-    // init libsyscall
-    libsyscall::init(sys, ktask_shim);
+    basic::logging::init_logger();
     // activate the domain
     interface::activate_domain();
-    // call the real uart driver
+    // call the real blk driver
     task::main()
 }
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     if let Some(p) = info.location() {
-        libsyscall::println!(
+        println!(
             "line {}, file {}: {}",
             p.line(),
             p.file(),
             info.message().unwrap()
         );
     } else {
-        libsyscall::println!("no location information available");
+        println!("no location information available");
     }
     interface::deactivate_domain();
-    libsyscall::backtrace();
+    basic::backtrace(domain_id());
     loop {}
 }

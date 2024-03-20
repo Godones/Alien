@@ -1,11 +1,14 @@
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::sync::Arc;
-use domain_helper::{alloc_domain_id, DomainType};
+use domain_helper::{alloc_domain_id, DomainType, SharedHeapAllocator};
 use domain_loader::DomainLoader;
+use fdt::Fdt;
 use interface::*;
 use log::info;
 use proxy::*;
+use rref::RRef;
 
 #[macro_use]
 mod macros {
@@ -84,11 +87,7 @@ fn blk_domain() -> Arc<dyn BlkDeviceDomain> {
     let mut domain = DomainLoader::new(BLK_DOMAIN);
     domain.load().unwrap();
     let id = alloc_domain_id();
-    let dev = domain.call::<dyn BlkDeviceDomain>(id);
-    info!(
-        "dev capacity: {:?}MB",
-        dev.get_capacity().unwrap() / 1024 / 1024
-    );
+    let dev = domain.call(id);
     Arc::new(BlkDomainProxy::new(id, dev, domain))
 }
 
@@ -116,12 +115,12 @@ fn cache_blk_domain() -> Arc<dyn CacheBlkDeviceDomain> {
     Arc::new(CacheBlkDomainProxy::new(id, cache_blk))
 }
 
-fn shadow_blk_domain() -> Arc<dyn BlkDeviceDomain> {
+fn shadow_blk_domain() -> Arc<dyn ShadowBlockDomain> {
     let mut domain = DomainLoader::new(SHADOW_BLK_DOMAIN);
     domain.load().unwrap();
     let id = alloc_domain_id();
     let shadow_blk = domain.call(id);
-    Arc::new(BlkDomainProxy::new(id, shadow_blk, domain))
+    Arc::new(ShadowBlockDomainProxy::new(id, shadow_blk))
 }
 
 fn extern_interrupt_domain() -> Arc<dyn PLICDomain> {
@@ -137,6 +136,7 @@ fn devices_domain() -> Arc<dyn DevicesDomain> {
     domain.load().unwrap();
     let id = alloc_domain_id();
     let devices_domain = domain.call(id);
+
     Arc::new(DevicesDomainProxy::new(id, devices_domain))
 }
 
@@ -156,23 +156,90 @@ fn syscall_domain() -> Arc<dyn SysCallDomain> {
     Arc::new(SysCallDomainProxy::new(id, task_domain))
 }
 
+/// set the kernel to the specific domain
+fn init_kernel_domain() {
+    rref::init(Box::new(SharedHeapAllocator), alloc_domain_id());
+}
+
 pub fn load_domains() {
+    init_kernel_domain();
+
     info!(
         "Load devices domain, size: {}KB",
         DEVICES_DOMAIN.len() / 1024
     );
     let devices = devices_domain();
-    domain_helper::register_domain("devices", DomainType::DevicesDomain(devices));
+
+    let ptr = platform::platform_dtb_ptr();
+    let fdt = unsafe { Fdt::from_ptr(ptr as *const u8) }.unwrap();
+    let size = fdt.total_size();
+    let fdt = unsafe { core::slice::from_raw_parts(ptr as *const u8, size) };
+    devices.init(fdt).unwrap();
+
+    domain_helper::register_domain("devices", DomainType::DevicesDomain(devices.clone()));
 
     info!(
         "Load extern-interrupt domain, size: {}KB",
         EXTERN_INTR.len() / 1024
     );
     let plic = extern_interrupt_domain();
-    domain_helper::register_domain("plic", DomainType::PLICDomain(plic));
+    domain_helper::register_domain("plic", DomainType::PLICDomain(plic.clone()));
 
     info!("Loading uart domain, size: {}KB", UART_DOMAIN.len() / 1024);
     let uart = uart_domain();
+    domain_helper::register_domain("uart", DomainType::UartDomain(uart.clone()));
+
+    info!("Load blk domain, size: {}KB", BLK_DOMAIN.len() / 1024);
+    let blk = blk_domain();
+    domain_helper::register_domain("blk", DomainType::BlkDeviceDomain(blk.clone()));
+
+    info!("Load rtc domain, size: {}KB", RTC_DOMAIN.len() / 1024);
+    let rtc = rtc_domain();
+    domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc.clone()));
+
+    info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
+    let gpu = gpu_domain();
+    domain_helper::register_domain("gpu", DomainType::GpuDomain(gpu));
+
+    let mut device_info = RRef::new(DeviceInfo::default());
+    loop {
+        let res = devices.index_device(device_info.next, device_info);
+        if res.is_err() {
+            panic!("index device error");
+        }
+        device_info = res.unwrap();
+        if device_info.next == 0 {
+            break;
+        }
+        let name_len = device_info
+            .name
+            .iter()
+            .position(|&x| x == 0)
+            .unwrap_or(device_info.name.len());
+        let name = core::str::from_utf8(&device_info.name[..name_len]).unwrap();
+        info!("device name: {}", name);
+        // todo!(other match methods)
+        match name {
+            "rtc" => rtc.init(&device_info).unwrap(),
+            "plic" => plic.init(&device_info).unwrap(),
+            "uart" => uart.init(&device_info).unwrap(),
+            "virtio-mmio-block" => blk.init(&device_info).unwrap(),
+            "virtio-mmio-gpu" => {
+                // gpu.init(&device_info).unwrap()
+            }
+            _ => {
+                info!("unknown device: {}", name);
+            }
+        }
+
+        device_info.name.fill(0);
+    }
+
+    info!(
+        "dev capacity: {:?}MB",
+        blk.get_capacity().unwrap() / 1024 / 1024
+    );
+
     uart.putc('T' as u8).unwrap();
     uart.putc('E' as u8).unwrap();
     uart.putc('S' as u8).unwrap();
@@ -183,42 +250,37 @@ pub fn load_domains() {
     uart.putc('R' as u8).unwrap();
     uart.putc('T' as u8).unwrap();
     uart.putc('\n' as u8).unwrap();
-    domain_helper::register_domain("uart", DomainType::UartDomain(uart));
-
-    info!("Load blk domain, size: {}KB", BLK_DOMAIN.len() / 1024);
-    let dev = blk_domain();
-    domain_helper::register_domain("blk", DomainType::BlkDeviceDomain(dev));
-    // info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
-    // let fs = fatfs_domain();
-    // domain_helper::register_domain("fatfs", fs);
-
-    // info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
-    // let gpu = gpu_domain();
-    // domain_helper::register_domain("gpu", DomainType::GpuDomain(gpu));
 
     info!(
         "Load shadow blk domain, size: {}KB",
         SHADOW_BLK_DOMAIN.len() / 1024
     );
     let shadow_blk = shadow_blk_domain();
-    domain_helper::register_domain("shadow_blk", DomainType::BlkDeviceDomain(shadow_blk));
+    shadow_blk.init("blk").unwrap();
+    domain_helper::register_domain("shadow_blk", DomainType::ShadowBlockDomain(shadow_blk));
 
-    info!("Load rtc domain, size: {}KB", RTC_DOMAIN.len() / 1024);
-    let rtc = rtc_domain();
-    domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc));
     info!(
         "Load cache blk domain, size: {}KB",
         CACHE_BLK_DOMAIN.len() / 1024
     );
     let cache_blk = cache_blk_domain();
+    cache_blk.init("shadow_blk").unwrap();
     domain_helper::register_domain("cache_blk", DomainType::CacheBlkDeviceDomain(cache_blk));
+
+    // info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
+    // let fs = fatfs_domain();
+    // domain_helper::register_domain("fatfs", DomainType::FsDomain(fs));
+
     info!("Load vfs domain, size: {}KB", VFS_DOMAIN.len() / 1024);
     let vfs = vfs_domain();
-    domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs));
+    domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs.clone()));
 
     info!("Load task domain, size: {}KB", TASK_DOMAIN.len() / 1024);
     let task = task_domain();
     domain_helper::register_domain("task", DomainType::TaskDomain(task.clone()));
+
+    vfs.init().unwrap();
+    task.init().unwrap();
 
     info!(
         "Load syscall domain, size: {}KB",

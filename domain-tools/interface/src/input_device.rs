@@ -1,7 +1,8 @@
 use crate::DeviceBase;
-use rref::RpcResult;
+use constants::AlienResult;
 
 pub trait InputDomain: DeviceBase {
+    fn init(&self) -> AlienResult<()>;
     /// Read an input event from the input device
-    fn event(&self) -> RpcResult<Option<u64>>;
+    fn event(&self) -> AlienResult<Option<u64>>;
 }

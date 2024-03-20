@@ -1,3 +1,4 @@
+use crate::TASK_DOMAIN;
 use alloc::sync::Arc;
 use constants::io::{LocalModes, TeletypeCommand, Termios, WinSize};
 use constants::DeviceId;
@@ -89,29 +90,74 @@ impl VfsFile for UARTDevice {
         let cmd = TeletypeCommand::try_from(cmd).unwrap();
         return match cmd {
             TeletypeCommand::TCGETS | TeletypeCommand::TCGETA => {
-                libsyscall::copy_data_to_task(&io.termios, arg as *mut Termios);
+                let size = core::mem::size_of::<Termios>();
+                TASK_DOMAIN
+                    .get()
+                    .unwrap()
+                    .copy_to_user(&io.termios as *const Termios as _, arg as *mut u8, size)
+                    .unwrap();
                 Ok(0)
             }
             TeletypeCommand::TCSETS | TeletypeCommand::TCSETSW | TeletypeCommand::TCSETSF => {
-                libsyscall::copy_data_from_task(arg as *const Termios, &mut io.termios);
+                let size = core::mem::size_of::<Termios>();
+                TASK_DOMAIN
+                    .get()
+                    .unwrap()
+                    .copy_from_user(
+                        arg as *const Termios as _,
+                        &io.termios as *const Termios as _,
+                        size,
+                    )
+                    .unwrap();
                 Ok(0)
             }
             TeletypeCommand::TIOCGPGRP => {
-                let word = libsyscall::transfer_ptr_mut(arg as *mut u32);
-                *word = io.foreground_pgid;
+                // *word = io.foreground_pgid;
+                TASK_DOMAIN
+                    .get()
+                    .unwrap()
+                    .copy_to_user(
+                        &io.foreground_pgid as *const u32 as _,
+                        arg as *mut u8,
+                        core::mem::size_of::<u32>(),
+                    )
+                    .unwrap();
                 Ok(0)
             }
             TeletypeCommand::TIOCSPGRP => {
-                let word = libsyscall::transfer_ptr(arg as *const u32);
-                io.foreground_pgid = *word;
+                let word = 0u32;
+                TASK_DOMAIN
+                    .get()
+                    .unwrap()
+                    .copy_from_user(
+                        arg as *const u32 as _,
+                        &word as *const u32 as _,
+                        core::mem::size_of::<u32>(),
+                    )
+                    .unwrap();
+                io.foreground_pgid = word;
                 Ok(0)
             }
             TeletypeCommand::TIOCGWINSZ => {
-                libsyscall::copy_data_to_task(&io.winsize, arg as *mut WinSize);
+                let size = core::mem::size_of::<WinSize>();
+                TASK_DOMAIN
+                    .get()
+                    .unwrap()
+                    .copy_to_user(&io.winsize as *const WinSize as _, arg as *mut u8, size)
+                    .unwrap();
                 Ok(0)
             }
             TeletypeCommand::TIOCSWINSZ => {
-                libsyscall::copy_data_from_task(arg as *const WinSize, &mut io.winsize);
+                let size = core::mem::size_of::<WinSize>();
+                TASK_DOMAIN
+                    .get()
+                    .unwrap()
+                    .copy_from_user(
+                        arg as *const WinSize as _,
+                        &io.winsize as *const WinSize as _,
+                        size,
+                    )
+                    .unwrap();
                 Ok(0)
             }
             _ => {

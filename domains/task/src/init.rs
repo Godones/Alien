@@ -5,7 +5,7 @@ use crate::task::Task;
 use crate::vfs_shim::read_all;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use libsyscall::println;
+use basic::println;
 use spin::Lazy;
 
 static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
@@ -26,9 +26,9 @@ pub fn init_task() {
 
 fn kthread_init() {
     println!("kthread_init start...");
-    let mut time = libsyscall::get_time_ms();
+    let mut time = basic::time::read_time_ms();
     loop {
-        let now = libsyscall::get_time_ms();
+        let now = basic::time::read_time_ms();
         if now - time > 1000 {
             println!("kthread_init tick at {}", now);
             time = now;

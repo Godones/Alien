@@ -3,30 +3,28 @@
 #![no_main]
 
 extern crate alloc;
-
+extern crate malloc;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use basic::println;
 use core::panic::PanicInfo;
+use corelib::CoreFunction;
 use interface::FsDomain;
-use libsyscall::{println, KTaskShim, Syscall};
-use rref::SharedHeap;
+use rref::{domain_id, SharedHeapAlloc};
 
 #[no_mangle]
 fn main(
-    sys: Box<dyn Syscall>,
+    sys: Box<dyn CoreFunction>,
     domain_id: u64,
-    shared_heap: Box<dyn SharedHeap>,
-    ktask_shim: Box<dyn KTaskShim>,
+    shared_heap: Box<dyn SharedHeapAlloc>,
 ) -> Arc<dyn FsDomain> {
+    // init basic
+    corelib::init(sys);
+    // init rref's shared heap
     rref::init(shared_heap, domain_id);
-    // init libsyscall
-    libsyscall::init(sys, ktask_shim);
     // activate the domain
     interface::activate_domain();
-    // call the real fatfs
-    // let blk_device = blk_device;
-    // let res = blk_device.read(0, rref::RRef::new([0; 512]));
-    // println!("read res is err: {:?}?", res.err());
+    // call the real blk driver
     fatfs::main()
 }
 
@@ -42,8 +40,7 @@ fn panic(info: &PanicInfo) -> ! {
     } else {
         println!("no location information available");
     }
-    // deactivate the domain
     interface::deactivate_domain();
-    libsyscall::backtrace();
+    basic::backtrace(domain_id());
     loop {}
 }

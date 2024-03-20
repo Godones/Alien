@@ -1,25 +1,30 @@
 #![no_std]
 #![deny(unsafe_code)]
 extern crate alloc;
-extern crate malloc;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use basic::frame::{FrameTracker, FRAME_SIZE};
+use constants::AlienResult;
 use core::cmp::min;
 use core::fmt::Debug;
 use core::num::NonZeroUsize;
 use core::ops::Deref;
-use interface::{Basic, BlkDeviceDomain, CacheBlkDeviceDomain, DeviceBase};
+use interface::{
+    Basic, CacheBlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain,
+};
 use ksync::Mutex;
-use libsyscall::{FrameTracker, FRAME_SIZE};
 use log::info;
 use lru::LruCache;
-use rref::{RRef, RRefVec, RpcResult};
+use rref::{RRef, RRefVec};
+use spin::Once;
+
+static BLK: Once<Arc<dyn ShadowBlockDomain>> = Once::new();
 
 pub struct GenericBlockDevice {
-    pub device: Mutex<Arc<dyn BlkDeviceDomain>>,
     cache: Mutex<LruCache<usize, FrameTracker>>,
     dirty: Mutex<Vec<usize>>,
 }
+
 impl Debug for GenericBlockDevice {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("GenericBlockDevice").finish()
@@ -27,9 +32,8 @@ impl Debug for GenericBlockDevice {
 }
 
 impl GenericBlockDevice {
-    pub fn new(device: Arc<dyn BlkDeviceDomain>, max_cache_frames: usize) -> Self {
+    pub fn new(max_cache_frames: usize) -> Self {
         Self {
-            device: Mutex::new(device),
             cache: Mutex::new(LruCache::new(NonZeroUsize::new(max_cache_frames).unwrap())),
             dirty: Mutex::new(Vec::new()),
         }
@@ -39,13 +43,31 @@ impl GenericBlockDevice {
 impl Basic for GenericBlockDevice {}
 
 impl DeviceBase for GenericBlockDevice {
-    fn handle_irq(&self) -> RpcResult<()> {
-        self.device.lock().handle_irq()
+    fn handle_irq(&self) -> AlienResult<()> {
+        BLK.get().unwrap().handle_irq()
     }
 }
 
 impl CacheBlkDeviceDomain for GenericBlockDevice {
-    fn read(&self, offset: u64, mut buf: RRefVec<u8>) -> RpcResult<RRefVec<u8>> {
+    fn init(&self, blk_domain_name: &str) -> AlienResult<()> {
+        let blk = basic::get_domain(blk_domain_name).unwrap();
+        match blk {
+            DomainType::ShadowBlockDomain(blk) => {
+                info!(
+                    "max_cache_frames: {}, blk size: {}MB",
+                    MAX_BLOCK_CACHE_FRAMES,
+                    blk.get_capacity().unwrap() / (1024 * 1024)
+                );
+                BLK.call_once(|| blk);
+                Ok(())
+            }
+            _ => {
+                panic!("blk domain not found");
+            }
+        }
+    }
+
+    fn read(&self, offset: u64, mut buf: RRefVec<u8>) -> AlienResult<RRefVec<u8>> {
         let mut page_id = offset as usize / FRAME_SIZE;
         let mut offset = offset as usize % FRAME_SIZE;
 
@@ -55,10 +77,10 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
 
         while count < len {
             if !cache_lock.contains(&page_id) {
-                let device = self.device.lock();
+                let device = BLK.get().unwrap();
                 // todo!(change interface)
                 let mut tmp_buf = RRef::new([0u8; 512]); // in shared heap
-                let mut cache = libsyscall::alloc_pages(1);
+                let mut cache = FrameTracker::new(1);
                 let start_block = page_id * FRAME_SIZE / 512;
                 let end_block = start_block + FRAME_SIZE / 512;
                 for i in start_block..end_block {
@@ -91,7 +113,7 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
         Ok(buf)
     }
 
-    fn write(&self, offset: u64, buf: &RRefVec<u8>) -> RpcResult<usize> {
+    fn write(&self, offset: u64, buf: &RRefVec<u8>) -> AlienResult<usize> {
         let mut page_id = offset as usize / FRAME_SIZE;
         let mut offset = offset as usize % FRAME_SIZE;
 
@@ -100,9 +122,9 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
         let mut count = 0;
         while count < len {
             if !cache_lock.contains(&page_id) {
-                let device = self.device.lock();
+                let device = BLK.get().unwrap();
                 // todo!(change interface)
-                let mut cache = libsyscall::alloc_pages(1);
+                let mut cache = FrameTracker::new(1);
                 let mut tmp_buf = RRef::new([0u8; 512]); // in shared heap
                 let start_block = page_id * FRAME_SIZE / 512;
                 let end_block = start_block + FRAME_SIZE / 512;
@@ -140,11 +162,11 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
         Ok(buf.len())
     }
 
-    fn get_capacity(&self) -> RpcResult<u64> {
-        self.device.lock().get_capacity()
+    fn get_capacity(&self) -> AlienResult<u64> {
+        BLK.get().unwrap().get_capacity()
     }
 
-    fn flush(&self) -> RpcResult<()> {
+    fn flush(&self) -> AlienResult<()> {
         // let mut device = self.device.lock();
         // let mut lru = self.cache.lock();
         // self.dirty.lock().iter().for_each(|id|{
@@ -165,11 +187,5 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
 pub const MAX_BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 
 pub fn main() -> Arc<dyn CacheBlkDeviceDomain> {
-    let blk = libsyscall::get_shadow_blk_domain().unwrap();
-    info!(
-        "max_cache_frames: {}, blk size: {}MB",
-        MAX_BLOCK_CACHE_FRAMES,
-        blk.get_capacity().unwrap() / (1024 * 1024)
-    );
-    Arc::new(GenericBlockDevice::new(blk, MAX_BLOCK_CACHE_FRAMES))
+    Arc::new(GenericBlockDevice::new(MAX_BLOCK_CACHE_FRAMES))
 }

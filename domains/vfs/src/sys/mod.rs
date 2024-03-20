@@ -14,6 +14,6 @@ pub fn init_sysfs(sysfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
     // let root_inode = root_inode
     //     .downcast_arc::<SysFsDirInodeImpl>()
     //     .map_err(|_| VfsError::Invalid).unwrap();
-    libsyscall::println!("sysfs init success");
+    basic::println!("sysfs init success");
     root_dt
 }

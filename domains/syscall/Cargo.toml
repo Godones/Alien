@@ -6,10 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libsyscall = { path = "../../domain-tools/libsyscall" }
+basic = { path = "../../domain-tools/basic" }
 interface = { path = "../../domain-tools/interface", default-features = false, features = ["task", "vfs", "syscall"]}
 rref = { path = "../../domain-tools/rref" }
-constants = { path = "../../tcb/constants" }
+constants = { path = "../../base/constants" }
 
 
 

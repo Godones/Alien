@@ -63,7 +63,7 @@ pub fn init_procfs(procfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
         .symlink("/bin/busybox")
         .unwrap();
 
-    libsyscall::println!("procfs init success");
+    basic::println!("procfs init success");
 
     root_dt
 }
