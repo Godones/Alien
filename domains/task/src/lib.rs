@@ -11,6 +11,7 @@ mod resource;
 mod scheduler;
 mod task;
 mod vfs_shim;
+mod wait_queue;
 
 use crate::processor::current_task;
 use crate::scheduler::run_task;
@@ -89,6 +90,27 @@ impl TaskDomain for TaskDomainImpl {
     fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
         let task = current_task().unwrap();
         task.copy_from_user(src, dst, len);
+        Ok(())
+    }
+
+    fn current_tid(&self) -> AlienResult<usize> {
+        let task = current_task().unwrap();
+        Ok(task.tid.raw())
+    }
+    fn current_pid(&self) -> AlienResult<usize> {
+        let task = current_task().unwrap();
+        Ok(task.pid.raw())
+    }
+    fn current_ppid(&self) -> AlienResult<usize> {
+        Ok(0)
+    }
+    fn current_to_wait(&self) -> AlienResult<()> {
+        wait_queue::current_to_wait();
+        Ok(())
+    }
+
+    fn wake_up_wait_task(&self, tid: usize) -> AlienResult<()> {
+        wait_queue::wake_up_wait_task(tid);
         Ok(())
     }
 }

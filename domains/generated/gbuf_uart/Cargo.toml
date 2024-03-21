@@ -1,0 +1,14 @@
+[package]
+name = "gbuf_uart"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+corelib = { path = "../../../domain-tools/corelib" }
+basic = { path = "../../../domain-tools/basic" }
+rref = { path = "../../../domain-tools/rref" }
+interface = { path = "../../../domain-tools/interface", default-features = false, features = ["buf_uart","domain"] }
+malloc = { path = "../../../domain-tools/malloc" }
+buf_uart = { path = "../../drivers/buf_uart" }

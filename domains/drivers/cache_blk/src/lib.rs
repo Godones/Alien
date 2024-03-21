@@ -9,9 +9,7 @@ use core::cmp::min;
 use core::fmt::Debug;
 use core::num::NonZeroUsize;
 use core::ops::Deref;
-use interface::{
-    Basic, CacheBlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain,
-};
+use interface::{Basic, CacheBlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain};
 use ksync::Mutex;
 use log::info;
 use lru::LruCache;

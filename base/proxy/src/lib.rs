@@ -1,8 +1,10 @@
 #![no_std]
 #![feature(linkage)]
 #![feature(naked_functions)]
+#![allow(unused)]
 extern crate alloc;
 
+mod buf_uart;
 mod trampoline;
 
 use alloc::sync::Arc;
@@ -14,6 +16,8 @@ use domain_loader::DomainLoader;
 use interface::*;
 use ksync::{Mutex, RwLock};
 use rref::{RRef, RRefVec};
+
+pub use buf_uart::BufUartDomainProxy;
 
 #[derive(Debug)]
 pub struct BlkDomainProxy {
@@ -498,11 +502,11 @@ impl PLICDomain for EIntrDomainProxy {
         }
         self.domain.handle_irq()
     }
-    fn register_irq(&self, irq: usize, device: Arc<dyn DeviceBase>) -> AlienResult<()> {
+    fn register_irq(&self, irq: usize, device_domain_name: &RRefVec<u8>) -> AlienResult<()> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
-        self.domain.register_irq(irq, device)
+        self.domain.register_irq(irq, device_domain_name)
     }
 
     fn irq_info(&self, buf: RRefVec<u8>) -> AlienResult<RRefVec<u8>> {
@@ -628,6 +632,20 @@ impl UartDomain for UartDomainProxy {
         }
         self.domain.have_data_to_get()
     }
+
+    fn enable_receive_interrupt(&self) -> AlienResult<()> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.enable_receive_interrupt()
+    }
+
+    fn disable_receive_interrupt(&self) -> AlienResult<()> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.disable_receive_interrupt()
+    }
 }
 
 impl DeviceBase for UartDomainProxy {
@@ -725,6 +743,41 @@ impl TaskDomain for TaskDomainProxy {
             return Err(AlienError::DOMAINCRASH);
         }
         self.domain.copy_from_user(src, dst, len)
+    }
+
+    fn current_tid(&self) -> AlienResult<usize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.current_tid()
+    }
+
+    fn current_pid(&self) -> AlienResult<usize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.current_pid()
+    }
+
+    fn current_ppid(&self) -> AlienResult<usize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.current_ppid()
+    }
+
+    fn current_to_wait(&self) -> AlienResult<()> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.current_to_wait()
+    }
+
+    fn wake_up_wait_task(&self, tid: usize) -> AlienResult<()> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.wake_up_wait_task(tid)
     }
 }
 

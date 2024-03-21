@@ -1,4 +1,5 @@
-use crate::{DeviceBase, DeviceInfo};
+use crate::devices::DeviceInfo;
+use crate::DeviceBase;
 use constants::AlienResult;
 use rref::RRef;
 

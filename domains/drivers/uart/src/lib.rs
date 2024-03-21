@@ -33,12 +33,23 @@ impl Uart16550 {
             region: SafeIORegion::new(uart_addr, size).unwrap(),
         };
         // init: enable data ready interrupt by setting IER to 1
-        res.region.write_at::<u8>(1, 1).unwrap();
+        // res.region.write_at::<u8>(1, 1).unwrap();
         res
     }
 }
 
 impl Uart16550 {
+    fn enable_receive_interrupt(&self) -> AlienResult<()> {
+        // set IER to 1
+        self.region.write_at::<u8>(1, 1).unwrap();
+        Ok(())
+    }
+
+    fn disable_receive_interrupt(&self) -> AlienResult<()> {
+        // set IER to 0
+        self.region.write_at::<u8>(1, 0).unwrap();
+        Ok(())
+    }
     fn putc(&self, ch: u8) -> AlienResult<()> {
         // check LCR DLAB = 0
         // check LSR empty
@@ -87,6 +98,7 @@ impl UartDomain for UartDomainImpl {
         let region = &device_info.address_range;
         println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
         let uart = Uart16550::new(region.start, region.end - region.start);
+        uart.enable_receive_interrupt()?;
         UART.call_once(|| uart);
         Ok(())
     }
@@ -102,8 +114,16 @@ impl UartDomain for UartDomainImpl {
     fn have_data_to_get(&self) -> AlienResult<bool> {
         UART.get().unwrap().have_data_to_get()
     }
+
+    fn enable_receive_interrupt(&self) -> AlienResult<()> {
+        UART.get().unwrap().enable_receive_interrupt()
+    }
+
+    fn disable_receive_interrupt(&self) -> AlienResult<()> {
+        UART.get().unwrap().disable_receive_interrupt()
+    }
 }
 
 pub fn main() -> Arc<dyn UartDomain> {
-    Arc::new(UartDomainImpl {})
+    Arc::new(UartDomainImpl)
 }

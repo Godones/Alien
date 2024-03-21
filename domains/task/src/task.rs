@@ -145,6 +145,7 @@ impl Task {
     }
 
     /// 获取一个虚拟地址 `ptr` 对应的 T 类型数据 的 可变引用
+    #[allow(unused)]
     pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
         let ptr = ptr as usize;
         let address_space = self.inner().address_space.clone();

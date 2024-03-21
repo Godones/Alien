@@ -1,6 +1,6 @@
 mod exception;
 
-use crate::TASK_DOMAIN;
+use crate::{PLIC_DOMAIN, TASK_DOMAIN};
 use alloc::boxed::Box;
 use bit_field::BitField;
 use config::TRAMPOLINE;
@@ -207,9 +207,8 @@ impl TrapHandler for Trap {
                 // interrupt::timer_interrupt_handler();
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
-                trace!("external interrupt");
-                // external_interrupt_handler();
-                unimplemented!()
+                trace!("[User] external interrupt");
+                PLIC_DOMAIN.get().unwrap().handle_irq();
             }
             _ => {
                 panic!(
@@ -250,8 +249,7 @@ impl TrapHandler for Trap {
                 )
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
-                // external_interrupt_handler();
-                unimplemented!()
+                PLIC_DOMAIN.get().unwrap().handle_irq();
             }
             _ => {
                 panic!(

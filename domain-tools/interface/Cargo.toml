@@ -10,7 +10,22 @@ rref = { path = "../rref" }
 constants = { path = "../../base/constants" }
 
 [features]
-default = ["blk","fs","uart","gpu","input","vfs", "rtc", "cache_blk","plic", "devices", "task", "syscall", "shadow_blk"]
+default = [
+    "blk",
+    "fs",
+    "uart",
+    "gpu",
+    "input",
+    "vfs",
+    "rtc",
+    "cache_blk",
+    "plic",
+    "devices",
+    "task",
+    "syscall",
+    "shadow_blk",
+    "buf_uart"
+]
 domain = []
 blk = []
 cache_blk = []
@@ -25,3 +40,4 @@ plic = []
 devices = []
 task = []
 syscall = []
+buf_uart = []

@@ -1,13 +1,14 @@
 [package]
-name = "kuart"
+name = "buf_uart"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-interface = { path = "../../../domain-tools/interface", default-features = false, features = ["uart","domain"] }
+interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
 ksync = { path = "../../../domain-tools/safety-abstraction/ksync" }
 constants = { path = "../../../base/constants" }
+spin = "0"

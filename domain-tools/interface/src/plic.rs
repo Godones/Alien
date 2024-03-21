@@ -1,11 +1,11 @@
-use crate::{Basic, DeviceBase, DeviceInfo};
-use alloc::sync::Arc;
+use crate::Basic;
 use constants::AlienResult;
 use rref::RRefVec;
 
+use crate::devices::DeviceInfo;
 pub trait PLICDomain: Basic {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
     fn handle_irq(&self) -> AlienResult<()>;
-    fn register_irq(&self, irq: usize, device: Arc<dyn DeviceBase>) -> AlienResult<()>;
+    fn register_irq(&self, irq: usize, device_domain_name: &RRefVec<u8>) -> AlienResult<()>;
     fn irq_info(&self, buf: RRefVec<u8>) -> AlienResult<RRefVec<u8>>;
 }

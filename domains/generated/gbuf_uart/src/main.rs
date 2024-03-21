@@ -9,7 +9,7 @@ use alloc::sync::Arc;
 use basic::println;
 use core::panic::PanicInfo;
 use corelib::CoreFunction;
-use interface::DevicesDomain;
+use interface::BufUartDomain;
 use rref::{domain_id, SharedHeapAlloc};
 
 #[no_mangle]
@@ -17,7 +17,7 @@ fn main(
     sys: Box<dyn CoreFunction>,
     domain_id: u64,
     shared_heap: Box<dyn SharedHeapAlloc>,
-) -> Arc<dyn DevicesDomain> {
+) -> Arc<dyn BufUartDomain> {
     // init basic
     corelib::init(sys);
     // init rref's shared heap
@@ -26,7 +26,7 @@ fn main(
     // activate the domain
     interface::activate_domain();
     // call the real blk driver
-    devices::main()
+    buf_uart::main()
 }
 
 #[panic_handler]

@@ -1,7 +1,7 @@
-use crate::{DeviceBase, DeviceInfo};
+use crate::devices::DeviceInfo;
+use crate::DeviceBase;
 use constants::AlienResult;
 use rref::RRefVec;
-
 pub trait GpuDomain: DeviceBase {
     fn init(&self, device_info: DeviceInfo) -> AlienResult<()>;
     fn flush(&self) -> AlienResult<()>;

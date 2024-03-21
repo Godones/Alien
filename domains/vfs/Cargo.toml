@@ -9,7 +9,7 @@ edition = "2021"
 ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
 basic = { path = "../../domain-tools/basic" }
 rref = { path = "../../domain-tools/rref" }
-interface = { path = "../../domain-tools/interface",default-features = false, features = ["vfs"] }
+interface = { path = "../../domain-tools/interface" }
 malloc = { path = "../../domain-tools/malloc" }
 
 constants = { path = "../../base/constants" }

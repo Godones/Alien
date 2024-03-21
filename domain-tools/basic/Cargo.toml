@@ -9,11 +9,7 @@ edition = "2021"
 continuation = { path = "../../base/continuation" }
 corelib = { path = "../corelib", features = ["core_impl"]}
 rref = { path = "../rref" }
-interface = { path = "../interface" }
-context = { path = "../../safe-crates/context" }
 arch = { path = "../../base/arch" }
-spin = "0"
 log = "0"
-downcast-rs = { version = "1.2.0", default-features = false }
-
+#downcast-rs = { version = "1.2.0", default-features = false }
 ptable = { path = "../../safe-crates/ptable" }

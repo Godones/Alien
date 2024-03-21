@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 basic = { path = "../../domain-tools/basic" }
-interface = { path = "../../domain-tools/interface", default-features = false, features = ["task", "vfs", "syscall"]}
+interface = { path = "../../domain-tools/interface" }
 rref = { path = "../../domain-tools/rref" }
 constants = { path = "../../base/constants" }
 

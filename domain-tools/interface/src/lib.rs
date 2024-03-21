@@ -1,6 +1,7 @@
 #![no_std]
 
 mod block;
+mod buf_uart;
 mod cache_block;
 mod devices;
 mod gpu;
@@ -11,12 +12,13 @@ mod shadow_block;
 mod syscall;
 mod task;
 mod uart;
+#[allow(unused)]
 mod vfs;
 
 extern crate alloc;
 
 use alloc::sync::Arc;
-use constants::AlienResult;
+use constants::{AlienError, AlienResult};
 use core::any::Any;
 use core::fmt::Debug;
 
@@ -77,7 +79,10 @@ pub use syscall::SysCallDomain;
 #[cfg(feature = "shadow_blk")]
 pub use shadow_block::ShadowBlockDomain;
 
-#[derive(Clone)]
+#[cfg(feature = "buf_uart")]
+pub use buf_uart::BufUartDomain;
+
+#[derive(Clone, Debug)]
 pub enum DomainType {
     #[cfg(feature = "fs")]
     FsDomain(Arc<dyn FsDomain>),
@@ -105,6 +110,34 @@ pub enum DomainType {
     SysCallDomain(Arc<dyn SysCallDomain>),
     #[cfg(feature = "shadow_blk")]
     ShadowBlockDomain(Arc<dyn ShadowBlockDomain>),
+    #[cfg(feature = "buf_uart")]
+    BufUartDomain(Arc<dyn BufUartDomain>),
+}
+
+impl TryInto<Arc<dyn DeviceBase>> for DomainType {
+    type Error = AlienError;
+
+    fn try_into(self) -> Result<Arc<dyn DeviceBase>, Self::Error> {
+        match self {
+            #[cfg(feature = "blk")]
+            DomainType::BlkDeviceDomain(domain) => Ok(domain),
+            #[cfg(feature = "cache_blk")]
+            DomainType::CacheBlkDeviceDomain(domain) => Ok(domain),
+            #[cfg(feature = "rtc")]
+            DomainType::RtcDomain(domain) => Ok(domain),
+            #[cfg(feature = "gpu")]
+            DomainType::GpuDomain(domain) => Ok(domain),
+            #[cfg(feature = "input")]
+            DomainType::InputDomain(domain) => Ok(domain),
+            #[cfg(feature = "uart")]
+            DomainType::UartDomain(domain) => Ok(domain),
+            #[cfg(feature = "shadow_blk")]
+            DomainType::ShadowBlockDomain(domain) => Ok(domain),
+            #[cfg(feature = "buf_uart")]
+            DomainType::BufUartDomain(domain) => Ok(domain),
+            _ => Err(AlienError::EINVAL),
+        }
+    }
 }
 
 #[cfg(feature = "domain")]

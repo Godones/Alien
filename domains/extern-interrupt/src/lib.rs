@@ -5,7 +5,7 @@ extern crate alloc;
 
 use alloc::collections::BTreeMap;
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use basic::{arch, println};
 use config::CPU_NUM;
@@ -22,7 +22,7 @@ static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 
 #[derive(Debug)]
 pub struct PLICDomainImpl {
-    table: Arc<Mutex<BTreeMap<usize, Arc<dyn DeviceBase>>>>,
+    table: Arc<Mutex<BTreeMap<usize, String>>>,
     count: Arc<Mutex<BTreeMap<usize, usize>>>,
 }
 
@@ -52,22 +52,31 @@ impl PLICDomain for PLICDomainImpl {
         let hart_id = arch::hart_id();
         let irq = plic.claim(hart_id as u32, Mode::Supervisor) as usize;
         let table = self.table.lock();
-        let device = table
+        let device_domain_name = table
             .get(&irq)
             .or_else(|| panic!("no device for irq {}", irq))
             .unwrap();
+
+        let device_domain = basic::get_domain(device_domain_name).unwrap();
+        let device_domain = device_domain.try_into();
+        let device: Arc<dyn DeviceBase> = match device_domain {
+            Ok(device) => device,
+            Err(e) => panic!("{} is not a device domain: {:?}", device_domain_name, e),
+        };
+
         device.handle_irq()?;
+        plic.complete(hart_id as u32, Mode::Supervisor, irq as u32);
+
         *self
             .count
             .lock()
             .get_mut(&irq)
             .or_else(|| panic!("no device for irq {}", irq))
             .unwrap() += 1;
-        plic.complete(hart_id as u32, Mode::Supervisor, irq as u32);
         Ok(())
     }
 
-    fn register_irq(&self, irq: usize, device: Arc<dyn DeviceBase>) -> AlienResult<()> {
+    fn register_irq(&self, irq: usize, device_domain_name: &RRefVec<u8>) -> AlienResult<()> {
         let hard_id = arch::hart_id();
         println!(
             "PLIC enable irq {} for hart {}, priority {}",
@@ -80,7 +89,8 @@ impl PLICDomain for PLICDomainImpl {
         plic.set_priority(irq as u32, 1);
         plic.enable(hard_id as u32, Mode::Supervisor, irq as u32);
         let mut table = self.table.lock();
-        table.insert(irq, device);
+        let device_domain_name = core::str::from_utf8(device_domain_name.as_slice()).unwrap();
+        table.insert(irq, device_domain_name.to_string());
         self.count.lock().insert(irq, 0);
         Ok(())
     }

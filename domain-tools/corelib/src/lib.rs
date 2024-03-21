@@ -2,7 +2,9 @@
 extern crate alloc;
 
 use context::TaskContext;
-
+#[cfg(feature = "core_impl")]
+pub use core_impl::*;
+use interface::DomainType;
 pub trait CoreFunction: Send + Sync {
     fn sys_alloc_pages(&self, domain_id: u64, n: usize) -> *mut u8;
     fn sys_free_pages(&self, domain_id: u64, p: *mut u8, n: usize);
@@ -110,7 +112,3 @@ mod core_impl {
         unsafe { CORE_FUNC.get_unchecked().sys_get_domain(name) }
     }
 }
-
-#[cfg(feature = "core_impl")]
-pub use core_impl::*;
-use interface::DomainType;

@@ -1,7 +1,7 @@
-use crate::{DeviceBase, DeviceInfo};
+use crate::devices::DeviceInfo;
+use crate::DeviceBase;
 use constants::AlienResult;
 use rref::RRef;
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub struct RtcTime {

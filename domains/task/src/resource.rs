@@ -23,6 +23,10 @@ impl TidHandle {
         }
         Some(Self(tid.unwrap()))
     }
+
+    pub fn raw(&self) -> usize {
+        self.0
+    }
 }
 
 impl Drop for TidHandle {

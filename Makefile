@@ -32,7 +32,7 @@ endif
 
 
 domains += 	gblk gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask \
-		gsyscall
+		gsyscall gbuf_uart
 
 
 all:run
