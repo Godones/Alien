@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 context = { path = "../../safe-crates/context" }
 spin = "0"
-interface = { path = "../interface",default-features = false }
+interface = { path = "../interface" }
 
 
 

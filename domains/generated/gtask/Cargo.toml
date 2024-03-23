@@ -10,6 +10,6 @@ corelib = { path = "../../../domain-tools/corelib" }
 malloc = { path = "../../../domain-tools/malloc" }
 basic = { path = "../../../domain-tools/basic" }
 rref = { path = "../../../domain-tools/rref" }
-interface = { path = "../../../domain-tools/interface", default-features = false, features = ["task","domain"] }
+interface = { path = "../../../domain-tools/interface", features = ["domain"] }
 
 task = { path = "../../task" }

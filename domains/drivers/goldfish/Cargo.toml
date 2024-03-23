@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 malloc = { path = "../../../domain-tools/malloc" }
-interface = { path = "../../../domain-tools/interface", default-features = false, features = ["rtc","devices"] }
+interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
 constants = { path = "../../../base/constants" }

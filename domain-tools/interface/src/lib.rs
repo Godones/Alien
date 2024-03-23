@@ -14,6 +14,7 @@ mod task;
 mod uart;
 #[allow(unused)]
 mod vfs;
+mod buf_input;
 
 extern crate alloc;
 
@@ -40,78 +41,42 @@ pub trait DeviceBase: Basic {
     fn handle_irq(&self) -> AlienResult<()>;
 }
 
-#[cfg(feature = "task")]
 pub use task::*;
 
-#[cfg(feature = "blk")]
 pub use block::BlkDeviceDomain;
 
-#[cfg(feature = "cache_blk")]
 pub use cache_block::CacheBlkDeviceDomain;
 
-#[cfg(feature = "fs")]
 pub trait FsDomain: Basic {}
-
-#[cfg(feature = "uart")]
 pub use uart::UartDomain;
-
-#[cfg(feature = "gpu")]
 pub use gpu::GpuDomain;
-
-#[cfg(feature = "input")]
 pub use input_device::InputDomain;
-
-#[cfg(feature = "vfs")]
 pub use vfs::*;
-
-#[cfg(feature = "rtc")]
 pub use rtc::{RtcDomain, RtcTime};
-
-#[cfg(feature = "plic")]
 pub use plic::PLICDomain;
-
-#[cfg(feature = "devices")]
 pub use devices::{DeviceInfo, DevicesDomain};
-
-#[cfg(feature = "syscall")]
 pub use syscall::SysCallDomain;
-
-#[cfg(feature = "shadow_blk")]
 pub use shadow_block::ShadowBlockDomain;
-
-#[cfg(feature = "buf_uart")]
+pub use buf_input::BufInputDomain;
 pub use buf_uart::BufUartDomain;
 
 #[derive(Clone, Debug)]
 pub enum DomainType {
-    #[cfg(feature = "fs")]
     FsDomain(Arc<dyn FsDomain>),
-    #[cfg(feature = "blk")]
     BlkDeviceDomain(Arc<dyn BlkDeviceDomain>),
-    #[cfg(feature = "cache_blk")]
     CacheBlkDeviceDomain(Arc<dyn CacheBlkDeviceDomain>),
-    #[cfg(feature = "rtc")]
     RtcDomain(Arc<dyn RtcDomain>),
-    #[cfg(feature = "gpu")]
     GpuDomain(Arc<dyn GpuDomain>),
-    #[cfg(feature = "input")]
     InputDomain(Arc<dyn InputDomain>),
-    #[cfg(feature = "vfs")]
     VfsDomain(Arc<dyn VfsDomain>),
-    #[cfg(feature = "uart")]
     UartDomain(Arc<dyn UartDomain>),
-    #[cfg(feature = "plic")]
     PLICDomain(Arc<dyn PLICDomain>),
-    #[cfg(feature = "devices")]
     DevicesDomain(Arc<dyn DevicesDomain>),
-    #[cfg(feature = "task")]
     TaskDomain(Arc<dyn TaskDomain>),
-    #[cfg(feature = "syscall")]
     SysCallDomain(Arc<dyn SysCallDomain>),
-    #[cfg(feature = "shadow_blk")]
     ShadowBlockDomain(Arc<dyn ShadowBlockDomain>),
-    #[cfg(feature = "buf_uart")]
     BufUartDomain(Arc<dyn BufUartDomain>),
+    BufInputDomain(Arc<dyn BufInputDomain>),
 }
 
 impl TryInto<Arc<dyn DeviceBase>> for DomainType {
@@ -119,22 +84,15 @@ impl TryInto<Arc<dyn DeviceBase>> for DomainType {
 
     fn try_into(self) -> Result<Arc<dyn DeviceBase>, Self::Error> {
         match self {
-            #[cfg(feature = "blk")]
             DomainType::BlkDeviceDomain(domain) => Ok(domain),
-            #[cfg(feature = "cache_blk")]
             DomainType::CacheBlkDeviceDomain(domain) => Ok(domain),
-            #[cfg(feature = "rtc")]
             DomainType::RtcDomain(domain) => Ok(domain),
-            #[cfg(feature = "gpu")]
             DomainType::GpuDomain(domain) => Ok(domain),
-            #[cfg(feature = "input")]
             DomainType::InputDomain(domain) => Ok(domain),
-            #[cfg(feature = "uart")]
             DomainType::UartDomain(domain) => Ok(domain),
-            #[cfg(feature = "shadow_blk")]
             DomainType::ShadowBlockDomain(domain) => Ok(domain),
-            #[cfg(feature = "buf_uart")]
             DomainType::BufUartDomain(domain) => Ok(domain),
+            DomainType::BufInputDomain(domain) => Ok(domain),
             _ => Err(AlienError::EINVAL),
         }
     }

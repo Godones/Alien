@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-interface = { path = "../../../domain-tools/interface", default-features = false, features = ["gpu","domain", "devices"] }
+interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
 ksync = { path = "../../../domain-tools/safety-abstraction/ksync" }
