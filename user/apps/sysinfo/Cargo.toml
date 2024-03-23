@@ -1,0 +1,15 @@
+[package]
+name = "sysinfo"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+Mstd = { path = "../../userlib", features = ["gui"] }
+slint = { version = "1.1.1", default-features = false, features = ["compat-1-0", "unsafe-single-threaded", "libm"] }
+slint-helper = { path = "../slint-helper" }
+
+virt2slint = {git = "https://github.com/os-module/virt2slint"}
+[build-dependencies]
+slint-build = "1.1.1"

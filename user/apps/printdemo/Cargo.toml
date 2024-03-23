@@ -1,0 +1,25 @@
+# Copyright © SixtyFPS GmbH <info@slint.devfs>
+# SPDX-License-Identifier: MIT
+
+[package]
+name = "printdemo"
+version = "1.1.0"
+authors = ["Slint Developers <info@slint.dev>"]
+edition = "2021"
+build = "build.rs"
+publish = false
+license = "MIT"
+
+
+
+[dependencies]
+Mstd = { path = "../../userlib", features = ["gui"] }
+slint = { version = "1.1.1", default-features = false, features = ["compat-1-0", "unsafe-single-threaded", "libm"] }
+virt2slint = {git = "https://github.com/os-module/virt2slint"}
+slint-helper = { path = "../slint-helper" }
+libm = "0.2.6"
+
+
+
+[build-dependencies]
+slint-build = "1.1.1"
