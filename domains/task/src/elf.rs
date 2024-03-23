@@ -13,6 +13,7 @@ use ptable::*;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
 
+#[derive(Debug)]
 pub struct VmmPageAllocator;
 
 impl PagingIf for VmmPageAllocator {
@@ -181,7 +182,7 @@ pub fn load_to_vm_space(
             let frame = VmmPageAllocator::alloc_frame().unwrap();
             phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
                 frame.as_usize(),
-                FRAME_SIZE,
+                1,
                 true,
             ))));
         }
@@ -253,11 +254,11 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
     let mut address_space = VmSpace::new();
     let break_addr = load_to_vm_space(&elf, bias, &mut address_space)?;
 
-    // 地址向上取整对齐4
+    // user stack
     let ceil_addr = PhysAddr::from(break_addr + FRAME_SIZE)
         .align_up_4k()
         .as_usize();
-    // 留出一个用户栈的位置 + 隔离页
+
     let user_stack_low = ceil_addr + FRAME_SIZE;
     let uer_stack_top = user_stack_low + USER_STACK_SIZE;
     warn!("user stack: {:#x} - {:#x}", user_stack_low, uer_stack_top);
@@ -266,7 +267,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         let frame = VmmPageAllocator::alloc_frame().unwrap();
         user_stack_phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
             frame.as_usize(),
-            FRAME_SIZE,
+            1,
             true,
         ))));
     }
@@ -287,7 +288,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         MappingFlags::USER | MappingFlags::READ | MappingFlags::WRITE,
         vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
             trap_context_phy.as_usize(),
-            FRAME_SIZE,
+            1,
             true,
         )))],
     );
@@ -303,7 +304,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         MappingFlags::READ | MappingFlags::EXECUTE,
         vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
             trampoline_phy_addr,
-            FRAME_SIZE,
+            1,
             false,
         )))],
     );
@@ -334,6 +335,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         elf.header.pt2.entry_point() + bias as u64,
         res + bias as u64
     );
+    // todo!(relocate)
 
     Ok(ELFInfo {
         address_space,
@@ -347,4 +349,61 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         bias,
         name: name.to_string(),
     })
+}
+
+pub fn clone_vm_space(vm_space: &VmSpace<VmmPageAllocator>) -> VmSpace<VmmPageAllocator> {
+    let mut space = VmSpace::new();
+    let trampoline_phy_addr = basic::trampoline_addr();
+    vm_space.area_iter().for_each(|ty| match ty {
+        VmAreaType::VmArea(area) => {
+            let size = area.size();
+            let start = area.start();
+            info!("<clone_vm_space> start: {:#x}, size: {:#x}", start, size);
+            if start == trampoline_phy_addr {
+                let trampoline_area = VmArea::new(
+                    TRAMPOLINE..(TRAMPOLINE + FRAME_SIZE),
+                    MappingFlags::READ | MappingFlags::EXECUTE,
+                    vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
+                        trampoline_phy_addr,
+                        1,
+                        false,
+                    )))],
+                );
+                space.map(VmAreaType::VmArea(trampoline_area)).unwrap();
+            } else {
+                let mut phy_frames = vec![];
+                for _ in 0..size / FRAME_SIZE {
+                    let frame = VmmPageAllocator::alloc_frame().unwrap();
+                    phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
+                        frame.as_usize(),
+                        1,
+                        true,
+                    ))));
+                }
+                let new_area = area.clone_with(phy_frames);
+                space.map(VmAreaType::VmArea(new_area)).unwrap();
+            }
+        }
+        VmAreaType::VmAreaEqual(area_eq) => {
+            let new_area_eq = area_eq.clone();
+            space.map(VmAreaType::VmAreaEqual(new_area_eq)).unwrap();
+        }
+    });
+    space
+}
+
+pub fn extend_thread_vm_space(space: &mut VmSpace<VmmPageAllocator>, thread_num: usize) {
+    assert!(thread_num > 0);
+    let address = TRAP_CONTEXT_BASE - FRAME_SIZE * thread_num;
+    let trap_context_phy = VmmPageAllocator::alloc_frame().unwrap();
+    let trap_context_area = VmArea::new(
+        address..(address + FRAME_SIZE),
+        MappingFlags::USER | MappingFlags::READ | MappingFlags::WRITE,
+        vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
+            trap_context_phy.as_usize(),
+            1,
+            true,
+        )))],
+    );
+    space.map(VmAreaType::VmArea(trap_context_area)).unwrap();
 }

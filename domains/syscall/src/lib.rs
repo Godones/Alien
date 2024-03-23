@@ -2,13 +2,14 @@
 
 mod fs;
 mod mm;
+mod task;
 
 extern crate alloc;
-#[macro_use]
 extern crate log;
 
-use crate::fs::sys_write;
+use crate::fs::{sys_read, sys_write};
 use crate::mm::sys_brk;
+use crate::task::{sys_clone, sys_execve, sys_wait4, sys_yield};
 use alloc::sync::Arc;
 use basic::println;
 use constants::AlienResult;
@@ -38,18 +39,37 @@ impl SysCallDomain for SysCallDomainImpl {
 
     fn call(&self, syscall_id: usize, args: [usize; 6]) -> AlienResult<isize> {
         let syscall_name = constants::syscall_name(syscall_id);
-        info!("syscall: {} {:?}", syscall_name, args);
+        // let pid = self.task_domain.current_pid().unwrap();
+        // let tid = self.task_domain.current_tid().unwrap();
+        // info!("[pid:{} tid:{}] syscall: {} {:?}",pid,tid, syscall_name, args);
         match syscall_id {
+            63 => sys_read(
+                &self.vfs_domain,
+                &self.task_domain,
+                args[0],
+                args[1],
+                args[2],
+            ),
             64 => sys_write(
                 &self.vfs_domain,
                 &self.task_domain,
                 args[0],
                 args[1] as *const u8,
                 args[2],
-            )
-            .map_err(|e| e.into()),
-            214 => sys_brk(&self.vfs_domain, &self.task_domain, args[0]).map_err(|e| e.into()),
-            _ => panic!("syscall not found"),
+            ),
+            124 => sys_yield(&self.task_domain),
+            214 => sys_brk(&self.vfs_domain, &self.task_domain, args[0]),
+            220 => sys_clone(
+                &self.task_domain,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+                args[4],
+            ),
+            260 => sys_wait4(&self.task_domain, args[0], args[1], args[2], args[3]),
+            221 => sys_execve(&self.task_domain, args[0], args[1], args[2]),
+            _ => panic!("syscall [{}: {}] not found", syscall_id, syscall_name),
         }
     }
 }

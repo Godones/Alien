@@ -35,6 +35,7 @@ impl Drop for TidHandle {
     }
 }
 
+#[derive(Clone)]
 pub struct FdManager {
     index_map: IndexAllocator<MAX_FD_NUM>,
     fd_table: Vec<Option<Arc<ShimFile>>>,
@@ -51,7 +52,7 @@ impl Debug for FdManager {
 
 impl FdManager {
     pub fn new() -> Self {
-        let mut fd_table = Vec::new();
+        let mut fd_table = Vec::with_capacity(MAX_FD_NUM);
         for _ in 0..MAX_FD_NUM {
             fd_table.push(None);
         }

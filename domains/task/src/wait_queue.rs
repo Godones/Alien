@@ -1,6 +1,6 @@
 use crate::processor::{add_task, take_current_task};
 use crate::scheduler::schedule_now;
-use crate::task::{Task, TaskState};
+use crate::task::{Task, TaskStatus};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use ksync::Mutex;
@@ -13,7 +13,7 @@ static TASK_WAIT_QUEUE: Lazy<Mutex<BTreeMap<Tid, Arc<Task>>>> =
 /// Put the current task into the wait queue and schedule a new task to run.
 pub fn current_to_wait() {
     let task = take_current_task().unwrap();
-    task.update_state(TaskState::Waiting);
+    task.update_state(TaskStatus::Waiting);
     let tid = task.tid.raw();
     TASK_WAIT_QUEUE.lock().insert(tid, task.clone());
     schedule_now(task);
@@ -23,7 +23,7 @@ pub fn wake_up_wait_task(tid: Tid) {
     let task = TASK_WAIT_QUEUE.lock().remove(&tid);
     if let Some(task) = task {
         // put the task into the global task queue
-        task.update_state(TaskState::Ready);
+        task.update_state(TaskStatus::Ready);
         add_task(task);
     }
 }

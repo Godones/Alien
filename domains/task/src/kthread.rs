@@ -1,7 +1,7 @@
 use crate::elf::VmmPageAllocator;
 use crate::processor::add_task;
 use crate::resource::{FdManager, HeapInfo, KStack, TidHandle};
-use crate::task::{FsContext, Task, TaskInner, TaskState};
+use crate::task::{FsContext, Task, TaskInner, TaskStatus};
 use crate::vfs_shim::{STDIN, STDOUT};
 use alloc::collections::BTreeMap;
 use alloc::string::ToString;
@@ -26,26 +26,25 @@ pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
         tid,
         kernel_stack: k_stack,
         pid,
+        address_space: Arc::new(Mutex::new(kspace)),
+        fd_table: {
+            let mut fd_table = FdManager::new();
+            fd_table.insert(STDIN.clone());
+            fd_table.insert(STDOUT.clone());
+            fd_table.insert(STDOUT.clone());
+            Arc::new(Mutex::new(fd_table))
+        },
+        threads: Arc::new(Mutex::new(IndexAllocator::new())),
+        heap: Arc::new(Mutex::new(HeapInfo::new(0, 0))),
         inner: Mutex::new(TaskInner {
             name: name.to_string(),
-            threads: IndexAllocator::new(),
             thread_number: 0,
-            address_space: Arc::new(Mutex::new(kspace)),
-            state: TaskState::Ready,
+            status: TaskStatus::Ready,
             parent: None,
             children: BTreeMap::new(),
-            fd_table: {
-                let mut fd_table = FdManager::new();
-                fd_table.insert(STDIN.clone());
-                fd_table.insert(STDOUT.clone());
-                fd_table.insert(STDOUT.clone());
-                Arc::new(Mutex::new(fd_table))
-            },
             context: TaskContext::new(func_ptr, k_stack_top),
             fs_info: FsContext::new(VFS_ROOT_ID, VFS_ROOT_ID),
             exit_code: 0,
-            heap: Arc::new(Mutex::new(HeapInfo::new(0, 0))),
-            set_child_tid: 0,
             clear_child_tid: 0,
             // user mode stack info
             stack: 0..0,

@@ -84,7 +84,7 @@ pub fn user_trap_vector() {
         set_kernel_trap_entry();
         let cause = riscv::register::scause::read();
         let cause = cause.cause();
-        println!("cause:{:?}", cause);
+        // println!("cause:{:?}", cause);
         cause.do_user_handle();
         // let task = current_task().unwrap();
         // if cause != Trap::Interrupt(Interrupt::SupervisorTimer) {
@@ -177,6 +177,7 @@ impl TrapHandler for Trap {
                 //         send_signal(tid as usize, SignalNumber::SIGSEGV as usize)
                 //     }
                 // }
+                panic!("page fault");
             }
             Trap::Exception(Exception::InstructionPageFault) => {
                 // trace!(
@@ -204,7 +205,8 @@ impl TrapHandler for Trap {
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 trace!("[User] timer interrupt");
-                // interrupt::timer_interrupt_handler();
+                timer::set_next_trigger();
+                TASK_DOMAIN.get().unwrap().do_yield();
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
                 trace!("[User] external interrupt");

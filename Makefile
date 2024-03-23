@@ -9,25 +9,22 @@ GUI ?=n
 FS ?=fat
 IMG := build/sdcard.img
 FSMOUNT := ./diskfs
-
-
+FEATURES := smp
 
 
 QEMU_ARGS += -nographic
 
 ifeq ($(GUI),y)
 	QEMU_ARGS += -device virtio-gpu-device
+	FEATURES += gui
 else
 	QEMU_ARGS += -nographic
 endif
 
-QEMU_ARGS += -device virtio-gpu-device
 ifeq ($(NET),y)
 QEMU_ARGS += -device virtio-net-device,netdev=net0 \
 			 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
 endif
-
-
 
 
 
@@ -39,7 +36,7 @@ all:run
 
 build:
 	@echo "Building..."
-	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET)
+	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 
 run: sdcard domains build
 	qemu-system-riscv64 \
@@ -52,6 +49,17 @@ run: sdcard domains build
             -smp $(SMP) -m $(MEMORY_SIZE) \
             -serial mon:stdio
 	-rm $(IMG)
+
+fake_run:
+	qemu-system-riscv64 \
+			-M virt \
+			-bios default \
+			-drive file=$(IMG),if=none,format=raw,id=x0 \
+			-device virtio-blk-device,drive=x0 \
+			-kernel $(KERNEL)\
+			-$(QEMU_ARGS) \
+			-smp $(SMP) -m $(MEMORY_SIZE) \
+			-serial mon:stdio
 
 user:
 	@echo "Building user apps"

@@ -33,7 +33,7 @@ impl DeviceBase for GPUDomain {
 }
 
 impl GpuDomain for GPUDomain {
-    fn init(&self, device_info: DeviceInfo) -> AlienResult<()> {
+    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
         let virtio_gpu_addr = device_info.address_range.start;
         basic::println!("virtio_gpu_addr: {:#x?}", virtio_gpu_addr);
 

@@ -84,13 +84,11 @@ impl BufUartDomain for Uart {
     }
 
     fn putc(&self, ch: u8) -> AlienResult<()> {
-        // let inner = self.inner.lock();
         let uart = UART.get().unwrap();
         if ch == b'\n' {
-            uart.putc(b'\r')
-        } else {
-            uart.putc(ch)
+            uart.putc(b'\r')?;
         }
+        uart.putc(ch)
     }
 
     fn getc(&self) -> AlienResult<Option<u8>> {

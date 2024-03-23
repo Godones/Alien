@@ -26,3 +26,4 @@ fdt = { path = "../safe-crates/fdt" }
 [features]
 default = ["smp"]
 smp = ["platform/smp"]
+gui = []

@@ -53,10 +53,13 @@ impl Uart16550 {
     fn putc(&self, ch: u8) -> AlienResult<()> {
         // check LCR DLAB = 0
         // check LSR empty
-        let lsr = self.region.read_at::<u8>(5).unwrap();
-        if (lsr & 0b10_0000) == 0b10_0000 {
-            // send
-            self.region.write_at::<u8>(0, ch).unwrap();
+        loop {
+            let lsr = self.region.read_at::<u8>(5).unwrap();
+            if (lsr & 0b10_0000) == 0b10_0000 {
+                // send
+                self.region.write_at::<u8>(0, ch).unwrap();
+                break;
+            }
         }
         Ok(())
     }

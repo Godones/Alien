@@ -111,7 +111,7 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
 }
 
 fn scan_system_devices(root: Arc<dyn VfsInode>) {
-    let uart = basic::get_domain("uart");
+    let uart = basic::get_domain("buf_uart");
     let gpu = basic::get_domain("gpu");
     let mouse = basic::get_domain("mouse");
     let keyboard = basic::get_domain("keyboard");
@@ -119,7 +119,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
     let rtc = basic::get_domain("rtc");
 
     match uart {
-        Some(DomainType::UartDomain(uart)) => {
+        Some(DomainType::BufUartDomain(uart)) => {
             let uart_device = Arc::new(UARTDevice::new(
                 alloc_device_id(VfsNodeType::CharDevice),
                 uart,

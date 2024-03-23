@@ -30,7 +30,7 @@ fn kthread_init() {
     loop {
         let now = basic::time::read_time_ms();
         if now - time > 1000 {
-            println!("kthread_init tick at {}", now);
+            // println!("kthread_init tick at {}", now);
             time = now;
         }
         do_suspend();

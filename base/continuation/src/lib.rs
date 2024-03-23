@@ -42,7 +42,7 @@ pub fn register_continuation(context: &Continuation) {
     }
 }
 
-fn pop_continuation() -> Option<Continuation> {
+pub fn pop_continuation() -> Option<Continuation> {
     let mut binding = TASK_CONTEXT.lock();
     binding.pop()
 }

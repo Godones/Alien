@@ -18,5 +18,5 @@ pub fn sys_brk(
         // panic!("heap can't be shrinked");
         return Err(AlienError::EINVAL);
     }
-    task_domain.brk(addr)
+    task_domain.do_brk(addr)
 }

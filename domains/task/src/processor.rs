@@ -1,46 +1,51 @@
 use crate::task::Task;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use basic::arch::CpuLocal;
 use context::{TaskContext, TrapFrame};
-use ksync::{Mutex, MutexGuard};
+use core::cell::RefCell;
+use ksync::Mutex;
 use spin::lazy::Lazy;
 
 #[derive(Debug, Clone)]
 pub struct CPU {
-    pub task: Option<Arc<Task>>,
-    pub context: TaskContext,
+    task: RefCell<Option<Arc<Task>>>,
+    context: TaskContext,
 }
 
 impl CPU {
     const fn empty() -> Self {
         Self {
-            task: None,
+            task: RefCell::new(None),
             context: TaskContext::empty(),
         }
     }
-    pub fn take_current(&mut self) -> Option<Arc<Task>> {
-        self.task.take()
+    pub fn take_current(&self) -> Option<Arc<Task>> {
+        self.task.borrow_mut().take()
     }
     pub fn current(&self) -> Option<Arc<Task>> {
-        self.task.clone()
+        self.task.borrow().clone()
     }
-    pub fn get_idle_task_cx_ptr(&mut self) -> *mut TaskContext {
-        &mut self.context as *mut TaskContext
+    pub fn set_current(&self, task: Arc<Task>) {
+        self.task.borrow_mut().replace(task);
+    }
+    pub fn get_idle_task_cx_ptr(&self) -> *mut TaskContext {
+        &self.context as *const TaskContext as *mut _
     }
 }
 
-static CPU: Mutex<CPU> = Mutex::new(CPU::empty());
+static CPU: CpuLocal<CPU> = CpuLocal::new(CPU::empty());
 
-pub fn current_cpu() -> MutexGuard<'static, CPU> {
-    CPU.lock()
+pub fn current_cpu() -> &'static CPU {
+    &CPU
 }
 
 pub fn current_task() -> Option<Arc<Task>> {
-    CPU.lock().current()
+    CPU.current()
 }
 
 pub fn take_current_task() -> Option<Arc<Task>> {
-    CPU.lock().take_current()
+    CPU.take_current()
 }
 
 pub fn current_user_token() -> usize {

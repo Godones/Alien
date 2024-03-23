@@ -65,9 +65,18 @@ impl TrapFrame {
         self.k_sp = val;
     }
 
+    pub fn update_user_sp(&mut self, val: usize) {
+        self.x[2] = val;
+    }
+
     /// 返回 Trap 帧中的 sepc
     pub fn sepc(&self) -> usize {
         self.sepc
+    }
+
+    /// 更新 Trap 帧中 x[4] (tp) 的值
+    pub fn update_tp(&mut self, val: usize) {
+        self.x[4] = val;
     }
 
     /// 设置 Trap 帧中的 sepc

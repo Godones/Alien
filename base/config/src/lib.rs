@@ -28,7 +28,7 @@ pub const KERNEL_HEAP_SIZE: usize = HEAP_SIZE;
 pub const TRAMPOLINE: usize = usize::MAX - 2 * FRAME_SIZE + 1;
 
 pub const TRAP_CONTEXT_BASE: usize = TRAMPOLINE - FRAME_SIZE;
-pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 2;
+pub const USER_KERNEL_STACK_SIZE: usize = 0x1000 * 5;
 /// 线程数量大小限制
 pub const MAX_THREAD_NUM: usize = 65536;
 /// 描述符数量大小限制

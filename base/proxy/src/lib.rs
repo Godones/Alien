@@ -190,7 +190,9 @@ fn blk_domain_proxy_read(
     data: RRef<[u8; 512]>,
 ) -> AlienResult<RRef<[u8; 512]>> {
     // info!("BlkDomainProxy_read");
-    blk_domain.read_block(block, data)
+    let res = blk_domain.read_block(block, data);
+    continuation::pop_continuation();
+    res
 }
 #[no_mangle]
 fn blk_domain_proxy_read_err() -> AlienResult<RRef<[u8; 512]>> {
@@ -561,7 +563,7 @@ impl GpuDomainProxy {
 }
 
 impl GpuDomain for GpuDomainProxy {
-    fn init(&self, device_info: DeviceInfo) -> AlienResult<()> {
+    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
         self.domain.init(device_info)
     }
 
@@ -719,19 +721,13 @@ impl TaskDomain for TaskDomainProxy {
         self.domain.heap_info(tmp_heap_info)
     }
 
-    fn brk(&self, addr: usize) -> AlienResult<isize> {
-        if !self.is_active() {
-            return Err(AlienError::DOMAINCRASH);
-        }
-        self.domain.brk(addr)
-    }
-
     fn get_fd(&self, fd: usize) -> AlienResult<InodeId> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
         self.domain.get_fd(fd)
     }
+
     fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
@@ -744,7 +740,6 @@ impl TaskDomain for TaskDomainProxy {
         }
         self.domain.copy_from_user(src, dst, len)
     }
-
     fn current_tid(&self) -> AlienResult<usize> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
@@ -778,6 +773,56 @@ impl TaskDomain for TaskDomainProxy {
             return Err(AlienError::DOMAINCRASH);
         }
         self.domain.wake_up_wait_task(tid)
+    }
+
+    fn do_brk(&self, addr: usize) -> AlienResult<isize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.do_brk(addr)
+    }
+    fn do_clone(
+        &self,
+        flags: usize,
+        stack: usize,
+        ptid: usize,
+        tls: usize,
+        ctid: usize,
+    ) -> AlienResult<isize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.do_clone(flags, stack, ptid, tls, ctid)
+    }
+
+    fn do_wait4(
+        &self,
+        pid: isize,
+        exit_code_ptr: usize,
+        options: u32,
+        _rusage: usize,
+    ) -> AlienResult<isize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.do_wait4(pid, exit_code_ptr, options, _rusage)
+    }
+    fn do_execve(
+        &self,
+        filename_ptr: usize,
+        argv_ptr: usize,
+        envp_ptr: usize,
+    ) -> AlienResult<isize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.do_execve(filename_ptr, argv_ptr, envp_ptr)
+    }
+    fn do_yield(&self) -> AlienResult<isize> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        self.domain.do_yield()
     }
 }
 

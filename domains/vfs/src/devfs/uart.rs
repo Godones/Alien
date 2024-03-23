@@ -2,7 +2,7 @@ use crate::TASK_DOMAIN;
 use alloc::sync::Arc;
 use constants::io::{LocalModes, TeletypeCommand, Termios, WinSize};
 use constants::DeviceId;
-use interface::UartDomain;
+use interface::BufUartDomain;
 use ksync::Mutex;
 use vfscore::error::VfsError;
 use vfscore::file::VfsFile;
@@ -20,12 +20,12 @@ pub struct IoData {
 
 pub struct UARTDevice {
     device_id: DeviceId,
-    device: Arc<dyn UartDomain>,
+    device: Arc<dyn BufUartDomain>,
     io: Mutex<IoData>,
 }
 
 impl UARTDevice {
-    pub fn new(device_id: DeviceId, device: Arc<dyn UartDomain>) -> Self {
+    pub fn new(device_id: DeviceId, device: Arc<dyn BufUartDomain>) -> Self {
         Self {
             device_id,
             device,

@@ -33,23 +33,21 @@ impl VfsFile for INPUTDevice {
         if buf.len() != 8 {
             return Err(VfsError::Invalid);
         }
-        // let buf = unsafe { core::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u64, 1) };
-        // let event = self.device.read_event_async();
-        // buf[0] = event;
-        unimplemented!();
+        let event = self.device.event_block().unwrap();
+        let event_bytes = event.to_be_bytes();
+        buf.copy_from_slice(&event_bytes);
         Ok(1)
     }
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
         Err(VfsError::Invalid)
     }
-    fn poll(&self, _event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
-        let res = VfsPollEvents::empty();
-        // if event.contains(VfsPollEvents::IN) {
-        //     if self.device.is_empty() {
-        //         res |= VfsPollEvents::IN;
-        //     }
-        // }
-        unimplemented!();
+    fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
+        let mut res = VfsPollEvents::empty();
+        if event.contains(VfsPollEvents::IN) {
+            if self.device.have_event().unwrap() {
+                res |= VfsPollEvents::IN;
+            }
+        }
         Ok(res)
     }
 }

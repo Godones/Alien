@@ -36,8 +36,11 @@ mod macros {
 }
 static UART_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/guart_domain.bin");
+#[cfg(feature = "gui")]
 static GPU_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/ggpu_domain.bin");
 static BLK_DOMAIN: &'static [u8] = include_bytes_align_as!(usize, "../../../build/gblk_domain.bin");
+
+#[allow(unused)]
 static FATFS_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gfatfs_domain.bin");
 static RTC_DOMAIN: &'static [u8] =
@@ -63,6 +66,7 @@ static SYS_CALL_DOMAIN: &'static [u8] =
 static BUF_UART_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gbuf_uart_domain.bin");
 
+#[allow(unused)]
 fn fatfs_domain() -> Arc<dyn FsDomain> {
     let mut domain = DomainLoader::new(FATFS_DOMAIN);
     domain.load().unwrap();
@@ -80,6 +84,7 @@ fn uart_domain() -> Arc<dyn UartDomain> {
     Arc::new(UartDomainProxy::new(id, uart))
 }
 
+#[cfg(feature = "gui")]
 fn gpu_domain() -> Arc<dyn GpuDomain> {
     // info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
     let mut domain = DomainLoader::new(GPU_DOMAIN);
@@ -256,23 +261,27 @@ fn init_device() -> Arc<dyn PLICDomain> {
                 let rtc_driver = rtc_domain();
                 rtc_driver.init(&device_info).unwrap();
                 domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc_driver));
+                let irq = device_info.irq as _;
+                // todo!(register irq)
+                plic.register_irq(irq, &RRefVec::from_slice("rtc".as_bytes()))
+                    .unwrap()
             }
             "uart" => {
                 let uart_driver = uart_domain();
                 uart_driver.init(&device_info).unwrap();
-                uart_driver.putc('T' as u8).unwrap();
-                uart_driver.putc('E' as u8).unwrap();
-                uart_driver.putc('S' as u8).unwrap();
-                uart_driver.putc('T' as u8).unwrap();
-                uart_driver.putc(' ' as u8).unwrap();
-                uart_driver.putc('U' as u8).unwrap();
-                uart_driver.putc('A' as u8).unwrap();
-                uart_driver.putc('R' as u8).unwrap();
-                uart_driver.putc('T' as u8).unwrap();
-                uart_driver.putc('\n' as u8).unwrap();
                 domain_helper::register_domain("uart", DomainType::UartDomain(uart_driver));
                 let buf_uart = buf_uart_domain();
                 buf_uart.init("uart").unwrap();
+                buf_uart.putc('T' as u8).unwrap();
+                buf_uart.putc('E' as u8).unwrap();
+                buf_uart.putc('S' as u8).unwrap();
+                buf_uart.putc('T' as u8).unwrap();
+                buf_uart.putc(' ' as u8).unwrap();
+                buf_uart.putc('U' as u8).unwrap();
+                buf_uart.putc('A' as u8).unwrap();
+                buf_uart.putc('R' as u8).unwrap();
+                buf_uart.putc('T' as u8).unwrap();
+                buf_uart.putc('\n' as u8).unwrap();
                 domain_helper::register_domain("buf_uart", DomainType::BufUartDomain(buf_uart));
                 // todo!(register irq)
                 plic.register_irq(irq as _, &RRefVec::from_slice("buf_uart".as_bytes()))
@@ -303,10 +312,14 @@ fn init_device() -> Arc<dyn PLICDomain> {
                     DomainType::CacheBlkDeviceDomain(cache_blk),
                 );
             }
+            #[cfg(feature = "gui")]
             "virtio-mmio-gpu" => {
-                // let gpu_driver = gpu_domain();
-                // gpu.init(&device_info).unwrap()
-                // domain_helper::register_domain("gpu", DomainType::GpuDomain(gpu));
+                let gpu_driver = gpu_domain();
+                gpu_driver.init(&device_info).unwrap();
+                domain_helper::register_domain(
+                    "virtio-mmio-gpu",
+                    DomainType::GpuDomain(gpu_driver),
+                );
             }
             _ => {
                 warn!("unknown device: {}", name);
