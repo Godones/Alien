@@ -7,9 +7,10 @@ use constants::AlienResult;
 use core::sync::atomic::AtomicUsize;
 use ksync::RwLock;
 use log::info;
+use page_table::{MappingFlags, PagingIf};
 use platform::config::DEVICE_SPACE;
 use platform::println;
-use ptable::{MappingFlags, PagingIf, PhyFrame, VmArea, VmAreaEqual, VmAreaType, VmSpace};
+use ptable::{PhyFrame, VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
 
 pub static KERNEL_SPACE: Lazy<Arc<RwLock<VmSpace<VmmPageAllocator>>>> =

@@ -89,6 +89,11 @@ impl VfsDomain for VfsDomainImpl {
         Ok(id)
     }
 
+    fn vfs_close(&self, inode: InodeId) -> AlienResult<()> {
+        remove_file(inode);
+        Ok(())
+    }
+
     fn vfs_getattr(&self, inode: InodeId, mut attr: RRef<FileStat>) -> AlienResult<RRef<FileStat>> {
         let dentry = get_file(inode).unwrap().dentry();
         let vfs_attr = dentry.inode()?.get_attr()?;

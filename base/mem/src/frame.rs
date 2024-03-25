@@ -4,9 +4,11 @@ use core::mem::forget;
 use core::ops::{Deref, DerefMut};
 use ksync::Mutex;
 use log::trace;
+use memory_addr::{PhysAddr, VirtAddr};
+use page_table::PagingIf;
 use pager::{PageAllocator, PageAllocatorExt};
 use platform::println;
-use ptable::{PagingIf, PhyPageMeta, PhysAddr, VirtAddr};
+use ptable::PhyPageMeta;
 
 #[cfg(feature = "pager_bitmap")]
 pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<0>> = Mutex::new(pager::Bitmap::new());

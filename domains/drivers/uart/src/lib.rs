@@ -2,10 +2,10 @@
 extern crate alloc;
 
 use alloc::sync::Arc;
+use basic::io::SafeIORegion;
 use basic::println;
 use constants::AlienResult;
 use interface::{Basic, DeviceBase, DeviceInfo, UartDomain};
-use region::SafeIORegion;
 use spin::Once;
 
 #[derive(Debug)]

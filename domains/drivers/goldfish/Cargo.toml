@@ -12,7 +12,6 @@ rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
 constants = { path = "../../../base/constants" }
 spin = "0"
-region = { path = "../../../domain-tools/safety-abstraction/region" }
 
 # it should be replaced by our implementation
 time = { version = "0.3.7" ,default-features = false,features = ["macros"] }

@@ -6,9 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arch = { path = "../arch" }
-ksync =  { path = "../../domain-tools/safety-abstraction/ksync" }
+ksync =  { path = "../ksync" }
 platform = { path = "../platform" }
-
-
+arch = { path = "../arch" }
 spin = "0"

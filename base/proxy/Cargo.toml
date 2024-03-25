@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 platform = { path = "../platform" }
 arch = { path = "../arch" }
-ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+ksync = { path = "../ksync" }
 domain-loader = { path = "../domain-loader" }
 constants = { path = "../constants" }
 

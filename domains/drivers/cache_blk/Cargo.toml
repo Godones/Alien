@@ -9,7 +9,7 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
-ksync = { path = "../../../domain-tools/safety-abstraction/ksync" }
+ksync = { path = "../../../base/ksync" }
 constants = { path = "../../../base/constants" }
 spin = "0"
 log = "0"

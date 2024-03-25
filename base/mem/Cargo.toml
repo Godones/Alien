@@ -8,10 +8,12 @@ edition = "2021"
 [dependencies]
 config  = { path = "../config" }
 arch = { path = "../arch" }
-ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+ksync = { path = "../ksync" }
 platform = { path = "../platform" }
 constants = { path = "../constants" }
 
+page_table = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
+memory_addr = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
 ptable = { path = "../../safe-crates/ptable" }
 
 

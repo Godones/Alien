@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 log = "0"
-ksync = { path = "../domain-tools/safety-abstraction/ksync" }
+ksync = { path = "../base/ksync" }
 kcore = { path = "../base/kcore" }
 platform = { path = "../base/platform" }
 mem = { path = "../base/mem" }

@@ -6,15 +6,13 @@ members = [
     "user/apps/shell",
     "base/arch",
     "base/config",
-    "domain-tools/safety-abstraction/ksync",
+    "base/ksync",
     "base/mem",
     "base/platform",
     "base/proxy",
     "base/constants",
     "base/domain-loader",
     "base/domain-helper",
-    "domain-tools/safety-abstraction/bus",
-    "domain-tools/safety-abstraction/region",
     "base/timer",
     "domain-tools/interface",
     "domain-tools/rref",
@@ -54,7 +52,10 @@ members = [
     "safe-crates/context",
     "base/kcore",
     "domains/generated/gtask",
-    "domains/generated/gsyscall", "domain-tools/corelib", "domains/net", "domains/generated/gbuf_uart",
+    "domains/generated/gsyscall",
+    "domain-tools/corelib",
+    "domains/net",
+    "domains/generated/gbuf_uart",
 ]
 
 resolver = "2"

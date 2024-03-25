@@ -18,6 +18,7 @@ pub trait VfsDomain: Basic {
         mode: u32,
         open_flags: usize,
     ) -> AlienResult<InodeId>;
+    fn vfs_close(&self, inode: InodeId) -> AlienResult<()>;
     fn vfs_getattr(&self, inode: InodeId, attr: RRef<FileStat>) -> AlienResult<RRef<FileStat>>;
     fn vfs_read_at(
         &self,

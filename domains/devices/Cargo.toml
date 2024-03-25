@@ -10,7 +10,7 @@ interface = { path = "../../domain-tools/interface" }
 rref = { path = "../../domain-tools/rref" }
 basic = { path = "../../domain-tools/basic" }
 constants = { path = "../../base/constants" }
-ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+ksync = { path = "../../base/ksync" }
 fdt = { path = "../../safe-crates/fdt" }
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers"}
 log = "0"

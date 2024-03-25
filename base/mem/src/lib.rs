@@ -10,6 +10,8 @@ mod heap;
 mod vmm;
 
 pub use frame::{alloc_frames, free_frames};
+pub use memory_addr::VirtAddr;
+pub use page_table::MappingFlags;
 pub use ptable::*;
 pub use vmm::{
     alloc_free_region, is_in_kernel_space, kernel_satp, map_region_to_kernel, query_kernel_space,

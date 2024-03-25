@@ -1,6 +1,7 @@
 #![no_std]
 
 mod block;
+mod buf_input;
 mod buf_uart;
 mod cache_block;
 mod devices;
@@ -14,7 +15,6 @@ mod task;
 mod uart;
 #[allow(unused)]
 mod vfs;
-mod buf_input;
 
 extern crate alloc;
 
@@ -48,17 +48,17 @@ pub use block::BlkDeviceDomain;
 pub use cache_block::CacheBlkDeviceDomain;
 
 pub trait FsDomain: Basic {}
-pub use uart::UartDomain;
-pub use gpu::GpuDomain;
-pub use input_device::InputDomain;
-pub use vfs::*;
-pub use rtc::{RtcDomain, RtcTime};
-pub use plic::PLICDomain;
-pub use devices::{DeviceInfo, DevicesDomain};
-pub use syscall::SysCallDomain;
-pub use shadow_block::ShadowBlockDomain;
 pub use buf_input::BufInputDomain;
 pub use buf_uart::BufUartDomain;
+pub use devices::{DeviceInfo, DevicesDomain};
+pub use gpu::GpuDomain;
+pub use input_device::InputDomain;
+pub use plic::PLICDomain;
+pub use rtc::{RtcDomain, RtcTime};
+pub use shadow_block::ShadowBlockDomain;
+pub use syscall::SysCallDomain;
+pub use uart::UartDomain;
+pub use vfs::*;
 
 #[derive(Clone, Debug)]
 pub enum DomainType {

@@ -12,6 +12,5 @@ basic = { path = "../../domain-tools/basic" }
 constants = { path = "../../base/constants" }
 spin = "0"
 config = { path = "../../base/config" }
-region = { path = "../../domain-tools/safety-abstraction/region" }
 plic = { path = "../../safe-crates/plic" }
-ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+ksync = { path = "../../base/ksync" }

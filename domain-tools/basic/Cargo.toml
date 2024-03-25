@@ -6,10 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-continuation = { path = "../../base/continuation" }
+config = { path = "../../base/config" }
 corelib = { path = "../corelib", features = ["core_impl"]}
+constants = { path = "../../base/constants" }
 rref = { path = "../rref" }
 arch = { path = "../../base/arch" }
 log = "0"
+page_table = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
+memory_addr = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
 #downcast-rs = { version = "1.2.0", default-features = false }
-ptable = { path = "../../safe-crates/ptable" }

@@ -1,7 +1,8 @@
-use crate::{MappingFlags, PhyFrame};
+use crate::PhyFrame;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use config::FRAME_SIZE;
+use basic::config::FRAME_SIZE;
+use basic::vm::MappingFlags;
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
 

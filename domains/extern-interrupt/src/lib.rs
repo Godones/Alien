@@ -7,6 +7,7 @@ use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
+use basic::io::SafeIORegion;
 use basic::{arch, println};
 use config::CPU_NUM;
 use constants::AlienResult;
@@ -14,7 +15,6 @@ use core::cmp::min;
 use interface::{Basic, DeviceBase, DeviceInfo, PLICDomain};
 use ksync::Mutex;
 use plic::{Mode, PLIC};
-use region::SafeIORegion;
 use rref::RRefVec;
 use spin::Once;
 

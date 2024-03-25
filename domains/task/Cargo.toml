@@ -12,14 +12,12 @@ rref = { path = "../../domain-tools/rref" }
 
 small-index = { git = "https://github.com/os-module/small-index" }
 spin = "0"
-ksync = { path = "../../domain-tools/safety-abstraction/ksync" }
+ksync = { path = "../../base/ksync" }
 config = { path = "../../base/config" }
 ptable = { path = "../../safe-crates/ptable" }
 context = { path = "../../safe-crates/context" }
 constants = { path = "../../base/constants" }
 
-
 # now we trust the elf loader
 xmas-elf = "0.9"
-
 log = "0"

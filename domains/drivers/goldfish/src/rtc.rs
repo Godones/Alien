@@ -1,9 +1,9 @@
 //! compatible = "googlRtcDevicee,goldfish-rtc";
 
 use alloc::format;
+use basic::io::SafeIORegion;
 use core::fmt::{Debug, Formatter};
 use interface::{RtcDomain, RtcTime};
-use region::SafeIORegion;
 use time::macros::offset;
 use time::OffsetDateTime;
 

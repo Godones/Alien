@@ -14,4 +14,3 @@ interface = { path = "../../../domain-tools/interface", features = ["domain"] }
 
 
 goldfish = { path = "../../drivers/goldfish" }
-region = { path = "../../../domain-tools/safety-abstraction/region" }

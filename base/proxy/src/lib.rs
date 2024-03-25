@@ -366,6 +366,14 @@ impl VfsDomain for VfsDomainProxy {
         }
     }
 
+    fn vfs_close(&self, inode: InodeId) -> AlienResult<()> {
+        if self.domain.is_active() {
+            self.domain.vfs_close(inode)
+        } else {
+            Err(AlienError::DOMAINCRASH)
+        }
+    }
+
     fn vfs_getattr(&self, inode: InodeId, attr: RRef<FileStat>) -> AlienResult<RRef<FileStat>> {
         if self.domain.is_active() {
             self.domain.vfs_getattr(inode, attr)

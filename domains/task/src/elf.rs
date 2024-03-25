@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+use basic::vm::{MappingFlags, PagingIf, PhysAddr, VirtAddr};
 use config::{
     ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
 };

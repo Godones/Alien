@@ -7,16 +7,12 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::collections::btree_map::Values;
 use alloc::collections::BTreeMap;
-use config::FRAME_SIZE;
+pub use area::{VmArea, VmAreaEqual, VmAreaType};
+use basic::config::FRAME_SIZE;
+use basic::vm::riscv::Sv39PageTable;
+use basic::vm::{MappingFlags, PageSize, PagingError, PagingIf, PagingResult, PhysAddr, VirtAddr};
 use core::fmt::{Debug, Formatter};
 use core::ops::{Deref, Range};
-use page_table::riscv::Sv39PageTable;
-use page_table::PageSize;
-
-pub use page_table::{MappingFlags, PagingError, PagingIf, PagingResult};
-
-pub use area::{VmArea, VmAreaEqual, VmAreaType};
-pub use memory_addr::{PhysAddr, VirtAddr};
 
 #[derive(Debug)]
 pub struct PhyFrame {

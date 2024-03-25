@@ -2,7 +2,7 @@ use crate::DeviceBase;
 use constants::AlienResult;
 
 pub trait BufInputDomain: DeviceBase {
-    fn init(&self,input_domain_name:&str) -> AlienResult<()>;
+    fn init(&self, input_domain_name: &str) -> AlienResult<()>;
     /// Read an input event from the input device
     fn event_block(&self) -> AlienResult<u64>;
     fn event_nonblock(&self) -> AlienResult<Option<u64>>;

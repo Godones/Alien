@@ -6,10 +6,10 @@ extern crate alloc;
 
 use crate::rtc::GoldFishRtc;
 use alloc::sync::Arc;
+use basic::io::SafeIORegion;
 use basic::println;
 use constants::AlienResult;
 use interface::{Basic, DeviceBase, DeviceInfo, DevicesDomain, DomainType, RtcDomain, RtcTime};
-use region::SafeIORegion;
 use rref::{RRef, RRefVec};
 use spin::Once;
 use time::macros::offset;

@@ -9,6 +9,7 @@ use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use alloc::{format, vec};
+use basic::vm::{MappingFlags, PagingIf};
 use config::{
     FRAME_SIZE, MAX_THREAD_NUM, TRAP_CONTEXT_BASE, USER_KERNEL_STACK_SIZE, USER_STACK_SIZE,
 };
@@ -21,7 +22,7 @@ use core::fmt::Debug;
 use core::ops::Range;
 use interface::{InodeId, VFS_ROOT_ID};
 use ksync::{Mutex, MutexGuard};
-use ptable::{MappingFlags, PagingIf, PhyFrame, VmArea, VmAreaType, VmSpace};
+use ptable::{PhyFrame, VmArea, VmAreaType, VmSpace};
 use small_index::IndexAllocator;
 
 #[derive(Debug)]

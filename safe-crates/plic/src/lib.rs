@@ -13,7 +13,7 @@
 // Claim(read)	    0x0c20_0004	Returns the next interrupt in priority order.
 // Complete(write) 0x0c20_0004	Completes handling of a particular interrupt.
 
-use region::SafeIORegion;
+use basic::io::SafeIORegion;
 
 const PRIORITY_OFFSET: usize = 0;
 const PENDING_OFFSET: usize = 0x1000;
@@ -65,10 +65,6 @@ impl<const H: usize> PLIC<H> {
         let contexts = self.context_index(hart, mode);
         let index = (irq / 32) as usize;
         let bit = (irq % 32) as usize;
-        // let addr = (self.base_addr + ENABLE_OFFSET + contexts * 0x80) + index * 4;
-        // let addr = addr as *mut u32;
-        // write(addr, read(addr) | (1 << bit));
-
         let offset = ENABLE_OFFSET + contexts * 0x80 + index * 4;
         let old_value = self.region.read_at::<u32>(offset).unwrap();
         self.region
@@ -84,9 +80,6 @@ impl<const H: usize> PLIC<H> {
         let contexts = self.context_index(hart, mode);
         let index = (irq / 32) as usize;
         let bit = (irq % 32) as usize;
-        // let addr = (self.base_addr + ENABLE_OFFSET + contexts * 0x80) + index * 4;
-        // let addr = addr as *mut u32;
-        // write(addr, read(addr) & !(1 << bit));
         let offset = ENABLE_OFFSET + contexts * 0x80 + index * 4;
         let old_value = self.region.read_at::<u32>(offset).unwrap();
         self.region
@@ -98,9 +91,6 @@ impl<const H: usize> PLIC<H> {
         assert!(irq < MAX_INTERRUPT as u32);
         let index = (irq / 32) as usize;
         let bit = (irq % 32) as usize;
-        // let addr = self.base_addr + PENDING_OFFSET + index * 4;
-        // let val = read(addr as *const u32);
-
         let offset = PENDING_OFFSET + index * 4;
         let val = self.region.read_at::<u32>(offset).unwrap();
 
@@ -116,9 +106,6 @@ impl<const H: usize> PLIC<H> {
         assert!(irq < MAX_INTERRUPT as u32);
         assert!(priority < 8);
         let pri = priority & 7;
-        // let addr = self.base_addr + PRIORITY_OFFSET + irq as usize * 4;
-        // write(addr as *mut u32, pri);
-
         let offset = PRIORITY_OFFSET + irq as usize * 4;
         self.region.write_at(offset, pri).unwrap();
     }
@@ -126,8 +113,6 @@ impl<const H: usize> PLIC<H> {
     /// set the threshold for the hart context
     pub fn set_threshold(&self, hart: u32, mode: Mode, threshold: u32) {
         let contexts = self.context_index(hart, mode);
-        // let addr = (self.base_addr + THRESHOLD_OFFSET + contexts * 0x1000) as *mut u32;
-        // write(addr, threshold);
         let offset = THRESHOLD_OFFSET + contexts * 0x1000;
         self.region.write_at(offset, threshold).unwrap()
     }
@@ -135,8 +120,6 @@ impl<const H: usize> PLIC<H> {
     /// get the next pending interrupt
     pub fn claim(&self, hart: u32, mode: Mode) -> u32 {
         let contexts = self.context_index(hart, mode);
-        // let addr = (self.base_addr + CLAIM_COMPLETE_OFFSET + contexts * 0x1000) as *mut u32;
-        // read(addr)
         let offset = CLAIM_COMPLETE_OFFSET + contexts * 0x1000;
         self.region.read_at(offset).unwrap()
     }
@@ -145,8 +128,6 @@ impl<const H: usize> PLIC<H> {
     pub fn complete(&self, hart: u32, mode: Mode, irq: u32) {
         assert!(irq < MAX_INTERRUPT as u32);
         let contexts = self.context_index(hart, mode);
-        // let addr = (self.base_addr + CLAIM_COMPLETE_OFFSET + contexts * 0x1000) as *mut u32;
-        // write(addr, irq);
         let offset = CLAIM_COMPLETE_OFFSET + contexts * 0x1000;
         self.region.write_at(offset, irq).unwrap()
     }

@@ -3,9 +3,15 @@
 #[macro_use]
 pub mod console;
 pub mod arch;
+pub mod bus;
+pub mod config;
 pub mod frame;
+pub mod io;
 pub mod logging;
+pub mod sync;
+pub mod task;
 pub mod time;
+pub mod vm;
 
 extern crate alloc;
 
