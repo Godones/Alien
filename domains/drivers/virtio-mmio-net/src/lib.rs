@@ -12,7 +12,8 @@ use rref::RRefVec;
 use spin::Once;
 use ksync::Mutex;
 
-use virtio_net::VirtIoNetWrapper;
+use virtio_drivers::device::net::RxBuffer;
+use virtio_net::{VirtIoNetWrapper, NET_QUEUE_SIZE};
 
 pub struct VirtIoNetDomain;
 
@@ -42,31 +43,31 @@ impl NetDomain for VirtIoNetDomain {
     }
 
     fn mac_address(&self) -> AlienResult<[u8;6]> {
-        todo!()
+        Ok(NET.get().unwrap().lock().mac_address())
     }
 
     fn can_transmit(&self) -> AlienResult<bool> {
-        todo!()
+        Ok(NET.get().unwrap().lock().can_send())
     }
 
     fn can_receive(&self) -> AlienResult<bool> {
-        todo!()
+        Ok(NET.get().unwrap().lock().can_recv())
     }
 
     fn rx_queue_size(&self) -> AlienResult<usize> {
-        todo!()
+        Ok(NET_QUEUE_SIZE)
     }
 
     fn tx_queue_size(&self) -> AlienResult<usize> {
-        todo!()
+        Ok(NET_QUEUE_SIZE)
     }
 
     fn recycle_rx_buffer(&self, rx_buf: RRefVec<u8>) -> AlienResult<()> {
-        todo!()
+        NET.get().unwrap().lock().recycle_rx_buffer(RxBuffer)
     }
 
     fn recycle_tx_buffers(&self) -> AlienResult<()> {
-        todo!()
+        Ok(())
     }
 
     fn transmit(&self, data: RRefVec<u8>) -> AlienResult<()> {

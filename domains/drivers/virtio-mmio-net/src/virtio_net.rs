@@ -3,13 +3,13 @@ use virtio_drivers::device::net::VirtIONet;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::{Hal, BufferDirection, PhysAddr};
 use basic::frame::FrameTracker;
-use core::{ptr::NonNull, mem::forget};
+use core::{ptr::NonNull, mem::forget, ops::{Deref, DerefMut}};
 
 pub const NET_QUEUE_SIZE: usize = 128;
 pub const NET_BUF_LEN: usize = 4096;
 
 pub struct VirtIoNetWrapper {
-    driver: VirtIONet<HalImpl, MmioTransport, NET_QUEUE_SIZE>
+    net: VirtIONet<HalImpl, MmioTransport, NET_QUEUE_SIZE>
 }
 unsafe impl Send for VirtIoNetWrapper {}
 unsafe impl Sync for VirtIoNetWrapper {}
@@ -27,10 +27,25 @@ impl VirtIoNetWrapper {
                 transport, NET_BUF_LEN
             ).expect("failed to create gpu driver");
         Self { 
-            driver: net 
+            net 
         }
     }
 }
+
+impl Deref for VirtIoNetWrapper {
+    type Target = VirtIONet<HalImpl, MmioTransport, NET_QUEUE_SIZE>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.net
+    }
+}
+
+impl DerefMut for VirtIoNetWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.net
+    }
+}
+
 
 pub struct HalImpl;
 
