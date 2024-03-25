@@ -13,13 +13,14 @@ mod shadow_block;
 mod syscall;
 mod task;
 mod uart;
+mod net;
 #[allow(unused)]
 mod vfs;
 
 extern crate alloc;
 
 use alloc::sync::Arc;
-use constants::{AlienError, AlienResult};
+use constants::{net::Domain, AlienError, AlienResult};
 use core::any::Any;
 use core::fmt::Debug;
 
@@ -58,6 +59,7 @@ pub use rtc::{RtcDomain, RtcTime};
 pub use shadow_block::ShadowBlockDomain;
 pub use syscall::SysCallDomain;
 pub use uart::UartDomain;
+pub use net::NetDomain;
 pub use vfs::*;
 
 #[derive(Clone, Debug)]
@@ -76,6 +78,7 @@ pub enum DomainType {
     SysCallDomain(Arc<dyn SysCallDomain>),
     ShadowBlockDomain(Arc<dyn ShadowBlockDomain>),
     BufUartDomain(Arc<dyn BufUartDomain>),
+    NetDomain(Arc<dyn NetDomain>),
     BufInputDomain(Arc<dyn BufInputDomain>),
 }
 
@@ -93,6 +96,7 @@ impl TryInto<Arc<dyn DeviceBase>> for DomainType {
             DomainType::ShadowBlockDomain(domain) => Ok(domain),
             DomainType::BufUartDomain(domain) => Ok(domain),
             DomainType::BufInputDomain(domain) => Ok(domain),
+            DomainType::NetDomain(domain) => Ok(domain),
             _ => Err(AlienError::EINVAL),
         }
     }
