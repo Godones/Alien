@@ -207,10 +207,7 @@ fn buf_uart_domain() -> Arc<dyn BufUartDomain> {
 }
 
 fn net_domain() -> Arc<dyn NetDomain> {
-    info!(
-        "Load net domain, size: {}KB",
-        NET_DOMAIN.len() / 1024
-    );
+    info!("Load net domain, size: {}KB", NET_DOMAIN.len() / 1024);
     let mut domain = DomainLoader::new(NET_DOMAIN);
     domain.load().unwrap();
     let id = alloc_domain_id();
@@ -327,10 +324,13 @@ fn init_device() -> Arc<dyn PLICDomain> {
                     DomainType::CacheBlkDeviceDomain(cache_blk),
                 );
             }
-            "virtio-mmio-virtio-mmio-net" => {
+            "virtio-mmio-net" => {
                 let net_driver = net_domain();
                 net_driver.init(&device_info).unwrap();
-                domain_helper::register_domain("virtio-mmio-net", DomainType::NetDomain(net_driver));
+                domain_helper::register_domain(
+                    "virtio-mmio-net",
+                    DomainType::NetDomain(net_driver),
+                );
                 // todo!(register irq)
                 plic.register_irq(irq as _, &RRefVec::from_slice("virtio-mmio-net".as_bytes()))
                     .unwrap()

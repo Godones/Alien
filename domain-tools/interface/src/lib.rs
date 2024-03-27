@@ -7,20 +7,20 @@ mod cache_block;
 mod devices;
 mod gpu;
 mod input_device;
+mod net;
 mod plic;
 mod rtc;
 mod shadow_block;
 mod syscall;
 mod task;
 mod uart;
-mod net;
 #[allow(unused)]
 mod vfs;
 
 extern crate alloc;
 
 use alloc::sync::Arc;
-use constants::{net::Domain, AlienError, AlienResult};
+use constants::{AlienError, AlienResult};
 use core::any::Any;
 use core::fmt::Debug;
 
@@ -54,12 +54,12 @@ pub use buf_uart::BufUartDomain;
 pub use devices::{DeviceInfo, DevicesDomain};
 pub use gpu::GpuDomain;
 pub use input_device::InputDomain;
+pub use net::*;
 pub use plic::PLICDomain;
 pub use rtc::{RtcDomain, RtcTime};
 pub use shadow_block::ShadowBlockDomain;
 pub use syscall::SysCallDomain;
 pub use uart::UartDomain;
-pub use net::*;
 pub use vfs::*;
 
 #[derive(Clone, Debug)]
