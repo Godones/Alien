@@ -19,7 +19,6 @@ extern "C" fn _start() {
         slli t0, t0, {stack_size_bits}
         la sp, {boot_stack}
         add sp, sp, t0
-        call clear_bss
         mv a0, tp
         mv a1, gp
         call {platform_init}
@@ -51,19 +50,5 @@ extern "C" fn _start_secondary() {
         boot_stack = sym STACK,
         options(noreturn)
         );
-    }
-}
-
-extern "C" {
-    fn sbss();
-    fn ebss();
-}
-
-/// 清空.bss段
-#[no_mangle]
-fn clear_bss() {
-    unsafe {
-        core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
-            .fill(0);
     }
 }

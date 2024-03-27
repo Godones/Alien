@@ -11,6 +11,7 @@ pub fn run_task() -> ! {
             // get the process context
             let context = task.get_context_raw_ptr();
             let cpu = current_cpu();
+            // basic::println!("switch to task: {:?}", task.pid());
             cpu.set_current(task);
             // switch to the process context
             let cpu_context = cpu.get_idle_task_cx_ptr();

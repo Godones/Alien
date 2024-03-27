@@ -57,8 +57,13 @@ members = [
     "domains/net",
     "domains/generated/gbuf_uart",
     "domains/generated/gvirtio-mmio-net",
+    "safe-crates/page_table",
+    "safe-crates/memory_addr",
 ]
 
 resolver = "2"
 
-
+[workspace.dependencies]
+spin = "0"
+log = "0"
+bitflags = "2.5"

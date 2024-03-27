@@ -1,2 +1,1 @@
-pub use memory_addr::*;
-pub use page_table::*;
+pub mod frame;

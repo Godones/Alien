@@ -1,16 +1,17 @@
-use crate::frame::{FrameTracker, VmmPageAllocator};
+use crate::frame::{alloc_frame_trackers, FrameTracker, VmmPageAllocator};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::vec;
+use alloc::vec::Vec;
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
 use constants::AlienResult;
 use core::sync::atomic::AtomicUsize;
 use ksync::RwLock;
 use log::info;
-use page_table::{MappingFlags, PagingIf};
+use page_table::MappingFlags;
 use platform::config::DEVICE_SPACE;
 use platform::println;
-use ptable::{PhyFrame, VmArea, VmAreaEqual, VmAreaType, VmSpace};
+use ptable::{PhysPage, VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
 
 pub static KERNEL_SPACE: Lazy<Arc<RwLock<VmSpace<VmmPageAllocator>>>> =
@@ -24,7 +25,7 @@ extern "C" {
     fn ekernel();
     fn sinit();
     fn einit();
-    fn strampoline();
+
     // fn kernel_eh_frame();
     // fn kernel_eh_frame_end();
     // fn kernel_eh_frame_hdr();
@@ -86,11 +87,7 @@ pub fn build_kernel_address_space(memory_end: usize) {
     let trampoline_area = VmArea::new(
         TRAMPOLINE..(TRAMPOLINE + FRAME_SIZE),
         MappingFlags::READ | MappingFlags::EXECUTE,
-        vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
-            strampoline as usize,
-            FRAME_SIZE,
-            false,
-        )))],
+        vec![Box::new(FrameTracker::create_trampoline())],
     );
     kernel_space
         .map(VmAreaType::VmAreaEqual(text_area))
@@ -141,14 +138,10 @@ pub fn map_region_to_kernel(vaddr: usize, size: usize, flags: MappingFlags) -> A
     assert!(size > 0 && size % FRAME_SIZE == 0);
     assert_eq!(vaddr % FRAME_SIZE, 0);
     let mut kernel_space = KERNEL_SPACE.write();
-    let mut phy_frames = vec![];
+    let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
     for _ in 0..size / FRAME_SIZE {
-        let paddr = VmmPageAllocator::alloc_frame().unwrap();
-        phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
-            paddr.as_usize(),
-            FRAME_SIZE,
-            true,
-        ))));
+        let frame = alloc_frame_trackers(1);
+        phy_frames.push(Box::new(frame));
     }
     let area = VmArea::new(vaddr..vaddr + size, flags, phy_frames);
     kernel_space.map(VmAreaType::VmArea(area)).unwrap();

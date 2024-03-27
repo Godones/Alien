@@ -1,9 +1,10 @@
 #![no_std]
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 extern crate alloc;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use basic::frame::{FrameTracker, FRAME_SIZE};
+use basic::config::FRAME_SIZE;
+use basic::vm::frame::FrameTracker;
 use constants::AlienResult;
 use core::cmp::min;
 use core::fmt::Debug;

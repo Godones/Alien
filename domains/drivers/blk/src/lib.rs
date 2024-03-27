@@ -2,22 +2,22 @@
 //! The [virtio-blk](virtio_blk) crate provides the safety abstraction for the VirtIO registers and buffers.
 //! So this crate should only implement the driver logic with safe Rust code.
 #![no_std]
-// #![deny(unsafe_code)]
+// #![forbid(unsafe_code)]
 extern crate alloc;
 
+use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
-use basic::frame::FrameTracker;
 use basic::println;
+use basic::vm::frame::FrameTracker;
 use constants::AlienResult;
 use core::fmt::Debug;
-use core::mem::forget;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
 use interface::{Basic, DeviceBase, DeviceInfo};
 use ksync::Mutex;
 use log::info;
 use rref::RRef;
-use spin::Once;
+use spin::{Lazy, Once};
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_drivers::{BufferDirection, Hal, PhysAddr};
@@ -137,21 +137,29 @@ pub fn main() -> Arc<dyn interface::BlkDeviceDomain> {
 
 struct HalImpl;
 
+static PAGE_RECORD: Lazy<Mutex<BTreeMap<usize, FrameTracker>>> =
+    Lazy::new(|| Mutex::new(BTreeMap::new()));
+
 unsafe impl Hal for HalImpl {
     fn dma_alloc(pages: usize, _direction: BufferDirection) -> (PhysAddr, NonNull<u8>) {
         let frame = FrameTracker::new(pages);
-        let ptr = frame.start();
-        forget(frame);
-        (ptr, NonNull::new(ptr as _).unwrap())
+        let phys_addr = frame.start_phy_addr();
+        PAGE_RECORD.lock().insert(phys_addr.as_usize(), frame);
+        (
+            phys_addr.as_usize(),
+            NonNull::new(phys_addr.as_usize() as _).unwrap(),
+        )
     }
 
-    unsafe fn dma_dealloc(paddr: PhysAddr, _vaddr: NonNull<u8>, pages: usize) -> i32 {
-        let _frame = FrameTracker::from_raw(paddr, pages);
+    unsafe fn dma_dealloc(paddr: PhysAddr, _vaddr: NonNull<u8>, _pages: usize) -> i32 {
+        let mut page_record = PAGE_RECORD.lock();
+        let _frame = page_record.remove(&(paddr)).unwrap();
         0
     }
 
     unsafe fn mmio_phys_to_virt(paddr: PhysAddr, _size: usize) -> NonNull<u8> {
-        NonNull::new(paddr as *mut u8).unwrap()
+        let vaddr = PAGE_RECORD.lock().get(&(paddr)).unwrap().start_virt_addr();
+        NonNull::new(vaddr.as_usize() as *mut u8).unwrap()
     }
 
     unsafe fn share(buffer: NonNull<[u8]>, _direction: BufferDirection) -> PhysAddr {

@@ -1,8 +1,7 @@
 //! # PLIC
 //! This crate provides a platform-level interrupt controller (PLIC) driver for RISC-V.
 #![cfg_attr(not(test), no_std)]
-#![deny(missing_docs)]
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 
 // Qemu PLIC mapping
 // Register	        Address    	Description
@@ -13,7 +12,11 @@
 // Claim(read)	    0x0c20_0004	Returns the next interrupt in priority order.
 // Complete(write) 0x0c20_0004	Completes handling of a particular interrupt.
 
-use basic::io::SafeIORegion;
+extern crate alloc;
+
+use alloc::boxed::Box;
+use constants::AlienResult;
+use core::fmt::Debug;
 
 const PRIORITY_OFFSET: usize = 0;
 const PENDING_OFFSET: usize = 0x1000;
@@ -26,6 +29,11 @@ const MAX_CONTEXT: usize = 15872;
 /// The maximum number of interrupt sources that can be supported by the PLIC.
 const MAX_INTERRUPT: usize = 1024;
 
+pub trait PlicIO: Debug + Send + Sync {
+    fn read_at(&self, offset: usize) -> AlienResult<u32>;
+    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()>;
+}
+
 /// The PLIC is a platform-level interrupt controller. It connects all external interrupts in the
 /// system to all hart contexts in the system. The PLIC is designed to support multiple harts, each
 /// with its own context, connected to a set of platform interrupt sources. The PLIC supports
@@ -33,7 +41,7 @@ const MAX_INTERRUPT: usize = 1024;
 /// be individually masked and has a programmable priority level.
 #[derive(Debug)]
 pub struct PLIC<const H: usize> {
-    region: SafeIORegion,
+    region: Box<dyn PlicIO>,
     privileges: [u8; H],
 }
 
@@ -48,7 +56,7 @@ pub enum Mode {
 
 impl<const H: usize> PLIC<H> {
     /// Create a new PLIC instance.
-    pub fn new(region: SafeIORegion, privileges: [u8; H]) -> Self {
+    pub fn new(region: Box<dyn PlicIO>, privileges: [u8; H]) -> Self {
         Self { region, privileges }
     }
 
@@ -66,7 +74,7 @@ impl<const H: usize> PLIC<H> {
         let index = (irq / 32) as usize;
         let bit = (irq % 32) as usize;
         let offset = ENABLE_OFFSET + contexts * 0x80 + index * 4;
-        let old_value = self.region.read_at::<u32>(offset).unwrap();
+        let old_value = self.region.read_at(offset).unwrap();
         self.region
             .write_at(offset, old_value | (1 << bit))
             .unwrap();
@@ -81,7 +89,7 @@ impl<const H: usize> PLIC<H> {
         let index = (irq / 32) as usize;
         let bit = (irq % 32) as usize;
         let offset = ENABLE_OFFSET + contexts * 0x80 + index * 4;
-        let old_value = self.region.read_at::<u32>(offset).unwrap();
+        let old_value = self.region.read_at(offset).unwrap();
         self.region
             .write_at(offset, old_value & !(1 << bit))
             .unwrap();
@@ -92,7 +100,7 @@ impl<const H: usize> PLIC<H> {
         let index = (irq / 32) as usize;
         let bit = (irq % 32) as usize;
         let offset = PENDING_OFFSET + index * 4;
-        let val = self.region.read_at::<u32>(offset).unwrap();
+        let val = self.region.read_at(offset).unwrap();
 
         return (val & (1 << bit)) != 0;
     }

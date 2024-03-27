@@ -3,13 +3,12 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use basic::vm::{MappingFlags, PagingIf, PhysAddr, VirtAddr};
-use config::{
-    ELF_BASE_RELOCATE, FRAME_BITS, FRAME_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE,
-};
+use basic::vm::frame::FrameTracker;
+use config::{ELF_BASE_RELOCATE, FRAME_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use constants::{AlienError, AlienResult};
 use core::cmp::min;
-use core::mem::forget;
+use memory_addr::{PhysAddr, VirtAddr};
+use page_table::{MappingFlags, NotLeafPage, PagingIf, Rv64PTE};
 use ptable::*;
 use xmas_elf::program::{SegmentData, Type};
 use xmas_elf::ElfFile;
@@ -17,67 +16,10 @@ use xmas_elf::ElfFile;
 #[derive(Debug)]
 pub struct VmmPageAllocator;
 
-impl PagingIf for VmmPageAllocator {
-    fn alloc_frame() -> Option<PhysAddr> {
-        let frame = basic::frame::FrameTracker::new(1);
-        let start = frame.start();
-        forget(frame);
-        Some(PhysAddr::from(start as usize))
-    }
-
-    fn dealloc_frame(paddr: PhysAddr) {
-        let frame = basic::frame::FrameTracker::from_raw(paddr.as_usize(), 1);
-        drop(frame);
-    }
-
-    fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {
-        VirtAddr::from(paddr.as_usize())
-    }
-}
-
-#[derive(Debug)]
-pub struct FrameTracker {
-    // start page
-    start: usize,
-    // page count
-    size: usize,
-    // should be deallocated
-    dealloc: bool,
-}
-
-impl FrameTracker {
-    pub fn new(start_page: usize, pages: usize, dealloc: bool) -> Self {
-        Self {
-            start: start_page,
-            size: pages,
-            dealloc,
-        }
-    }
-
-    pub fn from_addr(start: usize, pages: usize, dealloc: bool) -> Self {
-        Self {
-            start: start >> FRAME_BITS,
-            size: pages,
-            dealloc,
-        }
-    }
-}
-
-impl PhyPageMeta for FrameTracker {
-    fn start_addr(&self) -> usize {
-        self.start << FRAME_BITS
-    }
-    fn size(&self) -> usize {
-        self.size * FRAME_SIZE
-    }
-}
-
-impl Drop for FrameTracker {
-    fn drop(&mut self) {
-        if self.dealloc {
-            trace!("drop frame tracker: {:#x?}", self);
-            VmmPageAllocator::dealloc_frame(PhysAddr::from(self.start_addr()));
-        }
+impl PagingIf<Rv64PTE> for VmmPageAllocator {
+    fn alloc_frame() -> Option<Box<dyn NotLeafPage<Rv64PTE>>> {
+        let frame = FrameTracker::new(1);
+        Some(Box::new(frame))
     }
 }
 
@@ -180,12 +122,8 @@ pub fn load_to_vm_space(
         let mut data = &elf.input[section.offset..(section.offset + section.file_size)];
         let mut phy_frames = vec![];
         for _ in 0..len / FRAME_SIZE {
-            let frame = VmmPageAllocator::alloc_frame().unwrap();
-            phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
-                frame.as_usize(),
-                1,
-                true,
-            ))));
+            let frame = FrameTracker::new(1);
+            phy_frames.push(Box::new(frame));
         }
 
         let mut page_offset = section.start_vaddr & (FRAME_SIZE - 1);
@@ -193,7 +131,7 @@ pub fn load_to_vm_space(
         phy_frames.iter().for_each(|phy| {
             let size = FRAME_SIZE;
             let min = min(size - page_offset, data.len());
-            let dst = (phy.start_addr() + page_offset) as *mut u8;
+            let dst = (phy.start_virt_addr().as_usize() + page_offset) as *mut u8;
             unsafe {
                 core::ptr::copy(data.as_ptr(), dst, min);
             }
@@ -202,6 +140,7 @@ pub fn load_to_vm_space(
             page_offset = 0;
         });
         assert_eq!(count, section.file_size);
+        let phy_frames = phy_frames.into_iter().map(|x| x as _).collect();
 
         let area = VmArea::new(
             vaddr.as_usize()..end_vaddr.as_usize(),
@@ -263,14 +202,11 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
     let user_stack_low = ceil_addr + FRAME_SIZE;
     let uer_stack_top = user_stack_low + USER_STACK_SIZE;
     warn!("user stack: {:#x} - {:#x}", user_stack_low, uer_stack_top);
-    let mut user_stack_phy_frames = vec![];
+
+    let mut user_stack_phy_frames: Vec<Box<dyn PhysPage>> = vec![];
     for _ in 0..USER_STACK_SIZE / FRAME_SIZE {
-        let frame = VmmPageAllocator::alloc_frame().unwrap();
-        user_stack_phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
-            frame.as_usize(),
-            1,
-            true,
-        ))));
+        let frame = FrameTracker::new(1);
+        user_stack_phy_frames.push(Box::new(frame));
     }
     let user_stack_area = VmArea::new(
         user_stack_low..uer_stack_top,
@@ -283,31 +219,23 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
 
     let heap_bottom = uer_stack_top;
 
-    let trap_context_phy = VmmPageAllocator::alloc_frame().unwrap();
+    let trap_context_frame = FrameTracker::new(1);
     let trap_context_area = VmArea::new(
         TRAP_CONTEXT_BASE..(TRAP_CONTEXT_BASE + FRAME_SIZE),
         MappingFlags::USER | MappingFlags::READ | MappingFlags::WRITE,
-        vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
-            trap_context_phy.as_usize(),
-            1,
-            true,
-        )))],
+        vec![Box::new(trap_context_frame)],
     );
     address_space
         .map(VmAreaType::VmArea(trap_context_area))
         .unwrap();
 
-    // how to solve trampoline
+    // todo!(how to solve trampoline)
+    let trampoline_frame = FrameTracker::create_trampoline();
 
-    let trampoline_phy_addr = basic::trampoline_addr();
     let trampoline_area = VmArea::new(
         TRAMPOLINE..(TRAMPOLINE + FRAME_SIZE),
         MappingFlags::READ | MappingFlags::EXECUTE,
-        vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
-            trampoline_phy_addr,
-            1,
-            false,
-        )))],
+        vec![Box::new(trampoline_frame)],
     );
     address_space
         .map(VmAreaType::VmArea(trampoline_area))
@@ -354,32 +282,26 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
 
 pub fn clone_vm_space(vm_space: &VmSpace<VmmPageAllocator>) -> VmSpace<VmmPageAllocator> {
     let mut space = VmSpace::new();
-    let trampoline_phy_addr = basic::trampoline_addr();
+    let trampoline_frame = FrameTracker::create_trampoline();
+    let trampoline_frame_virt_addr = trampoline_frame.start_virt_addr().as_usize();
     vm_space.area_iter().for_each(|ty| match ty {
         VmAreaType::VmArea(area) => {
             let size = area.size();
             let start = area.start();
             info!("<clone_vm_space> start: {:#x}, size: {:#x}", start, size);
-            if start == trampoline_phy_addr {
+            if start == trampoline_frame_virt_addr {
+                let trampoline_frame = FrameTracker::create_trampoline();
                 let trampoline_area = VmArea::new(
                     TRAMPOLINE..(TRAMPOLINE + FRAME_SIZE),
                     MappingFlags::READ | MappingFlags::EXECUTE,
-                    vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
-                        trampoline_phy_addr,
-                        1,
-                        false,
-                    )))],
+                    vec![Box::new(trampoline_frame)],
                 );
                 space.map(VmAreaType::VmArea(trampoline_area)).unwrap();
             } else {
-                let mut phy_frames = vec![];
+                let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
                 for _ in 0..size / FRAME_SIZE {
-                    let frame = VmmPageAllocator::alloc_frame().unwrap();
-                    phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
-                        frame.as_usize(),
-                        1,
-                        true,
-                    ))));
+                    let frame = FrameTracker::new(1);
+                    phy_frames.push(Box::new(frame));
                 }
                 let new_area = area.clone_with(phy_frames);
                 space.map(VmAreaType::VmArea(new_area)).unwrap();
@@ -396,15 +318,11 @@ pub fn clone_vm_space(vm_space: &VmSpace<VmmPageAllocator>) -> VmSpace<VmmPageAl
 pub fn extend_thread_vm_space(space: &mut VmSpace<VmmPageAllocator>, thread_num: usize) {
     assert!(thread_num > 0);
     let address = TRAP_CONTEXT_BASE - FRAME_SIZE * thread_num;
-    let trap_context_phy = VmmPageAllocator::alloc_frame().unwrap();
+    let trap_context_frame = FrameTracker::new(1);
     let trap_context_area = VmArea::new(
         address..(address + FRAME_SIZE),
         MappingFlags::USER | MappingFlags::READ | MappingFlags::WRITE,
-        vec![PhyFrame::new(Box::new(FrameTracker::from_addr(
-            trap_context_phy.as_usize(),
-            1,
-            true,
-        )))],
+        vec![Box::new(trap_context_frame)],
     );
     space.map(VmAreaType::VmArea(trap_context_area)).unwrap();
 }

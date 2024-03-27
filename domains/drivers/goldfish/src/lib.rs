@@ -1,5 +1,5 @@
 #![no_std]
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 #![allow(unused)]
 mod rtc;
 extern crate alloc;

@@ -12,6 +12,10 @@ constants = { path = "../../base/constants" }
 rref = { path = "../rref" }
 arch = { path = "../../base/arch" }
 log = "0"
-page_table = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
-memory_addr = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
+
 #downcast-rs = { version = "1.2.0", default-features = false }
+
+page_table = { path = "../../safe-crates/page_table" }
+memory_addr = { path = "../../safe-crates/memory_addr" }
+ptable = { path = "../../safe-crates/ptable" }
+plic = { path = "../../safe-crates/plic" }

@@ -1,10 +1,11 @@
-use crate::PhyFrame;
+use crate::PhysPage;
+use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use basic::config::FRAME_SIZE;
-use basic::vm::MappingFlags;
+use config::FRAME_SIZE;
 use core::fmt::{Debug, Formatter};
 use core::ops::Range;
+use page_table::MappingFlags;
 
 #[derive(Debug)]
 pub enum VmAreaType {
@@ -23,7 +24,7 @@ impl VmAreaType {
 pub struct VmArea {
     v_range: Range<usize>,
     permission: MappingFlags,
-    map: BTreeMap<usize, PhyFrame>,
+    map: BTreeMap<usize, Box<dyn PhysPage>>,
 }
 
 impl Debug for VmArea {
@@ -37,7 +38,11 @@ impl Debug for VmArea {
 }
 
 impl VmArea {
-    pub fn new(v_range: Range<usize>, permission: MappingFlags, phy_frames: Vec<PhyFrame>) -> Self {
+    pub fn new(
+        v_range: Range<usize>,
+        permission: MappingFlags,
+        phy_frames: Vec<Box<dyn PhysPage>>,
+    ) -> Self {
         assert_eq!(v_range.start % FRAME_SIZE, 0);
         assert_eq!(v_range.end % FRAME_SIZE, 0);
         assert_eq!((v_range.end - v_range.start) / FRAME_SIZE, phy_frames.len());
@@ -66,11 +71,11 @@ impl VmArea {
         self.v_range.start
     }
 
-    pub(super) fn mapper(&self) -> &BTreeMap<usize, PhyFrame> {
+    pub(super) fn mapper(&self) -> &BTreeMap<usize, Box<dyn PhysPage>> {
         &self.map
     }
 
-    pub fn clone_with(&self, phy_frames: Vec<PhyFrame>) -> Self {
+    pub fn clone_with(&self, phy_frames: Vec<Box<dyn PhysPage>>) -> Self {
         assert_eq!(self.size() / FRAME_SIZE, phy_frames.len());
         let mut phy_frames_map = BTreeMap::new();
         for (i, mut phy_frame) in phy_frames.into_iter().enumerate() {

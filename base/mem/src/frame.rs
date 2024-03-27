@@ -1,14 +1,14 @@
+use alloc::boxed::Box;
 use alloc::format;
 use config::{FRAME_BITS, FRAME_SIZE};
-use core::mem::forget;
 use core::ops::{Deref, DerefMut};
 use ksync::Mutex;
 use log::trace;
 use memory_addr::{PhysAddr, VirtAddr};
-use page_table::PagingIf;
+use page_table::{NotLeafPage, PagingIf, Rv64PTE, ENTRY_COUNT};
 use pager::{PageAllocator, PageAllocatorExt};
 use platform::println;
-use ptable::PhyPageMeta;
+use ptable::PhysPage;
 
 #[cfg(feature = "pager_bitmap")]
 pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<0>> = Mutex::new(pager::Bitmap::new());
@@ -52,41 +52,49 @@ pub fn free_frames(addr: *mut u8, num: usize) {
 
 #[derive(Debug)]
 pub struct FrameTracker {
-    // start page
-    start: usize,
-    // page count
-    size: usize,
-    // should be deallocated
+    start_page: usize,
+    page_count: usize,
     dealloc: bool,
 }
 
+extern "C" {
+    fn strampoline();
+}
+
 impl FrameTracker {
-    pub fn new(start_page: usize, size: usize, dealloc: bool) -> Self {
+    pub fn new(start_page: usize, page_count: usize, dealloc: bool) -> Self {
         Self {
-            start: start_page,
-            size,
+            start_page,
+            page_count,
             dealloc,
         }
     }
-    pub fn from_addr(addr: usize, size: usize, dealloc: bool) -> Self {
-        assert_eq!(addr % FRAME_SIZE, 0);
-        Self::new(addr >> FRAME_BITS, size, dealloc)
+    pub fn create_trampoline() -> Self {
+        let trampoline_phy_addr = strampoline as usize;
+        assert_eq!(trampoline_phy_addr % FRAME_SIZE, 0);
+        Self {
+            start_page: trampoline_phy_addr >> FRAME_BITS,
+            page_count: 1,
+            dealloc: false,
+        }
     }
 
-    pub fn end(&self) -> usize {
-        self.start_addr() + FRAME_SIZE * self.size
-    }
-    pub fn as_ptr(&self) -> *mut u8 {
-        self.start_addr() as *mut u8
+    fn start(&self) -> usize {
+        self.start_page << FRAME_BITS
     }
 }
 
-impl PhyPageMeta for FrameTracker {
-    fn start_addr(&self) -> usize {
-        self.start << FRAME_BITS
+impl PhysPage for FrameTracker {
+    fn phys_addr(&self) -> PhysAddr {
+        PhysAddr::from(self.start())
     }
-    fn size(&self) -> usize {
-        self.size * FRAME_SIZE
+
+    fn as_slice(&self) -> &[u8] {
+        self.deref()
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.deref_mut()
     }
 }
 
@@ -96,11 +104,11 @@ impl Drop for FrameTracker {
             trace!("drop frame tracker: {:#x?}", self);
             FRAME_ALLOCATOR
                 .lock()
-                .free_pages(self.start, self.size)
+                .free_pages(self.start_page, self.page_count)
                 .expect(
                     format!(
                         "free frame start:{:#x},num:{} failed",
-                        self.start, self.size
+                        self.start_page, self.page_count
                     )
                     .as_str(),
                 );
@@ -113,14 +121,14 @@ impl Deref for FrameTracker {
 
     fn deref(&self) -> &Self::Target {
         unsafe {
-            core::slice::from_raw_parts(self.start_addr() as *const u8, FRAME_SIZE * self.size)
+            core::slice::from_raw_parts(self.start() as *const u8, FRAME_SIZE * self.page_count)
         }
     }
 }
 impl DerefMut for FrameTracker {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            core::slice::from_raw_parts_mut(self.start_addr() as *mut u8, FRAME_SIZE * self.size)
+            core::slice::from_raw_parts_mut(self.start() as *mut u8, FRAME_SIZE * self.page_count)
         }
     }
 }
@@ -136,19 +144,36 @@ pub fn alloc_frame_trackers(count: usize) -> FrameTracker {
 
 pub struct VmmPageAllocator;
 
-impl PagingIf for VmmPageAllocator {
-    fn alloc_frame() -> Option<PhysAddr> {
+impl NotLeafPage<Rv64PTE> for FrameTracker {
+    fn phys_addr(&self) -> PhysAddr {
+        PhysAddr::from(self.start_page << FRAME_BITS)
+    }
+
+    fn virt_addr(&self) -> VirtAddr {
+        VirtAddr::from(self.start_page << FRAME_BITS)
+    }
+
+    fn zero(&self) {
+        let ptr = self.start();
+        unsafe {
+            core::ptr::write_bytes(ptr as *mut u8, 0, self.page_count * FRAME_SIZE);
+        }
+    }
+
+    fn as_pte_slice<'a>(&self) -> &'a [Rv64PTE] {
+        let ptr = self.start();
+        unsafe { core::slice::from_raw_parts(ptr as _, ENTRY_COUNT) }
+    }
+
+    fn as_pte_mut_slice<'a>(&self) -> &'a mut [Rv64PTE] {
+        let ptr = self.start();
+        unsafe { core::slice::from_raw_parts_mut(ptr as _, ENTRY_COUNT) }
+    }
+}
+
+impl PagingIf<Rv64PTE> for VmmPageAllocator {
+    fn alloc_frame() -> Option<Box<dyn NotLeafPage<Rv64PTE>>> {
         let frame = alloc_frame_trackers(1);
-        let start_addr = frame.start_addr();
-        forget(frame);
-        Some(PhysAddr::from(start_addr))
-    }
-
-    fn dealloc_frame(paddr: PhysAddr) {
-        FrameTracker::from_addr(paddr.as_usize(), 1, true);
-    }
-
-    fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {
-        VirtAddr::from(paddr.as_usize())
+        Some(Box::new(frame))
     }
 }

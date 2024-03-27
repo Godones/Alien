@@ -1,8 +1,9 @@
 #![no_std]
-#![deny(unsafe_code)]
+#![forbid(unsafe_code)]
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -42,7 +43,7 @@ impl PLICDomain for PLICDomainImpl {
         println!("plic region: {:#x?}", device_info.address_range);
         let plic_space = SafeIORegion::from(device_info.address_range.clone()).unwrap();
         let privileges = [2; CPU_NUM];
-        PLIC.call_once(|| PLIC::new(plic_space, privileges));
+        PLIC.call_once(|| PLIC::new(Box::new(plic_space), privileges));
         println!("Init qemu plic success");
         Ok(())
     }

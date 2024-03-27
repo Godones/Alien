@@ -14,8 +14,21 @@ use qemu_riscv::console_putchar;
 pub use qemu_riscv::{config, set_timer, system_shutdown};
 use spin::Once;
 
-#[no_mangle]
+extern "C" {
+    fn sbss();
+    fn ebss();
+}
+
+/// 清空.bss段
+fn clear_bss() {
+    unsafe {
+        core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
+            .fill(0);
+    }
+}
+
 pub fn platform_init(hart_id: usize, dtb: usize) {
+    clear_bss();
     println!("{}", ::config::ALIEN_FLAG);
     qemu_riscv::init_dtb(Some(dtb));
     let machine_info = basic::machine_info_from_dtb(platform_dtb_ptr());

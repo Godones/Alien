@@ -1,61 +1,32 @@
 #![no_std]
-
+#![forbid(unsafe_code)]
 mod area;
 
 extern crate alloc;
 
-use alloc::boxed::Box;
 use alloc::collections::btree_map::Values;
 use alloc::collections::BTreeMap;
 pub use area::{VmArea, VmAreaEqual, VmAreaType};
-use basic::config::FRAME_SIZE;
-use basic::vm::riscv::Sv39PageTable;
-use basic::vm::{MappingFlags, PageSize, PagingError, PagingIf, PagingResult, PhysAddr, VirtAddr};
+use config::FRAME_SIZE;
 use core::fmt::{Debug, Formatter};
-use core::ops::{Deref, Range};
+use core::ops::Range;
+use memory_addr::{PhysAddr, VirtAddr};
+use page_table::{
+    MappingFlags, PageSize, PagingError, PagingIf, PagingResult, Rv64PTE, Sv39PageTable,
+};
 
-#[derive(Debug)]
-pub struct PhyFrame {
-    meta: Box<dyn PhyPageMeta>,
+pub trait PhysPage: Debug + Send + Sync {
+    fn phys_addr(&self) -> PhysAddr;
+    fn as_slice(&self) -> &[u8];
+    fn as_mut_slice(&mut self) -> &mut [u8];
 }
 
-pub trait PhyPageMeta: Debug + Send + Sync {
-    fn start_addr(&self) -> usize;
-    fn size(&self) -> usize;
-}
-
-impl Deref for PhyFrame {
-    type Target = Box<dyn PhyPageMeta>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.meta
-    }
-}
-
-impl PhyFrame {
-    pub fn new(meta: Box<dyn PhyPageMeta>) -> Self {
-        Self { meta }
-    }
-    // todo!(remove)
-    pub fn as_slice(&self) -> &[u8] {
-        unsafe {
-            core::slice::from_raw_parts(self.meta.start_addr() as *const u8, self.meta.size())
-        }
-    }
-    // todo!(remove)
-    pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        unsafe {
-            core::slice::from_raw_parts_mut(self.meta.start_addr() as *mut u8, self.meta.size())
-        }
-    }
-}
-
-pub struct VmSpace<T: PagingIf> {
+pub struct VmSpace<T: PagingIf<Rv64PTE>> {
     table: Sv39PageTable<T>,
     areas: BTreeMap<usize, VmAreaType>,
 }
 
-impl<T: PagingIf + Debug> Debug for VmSpace<T> {
+impl<T: PagingIf<Rv64PTE> + Debug> Debug for VmSpace<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("VmSpace")
             .field("areas", &self.areas)
@@ -63,7 +34,7 @@ impl<T: PagingIf + Debug> Debug for VmSpace<T> {
     }
 }
 
-impl<T: PagingIf> VmSpace<T> {
+impl<T: PagingIf<Rv64PTE>> VmSpace<T> {
     pub fn new() -> Self {
         Self {
             table: Sv39PageTable::try_new().unwrap(),
@@ -107,7 +78,7 @@ impl<T: PagingIf> VmSpace<T> {
     fn map_vm_area(&mut self, vm_area: VmArea) -> PagingResult {
         for (vaddr, phy_frame) in vm_area.mapper().iter() {
             let va = VirtAddr::from(*vaddr);
-            let pa = PhysAddr::from(phy_frame.start_addr());
+            let pa = phy_frame.phys_addr();
             self.table
                 .map(va, pa, PageSize::Size4K, vm_area.permission())?;
         }

@@ -1,6 +1,4 @@
-use crate::elf::{
-    build_vm_space, clone_vm_space, extend_thread_vm_space, FrameTracker, VmmPageAllocator,
-};
+use crate::elf::{build_vm_space, clone_vm_space, extend_thread_vm_space, VmmPageAllocator};
 use crate::resource::{FdManager, HeapInfo, KStack, TidHandle, UserStack};
 use crate::vfs_shim::{ShimFile, STDIN, STDOUT};
 use alloc::boxed::Box;
@@ -9,7 +7,7 @@ use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use alloc::{format, vec};
-use basic::vm::{MappingFlags, PagingIf};
+use basic::vm::frame::FrameTracker;
 use config::{
     FRAME_SIZE, MAX_THREAD_NUM, TRAP_CONTEXT_BASE, USER_KERNEL_STACK_SIZE, USER_STACK_SIZE,
 };
@@ -22,7 +20,8 @@ use core::fmt::Debug;
 use core::ops::Range;
 use interface::{InodeId, VFS_ROOT_ID};
 use ksync::{Mutex, MutexGuard};
-use ptable::{PhyFrame, VmArea, VmAreaType, VmSpace};
+use page_table::MappingFlags;
+use ptable::{PhysPage, VmArea, VmAreaType, VmSpace};
 use small_index::IndexAllocator;
 
 #[derive(Debug)]
@@ -195,14 +194,10 @@ impl Task {
             end + addition,
             addition
         );
-        let mut phy_frames = vec![];
+        let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
         for _ in 0..addition / FRAME_SIZE {
-            let page = VmmPageAllocator::alloc_frame().unwrap();
-            phy_frames.push(PhyFrame::new(Box::new(FrameTracker::from_addr(
-                page.as_usize(),
-                1,
-                true,
-            ))));
+            let page = FrameTracker::new(1);
+            phy_frames.push(Box::new(page));
         }
         let area = VmArea::new(
             end..end + addition,

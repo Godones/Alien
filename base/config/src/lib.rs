@@ -15,7 +15,7 @@ pub const FRAME_SIZE: usize = 0x1000;
 /// 物理页大小的位数
 pub const FRAME_BITS: usize = 12;
 /// 内核启动栈大小
-pub const STACK_SIZE: usize = 1024 * 64;
+pub const STACK_SIZE: usize = 1024 * 64 * 2;
 /// 内核启动栈大小的位数
 pub const STACK_SIZE_BITS: usize = 16;
 

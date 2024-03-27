@@ -1,7 +1,7 @@
 use crate::vfs_shim::ShimFile;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use basic::frame::FrameTracker;
+use basic::vm::frame::FrameTracker;
 use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM};
 use core::fmt::{Debug, Formatter};
 use ksync::Mutex;
@@ -89,7 +89,7 @@ impl KStack {
     }
 
     pub fn top(&self) -> usize {
-        self.frames.as_ref().unwrap().end()
+        self.frames.as_ref().unwrap().end_virt_addr().as_usize()
     }
 
     pub fn release(&mut self) {
