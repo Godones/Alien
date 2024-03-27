@@ -59,7 +59,7 @@ pub use rtc::{RtcDomain, RtcTime};
 pub use shadow_block::ShadowBlockDomain;
 pub use syscall::SysCallDomain;
 pub use uart::UartDomain;
-pub use net::NetDomain;
+pub use net::*;
 pub use vfs::*;
 
 #[derive(Clone, Debug)]

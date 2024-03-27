@@ -5,14 +5,14 @@ mod virtio_net;
 extern crate alloc;
 
 use core::fmt::{Debug, Formatter, Result};
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo, NetDomain};
+use interface::{Basic, DeviceBase, DeviceInfo, NetDomain, NetBuf};
 use rref::RRefVec;
 use spin::Once;
 use ksync::Mutex;
 
-use virtio_drivers::device::net::RxBuffer;
+pub use virtio_drivers::device::net::{RxBuffer, TxBuffer};
 use virtio_net::{VirtIoNetWrapper, NET_QUEUE_SIZE};
 
 pub struct VirtIoNetDomain;
@@ -62,24 +62,40 @@ impl NetDomain for VirtIoNetDomain {
         Ok(NET_QUEUE_SIZE)
     }
 
-    fn recycle_rx_buffer(&self, rx_buf: RRefVec<u8>) -> AlienResult<()> {
-        NET.get().unwrap().lock().recycle_rx_buffer(RxBuffer)
+    fn recycle_rx_buffer(&self, net_buf: NetBuf) -> AlienResult<()> {
+        let rx_buf = net_buf.net_buf;
+        let rx_buf = rx_buf.downcast::<RxBuffer>().unwrap();
+        NET.get().unwrap().lock().recycle_rx_buffer(*rx_buf).unwrap();
+        Ok(())
     }
 
     fn recycle_tx_buffers(&self) -> AlienResult<()> {
         Ok(())
     }
 
-    fn transmit(&self, data: RRefVec<u8>) -> AlienResult<()> {
-        todo!()
+    fn transmit(&self, net_buf: NetBuf) -> AlienResult<()> {
+        let tx_buf = net_buf.net_buf;
+        let tx_buf = tx_buf.downcast::<TxBuffer>().unwrap();
+        NET.get().unwrap().lock().send(*tx_buf).unwrap();
+        Ok(())
     }
 
-    fn receive(&self) -> AlienResult<RRefVec<u8>> {
-        todo!()
+    fn receive(&self) -> AlienResult<NetBuf> {
+        let net_buf = NET.get().unwrap().lock().receive().unwrap();
+        let data = RRefVec::from_slice(net_buf.packet());
+
+        Ok(NetBuf {
+            data,
+            net_buf: Box::new(net_buf)
+        })
     }
 
-    fn alloc_tx_buffer(&self, size: usize) -> AlienResult<RRefVec<u8>> {
-        todo!()
+    fn alloc_tx_buffer(&self, size: usize) -> AlienResult<NetBuf> {
+        let buf = NET.get().unwrap().lock().new_tx_buffer(size);
+        Ok(NetBuf {
+            data: RRefVec::new(0, size),
+            net_buf: Box::new(buf),
+        })
     }
 }
 

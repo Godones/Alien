@@ -1,3 +1,6 @@
+use core::any::Any;
+
+use alloc::boxed::Box;
 use constants::AlienResult;
 use rref::RRefVec;
 
@@ -26,7 +29,7 @@ pub trait NetDomain: DeviceBase {
     ///
     /// `rx_buf` should be the same as the one returned by
     /// [`NetDriverOps::receive`].
-    fn recycle_rx_buffer(&self, rx_buf: RRefVec<u8>) -> AlienResult<()>;
+    fn recycle_rx_buffer(&self, rx_buf: NetBuf) -> AlienResult<()>;
 
     /// Poll the transmit queue and gives back the buffers for previous transmiting.
     /// returns [`DevResult`].
@@ -34,7 +37,7 @@ pub trait NetDomain: DeviceBase {
 
     /// Transmits a packet in the buffer to the network, without blocking,
     /// returns [`DevResult`].
-    fn transmit(&self, data: RRefVec<u8>) -> AlienResult<()>;
+    fn transmit(&self, net_buf: NetBuf) -> AlienResult<()>;
 
     /// Receives a packet from the network and store it in the [`NetBuf`],
     /// returns the buffer.
@@ -44,9 +47,14 @@ pub trait NetDomain: DeviceBase {
     ///
     /// If currently no incomming packets, returns an error with type
     /// [`DevError::Again`].
-    fn receive(&self) -> AlienResult<RRefVec<u8>>;
+    fn receive(&self) -> AlienResult<NetBuf>;
 
     /// Allocate a memory buffer of a specified size for network transmission,
     /// returns [`DevResult`]
-    fn alloc_tx_buffer(&self, size: usize) -> AlienResult<RRefVec<u8>>;
+    fn alloc_tx_buffer(&self, size: usize) -> AlienResult<NetBuf>;
+}
+
+pub struct NetBuf {
+    pub data: RRefVec<u8>,
+    pub net_buf: Box<dyn Any>
 }

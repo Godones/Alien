@@ -1,4 +1,4 @@
-use interface::{NetDomain, DeviceInfo, Basic, DeviceBase};
+use interface::{Basic, DeviceBase, DeviceInfo, NetBuf, NetDomain};
 use alloc::sync::Arc;
 use constants::{AlienResult, AlienError};
 
@@ -54,7 +54,7 @@ impl NetDomain for NetDomainProxy {
         self.domain.tx_queue_size()
     }
     
-    fn recycle_rx_buffer(&self, rx_buf: rref::RRefVec<u8>) -> AlienResult<()> {
+    fn recycle_rx_buffer(&self, rx_buf: NetBuf) -> AlienResult<()> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
@@ -68,21 +68,21 @@ impl NetDomain for NetDomainProxy {
         self.domain.recycle_tx_buffers()
     }
     
-    fn transmit(&self, data: rref::RRefVec<u8>) -> AlienResult<()> {
+    fn transmit(&self, net_buf: NetBuf) -> AlienResult<()> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
-        self.domain.transmit(data)
+        self.domain.transmit(net_buf)
     }
     
-    fn receive(&self) -> AlienResult<rref::RRefVec<u8>> {
+    fn receive(&self) -> AlienResult<NetBuf> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
         self.domain.receive()
     }
     
-    fn alloc_tx_buffer(&self, size: usize) -> AlienResult<rref::RRefVec<u8>> {
+    fn alloc_tx_buffer(&self, size: usize) -> AlienResult<NetBuf> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
