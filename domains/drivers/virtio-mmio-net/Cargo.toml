@@ -7,3 +7,10 @@ edition = "2021"
 
 [dependencies]
 constants = { path = "../../../base/constants" }
+interface = { path = "../../../domain-tools/interface" }
+rref = { path = "../../../domain-tools/rref" }
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
+ksync = { path = "../../../base/ksync" }
+basic = { path = "../../../domain-tools/basic" }
+
+spin = "0"

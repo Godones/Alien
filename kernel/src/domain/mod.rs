@@ -66,6 +66,9 @@ static SYS_CALL_DOMAIN: &'static [u8] =
 static BUF_UART_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gbuf_uart_domain.bin");
 
+static NET_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gvirtio-mmio-net_domain.bin");
+
 #[allow(unused)]
 fn fatfs_domain() -> Arc<dyn FsDomain> {
     let mut domain = DomainLoader::new(FATFS_DOMAIN);
@@ -203,6 +206,18 @@ fn buf_uart_domain() -> Arc<dyn BufUartDomain> {
     Arc::new(BufUartDomainProxy::new(id, uart))
 }
 
+fn net_domain() -> Arc<dyn NetDomain> {
+    info!(
+        "Load net domain, size: {}KB",
+        NET_DOMAIN.len() / 1024
+    );
+    let mut domain = DomainLoader::new(NET_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let uart = domain.call(id);
+    Arc::new(NetDomainProxy::new(id, uart))
+}
+
 /// set the kernel to the specific domain
 fn init_kernel_domain() {
     rref::init(Box::new(SharedHeapAllocator), alloc_domain_id());
@@ -311,6 +326,14 @@ fn init_device() -> Arc<dyn PLICDomain> {
                     "cache_blk",
                     DomainType::CacheBlkDeviceDomain(cache_blk),
                 );
+            }
+            "virtio-mmio-virtio-mmio-net" => {
+                let net_driver = net_domain();
+                net_driver.init(&device_info).unwrap();
+                domain_helper::register_domain("virtio-mmio-net", DomainType::NetDomain(net_driver));
+                // todo!(register irq)
+                plic.register_irq(irq as _, &RRefVec::from_slice("virtio-mmio-net".as_bytes()))
+                    .unwrap()
             }
             #[cfg(feature = "gui")]
             "virtio-mmio-gpu" => {

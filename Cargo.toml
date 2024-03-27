@@ -56,6 +56,7 @@ members = [
     "domain-tools/corelib",
     "domains/net",
     "domains/generated/gbuf_uart",
+    "domains/generated/gvirtio-mmio-net",
 ]
 
 resolver = "2"

@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod buf_uart;
+mod net;
 mod trampoline;
 
 use alloc::sync::Arc;
@@ -18,6 +19,7 @@ use ksync::{Mutex, RwLock};
 use rref::{RRef, RRefVec};
 
 pub use buf_uart::BufUartDomainProxy;
+pub use net::NetDomainProxy;
 
 #[derive(Debug)]
 pub struct BlkDomainProxy {
