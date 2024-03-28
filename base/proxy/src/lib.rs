@@ -9,17 +9,18 @@ mod net;
 mod trampoline;
 
 use alloc::sync::Arc;
-use constants::io::FileStat;
-use constants::{AlienError, AlienResult};
-use core::arch::asm;
-use core::fmt::Debug;
+use core::{arch::asm, fmt::Debug};
+
+pub use buf_uart::BufUartDomainProxy;
+use constants::{
+    io::{FileStat, RtcTime},
+    AlienError, AlienResult,
+};
 use domain_loader::DomainLoader;
 use interface::*;
 use ksync::{Mutex, RwLock};
-use rref::{RRef, RRefVec};
-
-pub use buf_uart::BufUartDomainProxy;
 pub use net::NetDomainProxy;
+use rref::{RRef, RRefVec};
 
 #[derive(Debug)]
 pub struct BlkDomainProxy {

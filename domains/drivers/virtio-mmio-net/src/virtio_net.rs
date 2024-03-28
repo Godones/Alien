@@ -1,15 +1,18 @@
 use alloc::collections::BTreeMap;
-use basic::vm::frame::FrameTracker;
 use core::{
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
+
+use basic::vm::frame::FrameTracker;
 use interface::DeviceInfo;
 use ksync::Mutex;
 use spin::Lazy;
-use virtio_drivers::device::net::VirtIONet;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::{BufferDirection, Hal, PhysAddr};
+use virtio_drivers::{
+    device::net::VirtIONet,
+    transport::mmio::{MmioTransport, VirtIOHeader},
+    BufferDirection, Hal, PhysAddr,
+};
 
 pub const NET_QUEUE_SIZE: usize = 128;
 pub const NET_BUF_LEN: usize = 4096;

@@ -8,11 +8,12 @@ mod common_riscv;
 mod logger;
 mod qemu_riscv;
 
-use crate::common_riscv::sbi::hart_start;
 pub use basic::MachineInfo as PlatformInfo;
 use qemu_riscv::console_putchar;
 pub use qemu_riscv::{config, set_timer, system_shutdown};
 use spin::Once;
+
+use crate::common_riscv::sbi::hart_start;
 
 extern "C" {
     fn sbss();

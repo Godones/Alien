@@ -5,22 +5,25 @@
 // #![forbid(unsafe_code)]
 extern crate alloc;
 
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use basic::println;
-use basic::vm::frame::FrameTracker;
+use alloc::{collections::BTreeMap, sync::Arc};
+use core::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+};
+
+use basic::{println, vm::frame::FrameTracker};
 use constants::AlienResult;
-use core::fmt::Debug;
-use core::ops::{Deref, DerefMut};
-use core::ptr::NonNull;
 use interface::{Basic, DeviceBase, DeviceInfo};
 use ksync::Mutex;
 use log::info;
 use rref::RRef;
 use spin::{Lazy, Once};
-use virtio_drivers::device::blk::VirtIOBlk;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::{BufferDirection, Hal, PhysAddr};
+use virtio_drivers::{
+    device::blk::VirtIOBlk,
+    transport::mmio::{MmioTransport, VirtIOHeader},
+    BufferDirection, Hal, PhysAddr,
+};
 
 pub struct VirtIOBlkDomain;
 

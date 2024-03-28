@@ -1,9 +1,8 @@
-use crate::processor::current_task;
-use crate::scheduler::do_suspend;
-use crate::task::TaskStatus;
 use alloc::sync::Arc;
-use constants::task::WaitOptions;
-use constants::{AlienError, AlienResult};
+
+use constants::{task::WaitOptions, AlienError, AlienResult};
+
+use crate::{processor::current_task, scheduler::do_suspend, task::TaskStatus};
 
 pub fn do_wait4(
     pid: isize,

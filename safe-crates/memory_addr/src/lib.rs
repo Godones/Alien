@@ -3,8 +3,10 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
-use core::fmt;
-use core::ops::{Add, AddAssign, Sub, SubAssign};
+use core::{
+    fmt,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 /// The size of a 4K page (4096 bytes).
 pub const PAGE_SIZE_4K: usize = 0x1000;

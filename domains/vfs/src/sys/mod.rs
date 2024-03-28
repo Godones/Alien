@@ -1,9 +1,10 @@
-use crate::tree::CommonFsProviderImpl;
 use alloc::sync::Arc;
+
 use dynfs::DynFsDirInode;
 use ksync::Mutex;
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
+use vfscore::{dentry::VfsDentry, fstype::VfsFsType};
+
+use crate::tree::CommonFsProviderImpl;
 
 #[allow(unused)]
 type SysFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;

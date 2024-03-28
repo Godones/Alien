@@ -13,13 +13,13 @@ mod bits64;
 mod riscv;
 
 use alloc::boxed::Box;
+
 use memory_addr::{PhysAddr, VirtAddr};
-
-pub use self::bits64::{PageTable64, ENTRY_COUNT};
-pub use riscv::*;
-
 #[doc(no_inline)]
 pub use page_table_entry::{riscv::Rv64PTE, GenericPTE, MappingFlags};
+pub use riscv::*;
+
+pub use self::bits64::{PageTable64, ENTRY_COUNT};
 
 /// The error type for page table operation failures.
 #[derive(Debug)]

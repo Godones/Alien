@@ -1,7 +1,6 @@
-use crate::println;
-use crate::process::exit;
-use crate::syscall::sys_shutdown;
 use core::sync::atomic::AtomicUsize;
+
+use crate::{println, process::exit, syscall::sys_shutdown};
 
 #[panic_handler]
 fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {

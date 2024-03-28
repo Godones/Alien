@@ -1,6 +1,7 @@
-use crate::DeviceBase;
 use constants::AlienResult;
 use rref::RRef;
+
+use crate::DeviceBase;
 
 pub trait ShadowBlockDomain: DeviceBase {
     fn init(&self, blk_domain: &str) -> AlienResult<()>;

@@ -1,7 +1,9 @@
-use crate::Basic;
-use constants::AlienResult;
 use core::ops::Range;
+
+use constants::AlienResult;
 use rref::RRef;
+
+use crate::Basic;
 
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {

@@ -1,11 +1,13 @@
-use crate::PhysPage;
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
+use core::{
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
+
 use config::FRAME_SIZE;
-use core::fmt::{Debug, Formatter};
-use core::ops::Range;
 use page_table::MappingFlags;
+
+use crate::PhysPage;
 
 #[derive(Debug)]
 pub enum VmAreaType {

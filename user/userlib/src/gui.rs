@@ -1,7 +1,5 @@
+use self::embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 use crate::io::{flush_frame_buffer, frame_buffer, VIRTGPU_XRES};
-
-use self::embedded_graphics::pixelcolor::Rgb565;
-use self::embedded_graphics::prelude::*;
 
 pub mod embedded_graphics {
     pub use embedded_graphics::*;

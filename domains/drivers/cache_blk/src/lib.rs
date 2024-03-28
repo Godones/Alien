@@ -1,15 +1,11 @@
 #![no_std]
 #![forbid(unsafe_code)]
 extern crate alloc;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
-use basic::config::FRAME_SIZE;
-use basic::vm::frame::FrameTracker;
+use alloc::{sync::Arc, vec::Vec};
+use core::{cmp::min, fmt::Debug, num::NonZeroUsize, ops::Deref};
+
+use basic::{config::FRAME_SIZE, vm::frame::FrameTracker};
 use constants::AlienResult;
-use core::cmp::min;
-use core::fmt::Debug;
-use core::num::NonZeroUsize;
-use core::ops::Deref;
 use interface::{Basic, CacheBlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain};
 use ksync::Mutex;
 use log::info;

@@ -7,9 +7,8 @@ mod rvec;
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::alloc::Layout;
-use core::any::TypeId;
-use core::sync::atomic::AtomicU64;
+use core::{alloc::Layout, any::TypeId, sync::atomic::AtomicU64};
+
 pub use rref::RRef;
 pub use rvec::RRefVec;
 use spin::Once;

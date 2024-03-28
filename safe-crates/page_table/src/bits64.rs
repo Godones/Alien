@@ -1,13 +1,14 @@
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
+use alloc::{boxed::Box, collections::BTreeMap};
 use core::marker::PhantomData;
 
 use memory_addr::{PhysAddr, VirtAddr};
 
-use crate::{GenericPTE, NotLeafPage, PagingIf, PagingMetaData};
-use crate::{MappingFlags, PageSize, PagingError, PagingResult};
+use crate::{
+    GenericPTE, MappingFlags, NotLeafPage, PageSize, PagingError, PagingIf, PagingMetaData,
+    PagingResult,
+};
 
 pub const ENTRY_COUNT: usize = 512;
 

@@ -1,6 +1,6 @@
-use crate::devices::DeviceInfo;
-use crate::DeviceBase;
 use constants::{AlienError, AlienResult};
+
+use crate::{devices::DeviceInfo, DeviceBase};
 pub trait UartDomain: DeviceBase {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
     /// Write a character to the UART

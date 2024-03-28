@@ -1,7 +1,6 @@
 use alloc::sync::Arc;
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
-use vfscore::utils::VfsNodeType;
+
+use vfscore::{dentry::VfsDentry, fstype::VfsFsType, utils::VfsNodeType};
 
 ///
 /// ```bash

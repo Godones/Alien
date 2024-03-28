@@ -1,5 +1,4 @@
-use core::cell::UnsafeCell;
-use core::ops::Deref;
+use core::{cell::UnsafeCell, ops::Deref};
 
 pub fn hart_id() -> usize {
     arch::hart_id()

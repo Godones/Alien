@@ -6,9 +6,9 @@ extern crate alloc;
 extern crate log;
 
 use alloc::sync::Arc;
-use spin::Once;
 
 use interface::{PLICDomain, SysCallDomain, TaskDomain};
+use spin::Once;
 
 pub mod task;
 pub mod trap;

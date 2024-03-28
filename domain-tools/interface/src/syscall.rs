@@ -1,5 +1,6 @@
-use crate::Basic;
 use constants::AlienResult;
+
+use crate::Basic;
 
 pub trait SysCallDomain: Basic {
     fn init(&self) -> AlienResult<()>;

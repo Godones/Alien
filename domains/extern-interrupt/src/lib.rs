@@ -3,16 +3,18 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use alloc::format;
-use alloc::string::{String, ToString};
-use alloc::sync::Arc;
-use basic::io::SafeIORegion;
-use basic::{arch, println};
+use alloc::{
+    boxed::Box,
+    collections::BTreeMap,
+    format,
+    string::{String, ToString},
+    sync::Arc,
+};
+use core::cmp::min;
+
+use basic::{arch, io::SafeIORegion, println};
 use config::CPU_NUM;
 use constants::AlienResult;
-use core::cmp::min;
 use interface::{Basic, DeviceBase, DeviceInfo, PLICDomain};
 use ksync::Mutex;
 use plic::{Mode, PLIC};

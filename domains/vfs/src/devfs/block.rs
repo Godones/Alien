@@ -1,12 +1,15 @@
 use alloc::sync::Arc;
+
 use constants::DeviceId;
 use interface::CacheBlkDeviceDomain;
 use rref::RRefVec;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
-use vfscore::VfsResult;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
+    VfsResult,
+};
 
 pub struct BLKDevice {
     device_id: DeviceId,

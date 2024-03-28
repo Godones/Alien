@@ -7,12 +7,8 @@ mod random;
 mod rtc;
 mod uart;
 
-use crate::devfs::block::BLKDevice;
-use crate::devfs::gpu::GPUDevice;
-use crate::devfs::input::INPUTDevice;
-use crate::devfs::rtc::RTCDevice;
-use crate::devfs::uart::UARTDevice;
 use alloc::sync::Arc;
+
 use basic::println;
 use constants::DeviceId;
 use devfs::DevKernelProvider;
@@ -21,10 +17,16 @@ use interface::DomainType;
 use log::info;
 use null::NullDevice;
 use random::RandomDevice;
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
-use vfscore::inode::VfsInode;
-use vfscore::utils::{VfsNodeType, VfsTimeSpec};
+use vfscore::{
+    dentry::VfsDentry,
+    fstype::VfsFsType,
+    inode::VfsInode,
+    utils::{VfsNodeType, VfsTimeSpec},
+};
+
+use crate::devfs::{
+    block::BLKDevice, gpu::GPUDevice, input::INPUTDevice, rtc::RTCDevice, uart::UARTDevice,
+};
 
 #[derive(Clone)]
 pub struct DevFsProviderImpl;

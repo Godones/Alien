@@ -1,12 +1,9 @@
-use crate::kthread;
-use crate::processor::add_task;
-use crate::scheduler::do_suspend;
-use crate::task::Task;
-use crate::vfs_shim::read_all;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
+
 use basic::println;
 use spin::Lazy;
+
+use crate::{kthread, processor::add_task, scheduler::do_suspend, task::Task, vfs_shim::read_all};
 
 static INIT_PROCESS: Lazy<Arc<Task>> = Lazy::new(|| {
     let mut data = Vec::new();

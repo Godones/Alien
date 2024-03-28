@@ -3,21 +3,23 @@
 extern crate alloc;
 extern crate malloc;
 
-use alloc::string::ToString;
-use alloc::sync::Arc;
-use basic::{println, write_console};
+use alloc::{string::ToString, sync::Arc};
 use core::fmt::{Debug, Formatter, Write};
+
+use basic::{println, write_console};
 use fat_vfs::{FatFs, FatFsProvider};
 use interface::{Basic, BlkDeviceDomain, DomainType, FsDomain};
 use ksync::Mutex;
 use log::debug;
 use rref::RRef;
-use vfscore::dentry::VfsDentry;
-use vfscore::file::VfsFile;
-use vfscore::fstype::VfsFsType;
-use vfscore::inode::VfsInode;
-use vfscore::utils::{VfsFileStat, VfsNodePerm, VfsNodeType, VfsTimeSpec};
-use vfscore::VfsResult;
+use vfscore::{
+    dentry::VfsDentry,
+    file::VfsFile,
+    fstype::VfsFsType,
+    inode::VfsInode,
+    utils::{VfsFileStat, VfsNodePerm, VfsNodeType, VfsTimeSpec},
+    VfsResult,
+};
 
 #[derive(Clone)]
 pub struct FatFsDomain {

@@ -24,11 +24,13 @@ pub trait CoreFunction: Send + Sync {
 
 #[cfg(feature = "core_impl")]
 mod core_impl {
-    use crate::CoreFunction;
     use alloc::boxed::Box;
+
     use context::TaskContext;
     use interface::DomainType;
     use spin::Once;
+
+    use crate::CoreFunction;
 
     static CORE_FUNC: Once<Box<dyn CoreFunction>> = Once::new();
 

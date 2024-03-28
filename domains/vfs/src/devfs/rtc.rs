@@ -1,18 +1,22 @@
-use crate::TASK_DOMAIN;
-use alloc::format;
-use alloc::sync::Arc;
-use constants::io::TeletypeCommand;
-use constants::DeviceId;
-use core::cmp::min;
-use core::ops::Deref;
-use interface::{RtcDomain, RtcTime};
+use alloc::{format, sync::Arc};
+use core::{cmp::min, ops::Deref};
+
+use constants::{
+    io::{RtcTime, TeletypeCommand},
+    DeviceId,
+};
+use interface::RtcDomain;
 use rref::RRef;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{VfsFileStat, VfsNodeType};
-use vfscore::VfsResult;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    superblock::VfsSuperBlock,
+    utils::{VfsFileStat, VfsNodeType},
+    VfsResult,
+};
+
+use crate::TASK_DOMAIN;
 
 pub struct RTCDevice {
     device_id: DeviceId,

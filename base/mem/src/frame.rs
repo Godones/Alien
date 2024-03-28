@@ -1,7 +1,7 @@
-use alloc::boxed::Box;
-use alloc::format;
-use config::{FRAME_BITS, FRAME_SIZE};
+use alloc::{boxed::Box, format};
 use core::ops::{Deref, DerefMut};
+
+use config::{FRAME_BITS, FRAME_SIZE};
 use ksync::Mutex;
 use log::trace;
 use memory_addr::{PhysAddr, VirtAddr};

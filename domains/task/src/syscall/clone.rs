@@ -1,9 +1,10 @@
-use crate::processor::{add_task, current_task};
-use crate::scheduler::do_suspend;
-use crate::task::CloneArgs;
-use constants::signal::SignalNumber;
-use constants::task::CloneFlags;
-use constants::{AlienError, AlienResult};
+use constants::{signal::SignalNumber, task::CloneFlags, AlienError, AlienResult};
+
+use crate::{
+    processor::{add_task, current_task},
+    scheduler::do_suspend,
+    task::CloneArgs,
+};
 
 pub fn do_clone(
     flags: usize,

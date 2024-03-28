@@ -1,6 +1,9 @@
-use constants::{AlienError, AlienResult};
 use core::ops::Range;
+
+use constants::{AlienError, AlienResult};
+use goldfish_rtc::GoldFishRtcIo;
 use plic::PlicIO;
+use uart16550::Uart16550IO;
 
 #[derive(Debug, Copy, Clone)]
 pub struct SafeIORegion {
@@ -53,6 +56,25 @@ impl PlicIO for SafeIORegion {
         SafeIORegion::read_at(self, offset)
     }
     fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
+        SafeIORegion::write_at(self, offset, value)
+    }
+}
+
+impl GoldFishRtcIo for SafeIORegion {
+    fn read_at(&self, offset: usize) -> AlienResult<u32> {
+        SafeIORegion::read_at(self, offset)
+    }
+    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
+        SafeIORegion::write_at(self, offset, value)
+    }
+}
+
+impl Uart16550IO for SafeIORegion {
+    fn read_at(&self, offset: usize) -> AlienResult<u8> {
+        SafeIORegion::read_at(self, offset)
+    }
+
+    fn write_at(&self, offset: usize, value: u8) -> AlienResult<()> {
         SafeIORegion::write_at(self, offset, value)
     }
 }

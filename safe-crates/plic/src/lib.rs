@@ -15,8 +15,9 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use constants::AlienResult;
 use core::fmt::Debug;
+
+use constants::AlienResult;
 
 const PRIORITY_OFFSET: usize = 0;
 const PENDING_OFFSET: usize = 0x1000;

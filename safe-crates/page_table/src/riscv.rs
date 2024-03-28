@@ -1,7 +1,6 @@
 //! RISC-V specific page table structures.
 
-use crate::page_table_entry::riscv::Rv64PTE;
-use crate::{PageTable64, PagingMetaData};
+use crate::{page_table_entry::riscv::Rv64PTE, PageTable64, PagingMetaData};
 
 /// Metadata of RISC-V Sv39 page tables.
 #[derive(Clone, Copy)]

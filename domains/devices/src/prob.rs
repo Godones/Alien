@@ -1,15 +1,15 @@
-use alloc::string::ToString;
+use alloc::{string::ToString, vec::Vec};
+use core::{ops::Range, ptr::NonNull};
+
+use basic::println;
+use fdt::{standard_nodes::Compatible, Fdt};
+use log::info;
+use virtio_drivers::transport::{
+    mmio::{MmioTransport, VirtIOHeader},
+    DeviceType, Transport,
+};
 
 use crate::{SystemDeviceInfo, SystemDeviceType};
-use alloc::vec::Vec;
-use basic::println;
-use core::ops::Range;
-use core::ptr::NonNull;
-use fdt::standard_nodes::Compatible;
-use fdt::Fdt;
-use log::info;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::transport::{DeviceType, Transport};
 
 pub trait Probe {
     /// Get the base address and irq number of the uart device from the device tree.

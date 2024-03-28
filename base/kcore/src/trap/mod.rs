@@ -1,17 +1,24 @@
 mod exception;
 
-use crate::{PLIC_DOMAIN, TASK_DOMAIN};
 use alloc::boxed::Box;
+use core::{
+    arch::{asm, global_asm},
+    fmt::Debug,
+};
+
 use bit_field::BitField;
 use config::TRAMPOLINE;
 use context::TrapFrame;
-use core::arch::{asm, global_asm};
-use core::fmt::Debug;
 use platform::println;
-use riscv::register::scause::{Exception, Interrupt, Trap};
-use riscv::register::sstatus::SPP;
-use riscv::register::stvec::TrapMode;
-use riscv::register::{sepc, sscratch, sstatus, stval, stvec};
+use riscv::register::{
+    scause::{Exception, Interrupt, Trap},
+    sepc, sscratch, sstatus,
+    sstatus::SPP,
+    stval, stvec,
+    stvec::TrapMode,
+};
+
+use crate::{PLIC_DOMAIN, TASK_DOMAIN};
 
 global_asm!(include_str!("./kernel_v.asm"));
 global_asm!(include_str!("./trampoline.asm"));

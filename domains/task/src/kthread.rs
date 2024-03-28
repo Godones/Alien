@@ -1,11 +1,5 @@
-use crate::elf::VmmPageAllocator;
-use crate::processor::add_task;
-use crate::resource::{FdManager, HeapInfo, KStack, TidHandle};
-use crate::task::{FsContext, Task, TaskInner, TaskStatus};
-use crate::vfs_shim::{STDIN, STDOUT};
-use alloc::collections::BTreeMap;
-use alloc::string::ToString;
-use alloc::sync::Arc;
+use alloc::{collections::BTreeMap, string::ToString, sync::Arc};
+
 use config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE};
 use constants::AlienResult;
 use context::TaskContext;
@@ -13,6 +7,14 @@ use interface::VFS_ROOT_ID;
 use ksync::Mutex;
 use ptable::VmSpace;
 use small_index::IndexAllocator;
+
+use crate::{
+    elf::VmmPageAllocator,
+    processor::add_task,
+    resource::{FdManager, HeapInfo, KStack, TidHandle},
+    task::{FsContext, Task, TaskInner, TaskStatus},
+    vfs_shim::{STDIN, STDOUT},
+};
 
 pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
     let tid = Arc::new(TidHandle::new().unwrap());

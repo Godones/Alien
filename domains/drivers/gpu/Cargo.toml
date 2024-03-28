@@ -12,4 +12,4 @@ basic = { path = "../../../domain-tools/basic" }
 ksync = { path = "../../../base/ksync" }
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
 constants = { path = "../../../base/constants" }
-spin = "0"
+spin = { workspace = true }

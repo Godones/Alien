@@ -1,5 +1,6 @@
-use crate::DeviceBase;
 use constants::AlienResult;
+
+use crate::DeviceBase;
 
 pub trait InputDomain: DeviceBase {
     fn init(&self) -> AlienResult<()>;

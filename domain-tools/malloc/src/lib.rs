@@ -1,6 +1,7 @@
 #![no_std]
-use buddy_system_allocator::LockedHeap;
 use core::alloc::GlobalAlloc;
+
+use buddy_system_allocator::LockedHeap;
 use ksync::Mutex;
 use rref::domain_id;
 

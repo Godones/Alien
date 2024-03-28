@@ -4,10 +4,10 @@
 
 extern crate alloc;
 extern crate malloc;
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use basic::println;
+use alloc::{boxed::Box, sync::Arc};
 use core::panic::PanicInfo;
+
+use basic::println;
 use corelib::CoreFunction;
 use interface::GpuDomain;
 use rref::{domain_id, SharedHeapAlloc};

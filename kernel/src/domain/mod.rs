@@ -1,8 +1,7 @@
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use alloc::vec;
+use alloc::{boxed::Box, sync::Arc, vec};
+
 use domain_helper::{alloc_domain_id, DomainType, SharedHeapAllocator};
 use domain_loader::DomainLoader;
 use fdt::Fdt;

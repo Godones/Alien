@@ -1,7 +1,7 @@
-use crate::vfs::InodeId;
-use crate::Basic;
 use constants::AlienResult;
 use rref::RRef;
+
+use crate::{vfs::InodeId, Basic};
 pub trait TaskDomain: Basic {
     fn init(&self) -> AlienResult<()>;
     fn run(&self);

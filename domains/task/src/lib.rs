@@ -14,13 +14,16 @@ mod task;
 mod vfs_shim;
 mod wait_queue;
 
-use crate::processor::current_task;
-use crate::scheduler::{do_suspend, run_task};
 use alloc::sync::Arc;
-use constants::AlienError;
-use constants::AlienResult;
+
+use constants::{AlienError, AlienResult};
 use interface::{Basic, DomainType, InodeId, TaskDomain, TmpHeapInfo};
 use rref::RRef;
+
+use crate::{
+    processor::current_task,
+    scheduler::{do_suspend, run_task},
+};
 
 #[derive(Debug)]
 pub struct TaskDomainImpl {}

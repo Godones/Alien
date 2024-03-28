@@ -1,12 +1,12 @@
 use alloc::sync::Arc;
+
 use constants::io::MountFlags;
 use dynfs::DynFsDirInode;
+use ksync::Mutex;
 use spin::Once;
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
+use vfscore::{dentry::VfsDentry, fstype::VfsFsType};
 
 use crate::tree::CommonFsProviderImpl;
-use ksync::Mutex;
 
 #[allow(unused)]
 type PipeFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;

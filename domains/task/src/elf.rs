@@ -1,17 +1,23 @@
-use crate::vfs_shim;
-use alloc::boxed::Box;
-use alloc::string::{String, ToString};
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::cmp::min;
+
 use basic::vm::frame::FrameTracker;
 use config::{ELF_BASE_RELOCATE, FRAME_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
 use constants::{AlienError, AlienResult};
-use core::cmp::min;
 use memory_addr::{PhysAddr, VirtAddr};
 use page_table::{MappingFlags, NotLeafPage, PagingIf, Rv64PTE};
 use ptable::*;
-use xmas_elf::program::{SegmentData, Type};
-use xmas_elf::ElfFile;
+use xmas_elf::{
+    program::{SegmentData, Type},
+    ElfFile,
+};
+
+use crate::vfs_shim;
 
 #[derive(Debug)]
 pub struct VmmPageAllocator;

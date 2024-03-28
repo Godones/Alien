@@ -1,5 +1,6 @@
-use crate::DeviceBase;
 use constants::AlienResult;
+
+use crate::DeviceBase;
 
 pub trait BufInputDomain: DeviceBase {
     fn init(&self, input_domain_name: &str) -> AlienResult<()>;

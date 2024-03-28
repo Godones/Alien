@@ -3,18 +3,17 @@
 extern crate alloc;
 mod prob;
 
-use crate::prob::Probe;
-use alloc::string::String;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{string::String, sync::Arc, vec::Vec};
+use core::{cmp::min, ops::Range};
+
 use basic::println;
 use constants::AlienResult;
-use core::cmp::min;
-use core::ops::Range;
 use fdt::Fdt;
 use interface::{Basic, DeviceInfo, DevicesDomain};
 use ksync::Mutex;
 use rref::RRef;
+
+use crate::prob::Probe;
 
 #[derive(Debug, Clone)]
 pub struct SystemDeviceInfo {

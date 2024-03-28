@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+
 use constants::{AlienError, AlienResult};
 use interface::{Basic, BufUartDomain, DeviceBase};
 

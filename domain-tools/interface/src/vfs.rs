@@ -1,7 +1,7 @@
-use crate::Basic;
-use constants::io::FileStat;
-use constants::AlienResult;
+use constants::{io::FileStat, AlienResult};
 use rref::{RRef, RRefVec};
+
+use crate::Basic;
 
 pub type InodeId = u64;
 pub const VFS_ROOT_ID: InodeId = 0;

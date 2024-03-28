@@ -1,7 +1,10 @@
-use crate::processor::{add_task, current_cpu, current_task, pick_next_task, take_current_task};
-use crate::task::{Task, TaskStatus};
 use alloc::sync::Arc;
 use core::hint::spin_loop;
+
+use crate::{
+    processor::{add_task, current_cpu, current_task, pick_next_task, take_current_task},
+    task::{Task, TaskStatus},
+};
 
 pub fn run_task() -> ! {
     loop {

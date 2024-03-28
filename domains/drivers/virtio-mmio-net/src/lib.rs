@@ -4,16 +4,15 @@ mod virtio_net;
 
 extern crate alloc;
 
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use constants::AlienResult;
+use alloc::{collections::BTreeMap, sync::Arc};
 use core::fmt::{Debug, Formatter, Result};
+
+use constants::AlienResult;
 use interface::{Basic, DeviceBase, DeviceInfo, NetDomain, RxBufferWrapper, TxBufferWrapper};
 use ksync::Mutex;
 use rref::RRefVec;
 use spin::Once;
 use virtio_drivers::device::net::{RxBuffer, TxBuffer};
-
 use virtio_net::{VirtIoNetWrapper, NET_QUEUE_SIZE};
 
 pub struct VirtIoNetDomain {

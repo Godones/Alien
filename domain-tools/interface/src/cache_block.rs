@@ -1,6 +1,7 @@
-use crate::DeviceBase;
 use constants::AlienResult;
 use rref::RRefVec;
+
+use crate::DeviceBase;
 
 pub trait CacheBlkDeviceDomain: DeviceBase {
     fn init(&self, blk_domain_name: &str) -> AlienResult<()>;

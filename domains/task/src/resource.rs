@@ -1,12 +1,13 @@
-use crate::vfs_shim::ShimFile;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
+use core::fmt::{Debug, Formatter};
+
 use basic::vm::frame::FrameTracker;
 use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM};
-use core::fmt::{Debug, Formatter};
 use ksync::Mutex;
 use small_index::IndexAllocator;
 use spin::Lazy;
+
+use crate::vfs_shim::ShimFile;
 
 pub static TID_MANAGER: Lazy<Mutex<IndexAllocator<MAX_THREAD_NUM>>> =
     Lazy::new(|| Mutex::new(IndexAllocator::new()));

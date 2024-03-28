@@ -6,16 +6,17 @@ mod task;
 
 extern crate alloc;
 
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+};
 use core::sync::atomic::AtomicU64;
-use ksync::Mutex;
-use spin::Lazy;
-
-pub use sheap::SharedHeapAllocator;
-pub use syscall::{register_domain_heap_resource, register_domain_syscall_resource, DomainSyscall};
 
 pub use interface::DomainType;
+use ksync::Mutex;
+pub use sheap::SharedHeapAllocator;
+use spin::Lazy;
+pub use syscall::{register_domain_heap_resource, register_domain_syscall_resource, DomainSyscall};
 
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);
 

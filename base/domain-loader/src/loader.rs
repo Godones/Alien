@@ -1,18 +1,20 @@
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use core::{
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
+
 use config::FRAME_SIZE;
 use constants::{AlienError, AlienResult};
-use core::fmt::{Debug, Formatter};
-use core::ops::Range;
 use domain_helper::{DomainSyscall, SharedHeapAllocator};
 use log::{debug, info, trace};
 use mem::{alloc_free_region, MappingFlags, VirtAddr};
-use xmas_elf::program::Type;
-use xmas_elf::sections::{Rela, SectionData};
-use xmas_elf::symbol_table::{DynEntry64, Entry};
-use xmas_elf::{ElfFile, P64};
+use xmas_elf::{
+    program::Type,
+    sections::{Rela, SectionData},
+    symbol_table::{DynEntry64, Entry},
+    ElfFile, P64,
+};
 
 pub struct DomainLoader {
     entry: usize,

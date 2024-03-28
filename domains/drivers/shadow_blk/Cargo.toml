@@ -12,5 +12,5 @@ basic = { path = "../../../domain-tools/basic" }
 ksync = { path = "../../../base/ksync" }
 
 constants = { path = "../../../base/constants" }
+spin = { workspace = true }
 log = "0"
-spin = "0"

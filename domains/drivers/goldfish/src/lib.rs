@@ -1,21 +1,17 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#![allow(unused)]
-mod rtc;
 extern crate alloc;
 
-use crate::rtc::GoldFishRtc;
-use alloc::sync::Arc;
-use basic::io::SafeIORegion;
-use basic::println;
-use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo, DevicesDomain, DomainType, RtcDomain, RtcTime};
-use rref::{RRef, RRefVec};
-use spin::Once;
-use time::macros::offset;
-use time::OffsetDateTime;
+use alloc::{boxed::Box, sync::Arc};
 
-static RTC: Once<Arc<GoldFishRtc>> = Once::new();
+use basic::{io::SafeIORegion, println};
+use constants::{io::RtcTime, AlienResult};
+use goldfish_rtc::GoldFishRtc;
+use interface::{Basic, DeviceBase, DeviceInfo, RtcDomain};
+use rref::RRef;
+use spin::Once;
+
+static RTC: Once<GoldFishRtc> = Once::new();
 
 #[derive(Debug)]
 struct Rtc;
@@ -34,7 +30,7 @@ impl RtcDomain for Rtc {
         println!("Rtc region: {:#x?}", rtc_space);
         let safe_region =
             SafeIORegion::new(rtc_space.start, rtc_space.end - rtc_space.start).unwrap();
-        let rtc = Arc::new(GoldFishRtc::new(safe_region));
+        let rtc = GoldFishRtc::new(Box::new(safe_region));
         println!("current time: {:?}", rtc);
         RTC.call_once(|| rtc);
         Ok(())
@@ -42,7 +38,6 @@ impl RtcDomain for Rtc {
 
     fn read_time(&self, mut time: RRef<RtcTime>) -> AlienResult<RRef<RtcTime>> {
         let rtc = RTC.get().unwrap();
-        let time_stamp = rtc.read_raw_time();
         let t = rtc.read_time_fmt();
         *time = t;
         Ok(time)

@@ -1,8 +1,11 @@
+use core::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
+
+use virtio_drivers::{device::gpu::VirtIOGpu, transport::mmio::MmioTransport};
+
 use crate::HalImpl;
-use core::fmt::Debug;
-use core::ops::{Deref, DerefMut};
-use virtio_drivers::device::gpu::VirtIOGpu;
-use virtio_drivers::transport::mmio::MmioTransport;
 
 pub struct VirtIOGpuWrapper {
     gpu: VirtIOGpu<HalImpl, MmioTransport>,

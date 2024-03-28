@@ -1,7 +1,10 @@
+use core::{
+    alloc::Layout,
+    fmt::{Debug, Formatter},
+    ops::{Deref, DerefMut},
+};
+
 use super::{RRefable, TypeIdentifiable};
-use core::alloc::Layout;
-use core::fmt::{Debug, Formatter};
-use core::ops::{Deref, DerefMut};
 
 #[repr(C)]
 pub struct RRef<T>

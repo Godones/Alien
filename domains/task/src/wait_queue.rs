@@ -1,10 +1,13 @@
-use crate::processor::{add_task, take_current_task};
-use crate::scheduler::schedule_now;
-use crate::task::{Task, TaskStatus};
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
+use alloc::{collections::BTreeMap, sync::Arc};
+
 use ksync::Mutex;
 use spin::Lazy;
+
+use crate::{
+    processor::{add_task, take_current_task},
+    scheduler::schedule_now,
+    task::{Task, TaskStatus},
+};
 
 type Tid = usize;
 static TASK_WAIT_QUEUE: Lazy<Mutex<BTreeMap<Tid, Arc<Task>>>> =

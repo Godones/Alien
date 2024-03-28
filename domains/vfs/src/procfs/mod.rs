@@ -3,19 +3,18 @@ mod interrupt;
 mod mem;
 mod mounts;
 
-use crate::tree::{CommonFsProviderImpl, FS};
 use alloc::sync::Arc;
 use core::ops::Index;
+
 use dynfs::DynFsDirInode;
 use filesystem::SystemSupportFS;
 use interrupt::InterruptRecord;
 use ksync::Mutex;
 use mem::MemInfo;
 use mounts::MountInfo;
-use vfscore::dentry::VfsDentry;
-use vfscore::error::VfsError;
-use vfscore::fstype::VfsFsType;
-use vfscore::path::VfsPath;
+use vfscore::{dentry::VfsDentry, error::VfsError, fstype::VfsFsType, path::VfsPath};
+
+use crate::tree::{CommonFsProviderImpl, FS};
 
 pub type ProcFsDirInodeImpl = DynFsDirInode<CommonFsProviderImpl, Mutex<()>>;
 

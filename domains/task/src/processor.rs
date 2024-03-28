@@ -1,11 +1,12 @@
-use crate::task::Task;
-use alloc::collections::VecDeque;
-use alloc::sync::Arc;
+use alloc::{collections::VecDeque, sync::Arc};
+use core::cell::RefCell;
+
 use basic::arch::CpuLocal;
 use context::{TaskContext, TrapFrame};
-use core::cell::RefCell;
 use ksync::Mutex;
 use spin::lazy::Lazy;
+
+use crate::task::Task;
 
 #[derive(Debug, Clone)]
 pub struct CPU {

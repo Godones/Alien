@@ -1,5 +1,7 @@
-use core::fmt::{Arguments, Result, Write};
-use core::sync::atomic::AtomicBool;
+use core::{
+    fmt::{Arguments, Result, Write},
+    sync::atomic::AtomicBool,
+};
 
 #[macro_export]
 macro_rules! print {

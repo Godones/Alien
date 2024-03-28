@@ -1,10 +1,12 @@
-use crate::{SYSCALL_DOMAIN, TASK_DOMAIN};
 use alloc::sync::Arc;
+
 use arch::interrupt_enable;
 use constants::{AlienError, AlienResult};
 use context::TrapFrame;
 use platform::println;
 use riscv::register::scause::{Exception, Trap};
+
+use crate::{SYSCALL_DOMAIN, TASK_DOMAIN};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {

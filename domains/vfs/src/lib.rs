@@ -3,22 +3,24 @@
 extern crate alloc;
 extern crate malloc;
 
-use crate::kfile::{File, KernelFile};
-use crate::tree::system_root_fs;
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use constants::io::{FileStat, OpenFlags};
-use constants::AlienError;
-use constants::AlienResult;
+use alloc::{collections::BTreeMap, sync::Arc};
 use core::sync::atomic::AtomicU64;
+
+use constants::{
+    io::{FileStat, OpenFlags},
+    AlienError, AlienResult,
+};
 use interface::{Basic, DomainType, InodeId, TaskDomain, VfsDomain};
 use ksync::RwLock;
 use log::info;
 use rref::{RRef, RRefVec};
 use spin::Once;
-use vfscore::dentry::VfsDentry;
-use vfscore::path::VfsPath;
-use vfscore::utils::VfsInodeMode;
+use vfscore::{dentry::VfsDentry, path::VfsPath, utils::VfsInodeMode};
+
+use crate::{
+    kfile::{File, KernelFile},
+    tree::system_root_fs,
+};
 
 mod devfs;
 mod kfile;

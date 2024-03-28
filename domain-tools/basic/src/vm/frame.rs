@@ -1,5 +1,6 @@
-use config::FRAME_SIZE;
 use core::ops::{Deref, DerefMut};
+
+use config::FRAME_SIZE;
 use memory_addr::{PhysAddr, VirtAddr};
 use page_table::{NotLeafPage, Rv64PTE, ENTRY_COUNT};
 use ptable::PhysPage;

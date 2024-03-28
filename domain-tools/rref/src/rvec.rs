@@ -1,8 +1,11 @@
+use core::{
+    alloc::Layout,
+    fmt::{Debug, Formatter},
+    mem::MaybeUninit,
+    ops::{Deref, DerefMut},
+};
+
 use super::{RRef, RRefable, TypeIdentifiable};
-use core::alloc::Layout;
-use core::fmt::{Debug, Formatter};
-use core::mem::MaybeUninit;
-use core::ops::{Deref, DerefMut};
 
 pub struct RRefVec<T>
 where

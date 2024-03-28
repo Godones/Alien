@@ -2,11 +2,11 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-use alloc::collections::VecDeque;
-use alloc::sync::Arc;
+use alloc::{collections::VecDeque, sync::Arc};
+use core::fmt::Debug;
+
 use basic::println;
 use constants::{AlienError, AlienResult};
-use core::fmt::Debug;
 use interface::{Basic, BufUartDomain, DeviceBase, DomainType, TaskDomain, UartDomain};
 use ksync::Mutex;
 use spin::Once;

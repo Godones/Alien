@@ -1,9 +1,11 @@
-use super::*;
-use crate::sys::DEFAULT_BUFFER_SIZE;
 use alloc::string::String;
 use core::fmt;
+
 use core2::io::{BufReader, BufWriter, LineWriter, Read, Write};
 use spin::{Mutex, MutexGuard, Once};
+
+use super::*;
+use crate::sys::DEFAULT_BUFFER_SIZE;
 
 type RawStdin = crate::sys::io::Stdin;
 type RawStdout = crate::sys::io::Stdout;

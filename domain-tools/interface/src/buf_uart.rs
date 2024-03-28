@@ -1,5 +1,6 @@
-use crate::DeviceBase;
 use constants::AlienResult;
+
+use crate::DeviceBase;
 
 pub trait BufUartDomain: DeviceBase {
     fn init(&self, uart_domain_name: &str) -> AlienResult<()>;

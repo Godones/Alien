@@ -4,12 +4,14 @@ mod area;
 
 extern crate alloc;
 
-use alloc::collections::btree_map::Values;
-use alloc::collections::BTreeMap;
+use alloc::collections::{btree_map::Values, BTreeMap};
+use core::{
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
+
 pub use area::{VmArea, VmAreaEqual, VmAreaType};
 use config::FRAME_SIZE;
-use core::fmt::{Debug, Formatter};
-use core::ops::Range;
 use memory_addr::{PhysAddr, VirtAddr};
 use page_table::{
     MappingFlags, PageSize, PagingError, PagingIf, PagingResult, Rv64PTE, Sv39PageTable,

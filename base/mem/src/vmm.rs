@@ -1,18 +1,16 @@
-use crate::frame::{alloc_frame_trackers, FrameTracker, VmmPageAllocator};
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use core::sync::atomic::AtomicUsize;
+
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
 use constants::AlienResult;
-use core::sync::atomic::AtomicUsize;
 use ksync::RwLock;
 use log::info;
 use page_table::MappingFlags;
-use platform::config::DEVICE_SPACE;
-use platform::println;
+use platform::{config::DEVICE_SPACE, println};
 use ptable::{PhysPage, VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
+
+use crate::frame::{alloc_frame_trackers, FrameTracker, VmmPageAllocator};
 
 pub static KERNEL_SPACE: Lazy<Arc<RwLock<VmSpace<VmmPageAllocator>>>> =
     Lazy::new(|| Arc::new(RwLock::new(VmSpace::<VmmPageAllocator>::new())));

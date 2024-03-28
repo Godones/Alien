@@ -1,7 +1,9 @@
-use alloc::alloc::{alloc, dealloc};
-use alloc::collections::BTreeMap;
-use core::alloc::Layout;
-use core::any::TypeId;
+use alloc::{
+    alloc::{alloc, dealloc},
+    collections::BTreeMap,
+};
+use core::{alloc::Layout, any::TypeId};
+
 use ksync::Mutex;
 use log::trace;
 use rref::{SharedHeapAlloc, SharedHeapAllocation};

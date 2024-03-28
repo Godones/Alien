@@ -1,7 +1,8 @@
 #![no_std]
+use core::cell::{RefCell, RefMut};
+
 use arch::{hart_id, interrupt_disable, interrupt_enable, is_interrupt_enable};
 use config::CPU_NUM;
-use core::cell::{RefCell, RefMut};
 use kernel_sync::{ticket::TicketMutexGuard, LockAction};
 
 pub type SpinMutex<T> = kernel_sync::spin::SpinMutex<T, KernelLockAction>;

@@ -15,5 +15,5 @@ constants = { path = "../../../base/constants" }
 
 
 
-spin = "0"
+spin = { workspace = true }
 log = "0"

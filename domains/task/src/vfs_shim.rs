@@ -1,11 +1,14 @@
-use crate::processor::current_task;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
-use constants::io::{FileStat, OpenFlags};
-use constants::{AlienError, AlienResult, AT_FDCWD};
+use alloc::{sync::Arc, vec::Vec};
+
+use constants::{
+    io::{FileStat, OpenFlags},
+    AlienError, AlienResult, AT_FDCWD,
+};
 use interface::{InodeId, VfsDomain, VFS_ROOT_ID, VFS_STDIN_ID, VFS_STDOUT_ID};
 use rref::{RRef, RRefVec};
 use spin::{Lazy, Once};
+
+use crate::processor::current_task;
 
 static VFS_DOMAIN: Once<Arc<dyn VfsDomain>> = Once::new();
 

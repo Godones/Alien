@@ -1,8 +1,7 @@
-use crate::Basic;
 use constants::AlienResult;
 use rref::RRefVec;
 
-use crate::devices::DeviceInfo;
+use crate::{devices::DeviceInfo, Basic};
 pub trait PLICDomain: Basic {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
     fn handle_irq(&self) -> AlienResult<()>;

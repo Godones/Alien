@@ -1,7 +1,7 @@
-use crate::devices::DeviceInfo;
-use crate::DeviceBase;
 use constants::AlienResult;
 use rref::RRef;
+
+use crate::{devices::DeviceInfo, DeviceBase};
 
 pub trait BlkDeviceDomain: DeviceBase {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;

@@ -4,20 +4,22 @@ mod gpu;
 
 extern crate alloc;
 
-use crate::gpu::VirtIOGpuWrapper;
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
+use alloc::{collections::BTreeMap, sync::Arc};
+use core::{fmt::Debug, ptr::NonNull};
+
 use basic::vm::frame::FrameTracker;
 use constants::AlienResult;
-use core::fmt::Debug;
-use core::ptr::NonNull;
 use interface::{Basic, DeviceBase, DeviceInfo, GpuDomain};
 use ksync::Mutex;
 use rref::RRefVec;
 use spin::{Lazy, Once};
-use virtio_drivers::device::gpu::VirtIOGpu;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::{BufferDirection, Hal, PhysAddr};
+use virtio_drivers::{
+    device::gpu::VirtIOGpu,
+    transport::mmio::{MmioTransport, VirtIOHeader},
+    BufferDirection, Hal, PhysAddr,
+};
+
+use crate::gpu::VirtIOGpuWrapper;
 
 static GPU: Once<Arc<Mutex<VirtIOGpuWrapper>>> = Once::new();
 

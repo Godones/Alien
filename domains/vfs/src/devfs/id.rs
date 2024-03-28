@@ -1,10 +1,9 @@
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
+use alloc::{collections::BTreeMap, sync::Arc};
+
 use constants::DeviceId;
 use ksync::Mutex;
 use spin::Lazy;
-use vfscore::inode::VfsInode;
-use vfscore::utils::VfsNodeType;
+use vfscore::{inode::VfsInode, utils::VfsNodeType};
 
 struct DeviceIdManager {
     map: BTreeMap<u32, u32>,

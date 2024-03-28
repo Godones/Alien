@@ -19,3 +19,5 @@ page_table = { path = "../../safe-crates/page_table" }
 memory_addr = { path = "../../safe-crates/memory_addr" }
 ptable = { path = "../../safe-crates/ptable" }
 plic = { path = "../../safe-crates/plic" }
+goldfish_rtc = { path = "../../safe-crates/goldfish_rtc" }
+uart16550 = { path = "../../safe-crates/uart16550" }

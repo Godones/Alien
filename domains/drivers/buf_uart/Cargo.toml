@@ -11,4 +11,4 @@ rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
 ksync = { path = "../../../base/ksync" }
 constants = { path = "../../../base/constants" }
-spin = "0"
+spin = { workspace = true }

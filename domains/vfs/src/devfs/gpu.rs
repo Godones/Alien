@@ -1,13 +1,15 @@
 use alloc::sync::Arc;
-use interface::GpuDomain;
-use rref::RRefVec;
 
 use constants::DeviceId;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::utils::{VfsFileStat, VfsNodeType};
-use vfscore::VfsResult;
+use interface::GpuDomain;
+use rref::RRefVec;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    utils::{VfsFileStat, VfsNodeType},
+    VfsResult,
+};
 
 pub struct GPUDevice {
     device_id: DeviceId,

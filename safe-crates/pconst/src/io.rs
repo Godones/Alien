@@ -595,7 +595,7 @@ bitflags! {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub struct RtcTime {
     pub sec: u32,
     pub min: u32,

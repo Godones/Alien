@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
-use constants::AlienError;
-use constants::AlienResult;
+
+use constants::{AlienError, AlienResult};
 use interface::{TaskDomain, TmpHeapInfo, VfsDomain};
 use rref::RRef;
 

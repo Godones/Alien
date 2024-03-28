@@ -3,9 +3,8 @@
 
 use bitflags::*;
 
-use crate::signal::SimpleBitSet;
-
 use super::number::SignalNumber;
+use crate::signal::SimpleBitSet;
 
 #[cfg(feature = "riscv")]
 pub const SIGNAL_RETURN_TRAP: usize = 0xffff_0000_8080_0000;

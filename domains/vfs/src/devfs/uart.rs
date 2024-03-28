@@ -1,15 +1,21 @@
-use crate::TASK_DOMAIN;
 use alloc::sync::Arc;
-use constants::io::{LocalModes, TeletypeCommand, Termios, WinSize};
-use constants::DeviceId;
+
+use constants::{
+    io::{LocalModes, TeletypeCommand, Termios, WinSize},
+    DeviceId,
+};
 use interface::BufUartDomain;
 use ksync::Mutex;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
-use vfscore::VfsResult;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    superblock::VfsSuperBlock,
+    utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
+    VfsResult,
+};
+
+use crate::TASK_DOMAIN;
 
 #[derive(Debug, Default)]
 pub struct IoData {

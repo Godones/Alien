@@ -3,9 +3,11 @@
 
 extern crate alloc;
 
-use Mstd::println;
-use Mstd::process::{exec, exit, fork, wait, waitpid};
-use Mstd::thread::m_yield;
+use Mstd::{
+    println,
+    process::{exec, exit, fork, wait, waitpid},
+    thread::m_yield,
+};
 
 #[no_mangle]
 fn main() -> isize {

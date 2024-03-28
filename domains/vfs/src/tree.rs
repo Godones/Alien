@@ -1,21 +1,19 @@
-use crate::devfs::DevFsProviderImpl;
-use crate::kfile::KernelFile;
-use crate::{pipefs, procfs, sys, VFS_MAP};
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::sync::Arc;
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+    sync::Arc,
+};
+use core::ops::Index;
+
 use basic::println;
 use constants::io::OpenFlags;
-use core::ops::Index;
 use dynfs::DynFsKernelProvider;
 use interface::{VFS_ROOT_ID, VFS_STDERR_ID, VFS_STDIN_ID, VFS_STDOUT_ID};
 use ksync::Mutex;
 use spin::{Lazy, Once};
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
-use vfscore::path::VfsPath;
-use vfscore::utils::VfsTimeSpec;
-use vfscore::VfsResult;
+use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, utils::VfsTimeSpec, VfsResult};
+
+use crate::{devfs::DevFsProviderImpl, kfile::KernelFile, pipefs, procfs, sys, VFS_MAP};
 
 type SysFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;
 type ProcFs = dynfs::DynFs<CommonFsProviderImpl, Mutex<()>>;

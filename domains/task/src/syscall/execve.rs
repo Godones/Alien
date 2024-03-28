@@ -1,7 +1,11 @@
-use crate::processor::current_task;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
+
 use constants::{AlienError, AlienResult};
+
+use crate::processor::current_task;
 
 pub fn do_execve(filename_ptr: usize, argv_ptr: usize, envp_ptr: usize) -> AlienResult<isize> {
     let task = current_task().unwrap();

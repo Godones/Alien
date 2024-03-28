@@ -1,15 +1,15 @@
-use crate::SharedHeapAllocator;
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use alloc::vec::Vec;
-use config::FRAME_BITS;
+use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use core::sync::atomic::AtomicBool;
+
+use config::FRAME_BITS;
 use corelib::CoreFunction;
 use interface::*;
 use ksync::Mutex;
 use log::{info, warn};
 use platform::iprint;
 use spin::Lazy;
+
+use crate::SharedHeapAllocator;
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));

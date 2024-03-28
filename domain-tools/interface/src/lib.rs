@@ -20,9 +20,9 @@ mod vfs;
 extern crate alloc;
 
 use alloc::sync::Arc;
+use core::{any::Any, fmt::Debug};
+
 use constants::{AlienError, AlienResult};
-use core::any::Any;
-use core::fmt::Debug;
 
 pub trait Basic: Send + Sync + Debug + Any {
     // may be deleted
@@ -42,11 +42,9 @@ pub trait DeviceBase: Basic {
     fn handle_irq(&self) -> AlienResult<()>;
 }
 
-pub use task::*;
-
 pub use block::BlkDeviceDomain;
-
 pub use cache_block::CacheBlkDeviceDomain;
+pub use task::*;
 
 pub trait FsDomain: Basic {}
 pub use buf_input::BufInputDomain;
@@ -56,7 +54,7 @@ pub use gpu::GpuDomain;
 pub use input_device::InputDomain;
 pub use net::*;
 pub use plic::PLICDomain;
-pub use rtc::{RtcDomain, RtcTime};
+pub use rtc::RtcDomain;
 pub use shadow_block::ShadowBlockDomain;
 pub use syscall::SysCallDomain;
 pub use uart::UartDomain;
@@ -104,8 +102,7 @@ impl TryInto<Arc<dyn DeviceBase>> for DomainType {
 
 #[cfg(feature = "domain")]
 mod __impl {
-    use core::hint::spin_loop;
-    use core::sync::atomic::AtomicBool;
+    use core::{hint::spin_loop, sync::atomic::AtomicBool};
 
     static ACTIVE: AtomicBool = AtomicBool::new(false);
 
