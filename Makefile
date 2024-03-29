@@ -44,8 +44,6 @@ run: sdcard domains build
             -bios default \
             -drive file=$(IMG),if=none,format=raw,id=x0 \
             -device virtio-blk-device,drive=x0 \
-			-device virtio-mouse-device \
-			-device virtio-keyboard-device \
             -kernel $(KERNEL)\
             -$(QEMU_ARGS) \
             -smp $(SMP) -m $(MEMORY_SIZE) \
