@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
 use constants::DeviceId;
-use interface::InputDomain;
+use interface::BufInputDomain;
 use vfscore::{
     error::VfsError,
     file::VfsFile,
@@ -13,13 +13,13 @@ use vfscore::{
 
 pub struct INPUTDevice {
     device_id: DeviceId,
-    device: Arc<dyn InputDomain>,
+    device: Arc<dyn BufInputDomain>,
     #[allow(unused)]
     is_keyboard: bool,
 }
 
 impl INPUTDevice {
-    pub fn new(device_id: DeviceId, device: Arc<dyn InputDomain>, is_keyboard: bool) -> Self {
+    pub fn new(device_id: DeviceId, device: Arc<dyn BufInputDomain>, is_keyboard: bool) -> Self {
         Self {
             device_id,
             device,

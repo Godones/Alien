@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod buf_uart;
+mod input;
 mod net;
 mod trampoline;
 
@@ -17,6 +18,7 @@ use constants::{
     AlienError, AlienResult,
 };
 use domain_loader::DomainLoader;
+pub use input::InputDomainProxy;
 use interface::*;
 use ksync::{Mutex, RwLock};
 pub use net::NetDomainProxy;
