@@ -1,21 +1,21 @@
 #![no_std]
 // #![forbid(unsafe_code)]
 extern crate alloc;
-extern crate malloc;
 
-use alloc::{collections::BTreeMap, sync::Arc};
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::sync::atomic::AtomicU64;
 
-use constants::{
-    io::{FileStat, OpenFlags},
-    AlienError, AlienResult,
-};
-use interface::{Basic, DomainType, InodeId, TaskDomain, VfsDomain};
+use constants::{io::OpenFlags, AlienError, AlienResult};
+use interface::{Basic, DomainType, InodeID, TaskDomain, VfsDomain};
 use ksync::RwLock;
 use log::info;
 use rref::{RRef, RRefVec};
 use spin::Once;
-use vfscore::{dentry::VfsDentry, path::VfsPath, utils::VfsInodeMode};
+use vfscore::{
+    dentry::VfsDentry,
+    path::VfsPath,
+    utils::{VfsFileStat, VfsInodeMode},
+};
 
 use crate::{
     kfile::{File, KernelFile},
@@ -27,28 +27,29 @@ mod kfile;
 mod pipefs;
 mod procfs;
 mod ramfs;
+mod shim;
 mod sys;
 mod tree;
 
 static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
 
-static VFS_MAP: RwLock<BTreeMap<InodeId, Arc<dyn File>>> = RwLock::new(BTreeMap::new());
+static VFS_MAP: RwLock<BTreeMap<InodeID, Arc<dyn File>>> = RwLock::new(BTreeMap::new());
 static INODE_ID: AtomicU64 = AtomicU64::new(4);
 
-fn alloc_inode_id() -> InodeId {
+fn alloc_inode_id() -> InodeID {
     INODE_ID.fetch_add(1, core::sync::atomic::Ordering::SeqCst)
 }
 
-fn insert_dentry(inode: InodeId, dentry: Arc<dyn VfsDentry>, open_flags: OpenFlags) {
-    let file = KernelFile::new(dentry.clone(), open_flags);
+fn insert_dentry(inode: InodeID, dentry: Arc<dyn VfsDentry>, open_flags: OpenFlags) {
+    let file = KernelFile::new(dentry, open_flags);
     VFS_MAP.write().insert(inode, Arc::new(file));
 }
 
-fn remove_file(inode: InodeId) {
+fn remove_file(inode: InodeID) {
     VFS_MAP.write().remove(&inode);
 }
 
-fn get_file(inode: InodeId) -> Option<Arc<dyn File>> {
+fn get_file(inode: InodeID) -> Option<Arc<dyn File>> {
     VFS_MAP.read().get(&inode).map(|f| f.clone())
 }
 
@@ -70,11 +71,11 @@ impl VfsDomain for VfsDomainImpl {
 
     fn vfs_open(
         &self,
-        root: InodeId,
+        root: InodeID,
         path: &RRefVec<u8>,
         mode: u32,
         open_flags: usize,
-    ) -> AlienResult<InodeId> {
+    ) -> AlienResult<InodeID> {
         let start = get_file(root).ok_or(AlienError::EINVAL)?;
         let root = system_root_fs();
         let path = core::str::from_utf8(path.as_slice()).unwrap();
@@ -91,37 +92,24 @@ impl VfsDomain for VfsDomainImpl {
         Ok(id)
     }
 
-    fn vfs_close(&self, inode: InodeId) -> AlienResult<()> {
+    fn vfs_close(&self, inode: InodeID) -> AlienResult<()> {
         remove_file(inode);
         Ok(())
     }
 
-    fn vfs_getattr(&self, inode: InodeId, mut attr: RRef<FileStat>) -> AlienResult<RRef<FileStat>> {
+    fn vfs_getattr(
+        &self,
+        inode: InodeID,
+        mut attr: RRef<VfsFileStat>,
+    ) -> AlienResult<RRef<VfsFileStat>> {
         let dentry = get_file(inode).unwrap().dentry();
         let vfs_attr = dentry.inode()?.get_attr()?;
-        let mut file_attr = FileStat::default();
-        file_attr.st_dev = vfs_attr.st_dev;
-        file_attr.st_ino = vfs_attr.st_ino;
-        file_attr.st_mode = vfs_attr.st_mode;
-        file_attr.st_nlink = vfs_attr.st_nlink;
-        file_attr.st_uid = vfs_attr.st_uid;
-        file_attr.st_gid = vfs_attr.st_gid;
-        file_attr.st_rdev = vfs_attr.st_rdev;
-        file_attr.st_size = vfs_attr.st_size;
-        file_attr.st_blksize = vfs_attr.st_blksize;
-        file_attr.st_blocks = vfs_attr.st_blocks;
-        file_attr.st_atime_sec = vfs_attr.st_atime.sec;
-        file_attr.st_atime_nsec = vfs_attr.st_atime.nsec;
-        file_attr.st_mtime_sec = vfs_attr.st_mtime.sec;
-        file_attr.st_mtime_nsec = vfs_attr.st_mtime.nsec;
-        file_attr.st_ctime_sec = vfs_attr.st_ctime.sec;
-        file_attr.st_ctime_nsec = vfs_attr.st_ctime.nsec;
-        *attr = file_attr;
+        *attr = vfs_attr;
         Ok(attr)
     }
     fn vfs_read_at(
         &self,
-        inode: InodeId,
+        inode: InodeID,
         offset: u64,
         mut buf: RRefVec<u8>,
     ) -> AlienResult<(RRefVec<u8>, usize)> {
@@ -130,14 +118,14 @@ impl VfsDomain for VfsDomainImpl {
         Ok((buf, res))
     }
 
-    fn vfs_read(&self, inode: InodeId, mut buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)> {
+    fn vfs_read(&self, inode: InodeID, mut buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)> {
         let file = get_file(inode).unwrap();
         let res = file.read(buf.as_mut_slice())?;
         Ok((buf, res))
     }
     fn vfs_write_at(
         &self,
-        inode: InodeId,
+        inode: InodeID,
         offset: u64,
         buf: RRefVec<u8>,
     ) -> AlienResult<(RRefVec<u8>, usize)> {
@@ -145,13 +133,13 @@ impl VfsDomain for VfsDomainImpl {
         let res = file.write_at(offset, buf.as_slice())?;
         Ok((buf, res))
     }
-    fn vfs_write(&self, inode: InodeId, buf: &RRefVec<u8>) -> AlienResult<usize> {
+    fn vfs_write(&self, inode: InodeID, buf: &RRefVec<u8>) -> AlienResult<usize> {
         let file = get_file(inode).unwrap();
         let res = file.write(buf.as_slice())?;
         Ok(res)
     }
 }
 
-pub fn main() -> Arc<dyn VfsDomain> {
-    Arc::new(VfsDomainImpl)
+pub fn main() -> Box<dyn VfsDomain> {
+    Box::new(VfsDomainImpl)
 }

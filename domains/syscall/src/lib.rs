@@ -7,7 +7,7 @@ mod task;
 extern crate alloc;
 extern crate log;
 
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 
 use basic::println;
 use constants::AlienResult;
@@ -78,7 +78,7 @@ impl SysCallDomain for SysCallDomainImpl {
     }
 }
 
-pub fn main() -> Arc<dyn SysCallDomain> {
+pub fn main() -> Box<dyn SysCallDomain> {
     let vfs_domain = basic::get_domain("vfs").unwrap();
     let vfs_domain = match vfs_domain {
         DomainType::VfsDomain(vfs_domain) => vfs_domain,
@@ -91,5 +91,5 @@ pub fn main() -> Arc<dyn SysCallDomain> {
     };
 
     println!("syscall domain began to work");
-    Arc::new(SysCallDomainImpl::new(vfs_domain, task_domain))
+    Box::new(SysCallDomainImpl::new(vfs_domain, task_domain))
 }

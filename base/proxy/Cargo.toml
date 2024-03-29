@@ -15,7 +15,7 @@ constants = { path = "../constants" }
 interface = { path = "../../domain-tools/interface" }
 rref = { path = "../../domain-tools/rref" }
 continuation = { path = "../continuation" }
-
+vfscore = { git = "https://github.com/os-module/rvfs.git" }
 
 spin = "0"
 log = "0"

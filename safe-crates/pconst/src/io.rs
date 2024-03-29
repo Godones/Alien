@@ -109,6 +109,25 @@ pub struct FsStat {
     pub f_spare: [isize; 4],
 }
 
+impl Default for FsStat {
+    fn default() -> Self {
+        Self {
+            f_type: 0,
+            f_bsize: 0,
+            f_blocks: 0,
+            f_bfree: 0,
+            f_bavail: 0,
+            f_files: 0,
+            f_ffree: 0,
+            f_fsid: [0, 0],
+            f_namelen: 0,
+            f_frsize: 0,
+            f_flags: 0,
+            f_spare: [0; 4],
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 #[repr(C)]
 pub struct FileStat {

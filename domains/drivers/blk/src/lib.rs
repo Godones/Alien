@@ -5,7 +5,7 @@
 // #![forbid(unsafe_code)]
 extern crate alloc;
 
-use alloc::{collections::BTreeMap, sync::Arc};
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -134,8 +134,8 @@ impl interface::BlkDeviceDomain for VirtIOBlkDomain {
     }
 }
 
-pub fn main() -> Arc<dyn interface::BlkDeviceDomain> {
-    Arc::new(VirtIOBlkDomain)
+pub fn main() -> Box<dyn interface::BlkDeviceDomain> {
+    Box::new(VirtIOBlkDomain)
 }
 
 struct HalImpl;

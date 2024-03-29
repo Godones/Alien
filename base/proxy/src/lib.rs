@@ -6,28 +6,29 @@ extern crate alloc;
 
 mod buf_uart;
 mod input;
+mod fs;
 mod net;
 mod trampoline;
+mod vfs;
 
-use alloc::sync::Arc;
+use alloc::boxed::Box;
 use core::{arch::asm, fmt::Debug};
 
 pub use buf_uart::BufUartDomainProxy;
-use constants::{
-    io::{FileStat, RtcTime},
-    AlienError, AlienResult,
-};
+use constants::{io::RtcTime, AlienError, AlienResult};
 use domain_loader::DomainLoader;
 pub use input::InputDomainProxy;
+pub use fs::FsDomainProxy;
 use interface::*;
 use ksync::{Mutex, RwLock};
 pub use net::NetDomainProxy;
 use rref::{RRef, RRefVec};
+pub use vfs::VfsDomainProxy;
 
 #[derive(Debug)]
 pub struct BlkDomainProxy {
     domain_id: u64,
-    domain: RwLock<Arc<dyn BlkDeviceDomain>>,
+    domain: RwLock<Box<dyn BlkDeviceDomain>>,
     domain_loader: DomainLoader,
     device_info: Mutex<Option<DeviceInfo>>,
 }
@@ -35,7 +36,7 @@ pub struct BlkDomainProxy {
 impl BlkDomainProxy {
     pub fn new(
         domain_id: u64,
-        domain: Arc<dyn BlkDeviceDomain>,
+        domain: Box<dyn BlkDeviceDomain>,
         domain_loader: DomainLoader,
     ) -> Self {
         Self {
@@ -122,7 +123,7 @@ impl BlkDeviceDomain for BlkDomainProxy {
 #[no_mangle]
 #[allow(undefined_naked_function_abi)]
 unsafe fn blk_domain_proxy_read_trampoline(
-    blk_domain: &Arc<dyn BlkDeviceDomain>,
+    blk_domain: &Box<dyn BlkDeviceDomain>,
     block: u32,
     data: RRef<[u8; 512]>,
 ) -> AlienResult<RRef<[u8; 512]>> {
@@ -190,7 +191,7 @@ unsafe fn blk_domain_proxy_read_trampoline(
 
 #[no_mangle]
 fn blk_domain_proxy_read(
-    blk_domain: &Arc<dyn BlkDeviceDomain>,
+    blk_domain: &Box<dyn BlkDeviceDomain>,
     block: u32,
     data: RRef<[u8; 512]>,
 ) -> AlienResult<RRef<[u8; 512]>> {
@@ -213,11 +214,11 @@ fn blk_domain_proxy_read_ptr() -> usize {
 #[derive(Debug)]
 pub struct ShadowBlockDomainProxy {
     domain_id: u64,
-    domain: Arc<dyn ShadowBlockDomain>,
+    domain: Box<dyn ShadowBlockDomain>,
 }
 
 impl ShadowBlockDomainProxy {
-    pub fn new(domain_id: u64, domain: Arc<dyn ShadowBlockDomain>) -> Self {
+    pub fn new(domain_id: u64, domain: Box<dyn ShadowBlockDomain>) -> Self {
         Self { domain_id, domain }
     }
 }
@@ -275,32 +276,12 @@ impl ShadowBlockDomain for ShadowBlockDomainProxy {
 }
 
 #[derive(Debug)]
-pub struct FsDomainProxy {
-    domain_id: u64,
-    domain: Arc<dyn FsDomain>,
-}
-
-impl FsDomainProxy {
-    pub fn new(domain_id: u64, domain: Arc<dyn FsDomain>) -> Self {
-        Self { domain_id, domain }
-    }
-}
-
-impl Basic for FsDomainProxy {
-    fn is_active(&self) -> bool {
-        self.domain.is_active()
-    }
-}
-
-impl FsDomain for FsDomainProxy {}
-
-#[derive(Debug)]
 pub struct RtcDomainProxy {
-    domain: Arc<dyn RtcDomain>,
+    domain: Box<dyn RtcDomain>,
 }
 
 impl RtcDomainProxy {
-    pub fn new(_domain_id: u64, domain: Arc<dyn RtcDomain>) -> Self {
+    pub fn new(_domain_id: u64, domain: Box<dyn RtcDomain>) -> Self {
         Self { domain }
     }
 }
@@ -336,105 +317,13 @@ impl RtcDomain for RtcDomainProxy {
 }
 
 #[derive(Debug)]
-pub struct VfsDomainProxy {
-    domain: Arc<dyn VfsDomain>,
-}
-
-impl VfsDomainProxy {
-    pub fn new(_id: u64, domain: Arc<dyn VfsDomain>) -> Self {
-        Self { domain }
-    }
-}
-
-impl Basic for VfsDomainProxy {
-    fn is_active(&self) -> bool {
-        self.domain.is_active()
-    }
-}
-
-impl VfsDomain for VfsDomainProxy {
-    fn init(&self) -> AlienResult<()> {
-        self.domain.init()
-    }
-
-    fn vfs_open(
-        &self,
-        root: InodeId,
-        path: &RRefVec<u8>,
-        mode: u32,
-        open_flags: usize,
-    ) -> AlienResult<InodeId> {
-        if self.domain.is_active() {
-            self.domain.vfs_open(root, path, mode, open_flags)
-        } else {
-            Err(AlienError::DOMAINCRASH)
-        }
-    }
-
-    fn vfs_close(&self, inode: InodeId) -> AlienResult<()> {
-        if self.domain.is_active() {
-            self.domain.vfs_close(inode)
-        } else {
-            Err(AlienError::DOMAINCRASH)
-        }
-    }
-
-    fn vfs_getattr(&self, inode: InodeId, attr: RRef<FileStat>) -> AlienResult<RRef<FileStat>> {
-        if self.domain.is_active() {
-            self.domain.vfs_getattr(inode, attr)
-        } else {
-            Err(AlienError::DOMAINCRASH)
-        }
-    }
-
-    fn vfs_read_at(
-        &self,
-        inode: InodeId,
-        offset: u64,
-        buf: RRefVec<u8>,
-    ) -> AlienResult<(RRefVec<u8>, usize)> {
-        if self.domain.is_active() {
-            self.domain.vfs_read_at(inode, offset, buf)
-        } else {
-            Err(AlienError::DOMAINCRASH)
-        }
-    }
-    fn vfs_read(&self, inode: InodeId, buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)> {
-        if self.domain.is_active() {
-            self.domain.vfs_read(inode, buf)
-        } else {
-            Err(AlienError::DOMAINCRASH)
-        }
-    }
-    fn vfs_write_at(
-        &self,
-        inode: InodeId,
-        offset: u64,
-        buf: RRefVec<u8>,
-    ) -> AlienResult<(RRefVec<u8>, usize)> {
-        if self.domain.is_active() {
-            self.domain.vfs_write_at(inode, offset, buf)
-        } else {
-            Err(AlienError::DOMAINCRASH)
-        }
-    }
-    fn vfs_write(&self, inode: InodeId, buf: &RRefVec<u8>) -> AlienResult<usize> {
-        if self.domain.is_active() {
-            self.domain.vfs_write(inode, buf)
-        } else {
-            Err(AlienError::DOMAINCRASH)
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct CacheBlkDomainProxy {
     domain_id: u64,
-    domain: Arc<dyn CacheBlkDeviceDomain>,
+    domain: Box<dyn CacheBlkDeviceDomain>,
 }
 
 impl CacheBlkDomainProxy {
-    pub fn new(domain_id: u64, domain: Arc<dyn CacheBlkDeviceDomain>) -> Self {
+    pub fn new(domain_id: u64, domain: Box<dyn CacheBlkDeviceDomain>) -> Self {
         Self { domain_id, domain }
     }
 }
@@ -491,11 +380,11 @@ impl CacheBlkDeviceDomain for CacheBlkDomainProxy {
 #[derive(Debug)]
 pub struct EIntrDomainProxy {
     id: u64,
-    domain: Arc<dyn PLICDomain>,
+    domain: Box<dyn PLICDomain>,
 }
 
 impl EIntrDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn PLICDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn PLICDomain>) -> Self {
         Self { id, domain }
     }
 }
@@ -535,11 +424,11 @@ impl PLICDomain for EIntrDomainProxy {
 #[derive(Debug)]
 pub struct DevicesDomainProxy {
     id: u64,
-    domain: Arc<dyn DevicesDomain>,
+    domain: Box<dyn DevicesDomain>,
 }
 
 impl DevicesDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn DevicesDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn DevicesDomain>) -> Self {
         Self { id, domain }
     }
 }
@@ -566,11 +455,11 @@ impl DevicesDomain for DevicesDomainProxy {
 #[derive(Debug)]
 pub struct GpuDomainProxy {
     id: u64,
-    domain: Arc<dyn GpuDomain>,
+    domain: Box<dyn GpuDomain>,
 }
 
 impl GpuDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn GpuDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn GpuDomain>) -> Self {
         Self { id, domain }
     }
 }
@@ -613,11 +502,11 @@ impl Basic for GpuDomainProxy {
 #[derive(Debug)]
 pub struct UartDomainProxy {
     id: u64,
-    domain: Arc<dyn UartDomain>,
+    domain: Box<dyn UartDomain>,
 }
 
 impl UartDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn UartDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn UartDomain>) -> Self {
         Self { id, domain }
     }
 }
@@ -680,10 +569,10 @@ impl Basic for UartDomainProxy {
 #[derive(Debug)]
 pub struct TaskDomainProxy {
     id: u64,
-    domain: Arc<dyn TaskDomain>,
+    domain: Box<dyn TaskDomain>,
 }
 impl TaskDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn TaskDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn TaskDomain>) -> Self {
         Self { id, domain }
     }
 }
@@ -734,7 +623,7 @@ impl TaskDomain for TaskDomainProxy {
         self.domain.heap_info(tmp_heap_info)
     }
 
-    fn get_fd(&self, fd: usize) -> AlienResult<InodeId> {
+    fn get_fd(&self, fd: usize) -> AlienResult<InodeID> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
@@ -842,11 +731,11 @@ impl TaskDomain for TaskDomainProxy {
 #[derive(Debug)]
 pub struct SysCallDomainProxy {
     id: u64,
-    domain: Arc<dyn SysCallDomain>,
+    domain: Box<dyn SysCallDomain>,
 }
 
 impl SysCallDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn SysCallDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn SysCallDomain>) -> Self {
         Self { id, domain }
     }
 }

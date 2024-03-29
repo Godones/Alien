@@ -1,12 +1,10 @@
 use alloc::{sync::Arc, vec::Vec};
 
-use constants::{
-    io::{FileStat, OpenFlags},
-    AlienError, AlienResult, AT_FDCWD,
-};
-use interface::{InodeId, VfsDomain, VFS_ROOT_ID, VFS_STDIN_ID, VFS_STDOUT_ID};
+use constants::{io::OpenFlags, AlienError, AlienResult, AT_FDCWD};
+use interface::{InodeID, VfsDomain, VFS_ROOT_ID, VFS_STDIN_ID, VFS_STDOUT_ID};
 use rref::{RRef, RRefVec};
 use spin::{Lazy, Once};
+use vfscore::utils::VfsFileStat;
 
 use crate::processor::current_task;
 
@@ -23,33 +21,25 @@ pub static STDOUT: Lazy<Arc<ShimFile>> = Lazy::new(|| Arc::new(ShimFile::new(VFS
 /// equal to Arc<dyn VfsDentry>
 #[derive(Debug)]
 pub struct ShimFile {
-    id: InodeId,
+    id: InodeID,
 }
 
 impl ShimFile {
-    pub const fn new(id: InodeId) -> Self {
+    pub const fn new(id: InodeID) -> Self {
         Self { id }
     }
-    pub fn inode_id(&self) -> InodeId {
+    pub fn inode_id(&self) -> InodeID {
         self.id
     }
 
-    fn get_attr(&self) -> AlienResult<RRef<FileStat>> {
-        let attr = RRef::new(FileStat::default());
-        let res = VFS_DOMAIN
-            .get()
-            .unwrap()
-            .vfs_getattr(self.id, attr)
-            .map_err(Into::into);
+    fn get_attr(&self) -> AlienResult<RRef<VfsFileStat>> {
+        let attr = RRef::new(VfsFileStat::default());
+        let res = VFS_DOMAIN.get().unwrap().vfs_getattr(self.id, attr);
         res
     }
 
     fn read_at(&self, offset: u64, buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)> {
-        let res = VFS_DOMAIN
-            .get()
-            .unwrap()
-            .vfs_read_at(self.id, offset, buf)
-            .map_err(Into::into);
+        let res = VFS_DOMAIN.get().unwrap().vfs_read_at(self.id, offset, buf);
         res
     }
 }
@@ -87,7 +77,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
     true
 }
 
-fn user_path_at(fd: isize, path: &str) -> AlienResult<(InodeId, InodeId)> {
+fn user_path_at(fd: isize, path: &str) -> AlienResult<(InodeID, InodeID)> {
     info!("user_path_at fd: {},path:{}", fd, path);
     let task = current_task().unwrap();
     let res = if !path.starts_with("/") {

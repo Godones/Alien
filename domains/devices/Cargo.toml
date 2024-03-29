@@ -12,5 +12,5 @@ basic = { path = "../../domain-tools/basic" }
 constants = { path = "../../base/constants" }
 ksync = { path = "../../base/ksync" }
 fdt = { path = "../../safe-crates/fdt" }
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers"}
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers" }
 log = "0"

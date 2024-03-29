@@ -14,10 +14,10 @@ mod task;
 mod vfs_shim;
 mod wait_queue;
 
-use alloc::sync::Arc;
+use alloc::boxed::Box;
 
 use constants::{AlienError, AlienResult};
-use interface::{Basic, DomainType, InodeId, TaskDomain, TmpHeapInfo};
+use interface::{Basic, DomainType, InodeID, TaskDomain, TmpHeapInfo};
 use rref::RRef;
 
 use crate::{
@@ -72,7 +72,7 @@ impl TaskDomain for TaskDomainImpl {
         Ok(tmp_heap_info)
     }
 
-    fn get_fd(&self, fd: usize) -> AlienResult<InodeId> {
+    fn get_fd(&self, fd: usize) -> AlienResult<InodeID> {
         let task = current_task().unwrap();
         let file = task.get_file(fd).ok_or(AlienError::EBADF)?;
         Ok(file.inode_id())
@@ -153,6 +153,6 @@ impl TaskDomain for TaskDomainImpl {
     }
 }
 
-pub fn main() -> Arc<dyn TaskDomain> {
-    Arc::new(TaskDomainImpl::new())
+pub fn main() -> Box<dyn TaskDomain> {
+    Box::new(TaskDomainImpl::new())
 }

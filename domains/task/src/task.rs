@@ -15,7 +15,7 @@ use config::{
 };
 use constants::{aux::*, signal::SignalNumber, task::CloneFlags, AlienResult};
 use context::{TaskContext, TrapFrame};
-use interface::{InodeId, VFS_ROOT_ID};
+use interface::{InodeID, VFS_ROOT_ID};
 use ksync::{Mutex, MutexGuard};
 use page_table::MappingFlags;
 use ptable::{PhysPage, VmArea, VmAreaType, VmSpace};
@@ -79,13 +79,13 @@ pub struct TaskInner {
 #[derive(Debug, Clone)]
 pub struct FsContext {
     /// current working directory
-    pub cwd: InodeId,
+    pub cwd: InodeID,
     /// root directory
-    pub root: InodeId,
+    pub root: InodeID,
 }
 
 impl FsContext {
-    pub fn new(cwd: InodeId, root: InodeId) -> Self {
+    pub fn new(cwd: InodeID, root: InodeID) -> Self {
         Self { cwd, root }
     }
 }

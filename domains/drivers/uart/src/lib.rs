@@ -1,7 +1,7 @@
 #![no_std]
 extern crate alloc;
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 use core::fmt::Debug;
 
 use basic::{io::SafeIORegion, println};
@@ -55,6 +55,6 @@ impl UartDomain for UartDomainImpl {
     }
 }
 
-pub fn main() -> Arc<dyn UartDomain> {
-    Arc::new(UartDomainImpl)
+pub fn main() -> Box<dyn UartDomain> {
+    Box::new(UartDomainImpl)
 }

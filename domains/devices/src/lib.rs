@@ -3,7 +3,7 @@
 extern crate alloc;
 mod prob;
 
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 use core::{cmp::min, ops::Range};
 
 use basic::println;
@@ -112,7 +112,7 @@ impl DevicesDomain for DevicesDomainImpl {
     }
 }
 
-pub fn main() -> Arc<dyn DevicesDomain> {
+pub fn main() -> Box<dyn DevicesDomain> {
     let domain = DevicesDomainImpl::new();
-    Arc::new(domain)
+    Box::new(domain)
 }

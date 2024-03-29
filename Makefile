@@ -29,7 +29,7 @@ endif
 
 
 domains += 	gblk gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask \
-		gsyscall gbuf_uart gvirtio-mmio-net ginput
+		gsyscall gbuf_uart gvirtio-mmio-net ginput gfatfs
 
 
 all:run
@@ -91,6 +91,9 @@ domains:
 	$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
 
 
+fix:
+	make -C domains fix  DOMAIN_LIST="$(domains)"
+
 gdb-server: domains build sdcard
 	@qemu-system-riscv64 \
             -M virt\
@@ -109,4 +112,4 @@ clean:
 	rm -rf target/
 	rm build/*.bin
 
-.PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS)
+.PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS) fix

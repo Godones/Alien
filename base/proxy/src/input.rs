@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::sync::Arc;
 
 use constants::{AlienError, AlienResult};
@@ -7,11 +8,11 @@ use rref::RRefVec;
 #[derive(Debug)]
 pub struct InputDomainProxy {
     id: u64,
-    domain: Arc<dyn InputDomain>,
+    domain: Box<dyn InputDomain>,
 }
 
 impl InputDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn InputDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn InputDomain>) -> Self {
         Self { id, domain }
     }
 }

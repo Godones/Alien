@@ -2,7 +2,6 @@
 
 mod sheap;
 mod syscall;
-mod task;
 
 extern crate alloc;
 

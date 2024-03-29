@@ -110,7 +110,7 @@ impl PLICDomain for PLICDomainImpl {
     }
 }
 
-pub fn main() -> Arc<dyn PLICDomain> {
+pub fn main() -> Box<dyn PLICDomain> {
     let domain_impl = PLICDomainImpl::new();
-    Arc::new(domain_impl)
+    Box::new(domain_impl)
 }

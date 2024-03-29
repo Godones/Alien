@@ -1,7 +1,7 @@
 #![no_std]
 extern crate alloc;
 
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 
 use constants::{AlienError, AlienResult};
 use interface::{Basic, BlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain};
@@ -74,6 +74,6 @@ impl ShadowBlockDomain for ShadowBlockDomainImpl {
     }
 }
 
-pub fn main() -> Arc<dyn ShadowBlockDomain> {
-    Arc::new(ShadowBlockDomainImpl)
+pub fn main() -> Box<dyn ShadowBlockDomain> {
+    Box::new(ShadowBlockDomainImpl)
 }

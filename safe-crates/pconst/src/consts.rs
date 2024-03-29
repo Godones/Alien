@@ -141,6 +141,13 @@ impl From<VfsError> for LinuxErrno {
     }
 }
 
+impl From<LinuxErrno> for VfsError {
+    fn from(value: LinuxErrno) -> Self {
+        let code = -(value as i32);
+        VfsError::from(code)
+    }
+}
+
 const SYSCALL_GETCWD: usize = 17;
 const SYSCALL_DUP: usize = 23;
 const SYSCALL_DUP3: usize = 24;

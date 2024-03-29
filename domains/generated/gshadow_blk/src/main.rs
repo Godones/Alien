@@ -4,7 +4,7 @@
 
 extern crate alloc;
 extern crate malloc;
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 use core::panic::PanicInfo;
 
 use basic::println;
@@ -17,7 +17,7 @@ fn main(
     sys: Box<dyn CoreFunction>,
     domain_id: u64,
     shared_heap: Box<dyn SharedHeapAlloc>,
-) -> Arc<dyn ShadowBlockDomain> {
+) -> Box<dyn ShadowBlockDomain> {
     // init basic
     corelib::init(sys);
     // init rref's shared heap

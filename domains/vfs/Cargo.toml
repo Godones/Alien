@@ -10,18 +10,17 @@ ksync = { path = "../../base/ksync" }
 basic = { path = "../../domain-tools/basic" }
 rref = { path = "../../domain-tools/rref" }
 interface = { path = "../../domain-tools/interface" }
-malloc = { path = "../../domain-tools/malloc" }
-
 constants = { path = "../../base/constants" }
-spin = "0"
+
+spin = { workspace = true }
+
 log = "0"
-vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
-"linux_error",
-] }
+vfscore = { git = "https://github.com/os-module/rvfs.git" }
 devfs = { git = "https://github.com/os-module/rvfs.git" }
 dynfs = { git = "https://github.com/os-module/rvfs.git" }
 ramfs = { git = "https://github.com/os-module/rvfs.git" }
-fat-vfs = { git = "https://github.com/os-module/rvfs.git"}
+fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
+unifs = { git = "https://github.com/os-module/rvfs.git" }
 
 # it might be deleted
 downcast-rs = { version = "1.2.0", default-features = false }

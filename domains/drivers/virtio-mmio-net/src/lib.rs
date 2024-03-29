@@ -4,7 +4,7 @@ mod virtio_net;
 
 extern crate alloc;
 
-use alloc::{collections::BTreeMap, sync::Arc};
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::fmt::{Debug, Formatter, Result};
 
 use constants::AlienResult;
@@ -122,6 +122,6 @@ impl NetDomain for VirtIoNetDomain {
     }
 }
 
-pub fn main() -> Arc<dyn NetDomain> {
-    Arc::new(VirtIoNetDomain::new())
+pub fn main() -> Box<dyn NetDomain> {
+    Box::new(VirtIoNetDomain::new())
 }

@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 
 use basic::{io::SafeIORegion, println};
 use constants::{io::RtcTime, AlienResult};
@@ -44,6 +44,6 @@ impl RtcDomain for Rtc {
     }
 }
 
-pub fn main() -> Arc<dyn RtcDomain> {
-    Arc::new(Rtc)
+pub fn main() -> Box<dyn RtcDomain> {
+    Box::new(Rtc)
 }

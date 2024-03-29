@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 rref = { path = "../rref" }
 constants = { path = "../../base/constants" }
+vfscore = { git = "https://github.com/os-module/rvfs.git" }
 
 [features]
 domain = []

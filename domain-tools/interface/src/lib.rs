@@ -5,6 +5,7 @@ mod buf_input;
 mod buf_uart;
 mod cache_block;
 mod devices;
+mod fs;
 mod gpu;
 mod input_device;
 mod net;
@@ -43,13 +44,11 @@ pub trait DeviceBase: Basic {
 }
 
 pub use block::BlkDeviceDomain;
-pub use cache_block::CacheBlkDeviceDomain;
-pub use task::*;
-
-pub trait FsDomain: Basic {}
 pub use buf_input::BufInputDomain;
 pub use buf_uart::BufUartDomain;
+pub use cache_block::CacheBlkDeviceDomain;
 pub use devices::{DeviceInfo, DevicesDomain};
+pub use fs::*;
 pub use gpu::GpuDomain;
 pub use input_device::InputDomain;
 pub use net::*;
@@ -57,6 +56,7 @@ pub use plic::PLICDomain;
 pub use rtc::RtcDomain;
 pub use shadow_block::ShadowBlockDomain;
 pub use syscall::SysCallDomain;
+pub use task::*;
 pub use uart::UartDomain;
 pub use vfs::*;
 

@@ -17,7 +17,7 @@ config = { path = "../../base/config" }
 context = { path = "../../safe-crates/context" }
 constants = { path = "../../base/constants" }
 
-
+vfscore = { git = "https://github.com/os-module/rvfs.git" }
 page_table = { path = "../../safe-crates/page_table" }
 memory_addr = { path = "../../safe-crates/memory_addr" }
 ptable = { path = "../../safe-crates/ptable" }

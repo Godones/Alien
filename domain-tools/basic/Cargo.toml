@@ -21,3 +21,9 @@ ptable = { path = "../../safe-crates/ptable" }
 plic = { path = "../../safe-crates/plic" }
 goldfish_rtc = { path = "../../safe-crates/goldfish_rtc" }
 uart16550 = { path = "../../safe-crates/uart16550" }
+
+xmas-elf = { version = "0.9", optional = true }
+
+
+[features]
+task = ["dep:xmas-elf"]

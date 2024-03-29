@@ -95,7 +95,7 @@ fn gpu_domain() -> Arc<dyn GpuDomain> {
     let mut domain = DomainLoader::new(GPU_DOMAIN);
     domain.load().unwrap();
     let id = alloc_domain_id();
-    let gpu: Arc<dyn GpuDomain> = domain.call(id);
+    let gpu = domain.call(id);
     Arc::new(GpuDomainProxy::new(id, gpu))
 }
 
@@ -375,9 +375,9 @@ fn init_device() -> Arc<dyn PLICDomain> {
 pub fn load_domains() {
     init_kernel_domain();
 
-    // info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
-    // let fs = fatfs_domain();
-    // domain_helper::register_domain("fatfs", DomainType::FsDomain(fs));
+    info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
+    let fs = fatfs_domain();
+    domain_helper::register_domain("fatfs", DomainType::FsDomain(fs));
 
     let vfs = vfs_domain();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs.clone()));

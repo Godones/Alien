@@ -1,17 +1,16 @@
-use alloc::sync::Arc;
+use alloc::boxed::Box;
 
 use constants::{AlienError, AlienResult};
 use interface::{Basic, DeviceBase, DeviceInfo, NetDomain, RxBufferWrapper, TxBufferWrapper};
-use rref::RRefVec;
 
 #[derive(Debug)]
 pub struct NetDomainProxy {
     id: u64,
-    domain: Arc<dyn NetDomain>,
+    domain: Box<dyn NetDomain>,
 }
 
 impl NetDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn NetDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn NetDomain>) -> Self {
         Self { id, domain }
     }
 }

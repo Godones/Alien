@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use alloc::{boxed::Box, vec, vec::Vec};
 use core::{
     fmt::{Debug, Formatter},
     ops::Range,
@@ -75,9 +75,9 @@ impl DomainLoader {
         self.entry
     }
 
-    pub fn call<T: ?Sized>(&self, id: u64) -> Arc<T> {
+    pub fn call<T: ?Sized>(&self, id: u64) -> Box<T> {
         type F<T> =
-            fn(Box<dyn corelib::CoreFunction>, u64, Box<dyn rref::SharedHeapAlloc>) -> Arc<T>;
+            fn(Box<dyn corelib::CoreFunction>, u64, Box<dyn rref::SharedHeapAlloc>) -> Box<T>;
         let main = unsafe { core::mem::transmute::<*const (), F<T>>(self.entry() as *const ()) };
         let syscall = Box::new(DomainSyscall);
         let heap = Box::new(SharedHeapAllocator);

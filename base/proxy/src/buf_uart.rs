@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use alloc::boxed::Box;
 
 use constants::{AlienError, AlienResult};
 use interface::{Basic, BufUartDomain, DeviceBase};
@@ -6,11 +6,11 @@ use interface::{Basic, BufUartDomain, DeviceBase};
 #[derive(Debug)]
 pub struct BufUartDomainProxy {
     id: u64,
-    domain: Arc<dyn BufUartDomain>,
+    domain: Box<dyn BufUartDomain>,
 }
 
 impl BufUartDomainProxy {
-    pub fn new(id: u64, domain: Arc<dyn BufUartDomain>) -> Self {
+    pub fn new(id: u64, domain: Box<dyn BufUartDomain>) -> Self {
         Self { id, domain }
     }
 }

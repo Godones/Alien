@@ -1,7 +1,7 @@
 #![no_std]
 #![forbid(unsafe_code)]
 extern crate alloc;
-use alloc::{sync::Arc, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{cmp::min, fmt::Debug, num::NonZeroUsize, ops::Deref};
 
 use basic::{config::FRAME_SIZE, vm::frame::FrameTracker};
@@ -181,6 +181,6 @@ impl CacheBlkDeviceDomain for GenericBlockDevice {
 
 pub const MAX_BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
 
-pub fn main() -> Arc<dyn CacheBlkDeviceDomain> {
-    Arc::new(GenericBlockDevice::new(MAX_BLOCK_CACHE_FRAMES))
+pub fn main() -> Box<dyn CacheBlkDeviceDomain> {
+    Box::new(GenericBlockDevice::new(MAX_BLOCK_CACHE_FRAMES))
 }

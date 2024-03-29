@@ -4,7 +4,7 @@ mod gpu;
 
 extern crate alloc;
 
-use alloc::{collections::BTreeMap, sync::Arc};
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::{fmt::Debug, ptr::NonNull};
 
 use basic::vm::frame::FrameTracker;
@@ -61,8 +61,8 @@ impl GpuDomain for GPUDomain {
     }
 }
 
-pub fn main() -> Arc<dyn GpuDomain> {
-    Arc::new(GPUDomain)
+pub fn main() -> Box<dyn GpuDomain> {
+    Box::new(GPUDomain)
 }
 
 pub struct HalImpl;

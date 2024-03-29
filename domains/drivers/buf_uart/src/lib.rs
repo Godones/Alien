@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-use alloc::{collections::VecDeque, sync::Arc};
+use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use core::fmt::Debug;
 
 use basic::println;
@@ -115,7 +115,7 @@ impl BufUartDomain for Uart {
     }
 }
 
-pub fn main() -> Arc<dyn BufUartDomain> {
+pub fn main() -> Box<dyn BufUartDomain> {
     let uart = Uart::new();
-    Arc::new(uart)
+    Box::new(uart)
 }
