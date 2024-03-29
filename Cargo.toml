@@ -57,6 +57,7 @@ members = [
     "domains/net",
     "domains/generated/gbuf_uart",
     "domains/generated/gvirtio-mmio-net",
+    "domains/generated/ginput",
     "safe-crates/page_table",
     "safe-crates/memory_addr", "safe-crates/goldfish_rtc", "safe-crates/uart16550",
 ]

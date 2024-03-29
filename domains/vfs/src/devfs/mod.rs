@@ -163,7 +163,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
     };
 
     match mouse {
-        Some(DomainType::InputDomain(input)) => {
+        Some(DomainType::BufInputDomain(input)) => {
             let input_device = Arc::new(INPUTDevice::new(
                 alloc_device_id(VfsNodeType::CharDevice),
                 input,
@@ -184,7 +184,7 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
         }
     };
     match keyboard {
-        Some(DomainType::InputDomain(input)) => {
+        Some(DomainType::BufInputDomain(input)) => {
             let input_device = Arc::new(INPUTDevice::new(
                 alloc_device_id(VfsNodeType::CharDevice),
                 input.clone(),
