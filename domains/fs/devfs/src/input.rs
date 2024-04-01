@@ -14,20 +14,11 @@ use vfscore::{
 pub struct INPUTDevice {
     device_id: DeviceId,
     device: Arc<dyn BufInputDomain>,
-    #[allow(unused)]
-    is_keyboard: bool,
 }
 
 impl INPUTDevice {
-    pub fn new(device_id: DeviceId, device: Arc<dyn BufInputDomain>, is_keyboard: bool) -> Self {
-        Self {
-            device_id,
-            device,
-            is_keyboard,
-        }
-    }
-    pub fn device_id(&self) -> DeviceId {
-        self.device_id
+    pub fn new(device_id: DeviceId, device: Arc<dyn BufInputDomain>) -> Self {
+        Self { device_id, device }
     }
 }
 

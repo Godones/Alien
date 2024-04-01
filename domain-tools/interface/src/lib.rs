@@ -5,6 +5,7 @@ mod buf_input;
 mod buf_uart;
 mod cache_block;
 mod devices;
+mod empty_device;
 mod fs;
 mod gpu;
 mod input_device;
@@ -48,6 +49,7 @@ pub use buf_input::BufInputDomain;
 pub use buf_uart::BufUartDomain;
 pub use cache_block::CacheBlkDeviceDomain;
 pub use devices::{DeviceInfo, DevicesDomain};
+pub use empty_device::EmptyDeviceDomain;
 pub use fs::*;
 pub use gpu::GpuDomain;
 pub use input_device::InputDomain;
@@ -78,6 +80,8 @@ pub enum DomainType {
     BufUartDomain(Arc<dyn BufUartDomain>),
     NetDomain(Arc<dyn NetDomain>),
     BufInputDomain(Arc<dyn BufInputDomain>),
+    EmptyDeviceDomain(Arc<dyn EmptyDeviceDomain>),
+    DevFsDomain(Arc<dyn DevFsDomain>),
 }
 
 impl TryInto<Arc<dyn DeviceBase>> for DomainType {

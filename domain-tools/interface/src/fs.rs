@@ -71,3 +71,7 @@ pub trait FsDomain: Basic {
     fn fs_flag(&self) -> AlienResult<FileSystemFlags>;
     fn fs_name(&self, name: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)>;
 }
+
+pub trait DevFsDomain: FsDomain {
+    fn register(&self, rdev: u64, device_domain_name: &RRefVec<u8>) -> AlienResult<()>;
+}

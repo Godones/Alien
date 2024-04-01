@@ -5,7 +5,10 @@ extern crate alloc;
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::sync::atomic::AtomicU64;
 
-use constants::{io::OpenFlags, AlienError, AlienResult};
+use constants::{
+    io::{OpenFlags, PollEvents},
+    AlienError, AlienResult,
+};
 use interface::{Basic, DomainType, InodeID, TaskDomain, VfsDomain};
 use ksync::RwLock;
 use log::info;
@@ -14,7 +17,7 @@ use spin::Once;
 use vfscore::{
     dentry::VfsDentry,
     path::VfsPath,
-    utils::{VfsFileStat, VfsInodeMode},
+    utils::{VfsFileStat, VfsInodeMode, VfsNodeType, VfsPollEvents},
 };
 
 use crate::{
@@ -36,13 +39,11 @@ static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
 static VFS_MAP: RwLock<BTreeMap<InodeID, Arc<dyn File>>> = RwLock::new(BTreeMap::new());
 static INODE_ID: AtomicU64 = AtomicU64::new(4);
 
-fn alloc_inode_id() -> InodeID {
-    INODE_ID.fetch_add(1, core::sync::atomic::Ordering::SeqCst)
-}
-
-fn insert_dentry(inode: InodeID, dentry: Arc<dyn VfsDentry>, open_flags: OpenFlags) {
+fn insert_dentry(dentry: Arc<dyn VfsDentry>, open_flags: OpenFlags) -> InodeID {
+    let id = INODE_ID.fetch_add(1, core::sync::atomic::Ordering::SeqCst);
     let file = KernelFile::new(dentry, open_flags);
-    VFS_MAP.write().insert(inode, Arc::new(file));
+    VFS_MAP.write().insert(id, Arc::new(file));
+    id
 }
 
 fn remove_file(inode: InodeID) {
@@ -69,6 +70,18 @@ impl VfsDomain for VfsDomainImpl {
         Ok(())
     }
 
+    fn vfs_poll(&self, inode: InodeID, events: VfsPollEvents) -> AlienResult<VfsPollEvents> {
+        let file = get_file(inode).unwrap();
+        let res = file.poll(PollEvents::from_bits_truncate(events.bits()))?;
+        Ok(VfsPollEvents::from_bits_truncate(res.bits()))
+    }
+
+    fn vfs_ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize> {
+        let file = get_file(inode).unwrap();
+        let res = file.ioctl(cmd, arg)?;
+        Ok(res)
+    }
+
     fn vfs_open(
         &self,
         root: InodeID,
@@ -87,11 +100,9 @@ impl VfsDomain for VfsDomainImpl {
         info!("vfs_open:  path: {:?}, mode: {:?}", path, mode);
         let open_flags = OpenFlags::from_bits_truncate(open_flags);
         let path = VfsPath::new(root, start.dentry()).join(path)?.open(mode)?;
-        let id = alloc_inode_id();
-        insert_dentry(id, path, open_flags);
+        let id = insert_dentry(path, open_flags);
         Ok(id)
     }
-
     fn vfs_close(&self, inode: InodeID) -> AlienResult<()> {
         remove_file(inode);
         Ok(())
@@ -117,7 +128,6 @@ impl VfsDomain for VfsDomainImpl {
         let res = file.read_at(offset, buf.as_mut_slice())?;
         Ok((buf, res))
     }
-
     fn vfs_read(&self, inode: InodeID, mut buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)> {
         let file = get_file(inode).unwrap();
         let res = file.read(buf.as_mut_slice())?;
@@ -136,6 +146,21 @@ impl VfsDomain for VfsDomainImpl {
     fn vfs_write(&self, inode: InodeID, buf: &RRefVec<u8>) -> AlienResult<usize> {
         let file = get_file(inode).unwrap();
         let res = file.write(buf.as_slice())?;
+        Ok(res)
+    }
+    fn vfs_flush(&self, inode: InodeID) -> AlienResult<()> {
+        let file = get_file(inode).unwrap();
+        file.flush()?;
+        Ok(())
+    }
+    fn vfs_fsync(&self, inode: InodeID) -> AlienResult<()> {
+        let file = get_file(inode).unwrap();
+        file.fsync()?;
+        Ok(())
+    }
+    fn vfs_inode_type(&self, inode: InodeID) -> AlienResult<VfsNodeType> {
+        let file = get_file(inode).unwrap();
+        let res = file.inode().inode_type();
         Ok(res)
     }
 }

@@ -20,9 +20,6 @@ impl GPUDevice {
     pub fn new(device_id: DeviceId, device: Arc<dyn GpuDomain>) -> Self {
         Self { device_id, device }
     }
-    pub fn device_id(&self) -> DeviceId {
-        self.device_id
-    }
 }
 
 impl VfsFile for GPUDevice {

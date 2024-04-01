@@ -4,7 +4,7 @@ use constants::{
     io::{LocalModes, TeletypeCommand, Termios, WinSize},
     DeviceId,
 };
-use interface::BufUartDomain;
+use interface::{BufUartDomain, TaskDomain};
 use ksync::Mutex;
 use vfscore::{
     error::VfsError,
@@ -14,8 +14,6 @@ use vfscore::{
     utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
     VfsResult,
 };
-
-use crate::TASK_DOMAIN;
 
 #[derive(Debug, Default)]
 pub struct IoData {
@@ -28,18 +26,21 @@ pub struct UARTDevice {
     device_id: DeviceId,
     device: Arc<dyn BufUartDomain>,
     io: Mutex<IoData>,
+    task_domain: Arc<dyn TaskDomain>,
 }
 
 impl UARTDevice {
-    pub fn new(device_id: DeviceId, device: Arc<dyn BufUartDomain>) -> Self {
+    pub fn new(
+        device_id: DeviceId,
+        device: Arc<dyn BufUartDomain>,
+        task: Arc<dyn TaskDomain>,
+    ) -> Self {
         Self {
             device_id,
             device,
             io: Mutex::new(IoData::default()),
+            task_domain: task,
         }
-    }
-    pub fn device_id(&self) -> DeviceId {
-        self.device_id
     }
 }
 
@@ -97,18 +98,14 @@ impl VfsFile for UARTDevice {
         return match cmd {
             TeletypeCommand::TCGETS | TeletypeCommand::TCGETA => {
                 let size = core::mem::size_of::<Termios>();
-                TASK_DOMAIN
-                    .get()
-                    .unwrap()
+                self.task_domain
                     .copy_to_user(&io.termios as *const Termios as _, arg as *mut u8, size)
                     .unwrap();
                 Ok(0)
             }
             TeletypeCommand::TCSETS | TeletypeCommand::TCSETSW | TeletypeCommand::TCSETSF => {
                 let size = core::mem::size_of::<Termios>();
-                TASK_DOMAIN
-                    .get()
-                    .unwrap()
+                self.task_domain
                     .copy_from_user(
                         arg as *const Termios as _,
                         &io.termios as *const Termios as _,
@@ -118,10 +115,7 @@ impl VfsFile for UARTDevice {
                 Ok(0)
             }
             TeletypeCommand::TIOCGPGRP => {
-                // *word = io.foreground_pgid;
-                TASK_DOMAIN
-                    .get()
-                    .unwrap()
+                self.task_domain
                     .copy_to_user(
                         &io.foreground_pgid as *const u32 as _,
                         arg as *mut u8,
@@ -132,9 +126,7 @@ impl VfsFile for UARTDevice {
             }
             TeletypeCommand::TIOCSPGRP => {
                 let word = 0u32;
-                TASK_DOMAIN
-                    .get()
-                    .unwrap()
+                self.task_domain
                     .copy_from_user(
                         arg as *const u32 as _,
                         &word as *const u32 as _,
@@ -146,18 +138,14 @@ impl VfsFile for UARTDevice {
             }
             TeletypeCommand::TIOCGWINSZ => {
                 let size = core::mem::size_of::<WinSize>();
-                TASK_DOMAIN
-                    .get()
-                    .unwrap()
+                self.task_domain
                     .copy_to_user(&io.winsize as *const WinSize as _, arg as *mut u8, size)
                     .unwrap();
                 Ok(0)
             }
             TeletypeCommand::TIOCSWINSZ => {
                 let size = core::mem::size_of::<WinSize>();
-                TASK_DOMAIN
-                    .get()
-                    .unwrap()
+                self.task_domain
                     .copy_from_user(
                         arg as *const WinSize as _,
                         &io.winsize as *const WinSize as _,

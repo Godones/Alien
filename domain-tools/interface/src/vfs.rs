@@ -1,6 +1,6 @@
 use constants::AlienResult;
 use rref::{RRef, RRefVec};
-use vfscore::utils::{VfsFileStat, VfsFsStat, VfsNodeType};
+use vfscore::utils::{VfsFileStat, VfsFsStat, VfsNodeType, VfsPollEvents};
 
 use crate::Basic;
 
@@ -33,6 +33,8 @@ impl DirEntryWrapper {
 
 pub trait VfsDomain: Basic {
     fn init(&self) -> AlienResult<()>;
+    fn vfs_poll(&self, inode: InodeID, events: VfsPollEvents) -> AlienResult<VfsPollEvents>;
+    fn vfs_ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize>;
     fn vfs_open(
         &self,
         root: InodeID,
@@ -62,4 +64,7 @@ pub trait VfsDomain: Basic {
         buf: RRefVec<u8>,
     ) -> AlienResult<(RRefVec<u8>, usize)>;
     fn vfs_write(&self, inode: InodeID, buf: &RRefVec<u8>) -> AlienResult<usize>;
+    fn vfs_flush(&self, inode: InodeID) -> AlienResult<()>;
+    fn vfs_fsync(&self, inode: InodeID) -> AlienResult<()>;
+    fn vfs_inode_type(&self, inode: InodeID) -> AlienResult<VfsNodeType>;
 }

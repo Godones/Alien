@@ -5,8 +5,9 @@
 extern crate alloc;
 
 mod buf_uart;
-mod input;
+mod empty_device;
 mod fs;
+mod input;
 mod net;
 mod trampoline;
 mod vfs;
@@ -17,14 +18,14 @@ use core::{arch::asm, fmt::Debug};
 pub use buf_uart::BufUartDomainProxy;
 use constants::{io::RtcTime, AlienError, AlienResult};
 use domain_loader::DomainLoader;
+pub use empty_device::EmptyDeviceDomainProxy;
+pub use fs::*;
 pub use input::InputDomainProxy;
-pub use fs::FsDomainProxy;
 use interface::*;
 use ksync::{Mutex, RwLock};
 pub use net::NetDomainProxy;
 use rref::{RRef, RRefVec};
 pub use vfs::VfsDomainProxy;
-
 #[derive(Debug)]
 pub struct BlkDomainProxy {
     domain_id: u64,

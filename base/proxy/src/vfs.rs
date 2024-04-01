@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use constants::{AlienError, AlienResult};
 use interface::{Basic, InodeID, VfsDomain};
 use rref::{RRef, RRefVec};
-use vfscore::utils::VfsFileStat;
+use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 
 #[derive(Debug)]
 pub struct VfsDomainProxy {
@@ -25,6 +25,22 @@ impl Basic for VfsDomainProxy {
 impl VfsDomain for VfsDomainProxy {
     fn init(&self) -> AlienResult<()> {
         self.domain.init()
+    }
+
+    fn vfs_poll(&self, inode: InodeID, events: VfsPollEvents) -> AlienResult<VfsPollEvents> {
+        if self.domain.is_active() {
+            self.domain.vfs_poll(inode, events)
+        } else {
+            Err(AlienError::DOMAINCRASH)
+        }
+    }
+
+    fn vfs_ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize> {
+        if self.domain.is_active() {
+            self.domain.vfs_ioctl(inode, cmd, arg)
+        } else {
+            Err(AlienError::DOMAINCRASH)
+        }
     }
 
     fn vfs_open(
@@ -95,6 +111,30 @@ impl VfsDomain for VfsDomainProxy {
     fn vfs_write(&self, inode: InodeID, buf: &RRefVec<u8>) -> AlienResult<usize> {
         if self.domain.is_active() {
             self.domain.vfs_write(inode, buf)
+        } else {
+            Err(AlienError::DOMAINCRASH)
+        }
+    }
+
+    fn vfs_flush(&self, inode: InodeID) -> AlienResult<()> {
+        if self.domain.is_active() {
+            self.domain.vfs_flush(inode)
+        } else {
+            Err(AlienError::DOMAINCRASH)
+        }
+    }
+
+    fn vfs_fsync(&self, inode: InodeID) -> AlienResult<()> {
+        if self.domain.is_active() {
+            self.domain.vfs_fsync(inode)
+        } else {
+            Err(AlienError::DOMAINCRASH)
+        }
+    }
+
+    fn vfs_inode_type(&self, inode: InodeID) -> AlienResult<VfsNodeType> {
+        if self.domain.is_active() {
+            self.domain.vfs_inode_type(inode)
         } else {
             Err(AlienError::DOMAINCRASH)
         }

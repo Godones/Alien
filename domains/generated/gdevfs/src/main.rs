@@ -9,7 +9,7 @@ use core::panic::PanicInfo;
 
 use basic::println;
 use corelib::CoreFunction;
-use interface::InputDomain;
+use interface::DevFsDomain;
 use rref::{domain_id, SharedHeapAlloc};
 
 #[no_mangle]
@@ -17,7 +17,7 @@ fn main(
     sys: Box<dyn CoreFunction>,
     domain_id: u64,
     shared_heap: Box<dyn SharedHeapAlloc>,
-) -> Box<dyn InputDomain> {
+) -> Box<dyn DevFsDomain> {
     // init basic
     corelib::init(sys);
     // init rref's shared heap
@@ -26,7 +26,7 @@ fn main(
     // activate the domain
     interface::activate_domain();
     // call the real blk driver
-    input::main()
+    devfs::main()
 }
 
 #[panic_handler]

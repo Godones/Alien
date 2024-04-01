@@ -71,13 +71,42 @@ static NET_DOMAIN: &'static [u8] =
 static INPUT_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/ginput_domain.bin");
 
-#[allow(unused)]
+static RAMFS_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gramfs_domain.bin");
+
+static NULL_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gnull_domain.bin");
+
+static RANDOM_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/grandom_domain.bin");
+
+static DEVFS_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gdevfs_domain.bin");
 fn fatfs_domain() -> Arc<dyn FsDomain> {
+    info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
     let mut domain = DomainLoader::new(FATFS_DOMAIN);
     domain.load().unwrap();
     let id = alloc_domain_id();
     let fatfs = domain.call(id);
     Arc::new(FsDomainProxy::new(id, fatfs))
+}
+
+fn ramfs_domain() -> Arc<dyn FsDomain> {
+    info!("Load ramfs domain, size: {}KB", RAMFS_DOMAIN.len() / 1024);
+    let mut domain = DomainLoader::new(RAMFS_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let ramfs = domain.call(id);
+    Arc::new(FsDomainProxy::new(id, ramfs))
+}
+
+fn devfs_domain() -> Arc<dyn DevFsDomain> {
+    info!("Load devfs domain, size: {}KB", DEVFS_DOMAIN.len() / 1024);
+    let mut domain = DomainLoader::new(DEVFS_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let devfs = domain.call(id);
+    Arc::new(DevFsDomainProxy::new(id, devfs))
 }
 
 fn uart_domain() -> Arc<dyn UartDomain> {
@@ -91,7 +120,7 @@ fn uart_domain() -> Arc<dyn UartDomain> {
 
 #[cfg(feature = "gui")]
 fn gpu_domain() -> Arc<dyn GpuDomain> {
-    // info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
+    info!("Loading gpu domain, size: {}KB", GPU_DOMAIN.len() / 1024);
     let mut domain = DomainLoader::new(GPU_DOMAIN);
     domain.load().unwrap();
     let id = alloc_domain_id();
@@ -224,6 +253,24 @@ fn input_domain() -> Arc<dyn InputDomain> {
     let id = alloc_domain_id();
     let input = domain.call(id);
     Arc::new(InputDomainProxy::new(id, input))
+}
+
+fn null_device_domain() -> Arc<dyn EmptyDeviceDomain> {
+    info!("Load null domain, size: {}KB", NULL_DOMAIN.len() / 1024);
+    let mut domain = DomainLoader::new(NULL_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let null = domain.call(id);
+    Arc::new(EmptyDeviceDomainProxy::new(id, null))
+}
+
+fn random_device_domain() -> Arc<dyn EmptyDeviceDomain> {
+    info!("Load random domain, size: {}KB", RANDOM_DOMAIN.len() / 1024);
+    let mut domain = DomainLoader::new(RANDOM_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let random = domain.call(id);
+    Arc::new(EmptyDeviceDomainProxy::new(id, random))
 }
 
 /// set the kernel to the specific domain
@@ -369,15 +416,36 @@ fn init_device() -> Arc<dyn PLICDomain> {
             }
         }
     }
+
+    {
+        let null_device = null_device_domain();
+        null_device.init().unwrap();
+        domain_helper::register_domain("null", DomainType::EmptyDeviceDomain(null_device));
+        let random_device = random_device_domain();
+        random_device.init().unwrap();
+        domain_helper::register_domain("random", DomainType::EmptyDeviceDomain(random_device));
+        let zero_device = null_device_domain();
+        zero_device.init().unwrap();
+        domain_helper::register_domain("zero", DomainType::EmptyDeviceDomain(zero_device));
+        let urandom_device = random_device_domain();
+        urandom_device.init().unwrap();
+        domain_helper::register_domain("urandom", DomainType::EmptyDeviceDomain(urandom_device));
+    }
+
     plic
 }
 
 pub fn load_domains() {
     init_kernel_domain();
 
-    info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
-    let fs = fatfs_domain();
-    domain_helper::register_domain("fatfs", DomainType::FsDomain(fs));
+    let fatfs = fatfs_domain();
+    domain_helper::register_domain("fatfs", DomainType::FsDomain(fatfs.clone()));
+
+    let ramfs = ramfs_domain();
+    domain_helper::register_domain("ramfs", DomainType::FsDomain(ramfs.clone()));
+
+    let devfs = devfs_domain();
+    domain_helper::register_domain("devfs", DomainType::DevFsDomain(devfs.clone()));
 
     let vfs = vfs_domain();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs.clone()));
@@ -388,6 +456,10 @@ pub fn load_domains() {
     // we need to register vfs and task domain before init device, because we need to use vfs and task domain in some
     // device init function
     let plic = init_device();
+
+    devfs.init().unwrap();
+    fatfs.init().unwrap();
+    ramfs.init().unwrap();
 
     // The vfs domain may use the device domain, so we need to init vfs domain after init device domain,
     // also it may use the task domain.

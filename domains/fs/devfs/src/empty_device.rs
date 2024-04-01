@@ -1,6 +1,8 @@
 use alloc::sync::Arc;
 
 use constants::DeviceId;
+use interface::EmptyDeviceDomain;
+use rref::RRefVec;
 use vfscore::{
     error::VfsError,
     file::VfsFile,
@@ -10,25 +12,22 @@ use vfscore::{
     VfsResult,
 };
 
-pub struct RandomDevice {
+// like null/random device
+pub struct EmptyDevice {
     device_id: DeviceId,
+    domain: Arc<dyn EmptyDeviceDomain>,
 }
-impl RandomDevice {
-    pub fn new(device_id: DeviceId) -> Self {
-        Self { device_id }
-    }
-    pub fn device_id(&self) -> DeviceId {
-        self.device_id
+impl EmptyDevice {
+    pub fn new(device_id: DeviceId, domain: Arc<dyn EmptyDeviceDomain>) -> Self {
+        Self { device_id, domain }
     }
 }
 
-impl VfsFile for RandomDevice {
+impl VfsFile for EmptyDevice {
     fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let mut current_time = basic::time::read_time_ms();
-        buf.iter_mut().for_each(|x| {
-            *x = current_time as u8;
-            current_time = current_time.wrapping_sub(1);
-        });
+        let shared_buf = RRefVec::new(0, buf.len());
+        let shared_buf = self.domain.read(shared_buf)?;
+        buf.copy_from_slice(shared_buf.as_slice());
         Ok(buf.len())
     }
     fn write_at(&self, _offset: u64, buf: &[u8]) -> VfsResult<usize> {
@@ -36,7 +35,7 @@ impl VfsFile for RandomDevice {
     }
 }
 
-impl VfsInode for RandomDevice {
+impl VfsInode for EmptyDevice {
     fn get_super_block(&self) -> VfsResult<Arc<dyn VfsSuperBlock>> {
         Err(VfsError::NoSys)
     }

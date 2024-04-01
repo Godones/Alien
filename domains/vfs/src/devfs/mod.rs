@@ -1,45 +1,12 @@
-mod block;
-mod gpu;
 mod id;
-mod input;
-mod null;
-mod random;
-mod rtc;
-mod uart;
 
 use alloc::sync::Arc;
 
 use basic::println;
-use constants::DeviceId;
-use devfs::DevKernelProvider;
-use id::{alloc_device_id, query_device, register_device};
-use interface::DomainType;
-use log::info;
-use null::NullDevice;
-use random::RandomDevice;
-use vfscore::{
-    dentry::VfsDentry,
-    fstype::VfsFsType,
-    inode::VfsInode,
-    utils::{VfsNodeType, VfsTimeSpec},
-};
-
-use crate::devfs::{
-    block::BLKDevice, gpu::GPUDevice, input::INPUTDevice, rtc::RTCDevice, uart::UARTDevice,
-};
-
-#[derive(Clone)]
-pub struct DevFsProviderImpl;
-
-impl DevKernelProvider for DevFsProviderImpl {
-    fn current_time(&self) -> VfsTimeSpec {
-        VfsTimeSpec::new(0, 0)
-    }
-    fn rdev2device(&self, rdev: u64) -> Option<Arc<dyn VfsInode>> {
-        let device_id = DeviceId::from(rdev);
-        query_device(device_id)
-    }
-}
+use id::alloc_device_id;
+use interface::DevFsDomain;
+use rref::RRefVec;
+use vfscore::{dentry::VfsDentry, utils::VfsNodeType};
 
 ///```bash
 /// |
@@ -52,21 +19,32 @@ impl DevKernelProvider for DevFsProviderImpl {
 /// |-- misc
 ///    |-- rtc
 /// ```
-pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
-    let root = devfs.i_mount(0, "/dev", None, &[]).unwrap();
-    let root_inode = root.inode().unwrap();
+pub fn init_devfs(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dyn VfsDentry>) {
+    let root_inode = root_dt.inode().unwrap();
 
-    let null_device = Arc::new(NullDevice::new(alloc_device_id(VfsNodeType::CharDevice)));
-    let zero_device = Arc::new(NullDevice::new(alloc_device_id(VfsNodeType::CharDevice)));
-    let random_device = Arc::new(RandomDevice::new(alloc_device_id(VfsNodeType::CharDevice)));
-    let urandom_device = Arc::new(RandomDevice::new(alloc_device_id(VfsNodeType::CharDevice)));
+    let null_device_id = alloc_device_id(VfsNodeType::CharDevice);
+    let zero_device_id = alloc_device_id(VfsNodeType::CharDevice);
+    let random_device_id = alloc_device_id(VfsNodeType::CharDevice);
+    let urandom_device_id = alloc_device_id(VfsNodeType::CharDevice);
 
+    devfs_domain
+        .register(null_device_id.id(), &RRefVec::from_slice(b"null"))
+        .unwrap();
+    devfs_domain
+        .register(zero_device_id.id(), &RRefVec::from_slice(b"zero"))
+        .unwrap();
+    devfs_domain
+        .register(random_device_id.id(), &RRefVec::from_slice(b"random"))
+        .unwrap();
+    devfs_domain
+        .register(urandom_device_id.id(), &RRefVec::from_slice(b"urandom"))
+        .unwrap();
     root_inode
         .create(
             "null",
             'c'.into(),
             "rw-rw-rw-".into(),
-            Some(null_device.device_id().id()),
+            Some(null_device_id.id()),
         )
         .unwrap();
     root_inode
@@ -74,7 +52,7 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
             "zero",
             'c'.into(),
             "rw-rw-rw-".into(),
-            Some(zero_device.device_id().id()),
+            Some(zero_device_id.id()),
         )
         .unwrap();
     root_inode
@@ -82,7 +60,7 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
             "random",
             'c'.into(),
             "rw-rw-rw-".into(),
-            Some(random_device.device_id().id()),
+            Some(random_device_id.id()),
         )
         .unwrap();
     root_inode
@@ -90,14 +68,9 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
             "urandom",
             'c'.into(),
             "rw-rw-rw-".into(),
-            Some(urandom_device.device_id().id()),
+            Some(urandom_device_id.id()),
         )
         .unwrap();
-
-    register_device(null_device);
-    register_device(zero_device);
-    register_device(random_device);
-    register_device(urandom_device);
 
     root_inode
         .create("shm", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
@@ -106,13 +79,15 @@ pub fn init_devfs(devfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
         .create("misc", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
         .unwrap();
 
-    scan_system_devices(root_inode);
+    scan_system_devices(devfs_domain, root_dt);
+
     // todo!(tty,shm,misc)
     println!("devfs init success");
-    root
 }
 
-fn scan_system_devices(root: Arc<dyn VfsInode>) {
+pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dyn VfsDentry>) {
+    let root = root_dt.inode().unwrap();
+
     let uart = basic::get_domain("buf_uart");
     let gpu = basic::get_domain("gpu");
     let mouse = basic::get_domain("mouse");
@@ -121,127 +96,118 @@ fn scan_system_devices(root: Arc<dyn VfsInode>) {
     let rtc = basic::get_domain("rtc");
 
     match uart {
-        Some(DomainType::BufUartDomain(uart)) => {
-            let uart_device = Arc::new(UARTDevice::new(
-                alloc_device_id(VfsNodeType::CharDevice),
-                uart,
-            ));
+        Some(_) => {
+            let uart_id = alloc_device_id(VfsNodeType::CharDevice);
+            devfs_domain
+                .register(uart_id.id(), &RRefVec::from_slice(b"buf_uart"))
+                .unwrap();
             root.create(
                 "tty",
-                VfsNodeType::BlockDevice,
+                VfsNodeType::CharDevice,
                 "rw-rw----".into(),
-                Some(uart_device.device_id().id()),
+                Some(uart_id.id()),
             )
             .unwrap();
-            info!("uart device id: {}", uart_device.device_id().id());
-            register_device(uart_device);
         }
-        _ => {
+        None => {
             panic!("uart domain not found");
         }
-    };
+    }
 
     match gpu {
-        Some(DomainType::GpuDomain(gpu)) => {
-            let gpu_device = Arc::new(GPUDevice::new(
-                alloc_device_id(VfsNodeType::CharDevice),
-                gpu,
-            ));
+        Some(_) => {
+            let gpu_id = alloc_device_id(VfsNodeType::CharDevice);
+            devfs_domain
+                .register(gpu_id.id(), &RRefVec::from_slice(b"virtio-mmio-gpu"))
+                .unwrap();
             root.create(
-                "gpu",
-                VfsNodeType::BlockDevice,
+                "virtio-mmio-gpu",
+                VfsNodeType::CharDevice,
                 "rw-rw----".into(),
-                Some(gpu_device.device_id().id()),
+                Some(gpu_id.id()),
             )
             .unwrap();
-            info!("gpu device id: {}", gpu_device.device_id().id());
-            register_device(gpu_device);
         }
-        _ => {
+        None => {
             println!("gpu domain not found");
         }
-    };
+    }
 
     match mouse {
-        Some(DomainType::BufInputDomain(input)) => {
-            let input_device = Arc::new(INPUTDevice::new(
-                alloc_device_id(VfsNodeType::CharDevice),
-                input,
-                false,
-            ));
-            root.create(
-                "keyboard",
-                VfsNodeType::BlockDevice,
-                "rw-rw----".into(),
-                Some(input_device.device_id().id()),
-            )
-            .unwrap();
-            info!("keyboard device id: {}", input_device.device_id().id());
-            register_device(input_device);
-        }
-        _ => {
-            println!("mouse domain not found");
-        }
-    };
-    match keyboard {
-        Some(DomainType::BufInputDomain(input)) => {
-            let input_device = Arc::new(INPUTDevice::new(
-                alloc_device_id(VfsNodeType::CharDevice),
-                input.clone(),
-                true,
-            ));
+        Some(_) => {
+            let mouse_id = alloc_device_id(VfsNodeType::CharDevice);
+            devfs_domain
+                .register(mouse_id.id(), &RRefVec::from_slice(b"mouse"))
+                .unwrap();
             root.create(
                 "mouse",
-                VfsNodeType::BlockDevice,
+                VfsNodeType::CharDevice,
                 "rw-rw----".into(),
-                Some(input_device.device_id().id()),
+                Some(mouse_id.id()),
             )
             .unwrap();
-            info!("mouse device id: {}", input_device.device_id().id());
-            register_device(input_device);
         }
-        _ => {
+        None => {
+            println!("mouse domain not found");
+        }
+    }
+
+    match keyboard {
+        Some(_) => {
+            let keyboard_id = alloc_device_id(VfsNodeType::CharDevice);
+            devfs_domain
+                .register(keyboard_id.id(), &RRefVec::from_slice(b"keyboard"))
+                .unwrap();
+            root.create(
+                "keyboard",
+                VfsNodeType::CharDevice,
+                "rw-rw----".into(),
+                Some(keyboard_id.id()),
+            )
+            .unwrap();
+        }
+        None => {
             println!("keyboard domain not found");
         }
-    };
+    }
 
     match blk {
-        Some(DomainType::CacheBlkDeviceDomain(blk)) => {
-            let block_device = Arc::new(BLKDevice::new(
-                alloc_device_id(VfsNodeType::BlockDevice),
-                blk,
-            ));
+        Some(_) => {
+            let blk_id = alloc_device_id(VfsNodeType::BlockDevice);
+            devfs_domain
+                .register(blk_id.id(), &RRefVec::from_slice(b"cache_blk"))
+                .unwrap();
             root.create(
                 "sda",
                 VfsNodeType::BlockDevice,
                 "rw-rw----".into(),
-                Some(block_device.device_id().id()),
+                Some(blk_id.id()),
             )
             .unwrap();
-            info!("block device id: {}", block_device.device_id().id());
-            register_device(block_device);
         }
-        _ => panic!("blk domain not found"),
-    };
+        None => panic!("blk domain not found"),
+    }
 
     match rtc {
-        Some(DomainType::RtcDomain(rtc)) => {
-            let rtc_device = Arc::new(RTCDevice::new(
-                alloc_device_id(VfsNodeType::CharDevice),
-                rtc,
-            ));
+        Some(_) => {
+            let rtc_id = alloc_device_id(VfsNodeType::CharDevice);
+            devfs_domain
+                .register(rtc_id.id(), &RRefVec::from_slice(b"rtc"))
+                .unwrap();
             root.create(
                 "rtc",
-                VfsNodeType::BlockDevice,
+                VfsNodeType::CharDevice,
                 "rw-rw----".into(),
-                Some(rtc_device.device_id().id()),
+                Some(rtc_id.id()),
             )
             .unwrap();
-            info!("rtc device id: {}", rtc_device.device_id().id());
-            register_device(rtc_device);
         }
-        _ => {
+        None => {
             println!("rtc domain not found");
         }
     };
+    root.create("shm", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
+        .unwrap();
+    root.create("misc", VfsNodeType::Dir, "rwxrwxrwx".into(), None)
+        .unwrap();
 }

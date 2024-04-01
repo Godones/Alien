@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use vfscore::{dentry::VfsDentry, fstype::VfsFsType, utils::VfsNodeType};
+use vfscore::{dentry::VfsDentry, utils::VfsNodeType};
 
 ///
 /// ```bash
@@ -21,8 +21,7 @@ use vfscore::{dentry::VfsDentry, fstype::VfsFsType, utils::VfsNodeType};
 /// |-- bin  (fat32)
 /// |-- tmp   (ramfs)
 /// ```
-pub fn init_ramfs(ramfs: Arc<dyn VfsFsType>) -> Arc<dyn VfsDentry> {
-    let root_dt = ramfs.i_mount(0, "/", None, &[]).unwrap();
+pub fn init_ramfs(root_dt: Arc<dyn VfsDentry>) -> Arc<dyn VfsDentry> {
     let root_inode = root_dt.inode().unwrap();
     let root = root_inode
         .create("root", VfsNodeType::Dir, "rwxr-xr-x".into(), None)

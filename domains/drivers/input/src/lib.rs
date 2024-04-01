@@ -1,17 +1,17 @@
 #![no_std]
 
 extern crate alloc;
-use alloc::sync::Arc;
+
+use alloc::{boxed::Box, sync::Arc};
 use core::fmt::Debug;
 
 use constants::AlienResult;
 use interface::{Basic, DeviceBase, DeviceInfo, InputDomain};
 use ksync::Mutex;
 use spin::Once;
-use virtio_drivers::device::input::VirtIOInput;
 
 mod input;
-use input::{HalImpl, VirtioInputWrapper};
+use input::VirtioInputWrapper;
 
 static INPUT: Once<Arc<Mutex<VirtioInputWrapper>>> = Once::new();
 
@@ -46,6 +46,6 @@ impl InputDomain for InputDevDomain {
     }
 }
 
-pub fn main() -> Arc<dyn InputDomain> {
-    Arc::new(InputDevDomain)
+pub fn main() -> Box<dyn InputDomain> {
+    Box::new(InputDevDomain)
 }

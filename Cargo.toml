@@ -59,7 +59,19 @@ members = [
     "domains/generated/gvirtio-mmio-net",
     "domains/generated/ginput",
     "safe-crates/page_table",
-    "safe-crates/memory_addr", "safe-crates/goldfish_rtc", "safe-crates/uart16550",
+    "safe-crates/memory_addr",
+    "safe-crates/goldfish_rtc",
+    "safe-crates/uart16550",
+    "domains/fs/generic",
+    "domains/fs/ramfs",
+    "domains/fs/devfs",
+    "domains/fs/procfs",
+    "domains/generated/gramfs",
+    "domains/drivers/null",
+    "domains/drivers/random",
+    "domains/generated/gnull",
+    "domains/generated/grandom",
+    "domains/generated/gdevfs",
 ]
 
 resolver = "2"

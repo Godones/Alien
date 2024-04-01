@@ -1,41 +1,43 @@
-use interface::InodeID;
-use rref::{RRef, RRefVec};
+use alloc::sync::Arc;
+
+use constants::DeviceId;
+use interface::CacheBlkDeviceDomain;
+use rref::RRefVec;
 use vfscore::{
+    error::VfsError,
     file::VfsFile,
     inode::{InodeAttr, VfsInode},
     utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
     VfsResult,
 };
 
-use crate::VFS_DOMAIN;
-
-pub struct MountPointShimInode {
-    inode_id: InodeID,
+pub struct BLKDevice {
+    device_id: DeviceId,
+    device: Arc<dyn CacheBlkDeviceDomain>,
 }
 
-impl MountPointShimInode {
-    pub fn new(inode_id: InodeID) -> Self {
-        Self { inode_id }
+impl BLKDevice {
+    pub fn new(device_id: DeviceId, device: Arc<dyn CacheBlkDeviceDomain>) -> Self {
+        Self { device_id, device }
     }
 }
 
-impl VfsFile for MountPointShimInode {
+impl VfsFile for BLKDevice {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let share_buf = RRefVec::new(0, buf.len());
-        let vfs_domain = VFS_DOMAIN.get().unwrap();
-        let (res, r) = vfs_domain
-            .vfs_read_at(self.inode_id, offset, share_buf)
-            .unwrap();
+        let res = self
+            .device
+            .read(offset, share_buf)
+            .map_err(|_| VfsError::IoError)?;
         buf.copy_from_slice(res.as_slice());
-        Ok(r)
+        Ok(buf.len())
     }
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        let vfs_domain = VFS_DOMAIN.get().unwrap();
         let share_buf = RRefVec::from_slice(buf);
-        let (_buf, w) = vfs_domain
-            .vfs_write_at(self.inode_id, offset, share_buf)
-            .unwrap();
-        Ok(w)
+        self.device
+            .write(offset, &share_buf)
+            .map_err(|_| VfsError::IoError)?;
+        Ok(buf.len())
     }
     fn poll(&self, _event: VfsPollEvents) -> VfsResult<VfsPollEvents> {
         unimplemented!()
@@ -51,15 +53,17 @@ impl VfsFile for MountPointShimInode {
     }
 }
 
-impl VfsInode for MountPointShimInode {
+impl VfsInode for BLKDevice {
     fn set_attr(&self, _attr: InodeAttr) -> VfsResult<()> {
         Ok(())
     }
     fn get_attr(&self) -> VfsResult<VfsFileStat> {
-        let vfs_domain = VFS_DOMAIN.get().unwrap();
-        let stat = RRef::new(VfsFileStat::default());
-        let stat = vfs_domain.vfs_getattr(self.inode_id, stat).unwrap();
-        Ok(*stat)
+        Ok(VfsFileStat {
+            st_rdev: self.device_id.id(),
+            st_size: self.device.get_capacity().unwrap() as u64,
+            st_blksize: 512,
+            ..Default::default()
+        })
     }
     fn inode_type(&self) -> VfsNodeType {
         VfsNodeType::BlockDevice

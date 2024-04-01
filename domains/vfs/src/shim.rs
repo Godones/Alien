@@ -15,7 +15,7 @@ use vfscore::{
     fstype::{FileSystemFlags, VfsFsType, VfsMountPoint},
     inode::{InodeAttr, VfsInode},
     superblock::{SuperType, VfsSuperBlock},
-    utils::{*},
+    utils::*,
     VfsResult,
 };
 
@@ -88,8 +88,7 @@ impl VfsDentry for RootShimDentry {
         self.dentry.set_parent(parent)
     }
 }
-
-pub struct FsShimInode {
+struct FsShimInode {
     ino: InodeID,
     fs_domain: Arc<dyn FsDomain>,
     sb: Mutex<Option<Weak<dyn VfsSuperBlock>>>,
@@ -273,8 +272,7 @@ impl VfsInode for FsShimInode {
         Ok(())
     }
 }
-
-pub struct ShimSuperBlock {
+struct ShimSuperBlock {
     fs_domain: Arc<dyn FsDomain>,
     root_inode: Arc<dyn VfsInode>,
     fs: Arc<ShimFs>,
@@ -319,8 +317,7 @@ impl VfsSuperBlock for ShimSuperBlock {
         Ok(self.root_inode.clone())
     }
 }
-
-pub struct ShimFs {
+struct ShimFs {
     fs_domain: Arc<dyn FsDomain>,
 }
 

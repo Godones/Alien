@@ -1,5 +1,4 @@
-use alloc::boxed::Box;
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 
 use constants::{AlienError, AlienResult};
 use interface::{Basic, DeviceBase, DeviceInfo, InputDomain};

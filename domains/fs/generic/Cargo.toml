@@ -1,5 +1,5 @@
 [package]
-name = "fatfs"
+name = "generic"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,9 +7,10 @@ edition = "2021"
 
 [dependencies]
 interface = { path = "../../../domain-tools/interface" }
-fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
+rref = { path = "../../../domain-tools/rref" }
+basic = { path = "../../../domain-tools/basic" }
+constants = { path = "../../../base/constants" }
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
 ksync = { path = "../../../base/ksync" }
-generic = { path = "../generic" }
 log = "0"
 spin = { workspace = true }

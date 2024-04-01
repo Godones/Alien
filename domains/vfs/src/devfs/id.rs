@@ -1,9 +1,9 @@
-use alloc::{collections::BTreeMap, sync::Arc};
+use alloc::collections::BTreeMap;
 
 use constants::DeviceId;
 use ksync::Mutex;
 use spin::Lazy;
-use vfscore::{inode::VfsInode, utils::VfsNodeType};
+use vfscore::utils::VfsNodeType;
 
 struct DeviceIdManager {
     map: BTreeMap<u32, u32>,
@@ -45,23 +45,4 @@ static DEVICE_ID_MANAGER: Lazy<Mutex<DeviceIdManager>> =
 
 pub fn alloc_device_id(inode_type: VfsNodeType) -> DeviceId {
     DEVICE_ID_MANAGER.lock().alloc(inode_type)
-}
-
-static DEVICES: Lazy<Mutex<BTreeMap<DeviceId, Arc<dyn VfsInode>>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
-
-pub fn register_device(inode: Arc<dyn VfsInode>) {
-    let rdev = inode.get_attr().unwrap().st_rdev;
-    let device_id = DeviceId::from(rdev);
-    DEVICES.lock().insert(device_id, inode);
-}
-
-/// Unregister a device from the device map.
-#[allow(unused)]
-pub fn unregister_device(rdev: DeviceId) {
-    DEVICES.lock().remove(&rdev);
-}
-
-pub fn query_device(rdev: DeviceId) -> Option<Arc<dyn VfsInode>> {
-    DEVICES.lock().get(&rdev).cloned()
 }

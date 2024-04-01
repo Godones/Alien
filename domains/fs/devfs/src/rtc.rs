@@ -5,7 +5,7 @@ use constants::{
     io::{RtcTime, TeletypeCommand},
     DeviceId,
 };
-use interface::RtcDomain;
+use interface::{RtcDomain, TaskDomain};
 use rref::RRef;
 use vfscore::{
     error::VfsError,
@@ -16,19 +16,19 @@ use vfscore::{
     VfsResult,
 };
 
-use crate::TASK_DOMAIN;
-
 pub struct RTCDevice {
     device_id: DeviceId,
     device: Arc<dyn RtcDomain>,
+    task_domain: Arc<dyn TaskDomain>,
 }
 
 impl RTCDevice {
-    pub fn new(device_id: DeviceId, device: Arc<dyn RtcDomain>) -> Self {
-        Self { device_id, device }
-    }
-    pub fn device_id(&self) -> DeviceId {
-        self.device_id
+    pub fn new(device_id: DeviceId, device: Arc<dyn RtcDomain>, task: Arc<dyn TaskDomain>) -> Self {
+        Self {
+            device_id,
+            device,
+            task_domain: task,
+        }
     }
 }
 
@@ -52,9 +52,7 @@ impl VfsFile for RTCDevice {
                 let mut time = RRef::new(RtcTime::default());
                 time = self.device.read_time(time).unwrap();
                 let size = core::mem::size_of::<RtcTime>();
-                TASK_DOMAIN
-                    .get()
-                    .unwrap()
+                self.task_domain
                     .copy_to_user(time.deref() as *const RtcTime as _, arg as *mut u8, size)
                     .unwrap();
             }
@@ -89,32 +87,4 @@ impl VfsInode for RTCDevice {
     fn inode_type(&self) -> VfsNodeType {
         VfsNodeType::CharDevice
     }
-}
-
-#[allow(dead_code)]
-fn example() {
-    // let rtc = RTC_DEVICE.get().unwrap();
-    // let time = rtc.read_time();
-    // let alarm = rtc.read_alarm();
-    // println!("time: {:#x}, alarm: {:#x}", time, alarm);
-    // rtc.clear_irq();
-    // rtc.enable_irq();
-    // println!("set alarm");
-    // rtc.set_alarm(time + 1_000_000_000 * 5); // wait 5s
-    // let alarm = rtc.read_alarm_fmt();
-    // let status = rtc.alarm_status();
-    // let is_enable = rtc.is_irq_enabled();
-    // println!(
-    //     "At {:?}, rtc will interrupt, status: {} enable: {}",
-    //     alarm, status, is_enable
-    // );
-    // loop {
-    //     let time = rtc.read_time();
-    //     let alarm = rtc.read_alarm();
-    //     if time == alarm {
-    //         let status = rtc.alarm_status();
-    //         let enable = rtc.is_irq_enabled();
-    //         println!("time == alarm, status: {}, enable: {}", status, enable);
-    //     }
-    // }
 }
