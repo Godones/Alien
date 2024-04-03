@@ -48,7 +48,7 @@ make help
 ```
 
 ```
-# 一键运行qemu
+# 一键运行qemu，注意在编译busybox时选择静态链接Settings->Build static binary (no shared libs)
 make run
 # run test
 > cd tests
