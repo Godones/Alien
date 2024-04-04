@@ -48,62 +48,28 @@ make help
 ```
 
 ```
-# 一键运行
-# 可以指定LOG=ERROR/WARN/INFO/DEBUG/TRACE开启调式
-make run [LOG=] [SMP=]
-```
-
-构建测试程序镜像:
-
-```
-make sdcard [GUI=n/y]
-```
-
-如果只想重新构建`kernel`而不改变测试程序，可以使用：
-
-```
-make build LOG= [LOG=] [SMP=]
-```
-
-使用已经编译好的程序运行而不是再次编译可以使用：
-
-```
-# 确保和make build的SMP一致
-make fake_run [SMP=]
-```
-
-运行测试(in bash)
-
-```
+# 一键运行qemu，注意在编译busybox时选择静态链接Settings->Build static binary (no shared libs)
+make run
+# run test
 > cd tests
-> ls
-> final_test
+> ./final_test
 ```
 
 ### Run with GUI (QEMU)
 
 ```
 make run GUI=y
-cd bin
+cd tests
 slint or guitest or todo or printdemo or memorygame or ...
 ```
 
-### Run VisionFive2
+### [Run VisionFive2](./docs/doc/boot.md)
+
+Update the `TFTPBOOT`  variable in Makefile.
 
 ```
 make sdcard
-// 制作fat32
-make vf2 LOG=WARN VF2=y SMP=2
-// 生成testos.bin
-// 这里smp=2 表示的是单核启动，对于u74-mc处理器，0号核不会被启动，从1号开始。
-```
-
-## Run Unmatched
-
-```
-make sdcard
-// 制作fat32
-make unmatched LOG= UNMATCHED=y SMP=2
+make vf2 VF2=y SMP=2
 // 生成testos.bin
 // 这里smp=2 表示的是单核启动，对于u74-mc处理器，0号核不会被启动，从1号开始。
 ```
@@ -113,7 +79,7 @@ make unmatched LOG= UNMATCHED=y SMP=2
 1. `make gdb-server`
 2. `make gdb-client`
 
-## [Doc](docs/doc/doc.md)
+## [Doc](https://godones.github.io/Alien/)
 
 
 
