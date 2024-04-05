@@ -54,7 +54,7 @@ fn register_all_fs() {
 /// Init the filesystem
 pub fn init_filesystem() -> VfsResult<()> {
     register_all_fs();
-    let ramfsfs_domain = basic::get_domain("ramfs").unwrap();
+    let ramfsfs_domain = basic::get_domain("ramfs-1").unwrap();
     let ramfs_root = match ramfsfs_domain {
         DomainType::FsDomain(ramfs) => {
             let mp = RRefVec::from_slice(b"/");
@@ -108,6 +108,8 @@ pub fn init_filesystem() -> VfsResult<()> {
         .clone()
         .i_mount(0, "/tmp", None, &[])?;
 
+    // let tmpfs_domain = basic::create_domain("ramfs").unwrap();
+
     let pipefs_domain = basic::get_domain("pipefs").unwrap();
     match pipefs_domain {
         DomainType::FsDomain(pipefs) => {
@@ -144,7 +146,7 @@ pub fn init_filesystem() -> VfsResult<()> {
         map.insert(VFS_STDERR_ID, STDOUT.clone());
     }
 
-    let fatfs_domain = basic::get_domain("fatfs").unwrap();
+    let fatfs_domain = basic::get_domain("fatfs-1").unwrap();
     match fatfs_domain {
         DomainType::FsDomain(fatfs) => {
             let blk_inode = path

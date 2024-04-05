@@ -30,3 +30,8 @@
    ```
    {interface_name}
    ```
+4. build one domain
+   
+   ```
+    cargo domain build --name {domain_name}
+    ```

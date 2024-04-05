@@ -17,6 +17,14 @@ enum Commands {
         #[arg(short, long, value_name = "NAME")]
         name: String,
     },
+    Build {
+        /// The name of the domain project
+        #[arg(short, long, value_name = "NAME")]
+        name: String,
+        /// The log level, default is IFNO
+        #[arg(short, long, value_name = "LOG", default_value = "IFNO")]
+        log: String,
+    },
 }
 
 fn main() {
@@ -28,6 +36,10 @@ fn main() {
         Some(Commands::New { name }) => {
             println!("Creating new domain project: {}", name);
             subcommand::new::create_domain(name);
+        }
+        Some(Commands::Build { name, log }) => {
+            println!("Building domain project: {}, LOG: {}", name, log);
+            subcommand::build::build_domain(name, log);
         }
         None => {}
     }

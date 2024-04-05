@@ -1,2 +1,2 @@
 [alias]
-domain = "run --manifest-path ./domain-tools/xtask/Cargo.toml --"
+domain = "run -p xtask --"

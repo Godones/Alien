@@ -222,7 +222,7 @@ impl DomainLoader {
         let end_paddr = VirtAddr::from(end_paddr).align_up(FRAME_SIZE);
         // alloc free page to map elf
         let region_start = alloc_free_region(end_paddr.as_usize()).unwrap();
-        info!(
+        trace!(
             "region range:{:#x}-{:#x}",
             region_start,
             region_start + end_paddr.as_usize()

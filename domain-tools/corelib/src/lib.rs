@@ -20,6 +20,7 @@ pub trait CoreFunction: Send + Sync {
     fn blk_crash_trick(&self) -> bool;
     fn sys_read_time_ms(&self) -> u64;
     fn sys_get_domain(&self, name: &str) -> Option<DomainType>;
+    fn sys_create_domain(&self, identifier: &str) -> Option<DomainType>;
 }
 
 #[cfg(feature = "core_impl")]
@@ -112,5 +113,9 @@ mod core_impl {
 
     pub fn get_domain(name: &str) -> Option<DomainType> {
         unsafe { CORE_FUNC.get_unchecked().sys_get_domain(name) }
+    }
+
+    pub fn create_domain(identifier: &str) -> Option<DomainType> {
+        unsafe { CORE_FUNC.get_unchecked().sys_create_domain(identifier) }
     }
 }

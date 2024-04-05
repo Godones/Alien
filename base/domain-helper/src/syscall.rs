@@ -9,7 +9,7 @@ use log::{info, warn};
 use platform::iprint;
 use spin::Lazy;
 
-use crate::SharedHeapAllocator;
+use crate::{SharedHeapAllocator, DOMAIN_CREATE};
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
@@ -129,12 +129,15 @@ impl CoreFunction for DomainSyscall {
     fn sys_get_domain(&self, name: &str) -> Option<DomainType> {
         crate::query_domain(name)
     }
+
+    fn sys_create_domain(&self, identifier: &str) -> Option<DomainType> {
+        DOMAIN_CREATE.get().unwrap().create_domain(identifier)
+    }
 }
 extern "C" {
     fn strampoline();
 }
 static BLK_CRASH: AtomicBool = AtomicBool::new(true);
-
 fn unwind() -> ! {
     BLK_CRASH.store(false, core::sync::atomic::Ordering::Relaxed);
     continuation::unwind()

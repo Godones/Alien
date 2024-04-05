@@ -23,21 +23,12 @@ pub fn init_devfs(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dyn VfsDent
     let root_inode = root_dt.inode().unwrap();
 
     let null_device_id = alloc_device_id(VfsNodeType::CharDevice);
-    let zero_device_id = alloc_device_id(VfsNodeType::CharDevice);
     let random_device_id = alloc_device_id(VfsNodeType::CharDevice);
-    let urandom_device_id = alloc_device_id(VfsNodeType::CharDevice);
-
     devfs_domain
         .register(null_device_id.id(), &RRefVec::from_slice(b"null"))
         .unwrap();
     devfs_domain
-        .register(zero_device_id.id(), &RRefVec::from_slice(b"zero"))
-        .unwrap();
-    devfs_domain
         .register(random_device_id.id(), &RRefVec::from_slice(b"random"))
-        .unwrap();
-    devfs_domain
-        .register(urandom_device_id.id(), &RRefVec::from_slice(b"urandom"))
         .unwrap();
     root_inode
         .create(
@@ -52,7 +43,7 @@ pub fn init_devfs(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dyn VfsDent
             "zero",
             'c'.into(),
             "rw-rw-rw-".into(),
-            Some(zero_device_id.id()),
+            Some(null_device_id.id()),
         )
         .unwrap();
     root_inode
@@ -68,7 +59,7 @@ pub fn init_devfs(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dyn VfsDent
             "urandom",
             'c'.into(),
             "rw-rw-rw-".into(),
-            Some(urandom_device_id.id()),
+            Some(random_device_id.id()),
         )
         .unwrap();
 
@@ -88,12 +79,12 @@ pub fn init_devfs(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dyn VfsDent
 pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dyn VfsDentry>) {
     let root = root_dt.inode().unwrap();
 
-    let uart = basic::get_domain("buf_uart");
-    let gpu = basic::get_domain("gpu");
-    let mouse = basic::get_domain("mouse");
-    let keyboard = basic::get_domain("keyboard");
-    let blk = basic::get_domain("cache_blk");
-    let rtc = basic::get_domain("rtc");
+    let uart = basic::get_domain("buf_uart"); // unique name
+    let gpu = basic::get_domain("virtio-mmio-gpu-1");
+    let mouse = basic::get_domain("virtio-mmio-input-1");
+    let keyboard = basic::get_domain("virtio-mmio-input-2");
+    let blk = basic::get_domain("cache_blk-1");
+    let rtc = basic::get_domain("rtc"); // unique name
 
     match uart {
         Some(_) => {
@@ -118,7 +109,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         Some(_) => {
             let gpu_id = alloc_device_id(VfsNodeType::CharDevice);
             devfs_domain
-                .register(gpu_id.id(), &RRefVec::from_slice(b"virtio-mmio-gpu"))
+                .register(gpu_id.id(), &RRefVec::from_slice(b"virtio-mmio-gpu-1"))
                 .unwrap();
             root.create(
                 "virtio-mmio-gpu",
@@ -137,7 +128,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         Some(_) => {
             let mouse_id = alloc_device_id(VfsNodeType::CharDevice);
             devfs_domain
-                .register(mouse_id.id(), &RRefVec::from_slice(b"mouse"))
+                .register(mouse_id.id(), &RRefVec::from_slice(b"virtio-mmio-input-1"))
                 .unwrap();
             root.create(
                 "mouse",
@@ -156,7 +147,10 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         Some(_) => {
             let keyboard_id = alloc_device_id(VfsNodeType::CharDevice);
             devfs_domain
-                .register(keyboard_id.id(), &RRefVec::from_slice(b"keyboard"))
+                .register(
+                    keyboard_id.id(),
+                    &RRefVec::from_slice(b"virtio-mmio-input-2"),
+                )
                 .unwrap();
             root.create(
                 "keyboard",
@@ -175,7 +169,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         Some(_) => {
             let blk_id = alloc_device_id(VfsNodeType::BlockDevice);
             devfs_domain
-                .register(blk_id.id(), &RRefVec::from_slice(b"cache_blk"))
+                .register(blk_id.id(), &RRefVec::from_slice(b"cache_blk-1"))
                 .unwrap();
             root.create(
                 "sda",
