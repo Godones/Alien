@@ -24,5 +24,5 @@ type FatFsDomain = GenericFsDomain;
 
 pub fn main() -> Box<dyn FsDomain> {
     let fatfs = Arc::new(FatFs::<_, Mutex<()>>::new(ProviderImpl));
-    Box::new(FatFsDomain::new(fatfs, "fatfs".to_string()))
+    Box::new(FatFsDomain::new(fatfs, "fatfs".to_string(), None))
 }

@@ -1,0 +1,15 @@
+[package]
+name = "pipefs"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+interface = { path = "../../../domain-tools/interface" }
+rref = { path = "../../../domain-tools/rref" }
+basic = { path = "../../../domain-tools/basic" }
+constants = { path = "../../../base/constants" }
+vfscore = { git = "https://github.com/os-module/rvfs.git" }
+dynfs = { git = "https://github.com/os-module/rvfs.git" }
+ksync = { path = "../../../base/ksync" }
+generic = { path = "../generic" }

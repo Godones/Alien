@@ -41,6 +41,7 @@ pub struct GenericFsDomain {
     inode_index: AtomicU64,
     root_dentry: Once<Arc<dyn VfsDentry>>,
     name: String,
+    mount_func: Option<fn(root: &Arc<dyn VfsDentry>)>,
 }
 
 impl Debug for GenericFsDomain {
@@ -52,12 +53,17 @@ impl Debug for GenericFsDomain {
 }
 
 impl GenericFsDomain {
-    pub fn new(fs: Arc<dyn VfsFsType>, name: String) -> Self {
+    pub fn new(
+        fs: Arc<dyn VfsFsType>,
+        name: String,
+        mount_func: Option<fn(root: &Arc<dyn VfsDentry>)>,
+    ) -> Self {
         Self {
             fs,
             inode_map: Mutex::new(BTreeMap::new()),
             inode_index: AtomicU64::new(0),
             root_dentry: Once::new(),
+            mount_func,
             name,
         }
     }
@@ -93,6 +99,10 @@ impl FsDomain for GenericFsDomain {
             }
         };
         let root = self.fs.i_mount(0, &mount_point, dev_inode, &[])?;
+        match self.mount_func {
+            Some(func) => (func)(&root),
+            None => {}
+        }
         let inode_id = self
             .inode_index
             .fetch_add(1, core::sync::atomic::Ordering::SeqCst);

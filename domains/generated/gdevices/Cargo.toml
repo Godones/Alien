@@ -13,4 +13,4 @@ rref = { path = "../../../domain-tools/rref" }
 interface = { path = "../../../domain-tools/interface", features = ["domain"] }
 
 
-devices = { path = "../../devices" }
+devices = { path = "../../common/devices" }

@@ -1,4 +1,5 @@
 #![feature(panic_info_message)]
+#![feature(concat_idents)]
 #![no_std]
 #![no_main]
 mod panic;

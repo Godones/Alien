@@ -2,7 +2,7 @@ extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc, vec};
 
-use domain_helper::{alloc_domain_id, DomainType, SharedHeapAllocator};
+use domain_helper::{alloc_domain_id, SharedHeapAllocator};
 use domain_loader::DomainLoader;
 use fdt::Fdt;
 use interface::*;
@@ -82,6 +82,16 @@ static RANDOM_DOMAIN: &'static [u8] =
 
 static DEVFS_DOMAIN: &'static [u8] =
     include_bytes_align_as!(usize, "../../../build/gdevfs_domain.bin");
+
+static PROCFS_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gprocfs_domain.bin");
+
+static SYSFS_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gsysfs_domain.bin");
+
+static PIPEFS_DOMAIN: &'static [u8] =
+    include_bytes_align_as!(usize, "../../../build/gpipefs_domain.bin");
+
 fn fatfs_domain() -> Arc<dyn FsDomain> {
     info!("Load fatfs domain, size: {}KB", FATFS_DOMAIN.len() / 1024);
     let mut domain = DomainLoader::new(FATFS_DOMAIN);
@@ -273,6 +283,32 @@ fn random_device_domain() -> Arc<dyn EmptyDeviceDomain> {
     Arc::new(EmptyDeviceDomainProxy::new(id, random))
 }
 
+fn procfs_domain() -> Arc<dyn FsDomain> {
+    info!("Load procfs domain, size: {}KB", PROCFS_DOMAIN.len() / 1024);
+    let mut domain = DomainLoader::new(PROCFS_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let procfs = domain.call(id);
+    Arc::new(FsDomainProxy::new(id, procfs))
+}
+fn sysfs_domain() -> Arc<dyn FsDomain> {
+    info!("Load sysfs domain, size: {}KB", SYSFS_DOMAIN.len() / 1024);
+    let mut domain = DomainLoader::new(SYSFS_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let procfs = domain.call(id);
+    Arc::new(FsDomainProxy::new(id, procfs))
+}
+
+fn pipefs_domain() -> Arc<dyn FsDomain> {
+    info!("Load pipefs domain, size: {}KB", PIPEFS_DOMAIN.len() / 1024);
+    let mut domain = DomainLoader::new(PIPEFS_DOMAIN);
+    domain.load().unwrap();
+    let id = alloc_domain_id();
+    let pipefs = domain.call(id);
+    Arc::new(FsDomainProxy::new(id, pipefs))
+}
+
 /// set the kernel to the specific domain
 fn init_kernel_domain() {
     rref::init(Box::new(SharedHeapAllocator), alloc_domain_id());
@@ -447,6 +483,15 @@ pub fn load_domains() {
     let devfs = devfs_domain();
     domain_helper::register_domain("devfs", DomainType::DevFsDomain(devfs.clone()));
 
+    let procfs = procfs_domain();
+    domain_helper::register_domain("procfs", DomainType::FsDomain(procfs.clone()));
+
+    let sysfs = sysfs_domain();
+    domain_helper::register_domain("sysfs", DomainType::FsDomain(sysfs.clone()));
+
+    let pipefs = pipefs_domain();
+    domain_helper::register_domain("pipefs", DomainType::FsDomain(pipefs.clone()));
+
     let vfs = vfs_domain();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs.clone()));
 
@@ -460,6 +505,8 @@ pub fn load_domains() {
     devfs.init().unwrap();
     fatfs.init().unwrap();
     ramfs.init().unwrap();
+    procfs.init().unwrap();
+    sysfs.init().unwrap();
 
     // The vfs domain may use the device domain, so we need to init vfs domain after init device domain,
     // also it may use the task domain.

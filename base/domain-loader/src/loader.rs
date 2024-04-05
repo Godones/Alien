@@ -110,7 +110,7 @@ impl DomainLoader {
                 let mut vaddr = VirtAddr::from(start_vaddr).align_down_4k().as_usize();
                 let end_vaddr = VirtAddr::from(end_vaddr).align_up_4k().as_usize();
                 let len = end_vaddr - vaddr;
-                info!(
+                trace!(
                     "map range: [{:#x}-{:#x}], memsize:{}, perm:{:?}",
                     vaddr,
                     end_vaddr,
@@ -153,7 +153,7 @@ impl DomainLoader {
         for meta in &self.regions {
             // reload region which has write permission
             if meta.vm.permission().contains(MappingFlags::WRITE) {
-                info!(
+                trace!(
                     "reload region: {:#x}-{:#x}, perm:{:?}",
                     meta.vm.range().start,
                     meta.vm.range().end,
@@ -184,22 +184,22 @@ impl DomainLoader {
 
     fn relocate_dyn(&self, elf: &ElfFile) -> AlienResult<()> {
         if let Ok(res) = relocate_dyn(&elf, self.phy_start) {
-            info!("Relocate_dyn {} entries", res.len());
+            trace!("Relocate_dyn {} entries", res.len());
             res.into_iter().for_each(|kv| {
                 debug!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
                 let addr = mem::query_kernel_space(kv.0).unwrap();
                 unsafe { (addr as *mut usize).write(kv.1) }
             });
-            info!("Relocate_dyn done");
+            trace!("Relocate_dyn done");
         }
         if let Ok(res) = relocate_plt(&elf, self.phy_start) {
-            info!("Relocate_plt");
+            trace!("Relocate_plt");
             res.into_iter().for_each(|kv| {
                 trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
                 let addr = mem::query_kernel_space(kv.0).unwrap();
                 unsafe { (addr as *mut usize).write(kv.1) }
             });
-            info!("Relocate_plt done");
+            trace!("Relocate_plt done");
         }
         Ok(())
     }

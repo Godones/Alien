@@ -29,7 +29,7 @@ endif
 
 
 domains += 	gblk gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask \
-		gsyscall gbuf_uart gvirtio-mmio-net ginput gfatfs gramfs gnull grandom gdevfs
+		gsyscall gbuf_uart gvirtio-mmio-net ginput gfatfs gramfs gnull grandom gdevfs gprocfs gsysfs gpipefs
 
 
 all:run
@@ -87,8 +87,8 @@ mount:
 
 
 domains:
-	make -C domains all  DOMAIN_LIST="$(domains)" LOG=$(LOG)
-	$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
+	@make -C domains all  DOMAIN_LIST="$(domains)" LOG=$(LOG)
+	@$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
 
 
 fix:

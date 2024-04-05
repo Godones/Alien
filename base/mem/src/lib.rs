@@ -31,6 +31,7 @@ pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     if is_first_cpu {
         frame::init_frame_allocator(ekernel as usize, memory_end);
         println!("Frame allocator init success");
+        // #[allow(static_mut_refs)]
         HEAP_ALLOCATOR.init(unsafe { &mut KERNEL_HEAP });
         #[cfg(feature = "talloc")]
         println!("Talloc allocator init success");

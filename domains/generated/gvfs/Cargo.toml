@@ -11,4 +11,4 @@ basic = { path = "../../../domain-tools/basic" }
 rref = { path = "../../../domain-tools/rref" }
 interface = { path = "../../../domain-tools/interface", features = ["domain"] }
 malloc = { path = "../../../domain-tools/malloc" }
-vfs = { path = "../../vfs" }
+vfs = { path = "../../common/vfs" }

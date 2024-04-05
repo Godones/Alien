@@ -12,4 +12,4 @@ basic = { path = "../../../domain-tools/basic" }
 rref = { path = "../../../domain-tools/rref" }
 interface = { path = "../../../domain-tools/interface", features = ["domain"] }
 
-task = { path = "../../task" }
+task = { path = "../../common/task" }

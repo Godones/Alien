@@ -24,5 +24,5 @@ type RamFsDomain = GenericFsDomain;
 
 pub fn main() -> Box<dyn FsDomain> {
     let fatfs = Arc::new(RamFs::<_, Mutex<()>>::new(ProviderImpl));
-    Box::new(RamFsDomain::new(fatfs, "ramfs".to_string()))
+    Box::new(RamFsDomain::new(fatfs, "ramfs".to_string(), None))
 }
