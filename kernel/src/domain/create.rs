@@ -9,11 +9,13 @@ impl DomainCreate for DomainCreateImpl {
         match identifier {
             "fatfs" => {
                 let fatfs = fatfs_domain();
+                fatfs.init().unwrap();
                 domain_helper::register_domain("fatfs", DomainType::FsDomain(fatfs.clone()), false);
                 Some(DomainType::FsDomain(fatfs))
             }
             "ramfs" => {
                 let ramfs = ramfs_domain();
+                ramfs.init().unwrap();
                 domain_helper::register_domain("ramfs", DomainType::FsDomain(ramfs.clone()), false);
                 Some(DomainType::FsDomain(ramfs))
             }

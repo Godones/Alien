@@ -21,7 +21,7 @@ use vfscore::{dentry::VfsDentry, utils::VfsNodeType};
 /// |-- bin  (fat32)
 /// |-- tmp   (ramfs)
 /// ```
-pub fn init_ramfs(root_dt: Arc<dyn VfsDentry>) -> Arc<dyn VfsDentry> {
+pub fn init_ramfs(root_dt: &Arc<dyn VfsDentry>) {
     let root_inode = root_dt.inode().unwrap();
     let root = root_inode
         .create("root", VfsNodeType::Dir, "rwxr-xr-x".into(), None)
@@ -75,7 +75,6 @@ pub fn init_ramfs(root_dt: Arc<dyn VfsDentry>) -> Arc<dyn VfsDentry> {
         .unwrap();
 
     basic::println!("ramfs init success");
-    root_dt
 }
 
 /// localtime文件中保存的内容

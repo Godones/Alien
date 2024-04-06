@@ -439,11 +439,22 @@ impl Dirent64 {
             name: [0; 0],
         }
     }
-    pub unsafe fn get_name(&self) -> &str {
-        let name = self.name.as_ptr();
-        let name = core::ffi::CStr::from_ptr(name as *const i8);
-        name.to_str().unwrap()
+
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts(
+                self as *const Self as *const u8,
+                core::mem::size_of::<Self>(),
+            )
+        }
     }
+
+    // pub unsafe fn get_name(&self) -> &str {
+    //     let name = self.name.as_ptr();
+    //     let name = core::ffi::CStr::from_ptr(name as *const i8);
+    //     name.to_str().unwrap()
+    // }
+
     pub fn len(&self) -> usize {
         self.reclen as usize
     }

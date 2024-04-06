@@ -199,7 +199,6 @@ impl File for KernelFile {
         let inode = self.inode();
         let mut pos = self.pos.lock();
         let mut count = 0;
-        let mut ptr = buf.as_mut_ptr();
         loop {
             let dirent = inode.readdir(*pos as usize).map_err(|e| {
                 *pos = 0;
@@ -210,17 +209,14 @@ impl File for KernelFile {
                     let dirent64 =
                         Dirent64::new(&d.name, d.ino, *pos as i64, vfsnodetype2dirent64(d.ty));
                     if count + dirent64.len() <= buf.len() {
-                        let dirent_ptr = unsafe { &mut *(ptr as *mut Dirent64) };
-                        *dirent_ptr = dirent64;
-                        let name_ptr = dirent_ptr.name.as_mut_ptr();
-                        unsafe {
-                            let mut name = d.name.clone();
-                            name.push('\0');
-                            let len = name.len();
-                            name_ptr.copy_from(name.as_ptr(), len);
-                            ptr = ptr.add(dirent_ptr.len());
-                        }
-                        count += dirent_ptr.len();
+                        let slice = dirent64.as_slice();
+                        buf[count..count + slice.len()].copy_from_slice(slice);
+                        let mut name = d.name.clone();
+                        name.push('\0');
+                        let len = name.len();
+                        buf[count + slice.len()..count + slice.len() + len]
+                            .copy_from_slice(name.as_bytes());
+                        count += dirent64.len();
                     } else {
                         break;
                     } // Buf is small

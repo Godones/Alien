@@ -3,80 +3,60 @@ use alloc::{
     string::{String, ToString},
     sync::Arc,
 };
-use core::ops::Index;
 
 use basic::println;
 use constants::io::OpenFlags;
-use dynfs::DynFsKernelProvider;
 use interface::{DomainType, VFS_ROOT_ID, VFS_STDERR_ID, VFS_STDIN_ID, VFS_STDOUT_ID};
 use ksync::Mutex;
 use rref::RRefVec;
 use spin::{Lazy, Once};
-use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, utils::VfsTimeSpec, VfsResult};
+use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, VfsResult};
 
 use crate::{
-    insert_dentry, kfile::KernelFile, pipefs, procfs, ramfs::init_ramfs, shim::RootShimDentry, sys,
-    VFS_MAP,
+    devfs, insert_dentry, kfile::KernelFile, pipefs, procfs, ramfs::init_ramfs,
+    shim::RootShimDentry, sys, VFS_MAP,
 };
-
-type TmpFs = ::ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
-type RamFs = ::ramfs::RamFs<CommonFsProviderImpl, Mutex<()>>;
-#[derive(Clone)]
-pub struct CommonFsProviderImpl;
-
-impl DynFsKernelProvider for CommonFsProviderImpl {
-    fn current_time(&self) -> VfsTimeSpec {
-        VfsTimeSpec::new(0, 0)
-    }
-}
-
-impl ::ramfs::RamFsProvider for CommonFsProviderImpl {
-    fn current_time(&self) -> VfsTimeSpec {
-        DynFsKernelProvider::current_time(self)
-    }
-}
 
 pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsFsType>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
 
 static SYSTEM_ROOT_FS: Once<Arc<dyn VfsDentry>> = Once::new();
 
-fn register_all_fs() {
-    let ramfs = Arc::new(RamFs::new(CommonFsProviderImpl));
-    let tmpfs = Arc::new(TmpFs::new(CommonFsProviderImpl));
-
-    FS.lock().insert("ramfs".to_string(), ramfs);
-    FS.lock().insert("tmpfs".to_string(), tmpfs);
-
-    println!("register fs success");
+fn common_load_or_create_fs(
+    create: bool,
+    name: &str,
+    mp: &[u8],
+    func: Option<fn(root: &Arc<dyn VfsDentry>)>,
+) -> Arc<dyn VfsDentry> {
+    let fs_domain = if create {
+        basic::create_domain(name).unwrap()
+    } else {
+        basic::get_domain(name).unwrap()
+    };
+    let root = match fs_domain {
+        DomainType::FsDomain(fs) => {
+            let mp = RRefVec::from_slice(mp);
+            let root_inode_id = fs.mount(&mp, None).unwrap();
+            let shim_root_dentry: Arc<dyn VfsDentry> =
+                Arc::new(RootShimDentry::new(fs, root_inode_id));
+            match func {
+                Some(f) => f(&shim_root_dentry),
+                None => {}
+            }
+            shim_root_dentry
+        }
+        _ => panic!("{} domain not found", name),
+    };
+    root
 }
 
 /// Init the filesystem
 pub fn init_filesystem() -> VfsResult<()> {
-    register_all_fs();
-    let ramfsfs_domain = basic::get_domain("ramfs-1").unwrap();
-    let ramfs_root = match ramfsfs_domain {
-        DomainType::FsDomain(ramfs) => {
-            let mp = RRefVec::from_slice(b"/");
-            let root_inode_id = ramfs.mount(&mp, None).unwrap();
-            let shim_root_dentry = Arc::new(RootShimDentry::new(ramfs, root_inode_id));
-            init_ramfs(shim_root_dentry)
-        }
-        _ => panic!("ramfs domain not found"),
-    };
-
+    let ramfs_root = common_load_or_create_fs(false, "ramfs-1", b"/", Some(init_ramfs));
     SYSTEM_ROOT_FS.call_once(|| ramfs_root.clone());
 
-    let procfs_domain = basic::get_domain("procfs").unwrap();
-    let procfs_root = match procfs_domain {
-        DomainType::FsDomain(procfs) => {
-            let mp = RRefVec::from_slice(b"/proc");
-            let root_inode_id = procfs.mount(&mp, None).unwrap();
-            let shim_root_dentry = Arc::new(RootShimDentry::new(procfs, root_inode_id));
-            procfs::init_procfs(shim_root_dentry)
-        }
-        _ => panic!("procfs domain not found"),
-    };
+    let procfs_root =
+        common_load_or_create_fs(false, "procfs", b"/proc", Some(procfs::init_procfs));
 
     let devfs_domain = basic::get_domain("devfs").unwrap();
     let devfs_root = match devfs_domain {
@@ -85,53 +65,24 @@ pub fn init_filesystem() -> VfsResult<()> {
             let root_inode_id = devfs.mount(&mp, None).unwrap();
             let shim_root_dentry: Arc<dyn VfsDentry> =
                 Arc::new(RootShimDentry::new(devfs.clone(), root_inode_id));
-            crate::devfs::init_devfs(&devfs, &shim_root_dentry);
+            devfs::init_devfs(&devfs, &shim_root_dentry);
             shim_root_dentry
         }
         _ => panic!("devfs domain not found"),
     };
 
-    let sysfs_domain = basic::get_domain("sysfs").unwrap();
-    let sysfs_root = match sysfs_domain {
-        DomainType::FsDomain(sysfs) => {
-            let mp = RRefVec::from_slice(b"/sys");
-            let root_inode_id = sysfs.mount(&mp, None).unwrap();
-            let shim_root_dentry = Arc::new(RootShimDentry::new(sysfs, root_inode_id));
-            sys::init_sysfs(shim_root_dentry)
-        }
-        _ => panic!("sysfs domain not found"),
-    };
-
-    let tmpfs_root = FS
-        .lock()
-        .index("tmpfs")
-        .clone()
-        .i_mount(0, "/tmp", None, &[])?;
-
-    // let tmpfs_domain = basic::create_domain("ramfs").unwrap();
-
-    let pipefs_domain = basic::get_domain("pipefs").unwrap();
-    match pipefs_domain {
-        DomainType::FsDomain(pipefs) => {
-            let mp = RRefVec::from_slice(b"/pipe");
-            let root_inode_id = pipefs.mount(&mp, None).unwrap();
-            let shim_root_dentry = Arc::new(RootShimDentry::new(pipefs, root_inode_id));
-            pipefs::init_pipefs(shim_root_dentry)
-        }
-        _ => panic!("pipefs domain not found"),
-    };
+    let sysfs_root = common_load_or_create_fs(false, "sysfs", b"/sys", Some(sys::init_sysfs));
+    let tmpfs_root = common_load_or_create_fs(true, "ramfs", b"/tmp", None);
+    let _pipefs_root =
+        common_load_or_create_fs(false, "pipefs", b"/pipe", Some(pipefs::init_pipefs));
+    let shm_ramfs_root = common_load_or_create_fs(true, "ramfs", b"/dev/shm", None);
 
     let path = VfsPath::new(ramfs_root.clone(), ramfs_root.clone());
     path.join("proc")?.mount(procfs_root, 0)?;
     path.join("sys")?.mount(sysfs_root, 0)?;
     path.join("dev")?.mount(devfs_root, 0)?;
     path.join("tmp")?.mount(tmpfs_root.clone(), 0)?;
-    let shm_ramfs = FS
-        .lock()
-        .index("ramfs")
-        .clone()
-        .i_mount(0, "/dev/shm", None, &[])?;
-    path.join("dev/shm")?.mount(shm_ramfs, 0)?;
+    path.join("dev/shm")?.mount(shm_ramfs_root, 0)?;
 
     // initrd::populate_initrd(ramfs_root.clone())?;
 
@@ -182,6 +133,7 @@ pub fn system_root_fs() -> Arc<dyn VfsDentry> {
 }
 
 /// Get the filesystem by name
+#[allow(unused)]
 #[inline]
 pub fn system_support_fs(fs_name: &str) -> Option<Arc<dyn VfsFsType>> {
     FS.lock().iter().find_map(|(name, fs)| {
