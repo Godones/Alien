@@ -1,7 +1,6 @@
 use alloc::{
     boxed::Box,
     collections::BTreeMap,
-    format,
     string::{String, ToString},
     sync::{Arc, Weak},
     vec,
@@ -13,17 +12,19 @@ use basic::vm::frame::FrameTracker;
 use config::{
     FRAME_SIZE, MAX_THREAD_NUM, TRAP_CONTEXT_BASE, USER_KERNEL_STACK_SIZE, USER_STACK_SIZE,
 };
-use constants::{aux::*, signal::SignalNumber, task::CloneFlags, AlienResult};
+use constants::{signal::SignalNumber, task::CloneFlags, AlienResult};
 use context::{TaskContext, TrapFrame};
 use interface::{InodeID, VFS_ROOT_ID};
 use ksync::{Mutex, MutexGuard};
+use memory_addr::VirtAddr;
 use page_table::MappingFlags;
-use ptable::{PhysPage, VmArea, VmAreaType, VmSpace};
+use pod::Pod;
+use ptable::{PhysPage, VmArea, VmAreaType, VmIo, VmSpace};
 use small_index::IndexAllocator;
 
 use crate::{
     elf::{build_vm_space, clone_vm_space, extend_thread_vm_space, VmmPageAllocator},
-    resource::{FdManager, HeapInfo, KStack, TidHandle, UserStack},
+    resource::{AuxVec, FdManager, HeapInfo, KStack, TidHandle, UserStack},
     vfs_shim::{ShimFile, STDIN, STDOUT},
 };
 
@@ -140,14 +141,6 @@ impl Task {
         (8usize << 60) | (paddr >> 12)
     }
 
-    pub fn transfer_raw(&self, ptr: usize) -> usize {
-        let guard = self.address_space.lock();
-        guard
-            .query(ptr)
-            .map(|(phy_addr, _, _)| phy_addr.as_usize())
-            .unwrap()
-    }
-
     pub fn get_context_raw_ptr(&self) -> *const TaskContext {
         let inner = self.inner.lock();
         &inner.context as *const TaskContext
@@ -159,13 +152,43 @@ impl Task {
         &mut inner.context as *mut TaskContext
     }
 
-    /// 获取一个虚拟地址 `ptr` 对应的 T 类型数据 的 可变引用
-    pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
-        let ptr = ptr as usize;
-        let (phy_addr, _, _) = self.address_space.lock().query(ptr).unwrap();
-        let phy_addr = phy_addr.as_usize();
-        let ptr = phy_addr as *mut T;
-        unsafe { &mut *ptr }
+    pub fn read_bytes_from_user(&self, src: VirtAddr, dest: &mut [u8]) -> AlienResult<()> {
+        let vm_space = self.address_space.lock();
+        vm_space.read_bytes(src, dest).unwrap();
+        Ok(())
+    }
+
+    pub fn read_val_from_user<T: Pod>(&self, src: VirtAddr) -> AlienResult<T> {
+        let vm_space = self.address_space.lock();
+        let val = vm_space.read_val(src).unwrap();
+        Ok(val)
+    }
+
+    pub fn write_bytes_to_user(&self, dest: VirtAddr, src: &[u8]) -> AlienResult<()> {
+        let mut vm_space = self.address_space.lock();
+        vm_space.write_bytes(dest, src).unwrap();
+        Ok(())
+    }
+
+    pub fn write_val_to_user<T: Pod>(&self, dest: VirtAddr, val: &T) -> AlienResult<()> {
+        let mut vm_space = self.address_space.lock();
+        vm_space.write_val(dest, val).unwrap();
+        Ok(())
+    }
+
+    pub fn read_string_from_user(&self, src: VirtAddr) -> AlienResult<String> {
+        let mut s = Vec::with_capacity(128);
+        let mut ptr = src;
+        loop {
+            let c = self.read_val_from_user::<u8>(ptr)?;
+            if c == 0 {
+                break;
+            }
+            s.push(c);
+            ptr += core::mem::size_of::<u8>();
+        }
+        let str = String::from_utf8(s).unwrap();
+        Ok(str)
     }
 
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
@@ -212,82 +235,6 @@ impl Task {
         heap.end = end + addition;
         heap.current
     }
-
-    pub fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) {
-        let buf = self.transfer_buffer(dst, len);
-        let mut start = 0;
-        let mut src = src as usize;
-        for b in buf {
-            let len = if start + b.len() > len {
-                len - start
-            } else {
-                b.len()
-            };
-            unsafe {
-                core::ptr::copy_nonoverlapping(src as _, b.as_mut_ptr(), len);
-            }
-            start += len;
-            src += len;
-        }
-    }
-
-    pub fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) {
-        let buf = self.transfer_buffer(src, len);
-        let mut start = 0;
-        let mut dst = dst as usize;
-        for b in buf {
-            let len = if start + b.len() > len {
-                len - start
-            } else {
-                b.len()
-            };
-            unsafe {
-                core::ptr::copy_nonoverlapping(b.as_ptr(), dst as _, len);
-            }
-            start += len;
-            dst += len;
-        }
-    }
-
-    pub fn read_string_from_user(&self, ptr: usize) -> String {
-        let mut s = Vec::new();
-        let mut ptr = ptr;
-        loop {
-            let ptr_value = self.transfer_raw_ptr(ptr as *mut u8);
-            if *ptr_value == 0 {
-                break;
-            }
-            s.push(*ptr_value);
-            ptr += 1;
-        }
-        String::from_utf8(s).unwrap()
-    }
-
-    fn transfer_buffer<T: Debug>(&self, ptr: *const T, len: usize) -> Vec<&'static mut [T]> {
-        let mut start = ptr as usize;
-        let end = start + len;
-        let mut v = Vec::new();
-
-        let guard = self.address_space.lock();
-
-        while start < end {
-            let (start_phy, _flag, _) = guard
-                .query(start)
-                .expect(format!("transfer_buffer: {:x} failed", start).as_str());
-            let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
-            let len = if bound > end {
-                end - start
-            } else {
-                bound - start
-            };
-            unsafe {
-                let buf = core::slice::from_raw_parts_mut(start_phy.as_usize() as *mut T, len);
-                v.push(buf);
-            }
-            start = bound;
-        }
-        v
-    }
 }
 
 impl Task {
@@ -303,7 +250,8 @@ impl Task {
         let address_space = elf_info.address_space;
         let k_stack = KStack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE);
         let k_stack_top = k_stack.top();
-        let stack_info = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
+        let stack_info =
+            elf_info.stack_top.as_usize() - USER_STACK_SIZE..elf_info.stack_top.as_usize();
 
         let trap_to_user = basic::trap_to_user();
 
@@ -326,8 +274,8 @@ impl Task {
                 Arc::new(Mutex::new(allocator))
             },
             heap: Arc::new(Mutex::new(HeapInfo::new(
-                elf_info.heap_bottom,
-                elf_info.heap_bottom,
+                elf_info.heap_bottom.as_usize(),
+                elf_info.heap_bottom.as_usize(),
             ))),
             inner: Mutex::new(TaskInner {
                 name: name.to_string(),
@@ -343,17 +291,21 @@ impl Task {
             }),
             send_sigchld_when_exit: false,
         };
-        let phy_button = task.transfer_raw(elf_info.stack_top - FRAME_SIZE);
-        let mut user_stack = UserStack::new(phy_button + FRAME_SIZE, elf_info.stack_top);
-        user_stack.push(0).unwrap();
-        let argc_ptr = user_stack.push(0).unwrap();
+        let mut user_stack = UserStack::new(
+            elf_info.stack_top,
+            vec![],
+            vec![],
+            AuxVec::default(),
+            name.to_string(),
+        );
+        let user_sp = user_stack.init(&mut task.address_space.lock()).unwrap();
         let trap_frame = task.trap_frame();
         let kernel_satp = basic::kernel_satp();
         let user_trap_vector = basic::trap_from_user();
 
         *trap_frame = TrapFrame::init_for_task(
-            elf_info.entry,
-            argc_ptr,
+            elf_info.entry.as_usize(),
+            user_sp.as_usize(),
             kernel_satp,
             task.kernel_stack.top(),
             user_trap_vector,
@@ -473,11 +425,13 @@ impl Task {
 
         // 检查是否在父任务地址中写入 tid
         if clone_args.flags.contains(CloneFlags::CLONE_PARENT_SETTID) {
-            *task.transfer_raw_ptr(clone_args.ptid as *mut i32) = tid.raw() as i32;
+            task.write_val_to_user(VirtAddr::from(clone_args.ptid), &(tid.raw() as i32))
+                .unwrap();
         }
 
         if clone_args.flags.contains(CloneFlags::CLONE_CHILD_SETTID) {
-            *task.transfer_raw_ptr(clone_args.ctid as *mut i32) = tid.raw() as _;
+            task.write_val_to_user(VirtAddr::from(clone_args.ctid), &(tid.raw() as i32))
+                .unwrap();
         }
 
         if clone_args.stack != 0 {
@@ -502,94 +456,28 @@ impl Task {
         envp: Vec<String>,
     ) -> AlienResult<()> {
         let elf_info = build_vm_space(elf_data, &mut argv, name)?;
+        let aux = AuxVec::from_elf_info(&elf_info)?;
         let mut inner = self.inner.lock();
         assert_eq!(inner.thread_number, 0);
         let address_space = elf_info.address_space;
         // reset the address space
-        // self.address_space = Arc::new(Mutex::new(address_space));
         *self.address_space.lock() = address_space;
         // reset the heap
-        *self.heap.lock() = HeapInfo::new(elf_info.heap_bottom, elf_info.heap_bottom);
+        *self.heap.lock() = HeapInfo::new(
+            elf_info.heap_bottom.as_usize(),
+            elf_info.heap_bottom.as_usize(),
+        );
         // set the name of the process
         inner.name = elf_info.name;
         // close file which contains FD_CLOEXEC flag
         // now we delete all fd
-
         // reset signal handler
-        inner.stack = elf_info.stack_top - USER_STACK_SIZE..elf_info.stack_top;
-
-        let phy_button = self.transfer_raw(elf_info.stack_top - FRAME_SIZE);
-        let mut user_stack = UserStack::new(phy_button + FRAME_SIZE, elf_info.stack_top);
-
-        // push env to the top of stack of the process
-        // we have push '\0' into the env string,so we don't need to push it again
-        let envv = envp
-            .iter()
-            .rev()
-            .map(|env| user_stack.push_str(env).unwrap())
-            .collect::<Vec<usize>>();
-        // push the args to the top of stack of the process
-        // we have push '\0' into the arg string,so we don't need to push it again
-        let argcv = argv
-            .iter()
-            .rev()
-            .map(|arg| user_stack.push_str(arg).unwrap())
-            .collect::<Vec<usize>>();
-        // push padding to the top of stack of the process
-        user_stack.align_to(8).unwrap();
-        let random_ptr = user_stack.push_bytes(&[0u8; 16]).unwrap();
-        // padding
-        user_stack.push_bytes(&[0u8; 8]).unwrap();
-        // push aux
-        let platform = user_stack.push_str("riscv").unwrap();
-
-        let ex_path = user_stack.push_str(&name).unwrap();
-        user_stack.push(0).unwrap();
-        user_stack.push(platform).unwrap();
-        user_stack.push(AT_PLATFORM).unwrap();
-        user_stack.push(ex_path).unwrap();
-        user_stack.push(AT_EXECFN).unwrap();
-        user_stack.push(elf_info.ph_num).unwrap();
-        user_stack.push(AT_PHNUM).unwrap();
-        user_stack.push(FRAME_SIZE).unwrap();
-        user_stack.push(AT_PAGESZ).unwrap();
-
-        user_stack.push(elf_info.bias).unwrap();
-        user_stack.push(AT_BASE).unwrap();
-        user_stack.push(elf_info.entry).unwrap();
-        user_stack.push(AT_ENTRY).unwrap();
-        user_stack.push(elf_info.ph_entry_size).unwrap();
-        user_stack.push(AT_PHENT).unwrap();
-        user_stack.push(elf_info.ph_drift).unwrap();
-        user_stack.push(AT_PHDR).unwrap();
-        user_stack.push(0).unwrap();
-        user_stack.push(AT_GID).unwrap();
-        user_stack.push(0).unwrap();
-        user_stack.push(AT_EGID).unwrap();
-        user_stack.push(0).unwrap();
-        user_stack.push(AT_UID).unwrap();
-        user_stack.push(0).unwrap();
-        user_stack.push(AT_EUID).unwrap();
-        user_stack.push(0).unwrap();
-        user_stack.push(AT_SECURE).unwrap();
-        user_stack.push(random_ptr).unwrap();
-        user_stack.push(AT_RANDOM).unwrap();
-
-        user_stack.push(0).unwrap();
-        // push the env addr to the top of stack of the process
-        envv.iter().for_each(|env| {
-            user_stack.push(*env).unwrap();
-        });
-        user_stack.push(0).unwrap();
-        // push the args addr to the top of stack of the process
-        argcv.iter().enumerate().for_each(|(_i, arg)| {
-            user_stack.push(*arg).unwrap();
-        });
-        // push the argc to the top of stack of the process
-        let argc = argv.len();
-        let argc_ptr = user_stack.push(argc).unwrap();
-        let user_sp = argc_ptr;
-        warn!("args:{:?}, env:{:?}, user_sp: {:#x}", argv, envp, user_sp);
+        inner.stack =
+            elf_info.stack_top.as_usize() - USER_STACK_SIZE..elf_info.stack_top.as_usize();
+        info!("argv:{:?}, env:{:?}", argv, envp);
+        let mut user_stack = UserStack::new(elf_info.stack_top, argv, envp, aux, name.to_string());
+        let user_sp = user_stack.init(&mut self.address_space.lock())?;
+        info!("user_sp: {:#x}", user_sp);
         drop(inner);
         let trap_frame = self.trap_frame();
 
@@ -597,8 +485,8 @@ impl Task {
         let user_trap_vector = basic::trap_from_user();
 
         *trap_frame = TrapFrame::init_for_task(
-            elf_info.entry,
-            user_sp,
+            elf_info.entry.as_usize(),
+            user_sp.as_usize(),
             kernel_satp,
             self.kernel_stack.top(),
             user_trap_vector,

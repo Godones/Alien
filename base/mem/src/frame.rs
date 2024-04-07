@@ -89,11 +89,11 @@ impl PhysPage for FrameTracker {
         PhysAddr::from(self.start())
     }
 
-    fn as_slice(&self) -> &[u8] {
+    fn as_bytes(&self) -> &[u8] {
         self.deref()
     }
 
-    fn as_mut_slice(&mut self) -> &mut [u8] {
+    fn as_mut_bytes(&mut self) -> &mut [u8] {
         self.deref_mut()
     }
 }

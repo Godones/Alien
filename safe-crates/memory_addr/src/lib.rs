@@ -8,6 +8,8 @@ use core::{
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
+use pod::Pod;
+
 /// The size of a 4K page (4096 bytes).
 pub const PAGE_SIZE_4K: usize = 0x1000;
 
@@ -74,15 +76,15 @@ pub const fn is_aligned_4k(addr: usize) -> bool {
 /// A physical memory address.
 ///
 /// It's a wrapper type around an `usize`.
-#[repr(transparent)]
-#[derive(Copy, Clone, Default, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Ord, PartialOrd, Eq, PartialEq, Pod)]
+#[repr(C)]
 pub struct PhysAddr(usize);
 
 /// A virtual memory address.
 ///
 /// It's a wrapper type around an `usize`.
-#[repr(transparent)]
-#[derive(Copy, Clone, Default, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Ord, PartialOrd, Eq, PartialEq, Pod)]
+#[repr(C)]
 pub struct VirtAddr(usize);
 
 impl PhysAddr {
@@ -383,5 +385,19 @@ impl fmt::UpperHex for VirtAddr {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_fmt(format_args!("VA:{:#X}", self.0))
+    }
+}
+
+impl PartialEq<usize> for PhysAddr {
+    #[inline]
+    fn eq(&self, other: &usize) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<usize> for VirtAddr {
+    #[inline]
+    fn eq(&self, other: &usize) -> bool {
+        self.0 == *other
     }
 }

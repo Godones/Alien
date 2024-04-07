@@ -1,4 +1,5 @@
 use constants::AlienResult;
+use pod::Pod;
 use rref::RRef;
 
 use crate::{vfs::InodeID, Basic};
@@ -10,8 +11,8 @@ pub trait TaskDomain: Basic {
     fn trap_frame_phy_addr(&self) -> AlienResult<usize>;
     fn heap_info(&self, tmp_heap_info: RRef<TmpHeapInfo>) -> AlienResult<RRef<TmpHeapInfo>>;
     fn get_fd(&self, fd: usize) -> AlienResult<InodeID>;
-    fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()>;
-    fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()>;
+    fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()>;
+    fn copy_from_user(&self, src: usize, buf: &mut [u8]) -> AlienResult<()>;
     fn current_tid(&self) -> AlienResult<usize>;
     fn current_pid(&self) -> AlienResult<usize>;
     fn current_ppid(&self) -> AlienResult<usize>;
@@ -47,4 +48,16 @@ pub trait TaskDomain: Basic {
 pub struct TmpHeapInfo {
     pub start: usize,
     pub current: usize,
+}
+
+impl dyn TaskDomain {
+    pub fn read_val_from_user<T: Pod>(&self, src: usize) -> AlienResult<T> {
+        let mut val = T::new_uninit();
+        self.copy_from_user(src, val.as_bytes_mut())?;
+        Ok(val)
+    }
+
+    pub fn write_val_to_user<T: Pod>(&self, dst: usize, val: &T) -> AlienResult<()> {
+        self.copy_to_user(dst, val.as_bytes())
+    }
 }

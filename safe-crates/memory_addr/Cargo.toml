@@ -12,3 +12,4 @@ keywords = ["arceos", "address", "virtual-memory"]
 categories = ["os", "memory-management", "no-std"]
 
 [dependencies]
+pod = { workspace = true }

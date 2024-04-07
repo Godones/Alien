@@ -4,14 +4,19 @@ use alloc::{
 };
 
 use constants::{AlienError, AlienResult};
+use memory_addr::VirtAddr;
 
 use crate::processor::current_task;
 
-pub fn do_execve(filename_ptr: usize, argv_ptr: usize, envp_ptr: usize) -> AlienResult<isize> {
+pub fn do_execve(
+    filename_ptr: VirtAddr,
+    argv_ptr: VirtAddr,
+    envp_ptr: VirtAddr,
+) -> AlienResult<isize> {
     let task = current_task().unwrap();
-    let mut path_str = task.read_string_from_user(filename_ptr);
+    let mut path_str = task.read_string_from_user(filename_ptr)?;
     // get the args and push them into the new process stack
-    let (mut args, envs) = parse_user_arg_env(argv_ptr, envp_ptr);
+    let (mut args, envs) = parse_user_argv_envp(argv_ptr, envp_ptr);
     warn!("exec path: {}", path_str);
     warn!("exec args: {:?} ,env: {:?}", args, envs);
     if path_str.ends_with(".sh") {
@@ -40,44 +45,44 @@ pub fn do_execve(filename_ptr: usize, argv_ptr: usize, envp_ptr: usize) -> Alien
     }
 }
 
-fn parse_user_arg_env(argv_ptr: usize, envp_ptr: usize) -> (Vec<String>, Vec<String>) {
+fn parse_user_argv_envp(argv_ptr: VirtAddr, envp_ptr: VirtAddr) -> (Vec<String>, Vec<String>) {
     let task = current_task().unwrap();
     let mut argv = Vec::new();
-    if argv_ptr != 0 {
+    if argv_ptr != VirtAddr::from(0) {
         let mut start = argv_ptr;
         loop {
-            let arg = task.transfer_raw_ptr(start as *mut usize);
-            if *arg == 0 {
+            let arg_ptr = task.read_val_from_user(start).unwrap();
+            if arg_ptr == 0 {
                 break;
             }
-            argv.push(*arg);
+            argv.push(arg_ptr);
             start += core::mem::size_of::<usize>();
         }
     }
     let argv = argv
         .into_iter()
         .map(|arg_ptr| {
-            let mut arg = task.read_string_from_user(arg_ptr);
+            let mut arg = task.read_string_from_user(arg_ptr).unwrap();
             arg.push('\0');
             arg
         })
         .collect::<Vec<String>>();
     let mut envp = Vec::new();
-    if envp_ptr != 0 {
+    if envp_ptr != VirtAddr::from(0) {
         let mut start = envp_ptr;
         loop {
-            let env = task.transfer_raw_ptr(start as *mut usize);
-            if *env == 0 {
+            let env = task.read_val_from_user(start).unwrap();
+            if env == 0 {
                 break;
             }
-            envp.push(*env);
+            envp.push(env);
             start += core::mem::size_of::<usize>();
         }
     }
     let envp = envp
         .into_iter()
         .map(|env| {
-            let mut env = task.read_string_from_user(env);
+            let mut env = task.read_string_from_user(env).unwrap();
             env.push('\0');
             env
         })

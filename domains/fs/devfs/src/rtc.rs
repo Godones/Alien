@@ -6,6 +6,7 @@ use constants::{
     DeviceId,
 };
 use interface::{RtcDomain, TaskDomain};
+use pod::Pod;
 use rref::RRef;
 use vfscore::{
     error::VfsError,
@@ -51,9 +52,8 @@ impl VfsFile for RTCDevice {
             TeletypeCommand::RTC_RD_TIME => {
                 let mut time = RRef::new(RtcTime::default());
                 time = self.device.read_time(time).unwrap();
-                let size = core::mem::size_of::<RtcTime>();
                 self.task_domain
-                    .copy_to_user(time.deref() as *const RtcTime as _, arg as *mut u8, size)
+                    .copy_to_user(arg, time.deref().as_bytes())
                     .unwrap();
             }
             _ => return Err(VfsError::Invalid),

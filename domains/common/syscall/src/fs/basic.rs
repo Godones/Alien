@@ -12,8 +12,8 @@ pub fn sys_write(
     len: usize,
 ) -> AlienResult<isize> {
     let file = task_domain.get_fd(fd)?;
-    let tmp_buf = RRefVec::<u8>::new(0, len);
-    task_domain.copy_from_user(buf, tmp_buf.as_slice().as_ptr() as *mut u8, len)?;
+    let mut tmp_buf = RRefVec::<u8>::new(0, len);
+    task_domain.copy_from_user(buf as usize, tmp_buf.as_mut_slice())?;
     let w = vfs.vfs_write(file, &tmp_buf);
     w.map(|x| x as isize)
 }
@@ -29,6 +29,6 @@ pub fn sys_read(
     let mut tmp_buf = RRefVec::<u8>::new(0, len);
     let r;
     (tmp_buf, r) = vfs.vfs_read(file, tmp_buf)?;
-    task_domain.copy_to_user(tmp_buf.as_slice().as_ptr(), buf as _, r)?;
+    task_domain.copy_to_user(buf, &tmp_buf.as_slice()[..r])?;
     Ok(r as isize)
 }

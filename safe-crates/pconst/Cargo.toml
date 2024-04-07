@@ -11,7 +11,7 @@ bitflags = "1.3.2"
 
 syscall-table = { git = "https://github.com/os-module/syscall-table.git" ,optional = true}
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
-
+pod = { workspace = true }
 [features]
 default = ["riscv"]
 riscv = []

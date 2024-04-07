@@ -35,6 +35,8 @@ pub enum PagingError {
     /// The page table entry represents a huge page, but the target physical
     /// frame is 4K in size.
     MappedToHugePage,
+    /// The permission is invalid.
+    InvalidPermission,
 }
 
 /// The specialized `Result` type for page table operations.

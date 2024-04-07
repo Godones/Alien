@@ -631,17 +631,17 @@ impl TaskDomain for TaskDomainProxy {
         self.domain.get_fd(fd)
     }
 
-    fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
+    fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
-        self.domain.copy_to_user(src, dst, len)
+        self.domain.copy_to_user(dst, buf)
     }
-    fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
+    fn copy_from_user(&self, src: usize, buf: &mut [u8]) -> AlienResult<()> {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
-        self.domain.copy_from_user(src, dst, len)
+        self.domain.copy_from_user(src, buf)
     }
     fn current_tid(&self) -> AlienResult<usize> {
         if !self.is_active() {

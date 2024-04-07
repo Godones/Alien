@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-basic = { path = "../../../domain-tools/basic" }
+basic = { path = "../../../domain-tools/basic", features = ["task"] }
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 
@@ -21,7 +21,7 @@ vfscore = { git = "https://github.com/os-module/rvfs.git" }
 page_table = { path = "../../../safe-crates/page_table" }
 memory_addr = { path = "../../../safe-crates/memory_addr" }
 ptable = { path = "../../../safe-crates/ptable" }
-
+pod = { workspace = true }
 # now we trust the elf loader
 xmas-elf = "0.9"
 log = "0"

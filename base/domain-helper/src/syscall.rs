@@ -97,11 +97,6 @@ impl CoreFunction for DomainSyscall {
 
         unwind();
     }
-
-    fn sys_switch_task(&self, now: *mut context::TaskContext, next: *const context::TaskContext) {
-        kcore::task::switch(now, next)
-    }
-
     fn sys_trampoline_addr(&self) -> usize {
         strampoline as usize
     }

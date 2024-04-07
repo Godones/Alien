@@ -1,7 +1,6 @@
 #![no_std]
 extern crate alloc;
 
-use context::TaskContext;
 #[cfg(feature = "core_impl")]
 pub use core_impl::*;
 use interface::DomainType;
@@ -11,7 +10,6 @@ pub trait CoreFunction: Send + Sync {
     fn sys_write_console(&self, s: &str);
     fn check_kernel_space(&self, start: usize, size: usize) -> bool;
     fn sys_backtrace(&self, domain_id: u64);
-    fn sys_switch_task(&self, now: *mut TaskContext, next: *const TaskContext);
     fn sys_trampoline_addr(&self) -> usize;
     fn sys_kernel_satp(&self) -> usize;
     fn sys_trap_from_user(&self) -> usize;
@@ -27,7 +25,6 @@ pub trait CoreFunction: Send + Sync {
 mod core_impl {
     use alloc::boxed::Box;
 
-    use context::TaskContext;
     use interface::DomainType;
     use spin::Once;
 
@@ -96,10 +93,6 @@ mod core_impl {
 
     pub fn trap_to_user() -> usize {
         unsafe { CORE_FUNC.get_unchecked().sys_trap_to_user() }
-    }
-
-    pub fn switch_task(now: *mut TaskContext, next: *const TaskContext) {
-        unsafe { CORE_FUNC.get_unchecked().sys_switch_task(now, next) }
     }
 
     // todo!(delete)

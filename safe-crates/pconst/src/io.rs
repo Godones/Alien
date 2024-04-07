@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use pod::Pod;
 
 #[derive(Debug, Clone, Copy)]
 pub struct IoVec {
@@ -208,7 +209,7 @@ bitflags! {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Pod)]
 pub struct WinSize {
     ws_row: u16,
     ws_col: u16,
@@ -272,7 +273,7 @@ numeric_enum_macro::numeric_enum! {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Pod)]
 /// The termios functions describe a general terminal interface that
 /// is provided to control asynchronous communications ports.
 pub struct Termios {
@@ -625,7 +626,7 @@ bitflags! {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default, Pod)]
 pub struct RtcTime {
     pub sec: u32,
     pub min: u32,

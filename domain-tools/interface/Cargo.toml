@@ -9,6 +9,6 @@ edition = "2021"
 rref = { path = "../rref" }
 constants = { path = "../../base/constants" }
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
-
+pod = { workspace = true }
 [features]
 domain = []

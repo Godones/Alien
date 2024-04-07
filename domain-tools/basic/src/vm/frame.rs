@@ -117,11 +117,11 @@ impl PhysPage for FrameTracker {
         self.start_phy_addr()
     }
 
-    fn as_slice(&self) -> &[u8] {
+    fn as_bytes(&self) -> &[u8] {
         self.deref()
     }
 
-    fn as_mut_slice(&mut self) -> &mut [u8] {
+    fn as_mut_bytes(&mut self) -> &mut [u8] {
         self.deref_mut()
     }
 }

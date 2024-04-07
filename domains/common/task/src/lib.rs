@@ -1,5 +1,5 @@
 #![no_std]
-// #![forbid(unsafe_code)]
+#![forbid(unsafe_code)]
 extern crate alloc;
 #[macro_use]
 extern crate log;
@@ -18,6 +18,7 @@ use alloc::boxed::Box;
 
 use constants::{AlienError, AlienResult};
 use interface::{Basic, DomainType, InodeID, TaskDomain, TmpHeapInfo};
+use memory_addr::VirtAddr;
 use rref::RRef;
 
 use crate::{
@@ -78,16 +79,14 @@ impl TaskDomain for TaskDomainImpl {
         Ok(file.inode_id())
     }
 
-    fn copy_to_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
+    fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()> {
         let task = current_task().unwrap();
-        task.copy_to_user(src, dst, len);
-        Ok(())
+        task.write_bytes_to_user(VirtAddr::from(dst), buf)
     }
 
-    fn copy_from_user(&self, src: *const u8, dst: *mut u8, len: usize) -> AlienResult<()> {
+    fn copy_from_user(&self, src: usize, buf: &mut [u8]) -> AlienResult<()> {
         let task = current_task().unwrap();
-        task.copy_from_user(src, dst, len);
-        Ok(())
+        task.read_bytes_from_user(VirtAddr::from(src), buf)
     }
 
     fn current_tid(&self) -> AlienResult<usize> {
@@ -144,7 +143,11 @@ impl TaskDomain for TaskDomainImpl {
         argv_ptr: usize,
         envp_ptr: usize,
     ) -> AlienResult<isize> {
-        syscall::execve::do_execve(filename_ptr, argv_ptr, envp_ptr)
+        syscall::execve::do_execve(
+            VirtAddr::from(filename_ptr),
+            argv_ptr.into(),
+            envp_ptr.into(),
+        )
     }
 
     fn do_yield(&self) -> AlienResult<isize> {

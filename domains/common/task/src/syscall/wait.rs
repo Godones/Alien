@@ -1,6 +1,7 @@
 use alloc::sync::Arc;
 
 use constants::{task::WaitOptions, AlienError, AlienResult};
+use memory_addr::VirtAddr;
 
 use crate::{processor::current_task, scheduler::do_suspend, task::TaskStatus};
 
@@ -29,8 +30,7 @@ pub fn do_wait4(
             if wait_options.contains(WaitOptions::WNOWAIT) {
                 // recycle the task later
                 if exit_code_ptr != 0 {
-                    let exit_code_ref = task.transfer_raw_ptr(exit_code_ptr as *mut i32);
-                    *exit_code_ref = exit_code;
+                    task.write_val_to_user(VirtAddr::from(exit_code_ptr), &exit_code)?;
                 }
                 assert_eq!(wait_task.pid(), wait_task.tid());
                 return Ok(wait_task.pid() as _);

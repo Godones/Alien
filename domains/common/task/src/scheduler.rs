@@ -18,7 +18,7 @@ pub fn run_task() -> ! {
             cpu.set_current(task);
             // switch to the process context
             let cpu_context = cpu.get_idle_task_cx_ptr();
-            basic::switch_task(cpu_context, context);
+            basic::task::switch(cpu_context, context);
         } else {
             spin_loop();
         }
@@ -57,7 +57,7 @@ pub fn schedule_now(task: Arc<Task>) {
     }
     let cpu = current_cpu();
     let cpu_context = cpu.get_idle_task_cx_ptr();
-    basic::switch_task(context, cpu_context);
+    basic::task::switch(context, cpu_context);
 }
 
 pub fn do_suspend() {

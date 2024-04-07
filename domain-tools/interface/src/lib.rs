@@ -37,7 +37,9 @@ pub trait Basic: Send + Sync + Debug + Any {
         __impl::is_active()
     }
     #[cfg(not(feature = "domain"))]
-    fn is_active(&self) -> bool;
+    fn is_active(&self) -> bool{
+        false
+    }
 }
 
 pub trait DeviceBase: Basic {

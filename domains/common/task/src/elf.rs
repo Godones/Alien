@@ -31,9 +31,9 @@ impl PagingIf<Rv64PTE> for VmmPageAllocator {
 
 pub struct ELFInfo {
     pub address_space: VmSpace<VmmPageAllocator>,
-    pub entry: usize,
-    pub stack_top: usize,
-    pub heap_bottom: usize,
+    pub entry: VirtAddr,
+    pub stack_top: VirtAddr,
+    pub heap_bottom: VirtAddr,
     pub ph_num: usize,
     pub ph_entry_size: usize,
     pub ph_drift: usize,
@@ -134,13 +134,10 @@ pub fn load_to_vm_space(
 
         let mut page_offset = section.start_vaddr & (FRAME_SIZE - 1);
         let mut count = 0;
-        phy_frames.iter().for_each(|phy| {
+        phy_frames.iter_mut().for_each(|phy_frame| {
             let size = FRAME_SIZE;
             let min = min(size - page_offset, data.len());
-            let dst = (phy.start_virt_addr().as_usize() + page_offset) as *mut u8;
-            unsafe {
-                core::ptr::copy(data.as_ptr(), dst, min);
-            }
+            phy_frame[page_offset..(page_offset + min)].copy_from_slice(&data[..min]);
             data = &data[min..];
             count += min;
             page_offset = 0;
@@ -171,7 +168,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
             _ => return Err(AlienError::EINVAL),
         };
         let path = core::str::from_utf8(data).unwrap();
-        assert!(path.starts_with("/lib/ld-musl-riscv64-sf.so.1"));
+        assert!(path.starts_with("/lib/ld-musl-riscv64"));
         let mut new_args = vec!["/libc.so\0".to_string()];
         new_args.extend(args.clone());
         *args = new_args;
@@ -274,9 +271,9 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
 
     Ok(ELFInfo {
         address_space,
-        entry: elf.header.pt2.entry_point() as usize + bias,
-        stack_top: uer_stack_top,
-        heap_bottom,
+        entry: VirtAddr::from(elf.header.pt2.entry_point() as usize + bias),
+        stack_top: VirtAddr::from(uer_stack_top),
+        heap_bottom: VirtAddr::from(heap_bottom),
         ph_num: elf.header.pt2.ph_count() as usize,
         ph_entry_size: elf.header.pt2.ph_entry_size() as usize,
         ph_drift: res as usize + bias,

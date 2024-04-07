@@ -16,3 +16,4 @@ ksync = { path = "../../../base/ksync" }
 generic = { path = "../generic" }
 log = "0"
 spin = { workspace = true }
+pod = { workspace = true }

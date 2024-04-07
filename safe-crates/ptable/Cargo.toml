@@ -9,3 +9,4 @@ edition = "2021"
 config = { path = "../../base/config" }
 page_table = { path = "../page_table" }
 memory_addr = {  path = "../memory_addr" }
+pod = { workspace = true }
