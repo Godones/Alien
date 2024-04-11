@@ -1,5 +1,6 @@
 use alloc::{boxed::Box, vec, vec::Vec};
 use core::{
+    cmp::min,
     fmt::{Debug, Formatter},
     ops::Range,
 };
@@ -8,7 +9,9 @@ use config::FRAME_SIZE;
 use constants::{AlienError, AlienResult};
 use domain_helper::{DomainSyscall, SharedHeapAllocator};
 use log::{debug, info, trace};
-use mem::{alloc_free_region, MappingFlags, VirtAddr};
+use memory_addr::VirtAddr;
+use page_table::MappingFlags;
+use ptable::{PhysPage, VmArea};
 use xmas_elf::{
     program::Type,
     sections::{Rela, SectionData},
@@ -107,7 +110,7 @@ impl DomainLoader {
                 if ph_flags.is_execute() {
                     permission |= MappingFlags::EXECUTE;
                 }
-                let mut vaddr = VirtAddr::from(start_vaddr).align_down_4k().as_usize();
+                let vaddr = VirtAddr::from(start_vaddr).align_down_4k().as_usize();
                 let end_vaddr = VirtAddr::from(end_vaddr).align_up_4k().as_usize();
                 let len = end_vaddr - vaddr;
                 trace!(
@@ -117,7 +120,13 @@ impl DomainLoader {
                     ph.mem_size(),
                     permission
                 );
-                mem::map_region_to_kernel(vaddr, len, permission).unwrap();
+
+                let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
+                for _ in 0..len / FRAME_SIZE {
+                    let frame = Box::new(mem::alloc_frame_trackers(1));
+                    phy_frames.push(frame);
+                }
+
                 // save region
                 let meta = RegionMeta {
                     vm: VmInfo::new(vaddr..end_vaddr, permission),
@@ -127,24 +136,28 @@ impl DomainLoader {
                 };
                 self.regions.push(meta);
 
-                let data =
+                let mut data =
                     &elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize];
                 let mut page_offset = start_vaddr & (FRAME_SIZE - 1);
                 let mut count = 0;
-                while count < data.len() {
-                    let paddr = mem::query_kernel_space(vaddr).unwrap();
-                    // let paddr = vaddr;
-                    let len = core::cmp::min(FRAME_SIZE - page_offset, data.len() - count);
-                    let dst_buf =
-                        unsafe { core::slice::from_raw_parts_mut(paddr as *mut u8, FRAME_SIZE) };
-                    dst_buf[page_offset..page_offset + len]
-                        .copy_from_slice(&data[count..count + len]);
-                    trace!("copy data to {:#x}-{:#x}", paddr, paddr + len);
-                    vaddr += len;
+                let data_len = data.len();
+                phy_frames.iter_mut().for_each(|phy_frame| {
+                    let size = FRAME_SIZE;
+                    let min = min(size - page_offset, data.len());
+                    phy_frame.as_mut_bytes()[page_offset..(page_offset + min)]
+                        .copy_from_slice(&data[..min]);
+                    trace!(
+                        "copy data to {:#x}-{:#x}",
+                        phy_frame.phys_addr(),
+                        phy_frame.phys_addr() + size
+                    );
+                    data = &data[min..];
+                    count += min;
                     page_offset = 0;
-                    count += len;
-                }
-                assert_eq!(count, data.len());
+                });
+                assert_eq!(count, data_len);
+                let area = VmArea::new(vaddr..end_vaddr, permission, phy_frames);
+                mem::map_area_to_kernel(area).unwrap()
             });
         Ok(())
     }
@@ -164,9 +177,8 @@ impl DomainLoader {
                 let mut count = 0;
                 let mut vaddr = meta.vm.range().start;
                 while count < data.len() {
-                    // let paddr = mem::query_kernel_space(vaddr).unwrap();
                     let paddr = vaddr;
-                    let len = core::cmp::min(FRAME_SIZE - page_offset, data.len() - count);
+                    let len = min(FRAME_SIZE - page_offset, data.len() - count);
                     let dst_buf =
                         unsafe { core::slice::from_raw_parts_mut(paddr as *mut u8, FRAME_SIZE) };
                     dst_buf[page_offset..page_offset + len]
@@ -221,7 +233,7 @@ impl DomainLoader {
             .unwrap();
         let end_paddr = VirtAddr::from(end_paddr).align_up(FRAME_SIZE);
         // alloc free page to map elf
-        let region_start = alloc_free_region(end_paddr.as_usize()).unwrap();
+        let region_start = mem::alloc_free_region(end_paddr.as_usize()).unwrap();
         trace!(
             "region range:{:#x}-{:#x}",
             region_start,

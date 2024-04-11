@@ -1,9 +1,9 @@
 use constants::AlienResult;
 use rref::RRef;
 
-use crate::{devices::DeviceInfo, DeviceBase};
+use crate::{devices::DeviceInfo, Basic, DeviceBase};
 
-pub trait BlkDeviceDomain: DeviceBase {
+pub trait BlkDeviceDomain: DeviceBase + Basic {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
     fn read_block(&self, block: u32, data: RRef<[u8; 512]>) -> AlienResult<RRef<[u8; 512]>>;
     fn write_block(&self, block: u32, data: &RRef<[u8; 512]>) -> AlienResult<usize>;

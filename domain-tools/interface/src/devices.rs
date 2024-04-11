@@ -1,6 +1,7 @@
 use core::ops::Range;
 
 use constants::AlienResult;
+use gproxy::proxy;
 use rref::RRef;
 
 use crate::Basic;
@@ -24,6 +25,7 @@ impl Default for DeviceInfo {
     }
 }
 
+#[proxy(DevicesDomainProxy)]
 pub trait DevicesDomain: Basic {
     fn init(&self, dtb: &'static [u8]) -> AlienResult<()>;
     /// if there is no device, the return value next is 0

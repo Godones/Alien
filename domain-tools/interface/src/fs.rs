@@ -1,9 +1,11 @@
 use constants::AlienResult;
+use gproxy::proxy;
 use rref::{RRef, RRefVec};
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 
 use crate::{Basic, DirEntryWrapper, InodeID};
 
+#[proxy(FsDomainProxy)]
 pub trait FsDomain: Basic {
     fn init(&self) -> AlienResult<()>;
     fn mount(&self, mp: &RRefVec<u8>, dev_inode: Option<InodeID>) -> AlienResult<InodeID>;
@@ -72,6 +74,7 @@ pub trait FsDomain: Basic {
     fn fs_name(&self, name: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)>;
 }
 
+#[proxy(DevFsDomainProxy)]
 pub trait DevFsDomain: FsDomain {
     fn register(&self, rdev: u64, device_domain_name: &RRefVec<u8>) -> AlienResult<()>;
 }

@@ -1,9 +1,11 @@
 use constants::AlienResult;
+use gproxy::proxy;
 use rref::RRefVec;
 
-use crate::DeviceBase;
+use crate::{Basic, DeviceBase};
 
-pub trait CacheBlkDeviceDomain: DeviceBase {
+#[proxy(CacheBlkDomainProxy)]
+pub trait CacheBlkDeviceDomain: DeviceBase + Basic {
     fn init(&self, blk_domain_name: &str) -> AlienResult<()>;
     fn read(&self, offset: u64, buf: RRefVec<u8>) -> AlienResult<RRefVec<u8>>;
     fn write(&self, offset: u64, buf: &RRefVec<u8>) -> AlienResult<usize>;

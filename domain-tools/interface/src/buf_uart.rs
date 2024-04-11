@@ -1,8 +1,10 @@
 use constants::AlienResult;
+use gproxy::proxy;
 
-use crate::DeviceBase;
+use crate::{Basic, DeviceBase};
 
-pub trait BufUartDomain: DeviceBase {
+#[proxy(BufUartDomainProxy)]
+pub trait BufUartDomain: DeviceBase + Basic {
     fn init(&self, uart_domain_name: &str) -> AlienResult<()>;
     /// Write a character to the UART
     fn putc(&self, ch: u8) -> AlienResult<()>;

@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec};
 use core::sync::atomic::AtomicUsize;
 
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
@@ -7,10 +7,10 @@ use ksync::RwLock;
 use log::info;
 use page_table::MappingFlags;
 use platform::{config::DEVICE_SPACE, println};
-use ptable::{PhysPage, VmArea, VmAreaEqual, VmAreaType, VmSpace};
+use ptable::{VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
 
-use crate::frame::{alloc_frame_trackers, FrameTracker, VmmPageAllocator};
+use crate::frame::{FrameTracker, VmmPageAllocator};
 
 pub static KERNEL_SPACE: Lazy<Arc<RwLock<VmSpace<VmmPageAllocator>>>> =
     Lazy::new(|| Arc::new(RwLock::new(VmSpace::<VmmPageAllocator>::new())));
@@ -132,16 +132,8 @@ pub fn alloc_free_region(size: usize) -> Option<usize> {
     Some(KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::SeqCst))
 }
 
-pub fn map_region_to_kernel(vaddr: usize, size: usize, flags: MappingFlags) -> AlienResult<()> {
-    assert!(size > 0 && size % FRAME_SIZE == 0);
-    assert_eq!(vaddr % FRAME_SIZE, 0);
+pub fn map_area_to_kernel(area: VmArea) -> AlienResult<()> {
     let mut kernel_space = KERNEL_SPACE.write();
-    let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
-    for _ in 0..size / FRAME_SIZE {
-        let frame = alloc_frame_trackers(1);
-        phy_frames.push(Box::new(frame));
-    }
-    let area = VmArea::new(vaddr..vaddr + size, flags, phy_frames);
     kernel_space.map(VmAreaType::VmArea(area)).unwrap();
     Ok(())
 }

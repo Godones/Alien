@@ -1,6 +1,7 @@
 use constants::AlienResult;
+use gproxy::proxy;
 use rref::{RRef, RRefVec};
-use vfscore::utils::{VfsFileStat, VfsFsStat, VfsNodeType, VfsPollEvents};
+use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 
 use crate::Basic;
 
@@ -30,7 +31,7 @@ impl DirEntryWrapper {
         }
     }
 }
-
+#[proxy(VfsDomainProxy)]
 pub trait VfsDomain: Basic {
     fn init(&self) -> AlienResult<()>;
     fn vfs_poll(&self, inode: InodeID, events: VfsPollEvents) -> AlienResult<VfsPollEvents>;

@@ -1,8 +1,10 @@
 use constants::AlienResult;
+use gproxy::proxy;
 
-use crate::{DeviceBase, DeviceInfo};
+use crate::{Basic, DeviceBase, DeviceInfo};
 
-pub trait InputDomain: DeviceBase {
+#[proxy(InputDomainProxy)]
+pub trait InputDomain: DeviceBase + Basic {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
     /// Read an input event from the input device
     fn event_nonblock(&self) -> AlienResult<Option<u64>>;

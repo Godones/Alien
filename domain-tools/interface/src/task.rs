@@ -1,11 +1,13 @@
 use constants::AlienResult;
+use gproxy::proxy;
 use pod::Pod;
 use rref::RRef;
 
 use crate::{vfs::InodeID, Basic};
+#[proxy(TaskDomainProxy)]
 pub trait TaskDomain: Basic {
     fn init(&self) -> AlienResult<()>;
-    fn run(&self);
+    fn run(&self) -> AlienResult<()>;
     fn trap_frame_virt_addr(&self) -> AlienResult<usize>;
     fn current_task_satp(&self) -> AlienResult<usize>;
     fn trap_frame_phy_addr(&self) -> AlienResult<usize>;

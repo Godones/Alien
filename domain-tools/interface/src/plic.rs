@@ -1,7 +1,9 @@
 use constants::AlienResult;
+use gproxy::proxy;
 use rref::RRefVec;
 
 use crate::{devices::DeviceInfo, Basic};
+#[proxy(PLICDomainProxy)]
 pub trait PLICDomain: Basic {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
     fn handle_irq(&self) -> AlienResult<()>;

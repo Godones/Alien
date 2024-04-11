@@ -202,7 +202,7 @@ fn plic_domain() -> Arc<dyn PLICDomain> {
     domain.load().unwrap();
     let id = alloc_domain_id();
     let extern_intr_domain = domain.call(id);
-    Arc::new(EIntrDomainProxy::new(id, extern_intr_domain))
+    Arc::new(PLICDomainProxy::new(id, extern_intr_domain))
 }
 
 fn devices_domain() -> Arc<dyn DevicesDomain> {

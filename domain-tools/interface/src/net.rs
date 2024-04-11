@@ -1,7 +1,8 @@
 use constants::AlienResult;
+use gproxy::proxy;
 use rref::RRefVec;
 
-use crate::{DeviceBase, DeviceInfo};
+use crate::{Basic, DeviceBase, DeviceInfo};
 pub struct PackageBuffer(RRefVec<u8>);
 
 pub type TxBufferWrapper = PackageBuffer;
@@ -29,7 +30,8 @@ impl PackageBuffer {
     }
 }
 
-pub trait NetDomain: DeviceBase {
+#[proxy(NetDomainProxy)]
+pub trait NetDomain: DeviceBase + Basic {
     fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
     // fn medium(&self) -> Medium;
 

@@ -6,16 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-platform = { path = "../platform" }
-arch = { path = "../arch" }
-ksync = { path = "../ksync" }
-domain-loader = { path = "../domain-loader" }
 constants = { path = "../constants" }
-
 interface = { path = "../../domain-tools/interface" }
 rref = { path = "../../domain-tools/rref" }
 continuation = { path = "../continuation" }
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
+ksync = { path = "../ksync" }
+domain-loader = { path = "../domain-loader" }
+
 
 spin = "0"
 log = "0"

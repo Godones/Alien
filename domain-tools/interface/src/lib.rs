@@ -12,6 +12,7 @@ mod input_device;
 mod net;
 mod plic;
 mod rtc;
+mod sd;
 mod shadow_block;
 mod syscall;
 mod task;
@@ -27,43 +28,37 @@ use core::{any::Any, fmt::Debug};
 use constants::{AlienError, AlienResult};
 
 pub trait Basic: Send + Sync + Debug + Any {
-    // may be deleted
-    // fn drop_self(self: Arc<Self>) {
-    //     drop(self);
-    // }
-
     #[cfg(feature = "domain")]
     fn is_active(&self) -> bool {
         __impl::is_active()
     }
     #[cfg(not(feature = "domain"))]
-    fn is_active(&self) -> bool{
+    fn is_active(&self) -> bool {
         false
     }
 }
 
-pub trait DeviceBase: Basic {
+pub trait DeviceBase {
     fn handle_irq(&self) -> AlienResult<()>;
 }
 
-pub use block::BlkDeviceDomain;
-pub use buf_input::BufInputDomain;
-pub use buf_uart::BufUartDomain;
-pub use cache_block::CacheBlkDeviceDomain;
-pub use devices::{DeviceInfo, DevicesDomain};
-pub use empty_device::EmptyDeviceDomain;
+pub use block::*;
+pub use buf_input::*;
+pub use buf_uart::*;
+pub use cache_block::*;
+pub use devices::{DeviceInfo, *};
+pub use empty_device::*;
 pub use fs::*;
-pub use gpu::GpuDomain;
-pub use input_device::InputDomain;
+pub use gpu::*;
+pub use input_device::*;
 pub use net::*;
-pub use plic::PLICDomain;
-pub use rtc::RtcDomain;
-pub use shadow_block::ShadowBlockDomain;
-pub use syscall::SysCallDomain;
+pub use plic::*;
+pub use rtc::*;
+pub use shadow_block::*;
+pub use syscall::*;
 pub use task::*;
-pub use uart::UartDomain;
+pub use uart::*;
 pub use vfs::*;
-
 #[derive(Clone, Debug)]
 pub enum DomainType {
     FsDomain(Arc<dyn FsDomain>),

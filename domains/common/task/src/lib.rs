@@ -48,7 +48,7 @@ impl TaskDomain for TaskDomainImpl {
         init::init_task();
         Ok(())
     }
-    fn run(&self) {
+    fn run(&self) -> AlienResult<()> {
         run_task()
     }
 

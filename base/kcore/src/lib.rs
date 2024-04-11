@@ -29,5 +29,5 @@ pub fn register_plic_domain(plic_domain: Arc<dyn PLICDomain>) {
 
 pub fn run_task() {
     let task_domain = TASK_DOMAIN.get().expect("task domain not init");
-    task_domain.run();
+    task_domain.run().expect("task domain run failed");
 }
