@@ -11,7 +11,6 @@ interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 small-index = { git = "https://github.com/os-module/small-index" }
 spin = "0"
-ksync = { path = "../../../base/ksync" }
 config = { path = "../../../base/config" }
 constants = { path = "../../../base/constants" }
 vfscore = { git = "https://github.com/os-module/rvfs.git" }

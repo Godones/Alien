@@ -1,9 +1,5 @@
-#![feature(maybe_uninit_uninit_array)]
-#![feature(maybe_uninit_slice)]
-#![feature(maybe_uninit_write_slice)]
-#![feature(ip)]
 #![no_std]
-#![allow(unused)]
+#![forbid(unsafe_code)]
 extern crate alloc;
 
 pub use consts::*;

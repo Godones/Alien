@@ -1,6 +1,6 @@
 use alloc::{collections::BTreeMap, sync::Arc};
 
-use ksync::Mutex;
+use basic::sync::Mutex;
 use spin::Lazy;
 
 use crate::{

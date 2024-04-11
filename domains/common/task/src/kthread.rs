@@ -1,10 +1,12 @@
 use alloc::{collections::BTreeMap, string::ToString, sync::Arc};
 
-use basic::task::{TaskContext, TaskContextExt};
+use basic::{
+    sync::Mutex,
+    task::{TaskContext, TaskContextExt},
+};
 use config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE};
 use constants::AlienResult;
 use interface::VFS_ROOT_ID;
-use ksync::Mutex;
 use ptable::VmSpace;
 use small_index::IndexAllocator;
 

@@ -1,7 +1,7 @@
 use alloc::{collections::BTreeMap, string::String, sync::Arc, vec::Vec};
 use core::fmt::{Debug, Formatter};
 
-use basic::vm::frame::FrameTracker;
+use basic::{sync::Mutex, vm::frame::FrameTracker};
 use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, USER_STACK_SIZE};
 use constants::{
     aux::{
@@ -10,7 +10,6 @@ use constants::{
     },
     AlienError, AlienResult,
 };
-use ksync::Mutex;
 use memory_addr::VirtAddr;
 use ptable::{VmIo, VmSpace};
 use small_index::IndexAllocator;

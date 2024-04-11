@@ -9,6 +9,7 @@ use alloc::{
 use core::{fmt::Debug, ops::Range};
 
 use basic::{
+    sync::{Mutex, MutexGuard},
     task::{TaskContext, TaskContextExt, TrapFrame},
     vm::frame::FrameTracker,
 };
@@ -17,7 +18,6 @@ use config::{
 };
 use constants::{signal::SignalNumber, task::CloneFlags, AlienResult};
 use interface::{InodeID, VFS_ROOT_ID};
-use ksync::{Mutex, MutexGuard};
 use memory_addr::{PhysAddr, VirtAddr};
 use page_table::MappingFlags;
 use pod::Pod;

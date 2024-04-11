@@ -32,12 +32,12 @@
 // FUTEX_PRIVATE_FLAG)
 
 use bitflags::bitflags;
-use numeric_enum_macro::numeric_enum;
+use int_enum::IntEnum;
+use pod::Pod;
 
-numeric_enum! {
-    #[repr(u32)]
-    #[derive(Eq, PartialEq, Debug, Copy, Clone)]
-    pub enum FutexOp {
+#[repr(u32)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, IntEnum)]
+pub enum FutexOp {
     FutexWait = 0,
     FutexWake = 1,
     FutexFd = 2,
@@ -63,7 +63,6 @@ numeric_enum! {
     FutexWakeBitsetPrivate = 128 | FutexOp::FutexWakeBitset as u32,
     FutexWaitRequeuePiPrivate = 128 | FutexOp::FutexWaitRequeuePi as u32,
     FutexCmpRequeuePiPrivate = 128 | FutexOp::FutexCmpRequeuePi as u32,
-}
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -166,19 +165,17 @@ bitflags! {
 // #define SHM_STAT	13
 // #define SHM_INFO	14
 // #define SHM_STAT_ANY    15
-numeric_enum! {
-    #[repr(u32)]
-    #[derive(Eq, PartialEq, Debug, Copy, Clone)]
-    pub enum ShmCtlCmd {
-        IpcRmid = 0,
-        IpcSet = 1,
-        IpcStat = 2,
-        ShmLock = 11,
-        ShmUnlock = 12,
-        ShmStat = 13,
-        ShmInfo = 14,
-        ShmStatAny = 15,
-    }
+#[repr(u32)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, IntEnum)]
+pub enum ShmCtlCmd {
+    IpcRmid = 0,
+    IpcSet = 1,
+    IpcStat = 2,
+    ShmLock = 11,
+    ShmUnlock = 12,
+    ShmStat = 13,
+    ShmInfo = 14,
+    ShmStatAny = 15,
 }
 
 // struct shminfo {
@@ -193,6 +190,7 @@ numeric_enum! {
 //                                                shared memory, system-wide */
 // };
 #[repr(C)]
+#[derive(Copy, Clone, Pod)]
 pub struct ShamInfo {
     pub shmmax: i32,
     pub shmmin: i32,
@@ -217,6 +215,7 @@ pub struct ShamInfo {
 // };
 
 #[repr(C)]
+#[derive(Copy, Clone, Pod)]
 pub struct ShmInfo2 {
     pub used_ids: i32,
     pub shm_tot: u32,
@@ -238,7 +237,8 @@ pub struct ShmInfo2 {
 //     shmatt_t        shm_nattch;  /* No. of current attaches */
 //     ...
 // };
-
+#[derive(Copy, Clone, Pod)]
+#[repr(C)]
 pub struct ShmIdDs {
     pub shm_perm: IpcPerm,
     pub shm_segsz: usize,
@@ -251,6 +251,7 @@ pub struct ShmIdDs {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Pod)]
 pub struct IpcPerm {
     key: i32,
     uid: u32,
@@ -262,6 +263,7 @@ pub struct IpcPerm {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Pod)]
 pub struct ShmidDs {
     pub shm_perm: IpcPerm,
     pub shm_segsz: i32,

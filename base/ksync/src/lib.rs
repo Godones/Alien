@@ -43,7 +43,7 @@ const DEFAULT_CPU: SafeRefCell<Cpu> = SafeRefCell::new(Cpu::new());
 
 static CPUS: [SafeRefCell<Cpu>; CPU_NUM] = [DEFAULT_CPU; CPU_NUM];
 
-pub fn mycpu() -> RefMut<'static, Cpu> {
+fn mycpu() -> RefMut<'static, Cpu> {
     CPUS[hart_id()].0.borrow_mut()
 }
 

@@ -2,8 +2,10 @@
 //!
 //! 这个文件的内容修改自 zCore (`https://github.com/rcore-os/zCore/`)
 
+use pod::Pod;
+
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Pod, Copy)]
 pub struct SignalUserContext {
     pub flags: usize,
     pub link: usize,
@@ -29,7 +31,7 @@ impl SignalUserContext {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Pod)]
 pub struct SignalStack {
     pub sp: usize,
     pub flags: u32,
@@ -48,7 +50,7 @@ impl Default for SignalStack {
 }
 
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Pod, Copy)]
 pub struct MachineContext {
     pub reserved_: [usize; 16],
     // 目前只设置了 pc 值

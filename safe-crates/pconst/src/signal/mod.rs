@@ -1,8 +1,3 @@
-//! 信号模块，用于 sigaction / sigreturn / kill 等 pconst
-//! 信号模块和 task 管理的进程/线程相关，但又相对独立；
-//! 且如果单纯作为线程的一部分，容易因为信号发送的任意性导致死锁，因此单独列出来。
-//!
-//! 目前的模型中，不采用 ipi 实时发送信号，而是由被目标线程在 trap 时处理。因此需要开启**时钟中断**来保证信号能实际送到
 use alloc::vec::Vec;
 
 pub use action::{
@@ -45,11 +40,9 @@ impl SignalHandlers {
     }
     /// 获取某个信号对应的 SigAction。
     /// 因为 signum 的范围是 \[1,64\]，所以要 -1
-    pub fn get_action<'a>(&self, signum: usize, action_pos: *mut SigAction) {
+    pub fn get_action<'a>(&self, signum: usize, action_pos: &mut SigAction) {
         if let Some(action) = self.actions[signum - 1] {
-            unsafe {
-                *action_pos = action;
-            }
+            *action_pos = action;
         }
     }
     /// 获取某个信号对应的 SigAction，如果存在，则返回其引用
@@ -66,11 +59,9 @@ impl SignalHandlers {
     }
     /// 修改某个信号对应的 SigAction。
     /// 因为 signum 的范围是 \[1,64\]，所以内部要 -1
-    pub fn set_action(&mut self, signum: usize, action_pos: *const SigAction) {
-        unsafe {
-            self.actions[signum - 1] = Some(*action_pos);
-            //self.actions[signum - 1].as_mut().unwrap().flags |= SigActionFlags::SA_SIGINFO;
-        }
+    pub fn set_action(&mut self, signum: usize, action_pos: &SigAction) {
+        self.actions[signum - 1] = Some(*action_pos);
+        //self.actions[signum - 1].as_mut().unwrap().flags |= SigActionFlags::SA_SIGINFO;
     }
 }
 
@@ -174,7 +165,7 @@ impl Into<Vec<SignalNumber>> for SimpleBitSet {
         let mut ans = Vec::new();
         for i in 0..64 {
             if self.0 & (1 << i) != 0 {
-                ans.push(SignalNumber::from(i + 1));
+                ans.push(SignalNumber::try_from(i + 1).unwrap());
             }
         }
         ans

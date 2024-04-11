@@ -1,9 +1,8 @@
-use numeric_enum_macro::numeric_enum;
+use int_enum::IntEnum;
 
-numeric_enum! {
-    #[repr(u32)]
-    #[derive(Eq, PartialEq, Debug, Copy, Clone)]
-    pub enum SyslogAction {
+#[repr(u32)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, IntEnum)]
+pub enum SyslogAction {
     CLOSE = 0,
     OPEN = 1,
     READ = 2,
@@ -16,7 +15,6 @@ numeric_enum! {
     SizeUnread = 9,
     SizeBuffer = 10,
     Unknown = 11,
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -145,16 +143,14 @@ impl Rusage {
     }
 }
 
-numeric_enum! {
-    #[repr(isize)]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub enum RusageFlag {
-        /// Returns the resource usage of the calling process
-        RusageSelf = 0,
-        /// Returns the resource usage of all children of the calling process that have
-        /// terminated and been waited for
-        RusageChildren = -1,
-        /// Returns the resource usage of the calling thread
-        RusageThread = 1,
-    }
+#[repr(isize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntEnum)]
+pub enum RusageFlag {
+    /// Returns the resource usage of the calling process
+    RusageSelf = 0,
+    /// Returns the resource usage of all children of the calling process that have
+    /// terminated and been waited for
+    RusageChildren = -1,
+    /// Returns the resource usage of the calling thread
+    RusageThread = 1,
 }

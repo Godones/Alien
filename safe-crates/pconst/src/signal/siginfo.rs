@@ -1,10 +1,13 @@
 //! 触发信号时的信息。当 SigAction 指定需要信息时，需要将其返回给用户
 
+use int_enum::IntEnum;
+use pod::Pod;
+
 /// 错误信息
 ///
 /// 详细定义见 `https://man7.org/linux/man-pages/man2/rt_sigaction.2.html`
 /// 更准确的错误信息的内容比现在实现的要多很多，但剩下的部分根据信号不同，定义也会变得非常复杂
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Pod)]
 #[repr(C)]
 pub struct SigInfo {
     pub si_signo: i32,
@@ -22,21 +25,10 @@ impl Default for SigInfo {
     }
 }
 
-#[derive(Debug)]
+#[repr(usize)]
+#[derive(Debug, Copy, Clone, IntEnum)]
 pub enum SigProcMaskHow {
     SigBlock = 0,
     SigUnblock = 1,
     SigSetMask = 2,
-    Unknown,
-}
-
-impl From<usize> for SigProcMaskHow {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => SigProcMaskHow::SigBlock,
-            1 => SigProcMaskHow::SigUnblock,
-            2 => SigProcMaskHow::SigSetMask,
-            _ => SigProcMaskHow::Unknown,
-        }
-    }
 }

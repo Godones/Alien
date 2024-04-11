@@ -9,6 +9,7 @@ edition = "2021"
 config = { path = "../../base/config" }
 corelib = { path = "../corelib", features = ["core_impl"]}
 constants = { path = "../../base/constants" }
+ksync = { path = "../../base/ksync" }
 rref = { path = "../rref" }
 arch = { path = "../../base/arch" }
 log = "0"

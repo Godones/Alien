@@ -16,7 +16,7 @@ pub fn do_clone(
     let clone_flag = CloneFlags::from_bits_truncate(flags as u32);
     // check whether flag include signal
     let sig = flags & 0xff;
-    let sig = SignalNumber::from(sig);
+    let sig = SignalNumber::try_from(sig as u8).map_err(|_| AlienError::EINVAL)?;
     let mut task = current_task().unwrap();
     let child_num = task.inner().children.len();
     if child_num >= 10 {

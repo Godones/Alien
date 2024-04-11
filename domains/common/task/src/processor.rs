@@ -1,8 +1,7 @@
 use alloc::{collections::VecDeque, sync::Arc};
 use core::cell::RefCell;
 
-use basic::{arch::CpuLocal, task::TaskContext};
-use ksync::Mutex;
+use basic::{arch::CpuLocal, sync::Mutex, task::TaskContext};
 use spin::lazy::Lazy;
 
 use crate::task::Task;
