@@ -101,8 +101,8 @@ impl KStack {
         }
     }
 
-    pub fn top(&self) -> usize {
-        self.frames.as_ref().unwrap().end_virt_addr().as_usize()
+    pub fn top(&self) -> VirtAddr {
+        self.frames.as_ref().unwrap().end_virt_addr()
     }
 
     pub fn release(&mut self) {

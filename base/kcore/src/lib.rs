@@ -10,6 +10,7 @@ use alloc::sync::Arc;
 use interface::{PLICDomain, SysCallDomain, TaskDomain};
 use spin::Once;
 
+pub mod task;
 pub mod trap;
 
 static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();

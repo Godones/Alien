@@ -53,14 +53,19 @@ impl TaskDomain for TaskDomainImpl {
     }
 
     fn trap_frame_virt_addr(&self) -> AlienResult<usize> {
-        Ok(processor::current_trap_frame_ptr())
+        let task = current_task().unwrap();
+        let addr = task.trap_frame_virt_ptr();
+        Ok(addr.as_usize())
     }
+
     fn current_task_satp(&self) -> AlienResult<usize> {
-        Ok(processor::current_user_token())
+        let task = current_task().unwrap();
+        Ok(task.token())
     }
 
     fn trap_frame_phy_addr(&self) -> AlienResult<usize> {
-        Ok(processor::current_trap_frame() as *mut _ as usize)
+        let task = current_task().unwrap();
+        Ok(task.trap_frame_phy_ptr().as_usize())
     }
 
     fn heap_info(&self, mut tmp_heap_info: RRef<TmpHeapInfo>) -> AlienResult<RRef<TmpHeapInfo>> {

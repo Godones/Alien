@@ -2,6 +2,7 @@ use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use core::sync::atomic::AtomicBool;
 
 use config::FRAME_BITS;
+use context::TaskContext;
 use corelib::CoreFunction;
 use interface::*;
 use ksync::Mutex;
@@ -127,6 +128,11 @@ impl CoreFunction for DomainSyscall {
 
     fn sys_create_domain(&self, identifier: &str) -> Option<DomainType> {
         DOMAIN_CREATE.get().unwrap().create_domain(identifier)
+    }
+
+    fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize) {
+        continuation::set_current_task_id(next_tid);
+        kcore::task::switch(now, next)
     }
 }
 extern "C" {

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 arch = { path = "../../base/arch" }
 riscv = "0"
+pod = { workspace = true }

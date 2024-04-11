@@ -1,8 +1,8 @@
 use alloc::{collections::BTreeMap, string::ToString, sync::Arc};
 
+use basic::task::{TaskContext, TaskContextExt};
 use config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE};
 use constants::AlienResult;
-use context::TaskContext;
 use interface::VFS_ROOT_ID;
 use ksync::Mutex;
 use ptable::VmSpace;
@@ -23,7 +23,6 @@ pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
     // fake kspace
     let kspace = VmSpace::<VmmPageAllocator>::new();
     let k_stack_top = k_stack.top();
-    let func_ptr = func as usize;
     let task = Task {
         tid,
         kernel_stack: k_stack,
@@ -44,7 +43,7 @@ pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
             status: TaskStatus::Ready,
             parent: None,
             children: BTreeMap::new(),
-            context: TaskContext::new(func_ptr, k_stack_top),
+            context: TaskContext::new_kernel(func as _, k_stack_top),
             fs_info: FsContext::new(VFS_ROOT_ID, VFS_ROOT_ID),
             exit_code: 0,
             clear_child_tid: 0,

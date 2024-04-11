@@ -1,8 +1,7 @@
 use alloc::{collections::VecDeque, sync::Arc};
 use core::cell::RefCell;
 
-use basic::arch::CpuLocal;
-use context::{TaskContext, TrapFrame};
+use basic::{arch::CpuLocal, task::TaskContext};
 use ksync::Mutex;
 use spin::lazy::Lazy;
 
@@ -47,21 +46,6 @@ pub fn current_task() -> Option<Arc<Task>> {
 
 pub fn take_current_task() -> Option<Arc<Task>> {
     CPU.take_current()
-}
-
-pub fn current_user_token() -> usize {
-    let task = current_task().unwrap();
-    task.token()
-}
-
-pub fn current_trap_frame() -> &'static mut TrapFrame {
-    let task = current_task().unwrap();
-    task.trap_frame()
-}
-
-pub fn current_trap_frame_ptr() -> usize {
-    let task = current_task().unwrap();
-    task.trap_frame_ptr()
 }
 
 static GLOBAL_TASK_MANAGER: Lazy<Arc<Mutex<VecDeque<Arc<Task>>>>> =

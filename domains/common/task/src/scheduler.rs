@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::hint::spin_loop;
 
 use crate::{
-    processor::{add_task, current_cpu, current_task, pick_next_task, take_current_task},
+    processor::{add_task, current_cpu, pick_next_task, take_current_task},
     task::{Task, TaskStatus},
 };
 
@@ -13,21 +13,18 @@ pub fn run_task() -> ! {
             task.update_state(TaskStatus::Running);
             // get the process context
             let context = task.get_context_raw_ptr();
+            let tid = task.tid();
             let cpu = current_cpu();
             // basic::println!("switch to task: {:?}", task.pid());
             cpu.set_current(task);
             // switch to the process context
             let cpu_context = cpu.get_idle_task_cx_ptr();
-            basic::task::switch(cpu_context, context);
+            // println!("switch to task: {:?}", tid);
+            basic::task::switch(cpu_context, context, tid);
         } else {
             spin_loop();
         }
     }
-}
-
-pub fn schedule() {
-    let task = take_current_task().unwrap();
-    schedule_now(task)
 }
 
 pub fn schedule_now(task: Arc<Task>) {
@@ -57,15 +54,13 @@ pub fn schedule_now(task: Arc<Task>) {
     }
     let cpu = current_cpu();
     let cpu_context = cpu.get_idle_task_cx_ptr();
-    basic::task::switch(context, cpu_context);
+    basic::task::switch(context, cpu_context, usize::MAX);
 }
 
 pub fn do_suspend() {
-    {
-        let task = current_task().unwrap();
-        // task.access_inner().update_timer();
-        // check_task_timer_expired();
-        task.update_state(TaskStatus::Ready);
-    }
-    schedule();
+    let task = take_current_task().unwrap();
+    // task.access_inner().update_timer();
+    // check_task_timer_expired();
+    task.update_state(TaskStatus::Ready);
+    schedule_now(task);
 }

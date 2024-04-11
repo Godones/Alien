@@ -12,9 +12,8 @@ constants = { path = "../../base/constants" }
 rref = { path = "../rref" }
 arch = { path = "../../base/arch" }
 log = "0"
-
+pod = { workspace = true }
 #downcast-rs = { version = "1.2.0", default-features = false }
-
 page_table = { path = "../../safe-crates/page_table" }
 memory_addr = { path = "../../safe-crates/memory_addr" }
 ptable = { path = "../../safe-crates/ptable" }

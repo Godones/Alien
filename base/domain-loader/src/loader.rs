@@ -198,7 +198,7 @@ impl DomainLoader {
         if let Ok(res) = relocate_dyn(&elf, self.phy_start) {
             trace!("Relocate_dyn {} entries", res.len());
             res.into_iter().for_each(|kv| {
-                debug!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
+                trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
                 let addr = mem::query_kernel_space(kv.0).unwrap();
                 unsafe { (addr as *mut usize).write(kv.1) }
             });

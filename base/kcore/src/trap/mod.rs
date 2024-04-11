@@ -8,7 +8,7 @@ use core::{
 
 use bit_field::BitField;
 use config::TRAMPOLINE;
-use context::TrapFrame;
+use context::TrapFrameRaw;
 use platform::println;
 use riscv::register::{
     scause::{Exception, Interrupt, Trap},
@@ -91,7 +91,6 @@ pub fn user_trap_vector() {
         set_kernel_trap_entry();
         let cause = riscv::register::scause::read();
         let cause = cause.cause();
-        // println!("cause:{:?}", cause);
         cause.do_user_handle();
         // let task = current_task().unwrap();
         // if cause != Trap::Interrupt(Interrupt::SupervisorTimer) {
@@ -109,18 +108,16 @@ pub fn trap_return() -> ! {
     arch::interrupt_disable();
     set_user_trap_entry();
 
-    let trap_frame_ptr = TASK_DOMAIN.get().unwrap().trap_frame_virt_addr().unwrap();
-    // let trap_frame = TrapFrame::from_raw_ptr(trap_frame_ptr as _);
-    // println!("trap_frame_ptr:{:#x?}", trap_frame_ptr);
+    let task_domain = TASK_DOMAIN.get().unwrap();
+    let trap_frame_ptr = task_domain.trap_frame_virt_addr().unwrap();
 
     // let sstatues = trap_frame.get_status();
     // let enable = sstatues.0.get_bit(5);
     // let sie = sstatues.0.get_bit(1);
     // assert!(enable);
     // assert!(!sie);
-
-    let trap_cx_ptr = trap_frame_ptr as *const TrapFrame;
-    let user_satp = TASK_DOMAIN.get().unwrap().current_task_satp().unwrap();
+    let trap_cx_ptr = trap_frame_ptr as *const TrapFrameRaw;
+    let user_satp = task_domain.current_task_satp().unwrap();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
     unsafe {
         asm!(

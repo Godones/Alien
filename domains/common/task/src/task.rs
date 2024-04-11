@@ -8,15 +8,17 @@ use alloc::{
 };
 use core::{fmt::Debug, ops::Range};
 
-use basic::vm::frame::FrameTracker;
+use basic::{
+    task::{TaskContext, TaskContextExt, TrapFrame},
+    vm::frame::FrameTracker,
+};
 use config::{
     FRAME_SIZE, MAX_THREAD_NUM, TRAP_CONTEXT_BASE, USER_KERNEL_STACK_SIZE, USER_STACK_SIZE,
 };
 use constants::{signal::SignalNumber, task::CloneFlags, AlienResult};
-use context::{TaskContext, TrapFrame};
 use interface::{InodeID, VFS_ROOT_ID};
 use ksync::{Mutex, MutexGuard};
-use memory_addr::VirtAddr;
+use memory_addr::{PhysAddr, VirtAddr};
 use page_table::MappingFlags;
 use pod::Pod;
 use ptable::{PhysPage, VmArea, VmAreaType, VmIo, VmSpace};
@@ -192,15 +194,19 @@ impl Task {
     }
 
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
-        let trap_context_base = TRAP_CONTEXT_BASE - self.inner().thread_number * FRAME_SIZE;
-        let (physical, _, _) = self.address_space.lock().query(trap_context_base).unwrap();
-        TrapFrame::from_raw_ptr(physical.as_usize() as *mut TrapFrame)
+        TrapFrame::from_raw_phy_ptr(self.trap_frame_phy_ptr())
     }
 
-    pub fn trap_frame_ptr(&self) -> usize {
+    pub fn trap_frame_virt_ptr(&self) -> VirtAddr {
         let inner = self.inner();
         let trap_context_base = TRAP_CONTEXT_BASE - inner.thread_number * FRAME_SIZE;
-        trap_context_base
+        VirtAddr::from(trap_context_base)
+    }
+
+    pub fn trap_frame_phy_ptr(&self) -> PhysAddr {
+        let trap_context_base = TRAP_CONTEXT_BASE - self.inner().thread_number * FRAME_SIZE;
+        let (physical, _, _) = self.address_space.lock().query(trap_context_base).unwrap();
+        physical
     }
 
     pub fn extend_heap(&self, addr: usize) -> usize {
@@ -252,9 +258,6 @@ impl Task {
         let k_stack_top = k_stack.top();
         let stack_info =
             elf_info.stack_top.as_usize() - USER_STACK_SIZE..elf_info.stack_top.as_usize();
-
-        let trap_to_user = basic::trap_to_user();
-
         let task = Task {
             tid,
             kernel_stack: k_stack,
@@ -283,7 +286,7 @@ impl Task {
                 status: TaskStatus::Ready,
                 parent: None,
                 children: BTreeMap::new(),
-                context: TaskContext::new(trap_to_user, k_stack_top),
+                context: TaskContext::new_user(k_stack_top),
                 fs_info: FsContext::new(VFS_ROOT_ID, VFS_ROOT_ID),
                 exit_code: 0,
                 clear_child_tid: 0,
@@ -300,17 +303,8 @@ impl Task {
         );
         let user_sp = user_stack.init(&mut task.address_space.lock()).unwrap();
         let trap_frame = task.trap_frame();
-        let kernel_satp = basic::kernel_satp();
-        let user_trap_vector = basic::trap_from_user();
-
-        *trap_frame = TrapFrame::init_for_task(
-            elf_info.entry.as_usize(),
-            user_sp.as_usize(),
-            kernel_satp,
-            task.kernel_stack.top(),
-            user_trap_vector,
-        );
-        trap_frame.regs()[4] = elf_info.tls; // tp --> tls
+        *trap_frame = TrapFrame::new_user(elf_info.entry, user_sp, k_stack_top);
+        trap_frame.update_tp(VirtAddr::from(elf_info.tls)); // tp --> tls
         Some(task)
     }
 
@@ -379,7 +373,6 @@ impl Task {
             Arc::new(Mutex::new(self.heap.lock().clone()))
         };
 
-        let trap_to_user = basic::trap_to_user();
         let k_stack = KStack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE);
         let k_stack_top = k_stack.top();
 
@@ -398,7 +391,7 @@ impl Task {
                 status: TaskStatus::Ready,
                 parent,
                 children: BTreeMap::new(),
-                context: TaskContext::new(trap_to_user, k_stack_top),
+                context: TaskContext::new_user(k_stack_top),
                 fs_info,
                 exit_code: 0,
                 clear_child_tid: if clone_args.flags.contains(CloneFlags::CLONE_CHILD_CLEARTID) {
@@ -416,11 +409,11 @@ impl Task {
 
         // *trap_context = *old_trap_context;
         // 设置内核栈地址
-        trap_context.update_kernel_sp(k_stack_top);
+        trap_context.update_k_sp(k_stack_top);
 
         // 检查是否需要设置 tls
         if clone_args.flags.contains(CloneFlags::CLONE_SETTLS) {
-            trap_context.update_tp(clone_args.tls);
+            trap_context.update_tp(VirtAddr::from(clone_args.tls));
         }
 
         // 检查是否在父任务地址中写入 tid
@@ -437,7 +430,7 @@ impl Task {
         if clone_args.stack != 0 {
             assert!(clone_args.flags.contains(CloneFlags::CLONE_VM));
             // set the sp of the new process
-            trap_context.update_user_sp(clone_args.stack)
+            trap_context.update_user_sp(VirtAddr::from(clone_args.stack))
         }
 
         let task = Arc::new(task);
@@ -481,17 +474,8 @@ impl Task {
         drop(inner);
         let trap_frame = self.trap_frame();
 
-        let kernel_satp = basic::kernel_satp();
-        let user_trap_vector = basic::trap_from_user();
-
-        *trap_frame = TrapFrame::init_for_task(
-            elf_info.entry.as_usize(),
-            user_sp.as_usize(),
-            kernel_satp,
-            self.kernel_stack.top(),
-            user_trap_vector,
-        );
-        trap_frame.regs()[4] = elf_info.tls; // tp --> tls
+        *trap_frame = TrapFrame::new_user(elf_info.entry, user_sp, self.kernel_stack.top());
+        trap_frame.update_tp(VirtAddr::from(elf_info.tls)); // tp --> tls
         Ok(())
     }
 }

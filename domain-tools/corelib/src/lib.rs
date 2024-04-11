@@ -1,6 +1,7 @@
 #![no_std]
 extern crate alloc;
 
+use context::TaskContext;
 #[cfg(feature = "core_impl")]
 pub use core_impl::*;
 use interface::DomainType;
@@ -19,12 +20,14 @@ pub trait CoreFunction: Send + Sync {
     fn sys_read_time_ms(&self) -> u64;
     fn sys_get_domain(&self, name: &str) -> Option<DomainType>;
     fn sys_create_domain(&self, identifier: &str) -> Option<DomainType>;
+    fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize);
 }
 
 #[cfg(feature = "core_impl")]
 mod core_impl {
     use alloc::boxed::Box;
 
+    use context::TaskContext;
     use interface::DomainType;
     use spin::Once;
 
@@ -110,5 +113,11 @@ mod core_impl {
 
     pub fn create_domain(identifier: &str) -> Option<DomainType> {
         unsafe { CORE_FUNC.get_unchecked().sys_create_domain(identifier) }
+    }
+
+    pub fn switch_task(now: *mut TaskContext, next: *const TaskContext, next_tid: usize) {
+        unsafe {
+            CORE_FUNC.get_unchecked().switch_task(now, next, next_tid);
+        }
     }
 }

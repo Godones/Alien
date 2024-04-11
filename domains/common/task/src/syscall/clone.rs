@@ -34,7 +34,7 @@ pub fn do_clone(
     let new_task = task.do_clone(clone_args).ok_or(AlienError::EAGAIN)?;
     // update return value
     let trap_frame = new_task.trap_frame();
-    trap_frame.update_res(0);
+    trap_frame.update_result(0);
     let tid = new_task.tid.raw();
     add_task(new_task);
     Ok(tid as isize)
