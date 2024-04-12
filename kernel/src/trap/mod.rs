@@ -1,14 +1,12 @@
 mod exception;
 
-use alloc::boxed::Box;
-use core::{
-    arch::{asm, global_asm},
-    fmt::Debug,
-};
+use alloc::sync::Arc;
+use core::arch::{asm, global_asm};
 
-use bit_field::BitField;
 use config::TRAMPOLINE;
 use context::TrapFrameRaw;
+use interface::{PLICDomain, SysCallDomain};
+use log::debug;
 use platform::println;
 use riscv::register::{
     scause::{Exception, Interrupt, Trap},
@@ -17,8 +15,37 @@ use riscv::register::{
     stval, stvec,
     stvec::TrapMode,
 };
+use spin::Once;
 
-use crate::{PLIC_DOMAIN, TASK_DOMAIN};
+use crate::{task_domain, timer};
+
+pub static SYSCALL_DOMAIN: Once<Arc<dyn SysCallDomain>> = Once::new();
+pub static PLIC_DOMAIN: Once<Arc<dyn PLICDomain>> = Once::new();
+
+#[macro_export]
+macro_rules! syscall_domain {
+    () => {
+        crate::trap::SYSCALL_DOMAIN
+            .get()
+            .expect("syscall domain not init")
+    };
+}
+
+macro_rules! plic_domain {
+    () => {
+        crate::trap::PLIC_DOMAIN
+            .get()
+            .expect("plic domain not init")
+    };
+}
+
+pub fn register_syscall_domain(syscall_domain: Arc<dyn SysCallDomain>) {
+    SYSCALL_DOMAIN.call_once(|| syscall_domain);
+}
+
+pub fn register_plic_domain(plic_domain: Arc<dyn PLICDomain>) {
+    PLIC_DOMAIN.call_once(|| plic_domain);
+}
 
 global_asm!(include_str!("./kernel_v.asm"));
 global_asm!(include_str!("./trampoline.asm"));
@@ -76,8 +103,7 @@ pub fn kernel_trap_vector(sp: usize) {
 /// 用户态陷入处理
 #[no_mangle]
 pub fn user_trap_vector() {
-    // let sstatus = trap_frame.get_status();
-    let sstatus = riscv::register::sstatus::read();
+    let sstatus = sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::Supervisor {
         panic!("user_trap_vector: spp == SPP::Supervisor");
@@ -108,7 +134,7 @@ pub fn trap_return() -> ! {
     arch::interrupt_disable();
     set_user_trap_entry();
 
-    let task_domain = TASK_DOMAIN.get().unwrap();
+    let task_domain = task_domain!();
     let trap_frame_ptr = task_domain.trap_frame_virt_addr().unwrap();
 
     // let sstatues = trap_frame.get_status();
@@ -141,7 +167,7 @@ impl TrapHandler for Trap {
     fn do_user_handle(&self) {
         let stval = stval::read();
         let sepc = sepc::read();
-        trace!("trap :{:?}", self);
+        debug!("trap :{:?}", self);
         match self {
             Trap::Exception(Exception::UserEnvCall) => {
                 exception::syscall_exception_handler();
@@ -154,67 +180,22 @@ impl TrapHandler for Trap {
                     "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
                     self, stval, sepc
                 );
-                // let task = current_task().unwrap();
-                // send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
             }
             Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                // let task = current_task().unwrap();
-                // let tid = task.get_tid();
-                // warn!(
-                //     "[User][tid:{}] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                //     tid, self, stval, sepc
-                // );
-                // let res = exception::page_exception_handler(self.clone(), stval);
-                // if res.is_err() {
-                //     error!(
-                //         "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                //         self, stval, sepc
-                //     );
-                //     let err = res.err().unwrap();
-                //     if err == AlienError::EAGAIN {
-                //         // println!("thread need wait");
-                //         do_suspend();
-                //     } else if err == AlienError::ETMP {
-                //         do_exit(-1);
-                //     } else {
-                //         send_signal(tid as usize, SignalNumber::SIGSEGV as usize)
-                //     }
-                // }
-                panic!("page fault");
+                panic!("[User] page fault");
             }
             Trap::Exception(Exception::InstructionPageFault) => {
-                // trace!(
-                //     "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                //     self,
-                //     stval,
-                //     sepc
-                // );
-                // if stval == SIGNAL_RETURN_TRAP {
-                //     // 当作调用了 sigreturn 一样
-                //     let cx = current_trap_frame();
-                //     cx.regs()[10] = signal_return() as usize;
-                //     return;
-                // }
-                //
-                // let res = exception::page_exception_handler(self.clone(), stval);
-                // if res.is_err() {
-                //     error!(
-                //         "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
-                //         self, stval, sepc
-                //     );
-                //     let task = current_task().unwrap();
-                //     send_signal(task.get_tid() as usize, SignalNumber::SIGSEGV as usize)
-                // }
+                panic!("[User] instruction page fault")
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 trace!("[User] timer interrupt");
                 timer::set_next_trigger();
-                TASK_DOMAIN.get().unwrap().do_yield();
+                task_domain!().do_yield().expect("do_yield failed");
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
                 trace!("[User] external interrupt");
-                PLIC_DOMAIN.get().unwrap().handle_irq();
+                plic_domain!().handle_irq().expect("handle_irq failed");
             }
             _ => {
                 panic!(
@@ -226,36 +207,26 @@ impl TrapHandler for Trap {
     }
 
     /// 内核态下的 trap 例程
-    fn do_kernel_handle(&self, sp: usize) {
+    fn do_kernel_handle(&self, _sp: usize) {
         let stval = stval::read();
         let sepc = sepc::read();
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                debug!("[kernel] timer interrupt");
+                trace!("[kernel] timer interrupt");
                 // record_irq(1);
                 // check_timer_queue();
                 // solve_futex_wait();
                 // set_next_trigger_in_kernel();
-                timer::set_next_trigger_in_kernel()
-            }
-            Trap::Exception(Exception::StorePageFault) => {
-                debug!(
-                    "[kernel] {:?} in kernel, stval:{:#x?} sepc:{:#x?}",
-                    self, stval, sepc
-                );
-                // {
-                //     let phy = mem::query_kernel_space(stval);
-                //     debug!("physical address: {:#x?}", phy);
-                // }
+                timer::set_next_trigger()
             }
             Trap::Exception(_) => {
                 panic!(
-                    "unhandled trap: {:?}, stval: {:#x?}, sepc: {:#x}, sp: {:#x}",
-                    self, stval, sepc, 0
-                )
+                    "[kernel] {:?} in kernel, stval:{:#x?} sepc:{:#x?}",
+                    self, stval, sepc
+                );
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
-                PLIC_DOMAIN.get().unwrap().handle_irq();
+                plic_domain!().handle_irq().expect("handle_irq failed");
             }
             _ => {
                 panic!(

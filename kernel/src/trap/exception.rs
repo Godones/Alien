@@ -1,25 +1,19 @@
-use alloc::sync::Arc;
-
-use arch::interrupt_enable;
-use constants::{AlienError, AlienResult};
 use context::TrapFrameRaw;
-use platform::println;
-use riscv::register::scause::{Exception, Trap};
 
-use crate::{SYSCALL_DOMAIN, TASK_DOMAIN};
+use crate::{syscall_domain, task_domain};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {
     // enable interrupt
     // interrupt_enable();
-    let task_domain = TASK_DOMAIN.get().unwrap();
+    let task_domain = task_domain!();
     let trap_frame_phy_addr = task_domain.trap_frame_phy_addr().unwrap();
     let cx = TrapFrameRaw::from_raw_ptr(trap_frame_phy_addr as _);
 
     cx.update_sepc(cx.sepc() + 4);
     // // get system call return value
     let parameters = cx.parameters();
-    let syscall_name = constants::syscall_name(parameters[0]);
+    let _syscall_name = constants::syscall_name(parameters[0]);
     //
     // let task = current_task().unwrap();
     // let p_name = task.get_name();
@@ -44,7 +38,7 @@ pub fn syscall_exception_handler() {
     // }
     //
 
-    let result = SYSCALL_DOMAIN.get().unwrap().call(
+    let result = syscall_domain!().call(
         parameters[0],
         [
             parameters[1],

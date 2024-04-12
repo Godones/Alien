@@ -10,7 +10,7 @@ use log::{info, warn};
 use platform::iprint;
 use spin::Lazy;
 
-use crate::{SharedHeapAllocator, DOMAIN_CREATE};
+use crate::domain_helper::{SharedHeapAllocator, DOMAIN_CREATE};
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
@@ -107,11 +107,11 @@ impl CoreFunction for DomainSyscall {
     }
 
     fn sys_trap_from_user(&self) -> usize {
-        kcore::trap::user_trap_vector as usize
+        crate::trap::user_trap_vector as usize
     }
 
     fn sys_trap_to_user(&self) -> usize {
-        kcore::trap::trap_return as usize
+        crate::trap::trap_return as usize
     }
 
     fn blk_crash_trick(&self) -> bool {
@@ -119,11 +119,11 @@ impl CoreFunction for DomainSyscall {
     }
 
     fn sys_read_time_ms(&self) -> u64 {
-        timer::get_time_ms() as u64
+        crate::timer::get_time_ms() as u64
     }
 
     fn sys_get_domain(&self, name: &str) -> Option<DomainType> {
-        crate::query_domain(name)
+        super::query_domain(name)
     }
 
     fn sys_create_domain(&self, identifier: &str) -> Option<DomainType> {
@@ -131,8 +131,8 @@ impl CoreFunction for DomainSyscall {
     }
 
     fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize) {
-        continuation::set_current_task_id(next_tid);
-        kcore::task::switch(now, next)
+        crate::domain_proxy::continuation::set_current_task_id(next_tid);
+        crate::task::switch(now, next)
     }
 }
 extern "C" {
@@ -141,5 +141,5 @@ extern "C" {
 static BLK_CRASH: AtomicBool = AtomicBool::new(true);
 fn unwind() -> ! {
     BLK_CRASH.store(false, core::sync::atomic::Ordering::Relaxed);
-    continuation::unwind()
+    crate::domain_proxy::continuation::unwind()
 }

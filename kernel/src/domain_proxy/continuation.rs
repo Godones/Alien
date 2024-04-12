@@ -1,7 +1,3 @@
-#![no_std]
-
-extern crate alloc;
-
 use alloc::{collections::BTreeMap, vec::Vec};
 use core::{arch::global_asm, sync::atomic::AtomicUsize};
 
@@ -17,15 +13,6 @@ pub struct Continuation {
     pub regs: [usize; 32],
     // function ptr
     pub func: usize,
-}
-
-impl Continuation {
-    pub fn empty() -> Self {
-        Self {
-            func: 0,
-            regs: [0; 32],
-        }
-    }
 }
 
 static CTID: [AtomicUsize; CPU_NUM] = [AtomicUsize::new(0); CPU_NUM];
@@ -142,3 +129,8 @@ __unwind:
 
     "#
 );
+
+#[no_mangle]
+pub extern "C" fn register_cont(cont: &Continuation) {
+    register_continuation(cont)
+}

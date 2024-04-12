@@ -1,5 +1,3 @@
-#![no_std]
-
 mod sheap;
 mod syscall;
 

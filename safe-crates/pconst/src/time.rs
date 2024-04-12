@@ -22,6 +22,7 @@
 // # define CLOCK_TAI			11
 
 use int_enum::IntEnum;
+use pod::Pod;
 
 const CLOCK_REALTIME: usize = 0;
 const CLOCK_MONOTONIC: usize = 1;
@@ -51,25 +52,6 @@ pub enum ClockId {
     Tai = CLOCK_TAI,
 }
 
-impl ClockId {
-    pub fn from_raw(id: usize) -> Option<Self> {
-        match id {
-            CLOCK_REALTIME => Some(Self::Realtime),
-            CLOCK_MONOTONIC => Some(Self::Monotonic),
-            CLOCK_PROCESS_CPUTIME_ID => Some(Self::ProcessCputimeId),
-            CLOCK_THREAD_CPUTIME_ID => Some(Self::ThreadCputimeId),
-            CLOCK_MONOTONIC_RAW => Some(Self::MonotonicRaw),
-            CLOCK_REALTIME_COARSE => Some(Self::RealtimeCoarse),
-            CLOCK_MONOTONIC_COARSE => Some(Self::MonotonicCoarse),
-            CLOCK_BOOTTIME => Some(Self::Boottime),
-            CLOCK_REALTIME_ALARM => Some(Self::RealtimeAlarm),
-            CLOCK_BOOTTIME_ALARM => Some(Self::BoottimeAlarm),
-            CLOCK_TAI => Some(Self::Tai),
-            _ => None,
-        }
-    }
-}
-
 #[repr(usize)]
 #[allow(non_camel_case_types)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone, IntEnum)]
@@ -83,4 +65,43 @@ pub enum TimerType {
     VIRTUAL = 1,
     /// 统计进程的所有用户态/内核态运行时间
     PROF = 2,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default, Pod)]
+pub struct Times {
+    /// the ticks of user mode
+    pub tms_utime: usize,
+    /// the ticks of kernel mode
+    pub tms_stime: usize,
+    /// the ticks of user mode of child process
+    pub tms_cutime: usize,
+    /// the ticks of kernel mode of child process
+    pub tms_cstime: usize,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, Ord, PartialOrd, Eq, PartialEq, Pod)]
+pub struct TimeVal {
+    /// seconds
+    pub tv_sec: usize,
+    /// microseconds
+    pub tv_usec: usize,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, Ord, PartialOrd, Eq, PartialEq, Pod)]
+pub struct TimeSpec {
+    pub tv_sec: usize,
+    pub tv_nsec: usize, //0~999999999
+}
+
+/// [`getitimer`] / [`setitimer`] 指定的类型，用户执行系统调用时获取和输入的计时器
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Default, Pod)]
+pub struct ITimerVal {
+    /// 计时器超时间隔
+    pub it_interval: TimeVal,
+    /// 计时器当前所剩时间
+    pub it_value: TimeVal,
 }

@@ -7,16 +7,18 @@ use core::{
 
 use config::FRAME_SIZE;
 use constants::{AlienError, AlienResult};
-use domain_helper::{DomainSyscall, SharedHeapAllocator};
 use log::{debug, info, trace};
-use memory_addr::VirtAddr;
-use page_table::MappingFlags;
-use ptable::{PhysPage, VmArea};
+use mem::{MappingFlags, PhysPage, VirtAddr, VmArea};
 use xmas_elf::{
     program::Type,
     sections::{Rela, SectionData},
     symbol_table::{DynEntry64, Entry},
     ElfFile, P64,
+};
+
+use crate::{
+    domain_helper,
+    domain_helper::{DomainSyscall, SharedHeapAllocator},
 };
 
 pub struct DomainLoader {
@@ -70,9 +72,6 @@ impl DomainLoader {
             phy_start: 0,
             regions: vec![],
         }
-    }
-    pub fn data(&self) -> &'static [u8] {
-        self.data
     }
     pub fn entry(&self) -> usize {
         self.entry

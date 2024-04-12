@@ -6,22 +6,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0"
 ksync = { path = "../base/ksync" }
-kcore = { path = "../base/kcore" }
+constants = { path = "../base/constants" }
 platform = { path = "../base/platform" }
+config = { path = "../base/config" }
 mem = { path = "../base/mem" }
 arch = { path = "../base/arch" }
-timer = { path = "../base/timer" }
+
 riscv = "0"
-
-
-rref = { path = "../domain-tools/rref" }
-domain-helper = { path = "../base/domain-helper" }
-domain-loader = { path = "../base/domain-loader" }
-proxy = { path = "../base/proxy" }
-interface = { path = "../domain-tools/interface" }
+log = "0"
 fdt = { path = "../safe-crates/fdt" }
+xmas-elf = "0.9"
+
+spin = { workspace = true }
+context = { path = "../safe-crates/context" }
+rref = { path = "../domain-tools/rref" }
+interface = { path = "../domain-tools/interface" }
+corelib = { path = "../domain-tools/corelib" }
+basic = { path = "../domain-tools/basic" }
+vfscore = { git = "https://github.com/os-module/rvfs.git" }
+
 
 [features]
 default = ["smp"]

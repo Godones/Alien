@@ -5,14 +5,14 @@ extern crate alloc;
 use alloc::{boxed::Box, sync::Arc, vec};
 
 use domain_helper::{alloc_domain_id, SharedHeapAllocator};
-use domain_loader::DomainLoader;
 use fdt::Fdt;
 use interface::*;
 use log::{info, warn};
-use proxy::*;
 use rref::{RRef, RRefVec};
 
-use crate::domain::create::DomainCreateImpl;
+use crate::{
+    domain::create::DomainCreateImpl, domain_helper, domain_loader::DomainLoader, domain_proxy::*,
+};
 
 #[macro_use]
 mod macros {
@@ -535,8 +535,8 @@ pub fn load_domains() {
 
     platform::println!("Load domains done");
 
-    kcore::register_task_domain(task);
-    kcore::register_syscall_domain(syscall);
-    kcore::register_plic_domain(plic);
+    crate::task::register_task_domain(task);
+    crate::trap::register_syscall_domain(syscall);
+    crate::trap::register_plic_domain(plic);
     platform::println!("Register task domain and syscall domain to trap system done");
 }

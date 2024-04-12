@@ -11,27 +11,19 @@ arch = { path = "../arch" }
 ksync = { path = "../ksync" }
 platform = { path = "../platform" }
 constants = { path = "../constants" }
-
-#page_table = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
-#memory_addr = { git = "https://github.com/rcore-os/arceos", rev = "92609cc"}
 page_table = { path = "../../safe-crates/page_table" }
 memory_addr = { path = "../../safe-crates/memory_addr" }
 ptable = { path = "../../safe-crates/ptable" }
 
 
 log = "0"
-talc = { version = "1.0", optional = true }
-buddy_system_allocator = { version = "0.9.0", optional = true }
-rslab = { version = "0.2.1", optional = true }
+talc = { version = "4" }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
-spin = "0"
+spin = { workspace = true }
 
 
 
 [features]
-default = ["pager_buddy","talloc"]
+default = ["pager_buddy",]
 pager_buddy = ["pager/buddy"]
 pager_bitmap = ["pager/bitmap"]
-slab = ["rslab"]
-talloc = ["talc"]
-buddy = ["buddy_system_allocator"]
