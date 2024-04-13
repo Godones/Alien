@@ -1,0 +1,19 @@
+[package]
+name = "virtio_mmio_block"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+interface = { path = "../../../domain-tools/interface" }
+rref = { path = "../../../domain-tools/rref" }
+virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers"}
+basic = { path = "../../../domain-tools/basic" }
+ksync = { path = "../../../base/ksync" }
+constants = { path = "../../../base/constants" }
+
+
+
+spin = { workspace = true }
+log = "0"

@@ -75,10 +75,31 @@ pub enum DomainType {
     SysCallDomain(Arc<dyn SysCallDomain>),
     ShadowBlockDomain(Arc<dyn ShadowBlockDomain>),
     BufUartDomain(Arc<dyn BufUartDomain>),
-    NetDomain(Arc<dyn NetDomain>),
+    NetDeviceDomain(Arc<dyn NetDomain>),
     BufInputDomain(Arc<dyn BufInputDomain>),
     EmptyDeviceDomain(Arc<dyn EmptyDeviceDomain>),
     DevFsDomain(Arc<dyn DevFsDomain>),
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DomainTypeRaw {
+    FsDomain,
+    BlkDeviceDomain,
+    CacheBlkDeviceDomain,
+    RtcDomain,
+    GpuDomain,
+    InputDomain,
+    VfsDomain,
+    UartDomain,
+    PLICDomain,
+    DevicesDomain,
+    TaskDomain,
+    SysCallDomain,
+    ShadowBlockDomain,
+    BufUartDomain,
+    NetDeviceDomain,
+    BufInputDomain,
+    EmptyDeviceDomain,
+    DevFsDomain,
 }
 
 impl TryInto<Arc<dyn DeviceBase>> for DomainType {
@@ -95,7 +116,7 @@ impl TryInto<Arc<dyn DeviceBase>> for DomainType {
             DomainType::ShadowBlockDomain(domain) => Ok(domain),
             DomainType::BufUartDomain(domain) => Ok(domain),
             DomainType::BufInputDomain(domain) => Ok(domain),
-            DomainType::NetDomain(domain) => Ok(domain),
+            DomainType::NetDeviceDomain(domain) => Ok(domain),
             _ => Err(AlienError::EINVAL),
         }
     }

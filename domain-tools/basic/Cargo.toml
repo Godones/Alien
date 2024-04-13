@@ -18,9 +18,9 @@ pod = { workspace = true }
 page_table = { path = "../../safe-crates/page_table" }
 memory_addr = { path = "../../safe-crates/memory_addr" }
 ptable = { path = "../../safe-crates/ptable" }
-plic = { path = "../../safe-crates/plic" }
+raw_plic = { path = "../../safe-crates/raw_plic" }
 goldfish_rtc = { path = "../../safe-crates/goldfish_rtc" }
-uart16550 = { path = "../../safe-crates/uart16550" }
+raw_uart16550 = { path = "../../safe-crates/raw_uart16550" }
 context = { path = "../../safe-crates/context" }
 xmas-elf = { version = "0.9", optional = true }
 

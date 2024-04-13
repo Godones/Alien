@@ -2,8 +2,8 @@ use core::ops::Range;
 
 use constants::{AlienError, AlienResult};
 use goldfish_rtc::GoldFishRtcIo;
-use plic::PlicIO;
-use uart16550::Uart16550IO;
+use raw_plic::PlicIO;
+use raw_uart16550::Uart16550IO;
 
 #[derive(Debug, Copy, Clone)]
 pub struct SafeIORegion {

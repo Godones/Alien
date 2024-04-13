@@ -24,8 +24,10 @@ rref = { path = "../domain-tools/rref" }
 interface = { path = "../domain-tools/interface" }
 corelib = { path = "../domain-tools/corelib" }
 basic = { path = "../domain-tools/basic" }
-vfscore = { git = "https://github.com/os-module/rvfs.git" }
-
+vfscore = { git = "https://github.com/os-module/rvfs.git" } #safe-crate
+cpio_reader = { version = "0.1.1" } #safe-crate
+libflate = { version = "2.0.0", default-features = false } #safe-crate
+core2 = { version = "0.4", default-features = false }
 
 [features]
 default = ["smp"]

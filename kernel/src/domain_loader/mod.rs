@@ -1,3 +1,2 @@
-mod loader;
-
-pub use loader::DomainLoader;
+pub mod creator;
+pub mod loader;

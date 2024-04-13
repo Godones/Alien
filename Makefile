@@ -26,6 +26,8 @@ QEMU_ARGS += -device virtio-net-device,netdev=net0 \
 			 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
 endif
 
+QEMU_ARGS += -initrd ./build/initramfs.cpio.gz
+QEMU_ARGS += -append "rdinit=/init"
 
 
 domains += 	gblk gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask \
@@ -38,7 +40,7 @@ build:
 	@echo "Building..."
 	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 
-run: sdcard domains build
+run: sdcard domains initrd build
 	qemu-system-riscv64 \
             -M virt \
             -bios default \
@@ -85,7 +87,6 @@ mount:
 	@sudo rm -rf $(FSMOUNT)/*
 
 
-
 domains:
 	@make -C domains all  DOMAIN_LIST="$(domains)" LOG=$(LOG)
 	@$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
@@ -93,6 +94,16 @@ domains:
 
 fix:
 	make -C domains fix  DOMAIN_LIST="$(domains)"
+
+initrd:
+	@mkdir ./initrd
+	@cp ./build/* ./initrd
+	@-rm ./initrd/initramfs.cpio.gz
+	@-rm ./initrd/*.img
+	@-rm ./initrd/*.ld
+	@find ./initrd/* -print0 | cpio --null -ov --format=newc | gzip -9 > ./build/initramfs.cpio.gz
+	@rm -rf ./initrd
+
 
 gdb-server: domains build sdcard
 	@qemu-system-riscv64 \

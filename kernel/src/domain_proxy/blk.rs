@@ -7,7 +7,7 @@ use ksync::{Mutex, RwLock};
 use log::error;
 use rref::RRef;
 
-use crate::{domain_loader::DomainLoader, domain_proxy::continuation};
+use crate::{domain_loader::loader::DomainLoader, domain_proxy::continuation};
 
 #[derive(Debug)]
 pub struct BlkDomainProxy {

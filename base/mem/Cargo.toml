@@ -24,6 +24,6 @@ spin = { workspace = true }
 
 
 [features]
-default = ["pager_buddy",]
+default = ["pager_bitmap",]
 pager_buddy = ["pager/buddy"]
 pager_bitmap = ["pager/bitmap"]

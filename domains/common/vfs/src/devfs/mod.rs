@@ -80,11 +80,11 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
     let root = root_dt.inode().unwrap();
 
     let uart = basic::get_domain("buf_uart"); // unique name
-    let gpu = basic::get_domain("virtio-mmio-gpu-1");
-    let mouse = basic::get_domain("virtio-mmio-input-1");
-    let keyboard = basic::get_domain("virtio-mmio-input-2");
+    let gpu = basic::get_domain("virtio_mmio_gpu-1");
+    let mouse = basic::get_domain("virtio_mmio_input-1");
+    let keyboard = basic::get_domain("virtio_mmio_input-2");
     let blk = basic::get_domain("cache_blk-1");
-    let rtc = basic::get_domain("rtc"); // unique name
+    let rtc = basic::get_domain("goldfish"); // unique name
 
     match uart {
         Some(_) => {
@@ -109,7 +109,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         Some(_) => {
             let gpu_id = alloc_device_id(VfsNodeType::CharDevice);
             devfs_domain
-                .register(gpu_id.id(), &RRefVec::from_slice(b"virtio-mmio-gpu-1"))
+                .register(gpu_id.id(), &RRefVec::from_slice(b"virtio_mmio_gpu-1"))
                 .unwrap();
             root.create(
                 "virtio-mmio-gpu",
@@ -128,7 +128,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         Some(_) => {
             let mouse_id = alloc_device_id(VfsNodeType::CharDevice);
             devfs_domain
-                .register(mouse_id.id(), &RRefVec::from_slice(b"virtio-mmio-input-1"))
+                .register(mouse_id.id(), &RRefVec::from_slice(b"virtio_mmio_input-1"))
                 .unwrap();
             root.create(
                 "mouse",
@@ -149,7 +149,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
             devfs_domain
                 .register(
                     keyboard_id.id(),
-                    &RRefVec::from_slice(b"virtio-mmio-input-2"),
+                    &RRefVec::from_slice(b"virtio_mmio_input-2"),
                 )
                 .unwrap();
             root.create(
@@ -186,7 +186,7 @@ pub fn scan_system_devices(devfs_domain: &Arc<dyn DevFsDomain>, root_dt: &Arc<dy
         Some(_) => {
             let rtc_id = alloc_device_id(VfsNodeType::CharDevice);
             devfs_domain
-                .register(rtc_id.id(), &RRefVec::from_slice(b"rtc"))
+                .register(rtc_id.id(), &RRefVec::from_slice(b"goldfish"))
                 .unwrap();
             root.create(
                 "rtc",

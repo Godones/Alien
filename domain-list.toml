@@ -1,0 +1,25 @@
+[domains]
+members = [
+    "plic",
+    "syscall",
+    "task",
+    "vfs",
+    "devices",
+    "buf_uart",
+    "cache_blk",
+    "goldfish",
+    "null",
+    "random",
+    "shadow_blk",
+    "uart16550",
+    "virtio_mmio_block",
+    "virtio_mmio_net",
+    "virtio_mmio_input",
+    "virtio_mmio_gpu",
+    "devfs",
+    "fatfs",
+    "pipefs",
+    "ramfs",
+    "sysfs",
+    "procfs"
+]

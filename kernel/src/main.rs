@@ -9,6 +9,7 @@ extern crate platform;
 #[macro_use]
 extern crate log;
 extern crate alloc;
+mod bus;
 mod domain;
 mod domain_helper;
 mod domain_loader;

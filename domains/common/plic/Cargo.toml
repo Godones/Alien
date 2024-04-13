@@ -1,0 +1,16 @@
+[package]
+name = "plic"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+interface = { path = "../../../domain-tools/interface" }
+rref = { path = "../../../domain-tools/rref" }
+basic = { path = "../../../domain-tools/basic" }
+constants = { path = "../../../base/constants" }
+spin = "0"
+config = { path = "../../../base/config" }
+raw_plic = { path = "../../../safe-crates/raw_plic" }
+ksync = { path = "../../../base/ksync" }

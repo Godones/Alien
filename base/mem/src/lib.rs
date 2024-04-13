@@ -7,8 +7,10 @@ use platform::println;
 use talc::{ClaimOnOom, Span, Talc, Talck};
 mod frame;
 
+mod data;
 mod vmm;
 
+pub use data::INITRD_DATA;
 pub use frame::{alloc_frame_trackers, alloc_frames, free_frames};
 pub use memory_addr::VirtAddr;
 pub use page_table::MappingFlags;
@@ -30,6 +32,7 @@ extern "C" {
 pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     if is_first_cpu {
         frame::init_frame_allocator(ekernel as usize, memory_end);
+        data::relocate_removable_data();
         println!("Frame allocator init success");
         println!("Talloc allocator init success");
         vmm::build_kernel_address_space(memory_end);

@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, vec, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use core::{
     cmp::min,
     fmt::{Debug, Formatter},
@@ -23,7 +23,7 @@ use crate::{
 
 pub struct DomainLoader {
     entry: usize,
-    data: &'static [u8],
+    data: Arc<Vec<u8>>,
     phy_start: usize,
     regions: Vec<RegionMeta>,
 }
@@ -65,7 +65,7 @@ struct RegionMeta {
 }
 
 impl DomainLoader {
-    pub fn new(data: &'static [u8]) -> Self {
+    pub fn new(data: Arc<Vec<u8>>) -> Self {
         Self {
             entry: 0,
             data,
@@ -216,7 +216,8 @@ impl DomainLoader {
     }
 
     pub fn load(&mut self) -> AlienResult<()> {
-        let elf_binary = self.data;
+        let data = self.data.clone();
+        let elf_binary = data.as_slice();
         const ELF_MAGIC: [u8; 4] = [0x7f, b'E', b'L', b'F'];
         if elf_binary[0..4] != ELF_MAGIC {
             return Err(AlienError::EINVAL);
@@ -249,7 +250,7 @@ impl DomainLoader {
 
     pub fn reload(&self) -> AlienResult<()> {
         info!("reload domain");
-        let elf_binary = self.data;
+        let elf_binary = self.data.as_slice();
         const ELF_MAGIC: [u8; 4] = [0x7f, b'E', b'L', b'F'];
         if elf_binary[0..4] != ELF_MAGIC {
             return Err(AlienError::EINVAL);

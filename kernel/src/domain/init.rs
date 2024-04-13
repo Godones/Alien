@@ -1,0 +1,62 @@
+use alloc::{collections::BTreeMap, string::ToString, vec};
+
+use core2::io::Read;
+use interface::DomainTypeRaw;
+
+use crate::domain_loader::creator::register_domain_elf;
+
+const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
+    ("buf_uart", DomainTypeRaw::BufUartDomain),
+    ("cache_blk", DomainTypeRaw::CacheBlkDeviceDomain),
+    ("devfs", DomainTypeRaw::DevFsDomain),
+    ("devices", DomainTypeRaw::DevicesDomain),
+    ("fatfs", DomainTypeRaw::FsDomain),
+    ("goldfish", DomainTypeRaw::RtcDomain),
+    ("null", DomainTypeRaw::EmptyDeviceDomain),
+    ("pipefs", DomainTypeRaw::FsDomain),
+    ("plic", DomainTypeRaw::PLICDomain),
+    ("procfs", DomainTypeRaw::FsDomain),
+    ("ramfs", DomainTypeRaw::FsDomain),
+    ("random", DomainTypeRaw::EmptyDeviceDomain),
+    ("shadow_blk", DomainTypeRaw::ShadowBlockDomain),
+    ("syscall", DomainTypeRaw::SysCallDomain),
+    ("sysfs", DomainTypeRaw::FsDomain),
+    ("task", DomainTypeRaw::TaskDomain),
+    ("vfs", DomainTypeRaw::VfsDomain),
+    ("uart16550", DomainTypeRaw::UartDomain),
+    ("virtio_mmio_net", DomainTypeRaw::NetDeviceDomain),
+    ("virtio_mmio_block", DomainTypeRaw::BlkDeviceDomain),
+    ("virtio_mmio_gpu", DomainTypeRaw::GpuDomain),
+    ("virtio_mmio_input", DomainTypeRaw::InputDomain),
+];
+
+pub fn init_domains() {
+    let mut initrd = mem::INITRD_DATA.lock();
+    if initrd.is_none() {
+        panic!("Initrd data is not initialized");
+    }
+    let data = initrd.as_ref().unwrap();
+    let mut decoder = libflate::gzip::Decoder::new(data.as_slice()).unwrap();
+    let mut buf = vec![];
+    let _r = decoder.read_to_end(&mut buf).unwrap();
+
+    let mut map = BTreeMap::new();
+    for entry in cpio_reader::iter_files(&buf) {
+        let mode = entry.mode();
+        let name = entry.name();
+        let data = entry.file();
+        let domain_name = name.split_once('g').unwrap().1;
+        map.insert(domain_name.to_string(), data.to_vec());
+    }
+
+    let mut register = |identifier: &str, domain: DomainTypeRaw| {
+        platform::println!("register domain: {}", identifier);
+        register_domain_elf(identifier, map.remove(identifier).unwrap(), domain);
+    };
+
+    for (identifier, domain) in INIT_DOMAIN_LIST {
+        register(identifier, *domain);
+    }
+
+    initrd.take(); // release the initrd data
+}
