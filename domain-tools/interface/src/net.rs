@@ -1,8 +1,10 @@
+use core::ops::Range;
+
 use constants::AlienResult;
 use gproxy::proxy;
 use rref::RRefVec;
 
-use crate::{Basic, DeviceBase, DeviceInfo};
+use crate::{Basic, DeviceBase};
 pub struct PackageBuffer(RRefVec<u8>);
 
 pub type TxBufferWrapper = PackageBuffer;
@@ -32,7 +34,7 @@ impl PackageBuffer {
 
 #[proxy(NetDomainProxy)]
 pub trait NetDomain: DeviceBase + Basic {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
+    fn init(&self, device_info: Range<usize>) -> AlienResult<()>;
     // fn medium(&self) -> Medium;
 
     /// The ethernet address of the NIC.

@@ -38,6 +38,7 @@ fn main(hart_id: usize) {
         mem::init_memory_system(machine_info.memory.end, true);
         trap::init_trap_subsystem();
         arch::allow_access_user_memory();
+        bus::init_with_dtb().unwrap();
         domain::load_domains();
         STARTED.store(false, Ordering::Relaxed);
     } else {

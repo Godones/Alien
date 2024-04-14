@@ -30,10 +30,6 @@ QEMU_ARGS += -initrd ./build/initramfs.cpio.gz
 QEMU_ARGS += -append "rdinit=/init"
 
 
-domains += 	gblk gcache_blk ggoldfish gvfs gshadow_blk gextern-interrupt gdevices ggpu guart gtask \
-		gsyscall gbuf_uart gvirtio-mmio-net ginput gfatfs gramfs gnull grandom gdevfs gprocfs gsysfs gpipefs
-
-
 all:run
 
 build:
@@ -82,14 +78,13 @@ mount:
 	@echo "Mounting $(IMG) to $(FSMOUNT)"
 	@-sudo umount $(FSMOUNT);
 	@sudo rm -rf $(FSMOUNT)
-	@-mkdir $(FSMOUNT)
+	mkdir $(FSMOUNT)
 	@sudo mount $(IMG) $(FSMOUNT)
 	@sudo rm -rf $(FSMOUNT)/*
 
 
 domains:
-	@make -C domains all  DOMAIN_LIST="$(domains)" LOG=$(LOG)
-	@$(foreach dir, $(domains), cp target/$(TARGET)/$(PROFILE)/$(dir) ./build/$(dir)_domain.bin;)
+	cargo domain build-all
 
 
 fix:

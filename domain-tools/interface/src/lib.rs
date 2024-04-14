@@ -4,7 +4,6 @@ mod block;
 mod buf_input;
 mod buf_uart;
 mod cache_block;
-mod devices;
 mod empty_device;
 mod fs;
 mod gpu;
@@ -46,7 +45,6 @@ pub use block::*;
 pub use buf_input::*;
 pub use buf_uart::*;
 pub use cache_block::*;
-pub use devices::{DeviceInfo, *};
 pub use empty_device::*;
 pub use fs::*;
 pub use gpu::*;
@@ -70,7 +68,6 @@ pub enum DomainType {
     VfsDomain(Arc<dyn VfsDomain>),
     UartDomain(Arc<dyn UartDomain>),
     PLICDomain(Arc<dyn PLICDomain>),
-    DevicesDomain(Arc<dyn DevicesDomain>),
     TaskDomain(Arc<dyn TaskDomain>),
     SysCallDomain(Arc<dyn SysCallDomain>),
     ShadowBlockDomain(Arc<dyn ShadowBlockDomain>),
@@ -91,7 +88,6 @@ pub enum DomainTypeRaw {
     VfsDomain,
     UartDomain,
     PLICDomain,
-    DevicesDomain,
     TaskDomain,
     SysCallDomain,
     ShadowBlockDomain,

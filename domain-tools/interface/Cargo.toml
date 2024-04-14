@@ -12,7 +12,6 @@ vfscore = { git = "https://github.com/os-module/rvfs.git" }
 pod = { workspace = true }
 gproxy = { path = "../gproxy" }
 log = "0"
-#domain-loader = { path = "../domain-loader" }
 
 
 [features]

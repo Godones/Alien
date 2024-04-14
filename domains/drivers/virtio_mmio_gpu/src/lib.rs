@@ -5,11 +5,11 @@ mod gpu;
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
-use core::{fmt::Debug, ptr::NonNull};
+use core::{fmt::Debug, ops::Range, ptr::NonNull};
 
 use basic::vm::frame::FrameTracker;
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo, GpuDomain};
+use interface::{Basic, DeviceBase, GpuDomain};
 use ksync::Mutex;
 use rref::RRefVec;
 use spin::{Lazy, Once};
@@ -35,8 +35,8 @@ impl DeviceBase for GPUDomain {
 }
 
 impl GpuDomain for GPUDomain {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
-        let virtio_gpu_addr = device_info.address_range.start;
+    fn init(&self, address_range: Range<usize>) -> AlienResult<()> {
+        let virtio_gpu_addr = address_range.start;
         basic::println!("virtio_gpu_addr: {:#x?}", virtio_gpu_addr);
 
         let header = NonNull::new(virtio_gpu_addr as *mut VirtIOHeader).unwrap();

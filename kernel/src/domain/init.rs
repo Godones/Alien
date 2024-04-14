@@ -9,7 +9,6 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("buf_uart", DomainTypeRaw::BufUartDomain),
     ("cache_blk", DomainTypeRaw::CacheBlkDeviceDomain),
     ("devfs", DomainTypeRaw::DevFsDomain),
-    ("devices", DomainTypeRaw::DevicesDomain),
     ("fatfs", DomainTypeRaw::FsDomain),
     ("goldfish", DomainTypeRaw::RtcDomain),
     ("null", DomainTypeRaw::EmptyDeviceDomain),
@@ -42,7 +41,7 @@ pub fn init_domains() {
 
     let mut map = BTreeMap::new();
     for entry in cpio_reader::iter_files(&buf) {
-        let mode = entry.mode();
+        let _mode = entry.mode();
         let name = entry.name();
         let data = entry.file();
         let domain_name = name.split_once('g').unwrap().1;

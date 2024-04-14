@@ -100,13 +100,6 @@ impl DomainCreate for DomainCreateImpl {
     }
 }
 
-pub fn create_devices_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<DevicesDomainProxy>> {
-    create_domain(DomainTypeRaw::DevicesDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(DevicesDomainProxy::new(id, domain)))
-}
 pub fn create_fs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<FsDomainProxy>> {
     create_domain(DomainTypeRaw::FsDomain, ident, data)
         .map(|(id, domain, _)| Arc::new(FsDomainProxy::new(id, domain)))

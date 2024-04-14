@@ -2,8 +2,7 @@ use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use core::sync::atomic::AtomicBool;
 
 use config::FRAME_BITS;
-use context::TaskContext;
-use corelib::CoreFunction;
+use corelib::{CoreFunction, TaskContext};
 use interface::*;
 use ksync::Mutex;
 use log::{info, warn};
@@ -59,10 +58,6 @@ impl CoreFunction for DomainSyscall {
 
     fn sys_write_console(&self, s: &str) {
         iprint!("{}", s);
-    }
-
-    fn check_kernel_space(&self, start: usize, size: usize) -> bool {
-        mem::is_in_kernel_space(start, size)
     }
 
     fn sys_backtrace(&self, domain_id: u64) {

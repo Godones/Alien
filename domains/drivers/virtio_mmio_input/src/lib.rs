@@ -3,10 +3,10 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc};
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Range};
 
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo, InputDomain};
+use interface::{Basic, DeviceBase, InputDomain};
 use ksync::Mutex;
 use spin::Once;
 
@@ -31,8 +31,8 @@ impl DeviceBase for InputDevDomain {
 }
 
 impl InputDomain for InputDevDomain {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
-        let input = Arc::new(Mutex::new(VirtioInputWrapper::new(device_info)));
+    fn init(&self, address_range: Range<usize>) -> AlienResult<()> {
+        let input = Arc::new(Mutex::new(VirtioInputWrapper::new(address_range)));
         INPUT.call_once(|| input);
         Ok(())
     }

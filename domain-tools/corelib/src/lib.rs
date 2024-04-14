@@ -1,15 +1,18 @@
 #![no_std]
 extern crate alloc;
 
-use context::TaskContext;
 #[cfg(feature = "core_impl")]
 pub use core_impl::*;
 use interface::DomainType;
+pub use task::TaskContext;
+#[cfg(feature = "task")]
+pub mod task;
+mod task;
+
 pub trait CoreFunction: Send + Sync {
     fn sys_alloc_pages(&self, domain_id: u64, n: usize) -> *mut u8;
     fn sys_free_pages(&self, domain_id: u64, p: *mut u8, n: usize);
     fn sys_write_console(&self, s: &str);
-    fn check_kernel_space(&self, start: usize, size: usize) -> bool;
     fn sys_backtrace(&self, domain_id: u64);
     fn sys_trampoline_addr(&self) -> usize;
     fn sys_kernel_satp(&self) -> usize;
@@ -27,11 +30,10 @@ pub trait CoreFunction: Send + Sync {
 mod core_impl {
     use alloc::boxed::Box;
 
-    use context::TaskContext;
     use interface::DomainType;
     use spin::Once;
 
-    use crate::CoreFunction;
+    use crate::{task::TaskContext, CoreFunction};
 
     static CORE_FUNC: Once<Box<dyn CoreFunction>> = Once::new();
 
@@ -54,10 +56,6 @@ mod core_impl {
     pub fn init(syscall: Box<dyn CoreFunction>) {
         clear_bss();
         CORE_FUNC.call_once(|| syscall);
-    }
-
-    pub fn check_kernel_space(start: usize, size: usize) -> bool {
-        unsafe { CORE_FUNC.get_unchecked().check_kernel_space(start, size) }
     }
 
     pub fn alloc_raw_pages(n: usize, domain_id: u64) -> *mut u8 {

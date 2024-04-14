@@ -4,7 +4,6 @@ use alloc::sync::Arc;
 use core::arch::{asm, global_asm};
 
 use config::TRAMPOLINE;
-use context::TrapFrameRaw;
 use interface::{PLICDomain, SysCallDomain};
 use log::debug;
 use platform::println;
@@ -88,9 +87,7 @@ fn set_user_trap_entry() {
 #[no_mangle]
 pub fn kernel_trap_vector(sp: usize) {
     let sstatus = sstatus::read();
-
     let spp = sstatus.spp();
-    println!("{:?}", spp);
     if spp == SPP::User {
         panic!("kernel_trap_vector: spp == SPP::User");
     }
@@ -133,16 +130,8 @@ pub fn trap_return() -> ! {
     // signal_handler();
     arch::interrupt_disable();
     set_user_trap_entry();
-
     let task_domain = task_domain!();
-    let trap_frame_ptr = task_domain.trap_frame_virt_addr().unwrap();
-
-    // let sstatues = trap_frame.get_status();
-    // let enable = sstatues.0.get_bit(5);
-    // let sie = sstatues.0.get_bit(1);
-    // assert!(enable);
-    // assert!(!sie);
-    let trap_cx_ptr = trap_frame_ptr as *const TrapFrameRaw;
+    let trap_cx_ptr = task_domain.trap_frame_virt_addr().unwrap();
     let user_satp = task_domain.current_task_satp().unwrap();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
     unsafe {
@@ -216,7 +205,6 @@ impl TrapHandler for Trap {
                 // record_irq(1);
                 // check_timer_queue();
                 // solve_futex_wait();
-                // set_next_trigger_in_kernel();
                 timer::set_next_trigger()
             }
             Trap::Exception(_) => {

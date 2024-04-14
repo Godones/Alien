@@ -1,10 +1,12 @@
+use core::ops::Range;
+
 use constants::{AlienError, AlienResult};
 use gproxy::proxy;
 
-use crate::{devices::DeviceInfo, Basic, DeviceBase};
+use crate::{Basic, DeviceBase};
 #[proxy(UartDomainProxy)]
 pub trait UartDomain: DeviceBase + Basic {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()>;
+    fn init(&self, device_info: Range<usize>) -> AlienResult<()>;
     /// Write a character to the UART
     fn putc(&self, ch: u8) -> AlienResult<()>;
     /// Read a character from the UART

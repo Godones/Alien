@@ -10,12 +10,12 @@ use alloc::{
     string::{String, ToString},
     sync::Arc,
 };
-use core::cmp::min;
+use core::{cmp::min, ops::Range};
 
 use basic::{arch, io::SafeIORegion, println};
 use config::CPU_NUM;
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo, PLICDomain};
+use interface::{Basic, DeviceBase, PLICDomain};
 use ksync::Mutex;
 use raw_plic::{Mode, PLIC};
 use rref::RRefVec;
@@ -41,9 +41,9 @@ impl PLICDomainImpl {
 impl Basic for PLICDomainImpl {}
 
 impl PLICDomain for PLICDomainImpl {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
-        println!("plic region: {:#x?}", device_info.address_range);
-        let plic_space = SafeIORegion::from(device_info.address_range.clone()).unwrap();
+    fn init(&self, address_range: Range<usize>) -> AlienResult<()> {
+        println!("plic region: {:#x?}", address_range);
+        let plic_space = SafeIORegion::from(address_range);
         let privileges = [2; CPU_NUM];
         PLIC.call_once(|| PLIC::new(Box::new(plic_space), privileges));
         println!("Init qemu plic success");

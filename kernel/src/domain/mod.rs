@@ -1,15 +1,17 @@
 mod init;
 
 extern crate alloc;
-use alloc::{boxed::Box, sync::Arc, vec};
+use alloc::{boxed::Box, sync::Arc};
 
+use basic::bus::mmio::VirtioMmioDeviceType;
 use domain_helper::{alloc_domain_id, SharedHeapAllocator};
-use fdt::Fdt;
 use interface::*;
 use log::{info, warn};
-use rref::{RRef, RRefVec};
+use rref::RRefVec;
 
-use crate::{domain::init::init_domains, domain_helper, domain_loader::creator::*};
+use crate::{
+    domain::init::init_domains, domain_helper, domain_loader::creator::*, mmio_bus, platform_bus,
+};
 
 /// set the kernel to the specific domain
 fn init_kernel_domain() {
@@ -17,67 +19,36 @@ fn init_kernel_domain() {
 }
 
 fn init_device() -> Arc<dyn PLICDomain> {
-    let devices = create_devices_domain("devices", None).unwrap();
-    let ptr = platform::platform_dtb_ptr();
-    let fdt = unsafe { Fdt::from_ptr(ptr as *const u8) }
-        .unwrap()
-        .raw_data();
-    devices.init(fdt).unwrap();
-    domain_helper::register_domain("devices", DomainType::DevicesDomain(devices.clone()), true);
+    let platform_bus = platform_bus!();
 
-    let mut device_info = RRef::new(DeviceInfo::default());
-    let mut info = vec![];
-    loop {
-        let res = devices.index_device(device_info.next, device_info);
-        if res.is_err() {
-            panic!("index device error");
-        }
-        device_info = res.unwrap();
-        if device_info.next == 0 {
-            break;
-        }
-        info.push(device_info.clone());
-        device_info.name.fill(0);
-    }
-    let plic_info = info.iter().find(|x| {
-        let name_len = x.name.iter().position(|&x| x == 0).unwrap_or(x.name.len());
-        let name = core::str::from_utf8(&x.name[..name_len]).unwrap();
-        name == "plic"
-    });
+    let plic_device = platform_bus
+        .common_devices()
+        .iter()
+        .find(|device| device.name() == "plic")
+        .expect("plic device not found");
 
     let plic = create_plic_domain("plic", None).unwrap();
-    match plic_info {
-        Some(plic_info) => {
-            plic.init(plic_info).unwrap();
-            domain_helper::register_domain("plic", DomainType::PLICDomain(plic.clone()), true);
-        }
-        None => panic!("no plic device"),
-    }
+    let plic_address = plic_device.address().as_usize();
+    let plic_size = plic_device.io_region().size();
+    plic.init(plic_address..plic_address + plic_size).unwrap();
+    domain_helper::register_domain("plic", DomainType::PLICDomain(plic.clone()), true);
 
-    for device_info in info {
-        let name_len = device_info
-            .name
-            .iter()
-            .position(|&x| x == 0)
-            .unwrap_or(device_info.name.len());
-        let name = core::str::from_utf8(&device_info.name[..name_len]).unwrap();
-        let irq = device_info.irq;
-        info!("device name: {}", name);
-        // todo!(other match methods)
-        match name {
+    platform_bus.common_devices().iter().for_each(|device| {
+        let address = device.address().as_usize();
+        let size = device.io_region().size();
+        let irq = device.irq();
+        match device.name() {
             "rtc" => {
-                let rtc_driver = create_rtc_domain("goldfish", None).unwrap();
-                rtc_driver.init(&device_info).unwrap();
-                domain_helper::register_domain("goldfish", DomainType::RtcDomain(rtc_driver), true);
-                let irq = device_info.irq as _;
-                // todo!(register irq)
-                plic.register_irq(irq, &RRefVec::from_slice("goldfish".as_bytes()))
-                    .unwrap()
+                let rtc = create_rtc_domain("goldfish", None).unwrap();
+                rtc.init(address..address + size).unwrap();
+                domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc.clone()), true);
+                plic.register_irq(irq.unwrap() as _, &RRefVec::from_slice("rtc".as_bytes()))
+                    .unwrap();
             }
             "uart" => {
-                let uart_driver = create_uart_domain("uart16550", None).unwrap();
-                uart_driver.init(&device_info).unwrap();
-                domain_helper::register_domain("uart", DomainType::UartDomain(uart_driver), true);
+                let uart = create_uart_domain("uart16550", None).unwrap();
+                uart.init(address..address + size).unwrap();
+                domain_helper::register_domain("uart", DomainType::UartDomain(uart.clone()), true);
                 let buf_uart = create_buf_uart_domain("buf_uart", None).unwrap();
                 buf_uart.init("uart").unwrap();
                 buf_uart.putc('U' as u8).unwrap();
@@ -90,83 +61,101 @@ fn init_device() -> Arc<dyn PLICDomain> {
                     DomainType::BufUartDomain(buf_uart),
                     true,
                 );
-                // todo!(register irq)
-                plic.register_irq(irq as _, &RRefVec::from_slice("buf_uart".as_bytes()))
-                    .unwrap()
-            }
-            "virtio-mmio-block" => {
-                let blk_driver = create_blk_device_domain("virtio_mmio_block", None).unwrap();
-                blk_driver.init(&device_info).unwrap();
-                info!(
-                    "dev capacity: {:?}MB",
-                    blk_driver.get_capacity().unwrap() / 1024 / 1024
-                );
-                domain_helper::register_domain(
-                    "virtio_mmio_block",
-                    DomainType::BlkDeviceDomain(blk_driver.clone()),
-                    false,
-                );
-
-                let shadow_blk = create_shadow_block_domain("shadow_blk", None).unwrap();
-                shadow_blk.init("virtio_mmio_block-1").unwrap();
-                domain_helper::register_domain(
-                    "shadow_blk",
-                    DomainType::ShadowBlockDomain(shadow_blk),
-                    false,
-                );
-                let cache_blk = create_cache_blk_device_domain("cache_blk", None).unwrap();
-                cache_blk.init("shadow_blk-1").unwrap();
-                domain_helper::register_domain(
-                    "cache_blk",
-                    DomainType::CacheBlkDeviceDomain(cache_blk),
-                    false,
-                );
-            }
-            "virtio-mmio-net" => {
-                let net_driver = create_net_domain("virtio_mmio_net", None).unwrap();
-                net_driver.init(&device_info).unwrap();
-                domain_helper::register_domain(
-                    "virtio_mmio_net",
-                    DomainType::NetDeviceDomain(net_driver),
-                    false,
-                );
-                // todo!(register irq)
                 plic.register_irq(
-                    irq as _,
-                    &RRefVec::from_slice("virtio_mmio_net-1".as_bytes()),
+                    irq.unwrap() as _,
+                    &RRefVec::from_slice("buf_uart".as_bytes()),
                 )
-                .unwrap()
-            }
-            "virtio-mmio-input" => {
-                let input_driver = create_input_domain("virtio_mmio_input", None).unwrap();
-                input_driver.init(&device_info).unwrap();
-                domain_helper::register_domain(
-                    "virtio_mmio_input",
-                    DomainType::InputDomain(input_driver),
-                    false,
-                );
-                // todo!(register irq)
-                plic.register_irq(
-                    irq as _,
-                    &RRefVec::from_slice("virtio_mmio_input-1".as_bytes()),
-                )
-                .unwrap()
-            }
-            #[cfg(feature = "gui")]
-            "virtio-mmio-gpu" => {
-                let gpu_driver = create_gpu_domain("virtio_mmio_gpu", None).unwrap();
-                gpu_driver.init(&device_info).unwrap();
-                domain_helper::register_domain(
-                    "virtio_mmio_gpu",
-                    DomainType::GpuDomain(gpu_driver),
-                    false,
-                );
+                .unwrap();
             }
             _ => {
-                warn!("unknown device: {}", name);
+                warn!("unknown device: {}", device.name());
             }
         }
-    }
+    });
+
+    mmio_bus!()
+        .lock()
+        .common_devices()
+        .iter()
+        .for_each(|device| {
+            let address = device.address().as_usize();
+            let size = device.io_region().size();
+            let _irq = device.irq();
+            match device.device_type() {
+                VirtioMmioDeviceType::Network => {
+                    let net_driver = create_net_domain("virtio_mmio_net", None).unwrap();
+                    net_driver.init(address..address + size).unwrap();
+                    domain_helper::register_domain(
+                        "virtio_mmio_net",
+                        DomainType::NetDeviceDomain(net_driver.clone()),
+                        false,
+                    );
+                    // register irq
+                    // plic.register_irq(
+                    //     irq.unwrap() as _,
+                    //     &RRefVec::from_slice("virtio_mmio_net-1".as_bytes()),
+                    // )
+                    // .unwrap()
+                }
+                VirtioMmioDeviceType::Block => {
+                    let blk_driver = create_blk_device_domain("virtio_mmio_block", None).unwrap();
+                    blk_driver.init(address..address + size).unwrap();
+                    info!(
+                        "dev capacity: {:?}MB",
+                        blk_driver.get_capacity().unwrap() / 1024 / 1024
+                    );
+                    domain_helper::register_domain(
+                        "virtio_mmio_block",
+                        DomainType::BlkDeviceDomain(blk_driver.clone()),
+                        false,
+                    );
+
+                    let shadow_blk = create_shadow_block_domain("shadow_blk", None).unwrap();
+                    shadow_blk.init("virtio_mmio_block-1").unwrap();
+                    domain_helper::register_domain(
+                        "shadow_blk",
+                        DomainType::ShadowBlockDomain(shadow_blk),
+                        false,
+                    );
+                    let cache_blk = create_cache_blk_device_domain("cache_blk", None).unwrap();
+                    cache_blk.init("shadow_blk-1").unwrap();
+                    domain_helper::register_domain(
+                        "cache_blk",
+                        DomainType::CacheBlkDeviceDomain(cache_blk),
+                        false,
+                    );
+                    // register irq
+                }
+                VirtioMmioDeviceType::Input => {
+                    let input_driver = create_input_domain("virtio_mmio_input", None).unwrap();
+                    input_driver.init(address..address + size).unwrap();
+                    domain_helper::register_domain(
+                        "virtio_mmio_input",
+                        DomainType::InputDomain(input_driver),
+                        false,
+                    );
+                    // register irq
+                    // plic.register_irq(
+                    //     irq.unwrap() as _,
+                    //     &RRefVec::from_slice("virtio_mmio_input-1".as_bytes()),
+                    // )
+                    //     .unwrap()
+                }
+                #[cfg(feature = "gui")]
+                VirtioMmioDeviceType::GPU => {
+                    let gpu_driver = create_gpu_domain("virtio_mmio_gpu", None).unwrap();
+                    gpu_driver.init(address..address + size).unwrap();
+                    domain_helper::register_domain(
+                        "virtio_mmio_gpu",
+                        DomainType::GpuDomain(gpu_driver),
+                        false,
+                    );
+                }
+                _ => {
+                    warn!("unknown device: {:?}", device.device_type());
+                }
+            }
+        });
 
     {
         let null_device = create_empty_device_domain("null", None).unwrap();

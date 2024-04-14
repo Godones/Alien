@@ -8,13 +8,13 @@ extern crate alloc;
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::{
     fmt::Debug,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Range},
     ptr::NonNull,
 };
 
 use basic::{println, vm::frame::FrameTracker};
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo};
+use interface::{Basic, DeviceBase};
 use ksync::Mutex;
 use log::info;
 use rref::RRef;
@@ -88,8 +88,8 @@ impl DeviceBase for VirtIOBlkDomain {
 }
 
 impl interface::BlkDeviceDomain for VirtIOBlkDomain {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
-        let virtio_blk_addr = device_info.address_range.start;
+    fn init(&self, address_range: Range<usize>) -> AlienResult<()> {
+        let virtio_blk_addr = address_range.start;
         println!("virtio_blk_addr: {:#x?}", virtio_blk_addr);
         let header = NonNull::new(virtio_blk_addr as *mut VirtIOHeader).unwrap();
         let transport = unsafe { MmioTransport::new(header) }.unwrap();

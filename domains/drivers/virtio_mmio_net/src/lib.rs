@@ -5,10 +5,13 @@ mod virtio_net;
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
-use core::fmt::{Debug, Formatter, Result};
+use core::{
+    fmt::{Debug, Formatter, Result},
+    ops::Range,
+};
 
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo, NetDomain, RxBufferWrapper, TxBufferWrapper};
+use interface::{Basic, DeviceBase, NetDomain, RxBufferWrapper, TxBufferWrapper};
 use ksync::Mutex;
 use rref::RRefVec;
 use spin::Once;
@@ -46,7 +49,7 @@ impl DeviceBase for VirtIoNetDomain {
 static NET: Once<Arc<Mutex<VirtIoNetWrapper>>> = Once::new();
 
 impl NetDomain for VirtIoNetDomain {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
+    fn init(&self, device_info: Range<usize>) -> AlienResult<()> {
         let net = VirtIoNetWrapper::new(device_info);
         let net = Arc::new(Mutex::new(net));
         NET.call_once(|| net);

@@ -1,8 +1,8 @@
 use alloc::boxed::Box;
-use core::arch::asm;
+use core::{arch::asm, ops::Range};
 
 use constants::{AlienError, AlienResult};
-use interface::{Basic, BlkDeviceDomain, DeviceBase, DeviceInfo};
+use interface::{Basic, BlkDeviceDomain, DeviceBase};
 use ksync::{Mutex, RwLock};
 use log::error;
 use rref::RRef;
@@ -14,7 +14,7 @@ pub struct BlkDomainProxy {
     domain_id: u64,
     domain: RwLock<Box<dyn BlkDeviceDomain>>,
     domain_loader: DomainLoader,
-    device_info: Mutex<Option<DeviceInfo>>,
+    device_info: Mutex<Option<Range<usize>>>,
 }
 
 impl BlkDomainProxy {
@@ -48,7 +48,7 @@ impl DeviceBase for BlkDomainProxy {
 }
 
 impl BlkDeviceDomain for BlkDomainProxy {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
+    fn init(&self, device_info: Range<usize>) -> AlienResult<()> {
         self.device_info.lock().replace(device_info.clone());
         self.domain.read().init(device_info)
     }
@@ -95,7 +95,9 @@ impl BlkDeviceDomain for BlkDomainProxy {
             .domain_loader
             .call::<dyn BlkDeviceDomain>(self.domain_id);
         let device_info = self.device_info.lock();
-        new_domain.init(device_info.as_ref().unwrap()).unwrap();
+        new_domain
+            .init(device_info.as_ref().unwrap().clone())
+            .unwrap();
         core::mem::swap(&mut *domain, &mut new_domain);
         // The new_domain now is the old domain, but it has been recycled so we
         // can't drop it again

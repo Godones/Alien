@@ -1,11 +1,10 @@
 use alloc::collections::BTreeMap;
 use core::{
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Range},
     ptr::NonNull,
 };
 
 use basic::vm::frame::FrameTracker;
-use interface::DeviceInfo;
 use ksync::Mutex;
 use spin::Lazy;
 use virtio_drivers::{
@@ -22,8 +21,8 @@ unsafe impl Send for VirtioInputWrapper {}
 unsafe impl Sync for VirtioInputWrapper {}
 
 impl VirtioInputWrapper {
-    pub fn new(device_info: &DeviceInfo) -> Self {
-        let input_addr = device_info.address_range.start;
+    pub fn new(address_range: Range<usize>) -> Self {
+        let input_addr = address_range.start;
         basic::println!("input_addr: {:#x?}", input_addr);
 
         let header = NonNull::new(input_addr as *mut VirtIOHeader).unwrap();

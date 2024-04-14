@@ -14,16 +14,15 @@ rref = { path = "../rref" }
 arch = { path = "../../base/arch" }
 log = "0"
 pod = { workspace = true }
-#downcast-rs = { version = "1.2.0", default-features = false }
 page_table = { path = "../../safe-crates/page_table" }
 memory_addr = { path = "../../safe-crates/memory_addr" }
 ptable = { path = "../../safe-crates/ptable" }
 raw_plic = { path = "../../safe-crates/raw_plic" }
 goldfish_rtc = { path = "../../safe-crates/goldfish_rtc" }
 raw_uart16550 = { path = "../../safe-crates/raw_uart16550" }
-context = { path = "../../safe-crates/context" }
-xmas-elf = { version = "0.9", optional = true }
+int-enum = "1"
+riscv = "0"
 
 
 [features]
-task = ["dep:xmas-elf"]
+task = []

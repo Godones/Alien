@@ -1,42 +1,20 @@
-use context::TrapFrameRaw;
+use arch::interrupt_enable;
+use basic::task::TrapFrame;
+use mem::PhysAddr;
 
 use crate::{syscall_domain, task_domain};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {
     // enable interrupt
-    // interrupt_enable();
+    interrupt_enable();
     let task_domain = task_domain!();
     let trap_frame_phy_addr = task_domain.trap_frame_phy_addr().unwrap();
-    let cx = TrapFrameRaw::from_raw_ptr(trap_frame_phy_addr as _);
+    let cx = TrapFrame::from_raw_phy_ptr(PhysAddr::from(trap_frame_phy_addr));
 
     cx.update_sepc(cx.sepc() + 4);
-    // // get system call return value
     let parameters = cx.parameters();
     let _syscall_name = constants::syscall_name(parameters[0]);
-    //
-    // let task = current_task().unwrap();
-    // let p_name = task.get_name();
-    // let tid = task.get_tid();
-    // let pid = task.get_pid();
-    // if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
-    //     // ignore shell and init
-    //     info!(
-    //         "[pid:{}, tid: {}][p_name: {}] syscall: [{}] {}({:#x}, {:#x}, {:#x}, {:#x}, {:#x}, {:#x})",
-    //         pid,
-    //         tid,
-    //         p_name,
-    //         parameters[0],
-    //         syscall_name,
-    //         parameters[1],
-    //         parameters[2],
-    //         parameters[3],
-    //         parameters[4],
-    //         parameters[5],
-    //         parameters[6]
-    //     );
-    // }
-    //
 
     let result = syscall_domain!().call(
         parameters[0],
@@ -52,19 +30,7 @@ pub fn syscall_exception_handler() {
 
     // cx is changed during sys_exec, so we have to call it again
     let trap_frame_phy_addr = task_domain.trap_frame_phy_addr().unwrap();
-    let cx = TrapFrameRaw::from_raw_ptr(trap_frame_phy_addr as _);
-    // println!("syscall [{}] result: {:x?}, sepc: {}",syscall_name, result,cx.sepc);
-
-    // if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
-    //     info!(
-    //         "[pid:{}, tid: {}] syscall: [{}] result: {:?}, tp: {:#x}",
-    //         pid,
-    //         tid,
-    //         syscall_name,
-    //         result,
-    //         cx.regs()[4]
-    //     );
-    // }
-
-    cx.update_res(result.unwrap() as usize);
+    let cx = TrapFrame::from_raw_phy_ptr(PhysAddr::from(trap_frame_phy_addr));
+    // debug!("syscall [{}] result: {:x?}, sepc: {}",syscall_name, result,cx.sepc);
+    cx.update_result(result.unwrap() as usize);
 }

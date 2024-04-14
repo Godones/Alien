@@ -3,11 +3,11 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::fmt::Debug;
+use core::{fmt::Debug, ops::Range};
 
 use basic::{io::SafeIORegion, println};
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, DeviceInfo, UartDomain};
+use interface::{Basic, DeviceBase, UartDomain};
 use raw_uart16550::Uart16550;
 use spin::Once;
 
@@ -25,10 +25,10 @@ impl DeviceBase for UartDomainImpl {
 impl Basic for UartDomainImpl {}
 
 impl UartDomain for UartDomainImpl {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
-        let region = &device_info.address_range;
+    fn init(&self, address_range: Range<usize>) -> AlienResult<()> {
+        let region = &address_range;
         println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
-        let io_region = SafeIORegion::from(region.clone())?;
+        let io_region = SafeIORegion::from(region.clone());
         let uart = Uart16550::new(Box::new(io_region));
         uart.enable_receive_interrupt()?;
         UART.call_once(|| uart);

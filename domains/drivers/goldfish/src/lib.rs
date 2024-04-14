@@ -3,11 +3,12 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use core::ops::Range;
 
 use basic::{io::SafeIORegion, println};
 use constants::{io::RtcTime, AlienResult};
 use goldfish_rtc::GoldFishRtc;
-use interface::{Basic, DeviceBase, DeviceInfo, RtcDomain};
+use interface::{Basic, DeviceBase, RtcDomain};
 use rref::RRef;
 use spin::Once;
 
@@ -25,11 +26,9 @@ impl DeviceBase for Rtc {
 }
 
 impl RtcDomain for Rtc {
-    fn init(&self, device_info: &DeviceInfo) -> AlienResult<()> {
-        let rtc_space = &device_info.address_range;
-        println!("Rtc region: {:#x?}", rtc_space);
-        let safe_region =
-            SafeIORegion::new(rtc_space.start, rtc_space.end - rtc_space.start).unwrap();
+    fn init(&self, address_range: Range<usize>) -> AlienResult<()> {
+        println!("Rtc region: {:#x?}", address_range);
+        let safe_region = SafeIORegion::from(address_range);
         let rtc = GoldFishRtc::new(Box::new(safe_region));
         println!("current time: {:?}", rtc);
         RTC.call_once(|| rtc);

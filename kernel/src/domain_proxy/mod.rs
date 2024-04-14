@@ -1,15 +1,16 @@
 mod blk;
 pub mod continuation;
+
+use core::ops::Range;
+
 pub use blk::*;
 use constants::{io::RtcTime, AlienError, AlienResult};
 use interface::*;
 use rref::{RRef, RRefVec};
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
-
 gen_for_BufInputDomain!();
 gen_for_BufUartDomain!();
 gen_for_CacheBlkDeviceDomain!();
-gen_for_DevicesDomain!();
 gen_for_EmptyDeviceDomain!();
 gen_for_FsDomain!();
 gen_for_GpuDomain!();
