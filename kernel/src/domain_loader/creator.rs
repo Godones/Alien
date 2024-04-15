@@ -1,6 +1,7 @@
 use alloc::{
     boxed::Box,
     collections::BTreeMap,
+    format,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
@@ -28,6 +29,7 @@ struct DomainData {
 
 pub fn register_domain_elf(identifier: &str, elf: Vec<u8>, ty: DomainTypeRaw) {
     let mut binding = DOMAIN_ELF.lock();
+    platform::println!("register domain: {}", identifier);
     binding.insert(
         identifier.to_string(),
         DomainData {
@@ -211,7 +213,7 @@ pub fn create_scheduler_domain(
     create_domain(DomainTypeRaw::SchedulerDomain, ident, data)
         .map(|(id, domain, _)| Arc::new(SchedulerDomainProxy::new(id, domain)))
 }
-fn create_domain<T: ?Sized>(
+pub fn create_domain<T: ?Sized>(
     ty: DomainTypeRaw,
     ident: &str,
     elf: Option<Vec<u8>>,
@@ -222,7 +224,11 @@ fn create_domain<T: ?Sized>(
         }
         None => {}
     }
-    let data = DOMAIN_ELF.lock().get(ident)?.clone();
+    let data = DOMAIN_ELF
+        .lock()
+        .get(ident)
+        .expect(format!("{} domain elf not found", ident).as_str())
+        .clone();
     if data.ty != ty {
         return None;
     }

@@ -10,6 +10,7 @@ members = [
     "null",
     "random",
     "shadow_blk",
+    "sshadow_blk",
     "uart16550",
     "virtio_mmio_block",
     "virtio_mmio_net",

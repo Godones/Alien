@@ -16,6 +16,6 @@ pub mod vm;
 extern crate alloc;
 
 pub use corelib::{
-    backtrace, blk_crash_trick, create_domain, get_domain, kernel_satp, trap_from_user,
-    trap_to_user, write_console,
+    backtrace, blk_crash_trick, create_domain, get_domain, kernel_satp, register_domain,
+    replace_domain, trap_from_user, trap_to_user, write_console,
 };

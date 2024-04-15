@@ -1,7 +1,7 @@
 use constants::AlienResult;
 use gproxy::proxy;
 use pod::Pod;
-use rref::RRef;
+use rref::{RRef, RRefVec};
 
 use crate::{vfs::InodeID, Basic};
 #[proxy(TaskDomainProxy)]
@@ -13,8 +13,15 @@ pub trait TaskDomain: Basic {
     fn trap_frame_phy_addr(&self) -> AlienResult<usize>;
     fn heap_info(&self, tmp_heap_info: RRef<TmpHeapInfo>) -> AlienResult<RRef<TmpHeapInfo>>;
     fn get_fd(&self, fd: usize) -> AlienResult<InodeID>;
+    fn add_fd(&self, inode: InodeID) -> AlienResult<usize>;
+    fn fs_info(&self) -> AlienResult<(InodeID, InodeID)>;
     fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()>;
     fn copy_from_user(&self, src: usize, buf: &mut [u8]) -> AlienResult<()>;
+    fn read_string_from_user(
+        &self,
+        src: usize,
+        buf: RRefVec<u8>,
+    ) -> AlienResult<(RRefVec<u8>, usize)>;
     fn current_tid(&self) -> AlienResult<usize>;
     fn current_pid(&self) -> AlienResult<usize>;
     fn current_ppid(&self) -> AlienResult<usize>;

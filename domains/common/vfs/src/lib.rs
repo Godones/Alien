@@ -11,7 +11,7 @@ use constants::{
 };
 use interface::{Basic, DomainType, InodeID, TaskDomain, VfsDomain};
 use ksync::RwLock;
-use log::info;
+use log::debug;
 use rref::{RRef, RRefVec};
 use spin::Once;
 use vfscore::{
@@ -93,13 +93,14 @@ impl VfsDomain for VfsDomainImpl {
         let start = get_file(root).ok_or(AlienError::EINVAL)?;
         let root = system_root_fs();
         let path = core::str::from_utf8(path.as_slice()).unwrap();
-        let mode = if mode == 0 {
+        let open_flags = OpenFlags::from_bits_truncate(open_flags);
+        let mode = if open_flags.contains(OpenFlags::O_CREAT) {
             None
         } else {
             Some(VfsInodeMode::from_bits_truncate(mode))
         };
-        info!("vfs_open:  path: {:?}, mode: {:?}", path, mode);
-        let open_flags = OpenFlags::from_bits_truncate(open_flags);
+        debug!("vfs_open:  path: {:?}, mode: {:?}", path, mode);
+
         let path = VfsPath::new(root, start.dentry()).join(path)?.open(mode)?;
         let id = insert_dentry(path, open_flags);
         Ok(id)

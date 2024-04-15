@@ -1,9 +1,10 @@
 #![no_std]
 extern crate alloc;
 
+use constants::AlienResult;
 #[cfg(feature = "core_impl")]
 pub use core_impl::*;
-use interface::DomainType;
+use interface::{DomainType, DomainTypeRaw};
 use task_meta::TaskContext;
 
 pub trait CoreFunction: Send + Sync {
@@ -21,13 +22,16 @@ pub trait CoreFunction: Send + Sync {
     fn sys_get_domain(&self, name: &str) -> Option<DomainType>;
     fn sys_create_domain(&self, identifier: &str) -> Option<DomainType>;
     fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize);
+    fn register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()>;
+    fn replace_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()>;
 }
 
 #[cfg(feature = "core_impl")]
 mod core_impl {
     use alloc::boxed::Box;
 
-    use interface::DomainType;
+    use constants::AlienResult;
+    use interface::{DomainType, DomainTypeRaw};
     use spin::Once;
     use task_meta::TaskContext;
 
@@ -130,6 +134,18 @@ mod core_impl {
     pub fn switch_task(now: *mut TaskContext, next: *const TaskContext, next_tid: usize) {
         unsafe {
             CORE_FUNC.get_unchecked().switch_task(now, next, next_tid);
+        }
+    }
+
+    pub fn register_domain(ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()> {
+        unsafe { CORE_FUNC.get_unchecked().register_domain(ident, ty, data) }
+    }
+
+    pub fn replace_domain(old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
+        unsafe {
+            CORE_FUNC
+                .get_unchecked()
+                .replace_domain(old_domain_name, new_domain_name)
         }
     }
 }

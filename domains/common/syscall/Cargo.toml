@@ -11,6 +11,6 @@ interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 constants = { path = "../../../base/constants" }
 pod = { workspace = true }
-
+vfscore = { git = "https://github.com/os-module/rvfs.git" }
 
 log = "0"

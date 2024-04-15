@@ -30,6 +30,7 @@ mod syscall;
 pub mod thread;
 pub mod time;
 
+pub mod domain;
 #[cfg(feature = "gui")]
 pub mod gui;
 pub mod sync;

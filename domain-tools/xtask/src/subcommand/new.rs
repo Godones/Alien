@@ -17,7 +17,7 @@ impl DomainType {
         match self {
             DomainType::Common => "common".to_string(),
             DomainType::Fs => "fs".to_string(),
-            DomainType::Driver => "driver".to_string(),
+            DomainType::Driver => "drivers".to_string(),
         }
     }
 }

@@ -1,5 +1,6 @@
 #![no_std]
 #![forbid(unsafe_code)]
+mod domain;
 mod fs;
 mod mm;
 mod task;
@@ -14,7 +15,7 @@ use basic::println;
 use constants::AlienResult;
 use interface::{Basic, DomainType, SchedulerDomain, SysCallDomain, TaskDomain, VfsDomain};
 
-use crate::{fs::*, mm::*, task::*, time::*};
+use crate::{domain::*, fs::*, mm::*, task::*, time::*};
 
 #[derive(Debug)]
 struct SysCallDomainImpl {
@@ -56,6 +57,14 @@ impl SysCallDomain for SysCallDomainImpl {
                 args[0],
                 args[1],
                 args[2],
+            ),
+            56 => sys_openat(
+                &self.vfs_domain,
+                &self.task_domain,
+                args[0],
+                args[1] as *const u8,
+                args[2],
+                args[3],
             ),
             63 => sys_read(
                 &self.vfs_domain,
@@ -104,7 +113,15 @@ impl SysCallDomain for SysCallDomainImpl {
                 args[5],
             ),
             260 => sys_wait4(&self.task_domain, args[0], args[1], args[2], args[3]),
-
+            888 => sys_load_domain(
+                &self.task_domain,
+                &self.vfs_domain,
+                args[0],
+                args[1] as u8,
+                args[2],
+                args[3],
+            ),
+            889 => sys_replace_domain(&self.task_domain, args[0], args[1], args[2], args[3]),
             _ => panic!("syscall [{}: {}] not found", syscall_id, syscall_name),
         }
     }

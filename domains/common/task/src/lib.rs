@@ -18,10 +18,10 @@ use basic::println;
 use constants::{AlienError, AlienResult};
 use interface::{Basic, DomainType, InodeID, SchedulerDomain, TaskDomain, TmpHeapInfo};
 use memory_addr::VirtAddr;
-use rref::RRef;
+use rref::{RRef, RRefVec};
 use spin::Once;
 
-use crate::processor::current_task;
+use crate::{processor::current_task, vfs_shim::ShimFile};
 
 pub static SCHEDULER_DOMAIN: Once<Arc<dyn SchedulerDomain>> = Once::new();
 
@@ -98,6 +98,19 @@ impl TaskDomain for TaskDomainImpl {
         Ok(file.inode_id())
     }
 
+    fn add_fd(&self, inode: InodeID) -> AlienResult<usize> {
+        let task = current_task().unwrap();
+        let file = Arc::new(ShimFile::new(inode));
+        let fd = task.add_file(file);
+        Ok(fd)
+    }
+
+    fn fs_info(&self) -> AlienResult<(InodeID, InodeID)> {
+        let task = current_task().unwrap();
+        let fs_info = task.inner().fs_info.clone();
+        Ok((fs_info.root, fs_info.cwd))
+    }
+
     fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()> {
         let task = current_task().unwrap();
         task.write_bytes_to_user(VirtAddr::from(dst), buf)
@@ -106,6 +119,19 @@ impl TaskDomain for TaskDomainImpl {
     fn copy_from_user(&self, src: usize, buf: &mut [u8]) -> AlienResult<()> {
         let task = current_task().unwrap();
         task.read_bytes_from_user(VirtAddr::from(src), buf)
+    }
+
+    fn read_string_from_user(
+        &self,
+        src: usize,
+        mut buf: RRefVec<u8>,
+    ) -> AlienResult<(RRefVec<u8>, usize)> {
+        let task = current_task().unwrap();
+        let str = task.read_string_from_user(VirtAddr::from(src))?;
+        let len = str.as_bytes().len();
+        let min_len = core::cmp::min(len, buf.len());
+        buf.as_mut_slice()[..min_len].copy_from_slice(&str.as_bytes()[..min_len]);
+        Ok((buf, min_len))
     }
 
     fn current_tid(&self) -> AlienResult<usize> {

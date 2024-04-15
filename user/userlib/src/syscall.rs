@@ -352,3 +352,6 @@ syscall!(sys_framebuffer, SYSCALL_FRAME_BUFFER);
 syscall!(sys_framebuffer_flush, SYSCALL_FRAME_FLUSH);
 syscall!(sys_event, SYSCALL_EVENT, *mut u64, usize);
 syscall!(__system_shutdown, SYSCALL_SYSTEMSHUTDOWN);
+
+syscall!(sys_load_domain, 888, usize, u8, *const u8, usize);
+syscall!(sys_replace_domain, 889, *const u8, usize, *const u8, usize);

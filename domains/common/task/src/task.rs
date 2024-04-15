@@ -78,7 +78,7 @@ pub struct TaskInner {
     pub stack: Range<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct FsContext {
     /// current working directory
     pub cwd: InodeID,
@@ -123,6 +123,10 @@ impl Task {
     }
     pub fn get_file(&self, fd: usize) -> Option<Arc<ShimFile>> {
         self.fd_table.lock().get(fd)
+    }
+
+    pub fn add_file(&self, file: Arc<ShimFile>) -> usize {
+        self.fd_table.lock().insert(file)
     }
 
     pub fn token(&self) -> usize {

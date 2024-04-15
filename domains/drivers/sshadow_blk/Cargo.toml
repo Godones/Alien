@@ -1,0 +1,14 @@
+[package]
+name = "sshadow_blk"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+interface = { path = "../../../domain-tools/interface" }
+rref = { path = "../../../domain-tools/rref" }
+basic = { path = "../../../domain-tools/basic" }
+constants = { path = "../../../base/constants" }
+
+spin = { workspace = true }
+log = "0"

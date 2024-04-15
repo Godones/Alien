@@ -13,6 +13,7 @@ pod = { workspace = true }
 gproxy = { path = "../gproxy" }
 log = "0"
 task_meta = { path = "../task_meta" }
+downcast-rs = { workspace = true }
 
 [features]
 domain = []

@@ -1,5 +1,5 @@
 [package]
-name = "fifo_scheduler"
+name = "common_scheduler"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,6 +11,4 @@ interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 constants = { path = "../../../base/constants" }
 task_meta = { path = "../../../domain-tools/task_meta" }
-common_scheduler = { path = "../common_scheduler" }
 
-log = "0"

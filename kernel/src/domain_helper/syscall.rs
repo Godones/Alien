@@ -3,6 +3,7 @@ use core::sync::atomic::AtomicBool;
 
 use basic::task::TaskContext;
 use config::FRAME_BITS;
+use constants::{AlienError, AlienResult};
 use corelib::CoreFunction;
 use interface::*;
 use ksync::Mutex;
@@ -10,7 +11,10 @@ use log::{info, warn};
 use platform::iprint;
 use spin::Lazy;
 
-use crate::domain_helper::{SharedHeapAllocator, DOMAIN_CREATE};
+use crate::{
+    domain_helper::{SharedHeapAllocator, DOMAIN_CREATE},
+    domain_proxy::ShadowBlockDomainProxy,
+};
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
@@ -130,7 +134,39 @@ impl CoreFunction for DomainSyscall {
         crate::domain_proxy::continuation::set_current_task_id(next_tid);
         crate::task::switch(now, next)
     }
+
+    fn register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()> {
+        crate::domain_loader::creator::register_domain_elf(ident, data.to_vec(), ty);
+        Ok(())
+    }
+
+    fn replace_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
+        let old_domain = super::query_domain(old_domain_name).ok_or(AlienError::EINVAL)?;
+        match old_domain {
+            DomainType::ShadowBlockDomain(shadow_blk) => {
+                let (_id, new_domain, _) = crate::domain_loader::creator::create_domain(
+                    DomainTypeRaw::ShadowBlockDomain,
+                    new_domain_name,
+                    None,
+                )
+                .ok_or(AlienError::EINVAL)?;
+                let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
+                shadow_blk_proxy.replace(new_domain);
+                let backend_domain = shadow_blk_proxy.backend_domain();
+                shadow_blk_proxy.init(backend_domain.as_str())?;
+                warn!(
+                    "Try to replace domain: {} with domain: {}",
+                    old_domain_name, new_domain_name
+                );
+                Ok(())
+            }
+            _ => {
+                panic!("replace domain not support");
+            }
+        }
+    }
 }
+
 extern "C" {
     fn strampoline();
 }

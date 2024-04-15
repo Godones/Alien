@@ -65,6 +65,8 @@ user:
 	@echo "Building user apps done"
 
 sdcard:$(FS) mount user
+	@sudo cp build/gsshadow_blk $(FSMOUNT)/
+	@sudo cp user/bin/* $(FSMOUNT)/
 	@sudo ls $(FSMOUNT)
 	@sudo umount $(FSMOUNT)
 	@rm -rf $(FSMOUNT)

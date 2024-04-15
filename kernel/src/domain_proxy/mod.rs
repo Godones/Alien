@@ -1,5 +1,6 @@
 mod blk;
 pub mod continuation;
+mod shadow_blk;
 
 use core::ops::Range;
 
@@ -7,6 +8,7 @@ pub use blk::*;
 use constants::{io::RtcTime, AlienError, AlienResult};
 use interface::*;
 use rref::{RRef, RRefVec};
+pub use shadow_blk::*;
 use task_meta::TaskMeta;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 gen_for_BufInputDomain!();
@@ -18,7 +20,7 @@ gen_for_GpuDomain!();
 gen_for_InputDomain!();
 gen_for_NetDomain!();
 gen_for_RtcDomain!();
-gen_for_ShadowBlockDomain!();
+// gen_for_ShadowBlockDomain!();
 gen_for_SysCallDomain!();
 gen_for_TaskDomain!();
 gen_for_UartDomain!();

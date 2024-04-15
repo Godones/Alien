@@ -52,7 +52,6 @@ pub fn init_domains() {
     }
 
     let mut register = |identifier: &str, domain: DomainTypeRaw| {
-        platform::println!("register domain: {}", identifier);
         register_domain_elf(identifier, map.remove(identifier).unwrap(), domain);
     };
 
