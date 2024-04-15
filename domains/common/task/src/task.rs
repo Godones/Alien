@@ -13,9 +13,7 @@ use basic::{
     task::{TaskContext, TaskContextExt, TrapFrame},
     vm::frame::FrameTracker,
 };
-use config::{
-    FRAME_SIZE, MAX_THREAD_NUM, TRAP_CONTEXT_BASE, USER_KERNEL_STACK_SIZE, USER_STACK_SIZE,
-};
+use config::*;
 use constants::{signal::SignalNumber, task::CloneFlags, AlienResult};
 use interface::{InodeID, VFS_ROOT_ID};
 use memory_addr::{PhysAddr, VirtAddr};
@@ -23,6 +21,7 @@ use page_table::MappingFlags;
 use pod::Pod;
 use ptable::{PhysPage, VmArea, VmAreaType, VmIo, VmSpace};
 use small_index::IndexAllocator;
+use task_meta::{TaskMeta, TaskStatus};
 
 use crate::{
     elf::{build_vm_space, clone_vm_space, extend_thread_vm_space, VmmPageAllocator},
@@ -93,20 +92,6 @@ impl FsContext {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
-pub enum TaskStatus {
-    /// 就绪态
-    Ready,
-    /// 运行态
-    Running,
-    /// 等待一个事件
-    Waiting,
-    /// 僵尸态，等待父进程回收资源
-    Zombie,
-    /// 终止态
-    Terminated,
-}
-
 impl Task {
     pub fn pid(&self) -> usize {
         self.pid.raw()
@@ -129,11 +114,9 @@ impl Task {
         inner.status
     }
 
-    pub fn update_state(&self, state: TaskStatus) {
-        let mut inner = self.inner.lock();
-        inner.status = state;
+    pub fn create_task_meta(&self) -> TaskMeta {
+        TaskMeta::new(self.tid(), self.inner().context)
     }
-
     pub fn set_tid_address(&self, addr: usize) {
         let mut inner = self.inner.lock();
         inner.clear_child_tid = addr;
@@ -145,17 +128,6 @@ impl Task {
     pub fn token(&self) -> usize {
         let paddr = self.address_space.lock().root_paddr();
         (8usize << 60) | (paddr >> 12)
-    }
-
-    pub fn get_context_raw_ptr(&self) -> *const TaskContext {
-        let inner = self.inner.lock();
-        &inner.context as *const TaskContext
-    }
-
-    /// 获取任务上下文的可变指针
-    pub fn get_context_mut_raw_ptr(&self) -> *mut TaskContext {
-        let mut inner = self.inner.lock();
-        &mut inner.context as *mut TaskContext
     }
 
     pub fn read_bytes_from_user(&self, src: VirtAddr, dest: &mut [u8]) -> AlienResult<()> {

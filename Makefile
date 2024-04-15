@@ -91,6 +91,7 @@ fix:
 	make -C domains fix  DOMAIN_LIST="$(domains)"
 
 initrd:
+	@make -C user/initrd
 	@mkdir ./initrd
 	@cp ./build/g* ./initrd
 	@cp ./user/initrd/initramfs/* ./initrd -r

@@ -11,6 +11,7 @@ mod input_device;
 mod net;
 mod plic;
 mod rtc;
+mod scheduler;
 mod sd;
 mod shadow_block;
 mod syscall;
@@ -52,6 +53,7 @@ pub use input_device::*;
 pub use net::*;
 pub use plic::*;
 pub use rtc::*;
+pub use scheduler::*;
 pub use shadow_block::*;
 pub use syscall::*;
 pub use task::*;
@@ -76,6 +78,7 @@ pub enum DomainType {
     BufInputDomain(Arc<dyn BufInputDomain>),
     EmptyDeviceDomain(Arc<dyn EmptyDeviceDomain>),
     DevFsDomain(Arc<dyn DevFsDomain>),
+    SchedulerDomain(Arc<dyn SchedulerDomain>),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DomainTypeRaw {
@@ -96,6 +99,7 @@ pub enum DomainTypeRaw {
     BufInputDomain,
     EmptyDeviceDomain,
     DevFsDomain,
+    SchedulerDomain,
 }
 
 impl TryInto<Arc<dyn DeviceBase>> for DomainType {

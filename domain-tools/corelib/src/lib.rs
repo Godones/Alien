@@ -4,10 +4,7 @@ extern crate alloc;
 #[cfg(feature = "core_impl")]
 pub use core_impl::*;
 use interface::DomainType;
-pub use task::TaskContext;
-#[cfg(feature = "task")]
-pub mod task;
-mod task;
+use task_meta::TaskContext;
 
 pub trait CoreFunction: Send + Sync {
     fn sys_alloc_pages(&self, domain_id: u64, n: usize) -> *mut u8;
@@ -32,8 +29,9 @@ mod core_impl {
 
     use interface::DomainType;
     use spin::Once;
+    use task_meta::TaskContext;
 
-    use crate::{task::TaskContext, CoreFunction};
+    use crate::CoreFunction;
 
     static CORE_FUNC: Once<Box<dyn CoreFunction>> = Once::new();
 

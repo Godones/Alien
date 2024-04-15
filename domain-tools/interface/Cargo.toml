@@ -12,7 +12,7 @@ vfscore = { git = "https://github.com/os-module/rvfs.git" }
 pod = { workspace = true }
 gproxy = { path = "../gproxy" }
 log = "0"
-
+task_meta = { path = "../task_meta" }
 
 [features]
 domain = []

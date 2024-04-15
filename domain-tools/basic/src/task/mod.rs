@@ -1,8 +1,8 @@
 use arch::ExtSstatus;
 use corelib::switch_task;
-pub use corelib::TaskContext;
 use memory_addr::{PhysAddr, VirtAddr};
 use riscv::register::sstatus::SPP;
+pub use task_meta::TaskContext;
 
 pub fn switch(now: *mut TaskContext, next: *const TaskContext, next_tid: usize) {
     switch_task(now, next, next_tid)

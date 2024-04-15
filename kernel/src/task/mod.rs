@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::arch::global_asm;
 
 use basic::task::TaskContext;
-use interface::TaskDomain;
+use interface::{SchedulerDomain, TaskDomain};
 use spin::Once;
 
 global_asm!(include_str!("switch.asm"));
@@ -20,6 +20,7 @@ pub fn switch(now: *mut TaskContext, next: *const TaskContext) {
 }
 
 pub static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
+pub static SCHEDULER_DOMAIN: Once<Arc<dyn SchedulerDomain>> = Once::new();
 
 #[macro_export]
 macro_rules! task_domain {
@@ -30,10 +31,23 @@ macro_rules! task_domain {
     };
 }
 
+#[macro_export]
+macro_rules! scheduler_domain {
+    () => {
+        crate::task::SCHEDULER_DOMAIN
+            .get()
+            .expect("scheduler domain not init")
+    };
+}
+
+pub fn register_scheduler_domain(task_domain: Arc<dyn SchedulerDomain>) {
+    SCHEDULER_DOMAIN.call_once(|| task_domain);
+}
+
 pub fn register_task_domain(task_domain: Arc<dyn TaskDomain>) {
     TASK_DOMAIN.call_once(|| task_domain);
 }
 
 pub fn run_task() {
-    task_domain!().run().unwrap()
+    scheduler_domain!().run().unwrap()
 }

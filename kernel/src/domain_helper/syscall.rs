@@ -1,8 +1,9 @@
 use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use core::sync::atomic::AtomicBool;
 
+use basic::task::TaskContext;
 use config::FRAME_BITS;
-use corelib::{CoreFunction, TaskContext};
+use corelib::CoreFunction;
 use interface::*;
 use ksync::Mutex;
 use log::{info, warn};

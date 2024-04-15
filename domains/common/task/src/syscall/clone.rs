@@ -2,10 +2,9 @@ use constants::{signal::SignalNumber, task::CloneFlags, AlienError, AlienResult}
 
 use crate::{
     processor::{add_task, current_task},
-    scheduler::do_suspend,
+    scheduler_domain,
     task::CloneArgs,
 };
-
 pub fn do_clone(
     flags: usize,
     stack: usize,
@@ -20,7 +19,7 @@ pub fn do_clone(
     let mut task = current_task().unwrap();
     let child_num = task.inner().children.len();
     if child_num >= 10 {
-        do_suspend();
+        scheduler_domain!().yield_now().unwrap();
         task = current_task().unwrap();
     }
     let clone_args = CloneArgs {

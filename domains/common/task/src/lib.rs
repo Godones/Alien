@@ -8,23 +8,31 @@ mod init;
 mod kthread;
 mod processor;
 mod resource;
-mod scheduler;
 mod syscall;
 mod task;
 mod vfs_shim;
-mod wait_queue;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 
+use basic::println;
 use constants::{AlienError, AlienResult};
-use interface::{Basic, DomainType, InodeID, TaskDomain, TmpHeapInfo};
+use interface::{Basic, DomainType, InodeID, SchedulerDomain, TaskDomain, TmpHeapInfo};
 use memory_addr::VirtAddr;
 use rref::RRef;
+use spin::Once;
 
-use crate::{
-    processor::current_task,
-    scheduler::{do_suspend, run_task},
-};
+use crate::processor::current_task;
+
+pub static SCHEDULER_DOMAIN: Once<Arc<dyn SchedulerDomain>> = Once::new();
+
+#[macro_export]
+macro_rules! scheduler_domain {
+    () => {
+        crate::SCHEDULER_DOMAIN
+            .get()
+            .expect("scheduler domain not found")
+    };
+}
 
 #[derive(Debug)]
 pub struct TaskDomainImpl {}
@@ -45,11 +53,17 @@ impl TaskDomain for TaskDomainImpl {
             _ => panic!("vfs domain not found"),
         };
         vfs_shim::init_vfs_domain(vfs_domain);
+
+        let scheduler_domain = basic::get_domain("scheduler").unwrap();
+        let scheduler_domain = match scheduler_domain {
+            DomainType::SchedulerDomain(scheduler_domain) => scheduler_domain,
+            _ => panic!("scheduler domain not found"),
+        };
+        SCHEDULER_DOMAIN.call_once(|| scheduler_domain);
+
         init::init_task();
+        println!("Init task domain success");
         Ok(())
-    }
-    fn run(&self) -> AlienResult<()> {
-        run_task()
     }
 
     fn trap_frame_virt_addr(&self) -> AlienResult<usize> {
@@ -113,15 +127,6 @@ impl TaskDomain for TaskDomainImpl {
             Ok(p.pid() as _)
         }
     }
-    fn current_to_wait(&self) -> AlienResult<()> {
-        wait_queue::current_to_wait();
-        Ok(())
-    }
-    fn wake_up_wait_task(&self, tid: usize) -> AlienResult<()> {
-        wait_queue::wake_up_wait_task(tid);
-        Ok(())
-    }
-
     fn do_brk(&self, addr: usize) -> AlienResult<isize> {
         let task = current_task().unwrap();
         let new_addr = task.extend_heap(addr);
@@ -160,11 +165,6 @@ impl TaskDomain for TaskDomainImpl {
             argv_ptr.into(),
             envp_ptr.into(),
         )
-    }
-
-    fn do_yield(&self) -> AlienResult<isize> {
-        do_suspend();
-        Ok(0)
     }
 
     fn do_set_tid_address(&self, tidptr: usize) -> AlienResult<isize> {

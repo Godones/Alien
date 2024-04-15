@@ -12,7 +12,7 @@ use alloc::{boxed::Box, sync::Arc};
 
 use basic::println;
 use constants::AlienResult;
-use interface::{Basic, DomainType, SysCallDomain, TaskDomain, VfsDomain};
+use interface::{Basic, DomainType, SchedulerDomain, SysCallDomain, TaskDomain, VfsDomain};
 
 use crate::{fs::*, mm::*, task::*, time::*};
 
@@ -20,13 +20,19 @@ use crate::{fs::*, mm::*, task::*, time::*};
 struct SysCallDomainImpl {
     vfs_domain: Arc<dyn VfsDomain>,
     task_domain: Arc<dyn TaskDomain>,
+    scheduler: Arc<dyn SchedulerDomain>,
 }
 
 impl SysCallDomainImpl {
-    pub fn new(vfs_domain: Arc<dyn VfsDomain>, task_domain: Arc<dyn TaskDomain>) -> Self {
+    pub fn new(
+        vfs_domain: Arc<dyn VfsDomain>,
+        task_domain: Arc<dyn TaskDomain>,
+        scheduler: Arc<dyn SchedulerDomain>,
+    ) -> Self {
         Self {
             vfs_domain,
             task_domain,
+            scheduler,
         }
     }
 }
@@ -67,7 +73,7 @@ impl SysCallDomain for SysCallDomainImpl {
             ),
             96 => sys_set_tid_address(&self.task_domain, args[0]),
             113 => sys_clock_gettime(&self.task_domain, args[0], args[1]),
-            124 => sys_yield(&self.task_domain),
+            124 => sys_yield(&self.scheduler),
             154 => sys_set_pgid(&self.task_domain),
             155 => sys_get_pgid(&self.task_domain),
             157 => sys_set_sid(&self.task_domain),
@@ -116,6 +122,16 @@ pub fn main() -> Box<dyn SysCallDomain> {
         _ => panic!("task domain not found"),
     };
 
+    let scheduler_domain = basic::get_domain("scheduler").unwrap();
+    let scheduler_domain = match scheduler_domain {
+        DomainType::SchedulerDomain(scheduler_domain) => scheduler_domain,
+        _ => panic!("scheduler domain not found"),
+    };
+
     println!("syscall domain began to work");
-    Box::new(SysCallDomainImpl::new(vfs_domain, task_domain))
+    Box::new(SysCallDomainImpl::new(
+        vfs_domain,
+        task_domain,
+        scheduler_domain,
+    ))
 }

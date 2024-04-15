@@ -1,59 +1,30 @@
-use alloc::{collections::VecDeque, sync::Arc};
-use core::cell::RefCell;
+use alloc::{collections::BTreeMap, sync::Arc};
+use basic::sync::Mutex;
+use rref::RRef;
 
-use basic::{arch::CpuLocal, sync::Mutex, task::TaskContext};
-use spin::lazy::Lazy;
-
-use crate::task::Task;
-
-#[derive(Debug, Clone)]
-pub struct CPU {
-    task: RefCell<Option<Arc<Task>>>,
-    context: TaskContext,
-}
-
-impl CPU {
-    const fn empty() -> Self {
-        Self {
-            task: RefCell::new(None),
-            context: TaskContext::empty(),
-        }
-    }
-    pub fn take_current(&self) -> Option<Arc<Task>> {
-        self.task.borrow_mut().take()
-    }
-    pub fn current(&self) -> Option<Arc<Task>> {
-        self.task.borrow().clone()
-    }
-    pub fn set_current(&self, task: Arc<Task>) {
-        self.task.borrow_mut().replace(task);
-    }
-    pub fn get_idle_task_cx_ptr(&self) -> *mut TaskContext {
-        &self.context as *const TaskContext as *mut _
-    }
-}
-
-static CPU: CpuLocal<CPU> = CpuLocal::new(CPU::empty());
-
-pub fn current_cpu() -> &'static CPU {
-    &CPU
-}
+use crate::{scheduler_domain, task::Task};
 
 pub fn current_task() -> Option<Arc<Task>> {
-    CPU.current()
+    let tid = scheduler_domain!().current_tid().unwrap()?;
+    let task = GLOBAL_TASK_MANAGER
+        .lock()
+        .get(&tid)
+        .map(|task| Arc::clone(task));
+    task
 }
 
-pub fn take_current_task() -> Option<Arc<Task>> {
-    CPU.take_current()
-}
-
-static GLOBAL_TASK_MANAGER: Lazy<Arc<Mutex<VecDeque<Arc<Task>>>>> =
-    Lazy::new(|| Arc::new(Mutex::new(VecDeque::new())));
+static GLOBAL_TASK_MANAGER: Mutex<BTreeMap<usize, Arc<Task>>> = Mutex::new(BTreeMap::new());
 
 pub fn add_task(task: Arc<Task>) {
-    GLOBAL_TASK_MANAGER.lock().push_back(task);
+    let tid = task.tid();
+    let task_meta = task.create_task_meta();
+    GLOBAL_TASK_MANAGER.lock().insert(tid, task);
+    scheduler_domain!()
+        .add_one_task(RRef::new(task_meta))
+        .unwrap()
 }
 
-pub fn pick_next_task() -> Option<Arc<Task>> {
-    GLOBAL_TASK_MANAGER.lock().pop_front()
+pub fn remove_task(tid: usize) {
+    GLOBAL_TASK_MANAGER.lock().remove(&tid);
+    // scheduler_domain!().remove_one_task(tid).unwrap()
 }

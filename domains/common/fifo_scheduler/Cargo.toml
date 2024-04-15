@@ -1,5 +1,5 @@
 [package]
-name = "task"
+name = "fifo_scheduler"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,16 +9,8 @@ edition = "2021"
 basic = { path = "../../../domain-tools/basic", features = ["task"] }
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
-small-index = { git = "https://github.com/os-module/small-index" }
-spin = "0"
-config = { path = "../../../base/config" }
 constants = { path = "../../../base/constants" }
-vfscore = { git = "https://github.com/os-module/rvfs.git" }
-page_table = { path = "../../../safe-crates/page_table" }
-memory_addr = { path = "../../../safe-crates/memory_addr" }
-ptable = { path = "../../../safe-crates/ptable" }
 task_meta = { path = "../../../domain-tools/task_meta" }
-pod = { workspace = true }
-# now we trust the elf loader
-xmas-elf = "0.9"
+
+
 log = "0"

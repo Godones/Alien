@@ -68,6 +68,10 @@ impl FsDomain for DevFsDomainImpl {
         self.generic_fs.poll(inode, mask)
     }
 
+    fn ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize> {
+        self.generic_fs.ioctl(inode, cmd, arg)
+    }
+
     fn flush(&self, inode: InodeID) -> AlienResult<()> {
         self.generic_fs.flush(inode)
     }
@@ -172,12 +176,8 @@ impl FsDomain for DevFsDomainImpl {
     fn fs_flag(&self) -> AlienResult<FileSystemFlags> {
         self.generic_fs.fs_flag()
     }
-
     fn fs_name(&self, name: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)> {
         self.generic_fs.fs_name(name)
-    }
-    fn ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize> {
-        self.generic_fs.ioctl(inode, cmd, arg)
     }
 }
 

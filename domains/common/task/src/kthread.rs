@@ -1,6 +1,7 @@
 use alloc::{collections::BTreeMap, string::ToString, sync::Arc};
 
 use basic::{
+    println,
     sync::Mutex,
     task::{TaskContext, TaskContextExt},
 };
@@ -9,12 +10,13 @@ use constants::AlienResult;
 use interface::VFS_ROOT_ID;
 use ptable::VmSpace;
 use small_index::IndexAllocator;
+use task_meta::TaskStatus;
 
 use crate::{
     elf::VmmPageAllocator,
     processor::add_task,
     resource::{FdManager, HeapInfo, KStack, TidHandle},
-    task::{FsContext, Task, TaskInner, TaskStatus},
+    task::{FsContext, Task, TaskInner},
     vfs_shim::{STDIN, STDOUT},
 };
 
@@ -57,4 +59,9 @@ pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
     let task = Arc::new(task);
     add_task(task);
     Ok(())
+}
+
+#[allow(unused)]
+pub fn ktrhead_exit() {
+    println!("kthread_exit");
 }

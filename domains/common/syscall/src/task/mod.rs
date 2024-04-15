@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
 use constants::AlienResult;
-use interface::TaskDomain;
+use interface::{SchedulerDomain, TaskDomain};
 
 pub fn sys_clone(
     task_domain: &Arc<dyn TaskDomain>,
@@ -33,8 +33,9 @@ pub fn sys_execve(
     task_domain.do_execve(filename_ptr, argv_ptr, envp_ptr)
 }
 
-pub fn sys_yield(task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
-    task_domain.do_yield()
+pub fn sys_yield(scheduler_domain: &Arc<dyn SchedulerDomain>) -> AlienResult<isize> {
+    scheduler_domain.yield_now()?;
+    Ok(0)
 }
 
 pub fn sys_set_tid_address(task_domain: &Arc<dyn TaskDomain>, tidptr: usize) -> AlienResult<isize> {

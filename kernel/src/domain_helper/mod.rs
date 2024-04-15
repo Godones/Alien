@@ -44,7 +44,7 @@ impl DomainContainer {
                 );
             }
             platform::println!(
-                "register domain: {}, it's name is {}",
+                "<register domain>: {}, it's name is {}",
                 identifier,
                 identifier
             );
@@ -53,7 +53,7 @@ impl DomainContainer {
             let counter = self.ty_counter.entry(identifier.clone()).or_insert(0);
             *counter += 1;
             let name = format!("{}-{}", identifier, counter);
-            platform::println!("register domain: {}, it's name is {}", identifier, name);
+            platform::println!("<register domain>: {}, it's name is {}", identifier, name);
             self.domains.insert(name, domain);
         }
     }

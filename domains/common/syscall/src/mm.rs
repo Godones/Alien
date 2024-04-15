@@ -6,7 +6,7 @@ use constants::{
     AlienError, AlienResult,
 };
 use interface::{TaskDomain, TmpHeapInfo, VfsDomain};
-use log::{info, warn};
+use log::info;
 use rref::RRef;
 
 pub fn sys_brk(

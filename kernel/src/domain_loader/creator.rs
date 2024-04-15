@@ -204,6 +204,13 @@ pub fn create_devfs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<Dev
         .map(|(id, domain, _)| Arc::new(DevFsDomainProxy::new(id, domain)))
 }
 
+pub fn create_scheduler_domain(
+    ident: &str,
+    data: Option<Vec<u8>>,
+) -> Option<Arc<SchedulerDomainProxy>> {
+    create_domain(DomainTypeRaw::SchedulerDomain, ident, data)
+        .map(|(id, domain, _)| Arc::new(SchedulerDomainProxy::new(id, domain)))
+}
 fn create_domain<T: ?Sized>(
     ty: DomainTypeRaw,
     ident: &str,

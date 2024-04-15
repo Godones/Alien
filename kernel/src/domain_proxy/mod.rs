@@ -7,6 +7,7 @@ pub use blk::*;
 use constants::{io::RtcTime, AlienError, AlienResult};
 use interface::*;
 use rref::{RRef, RRefVec};
+use task_meta::TaskMeta;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 gen_for_BufInputDomain!();
 gen_for_BufUartDomain!();
@@ -23,7 +24,7 @@ gen_for_TaskDomain!();
 gen_for_UartDomain!();
 gen_for_VfsDomain!();
 gen_for_PLICDomain!();
-
+gen_for_SchedulerDomain!();
 impl Basic for DevFsDomainProxy {
     fn is_active(&self) -> bool {
         self.domain.is_active()

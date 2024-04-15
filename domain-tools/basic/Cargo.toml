@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 config = { path = "../../base/config" }
 corelib = { path = "../corelib", features = ["core_impl"]}
+task_meta = { path = "../task_meta" }
 constants = { path = "../../base/constants" }
 ksync = { path = "../../base/ksync" }
 rref = { path = "../rref" }

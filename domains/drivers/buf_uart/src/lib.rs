@@ -7,12 +7,12 @@ use core::fmt::Debug;
 
 use basic::println;
 use constants::{AlienError, AlienResult};
-use interface::{Basic, BufUartDomain, DeviceBase, DomainType, TaskDomain, UartDomain};
+use interface::{Basic, BufUartDomain, DeviceBase, DomainType, SchedulerDomain, UartDomain};
 use ksync::Mutex;
 use spin::Once;
 
 static UART: Once<Arc<dyn UartDomain>> = Once::new();
-static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
+static SCHEDULER_DOMAIN: Once<Arc<dyn SchedulerDomain>> = Once::new();
 #[derive(Debug)]
 pub struct Uart {
     inner: Mutex<UartInner>,
@@ -47,7 +47,11 @@ impl DeviceBase for Uart {
                 inner.rx_buf.push_back(c);
                 if !inner.wait_queue.is_empty() {
                     let tid = inner.wait_queue.pop_front().unwrap();
-                    TASK_DOMAIN.get().unwrap().wake_up_wait_task(tid).unwrap();
+                    SCHEDULER_DOMAIN
+                        .get()
+                        .unwrap()
+                        .wake_up_wait_task(tid)
+                        .unwrap();
                 }
             } else {
                 break;
@@ -73,10 +77,10 @@ impl BufUartDomain for Uart {
                 Err(AlienError::EINVAL)
             }
         }?;
-        let task_domain = basic::get_domain("task").unwrap();
-        match task_domain {
-            DomainType::TaskDomain(task_domain) => {
-                TASK_DOMAIN.call_once(|| task_domain);
+        let scheduler_domain = basic::get_domain("scheduler").unwrap();
+        match scheduler_domain {
+            DomainType::SchedulerDomain(scheduler_domain) => {
+                SCHEDULER_DOMAIN.call_once(|| scheduler_domain);
                 Ok(())
             }
             _ => return Err(AlienError::EINVAL),
@@ -95,11 +99,11 @@ impl BufUartDomain for Uart {
         loop {
             let mut inner = self.inner.lock();
             if inner.rx_buf.is_empty() {
-                let task_domain = TASK_DOMAIN.get().unwrap();
-                let tid = task_domain.current_tid()?;
+                let scheduler = SCHEDULER_DOMAIN.get().unwrap();
+                let tid = scheduler.current_tid()?.unwrap();
                 inner.wait_queue.push_back(tid);
                 drop(inner);
-                task_domain.current_to_wait()?;
+                scheduler.current_to_wait()?;
             } else {
                 return Ok(inner.rx_buf.pop_front());
             }

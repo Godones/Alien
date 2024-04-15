@@ -16,7 +16,7 @@ use riscv::register::{
 };
 use spin::Once;
 
-use crate::{task_domain, timer};
+use crate::{scheduler_domain, task_domain, timer};
 
 pub static SYSCALL_DOMAIN: Once<Arc<dyn SysCallDomain>> = Once::new();
 pub static PLIC_DOMAIN: Once<Arc<dyn PLICDomain>> = Once::new();
@@ -180,7 +180,7 @@ impl TrapHandler for Trap {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
                 trace!("[User] timer interrupt");
                 timer::set_next_trigger();
-                task_domain!().do_yield().expect("do_yield failed");
+                scheduler_domain!().yield_now().expect("do_yield failed");
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
                 trace!("[User] external interrupt");

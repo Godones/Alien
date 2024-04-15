@@ -20,5 +20,6 @@ members = [
     "pipefs",
     "ramfs",
     "sysfs",
-    "procfs"
+    "procfs",
+    "fifo_scheduler",
 ]

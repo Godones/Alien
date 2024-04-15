@@ -22,6 +22,7 @@ rref = { path = "../domain-tools/rref" }
 interface = { path = "../domain-tools/interface" }
 corelib = { path = "../domain-tools/corelib" }
 basic = { path = "../domain-tools/basic", features = ["task"] }
+task_meta = { path = "../domain-tools/task_meta" }
 vfscore = { git = "https://github.com/os-module/rvfs.git" } #safe-crate
 cpio_reader = { workspace = true }
 libflate = { workspace = true }

@@ -1,15 +1,8 @@
 [package]
-name = "corelib"
+name = "task_meta"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spin = "0"
-interface = { path = "../interface" }
-task_meta = { path = "../task_meta" }
-
-
-[features]
-core_impl = []

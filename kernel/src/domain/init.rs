@@ -20,6 +20,7 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("shadow_blk", DomainTypeRaw::ShadowBlockDomain),
     ("syscall", DomainTypeRaw::SysCallDomain),
     ("sysfs", DomainTypeRaw::FsDomain),
+    ("fifo_scheduler", DomainTypeRaw::SchedulerDomain),
     ("task", DomainTypeRaw::TaskDomain),
     ("vfs", DomainTypeRaw::VfsDomain),
     ("uart16550", DomainTypeRaw::UartDomain),

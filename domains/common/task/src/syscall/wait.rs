@@ -2,8 +2,9 @@ use alloc::sync::Arc;
 
 use constants::{task::WaitOptions, AlienError, AlienResult};
 use memory_addr::VirtAddr;
+use task_meta::TaskStatus;
 
-use crate::{processor::current_task, scheduler::do_suspend, task::TaskStatus};
+use crate::{processor::current_task, scheduler_domain};
 
 pub fn do_wait4(
     pid: isize,
@@ -51,7 +52,7 @@ pub fn do_wait4(
         if wait_options.contains(WaitOptions::WNOHANG) {
             return Ok(0);
         } else {
-            do_suspend();
+            scheduler_domain!().yield_now().unwrap();
         }
     }
 }

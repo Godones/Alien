@@ -199,7 +199,14 @@ pub fn load_domains() {
     let vfs = create_vfs_domain("vfs", None).unwrap();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs.clone()), true);
 
-    let task = create_task_domain("task", None).unwrap();
+    let scheduler = create_scheduler_domain("fifo_scheduler", None).unwrap();
+    domain_helper::register_domain(
+        "scheduler",
+        DomainType::SchedulerDomain(scheduler.clone()),
+        true,
+    );
+
+    let task = create_task_domain("task", None).unwrap(); // ref to scheduler domain
     domain_helper::register_domain("task", DomainType::TaskDomain(task.clone()), true);
 
     // we need to register vfs and task domain before init device, because we need to use vfs and task domain in some
@@ -219,6 +226,8 @@ pub fn load_domains() {
         let data = initrd.as_ref().unwrap();
         vfs.init(data.as_slice()).unwrap();
     }
+
+    scheduler.init().unwrap();
     task.init().unwrap();
 
     let syscall = create_syscall_domain("syscall", None).unwrap();
@@ -227,6 +236,7 @@ pub fn load_domains() {
 
     platform::println!("Load domains done");
 
+    crate::task::register_scheduler_domain(scheduler);
     crate::task::register_task_domain(task);
     crate::trap::register_syscall_domain(syscall);
     crate::trap::register_plic_domain(plic);
