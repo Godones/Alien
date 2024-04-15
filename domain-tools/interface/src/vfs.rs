@@ -33,7 +33,7 @@ impl DirEntryWrapper {
 }
 #[proxy(VfsDomainProxy)]
 pub trait VfsDomain: Basic {
-    fn init(&self) -> AlienResult<()>;
+    fn init(&self, initrd: &[u8]) -> AlienResult<()>;
     fn vfs_poll(&self, inode: InodeID, events: VfsPollEvents) -> AlienResult<VfsPollEvents>;
     fn vfs_ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize>;
     fn vfs_open(

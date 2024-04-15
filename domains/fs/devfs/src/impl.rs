@@ -176,6 +176,9 @@ impl FsDomain for DevFsDomainImpl {
     fn fs_name(&self, name: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)> {
         self.generic_fs.fs_name(name)
     }
+    fn ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize> {
+        self.generic_fs.ioctl(inode, cmd, arg)
+    }
 }
 
 impl Basic for DevFsDomainImpl {}

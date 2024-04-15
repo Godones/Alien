@@ -24,3 +24,7 @@ rust-project.json
 build/*.bin
 build/*.img
 build/g*
+build/*.gz
+
+user/initrd
+user/bin

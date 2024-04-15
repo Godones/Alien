@@ -25,6 +25,7 @@ pub trait FsDomain: Basic {
         entry: RRef<DirEntryWrapper>,
     ) -> AlienResult<RRef<DirEntryWrapper>>;
     fn poll(&self, inode: InodeID, mask: VfsPollEvents) -> AlienResult<VfsPollEvents>;
+    fn ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize>;
     fn flush(&self, inode: InodeID) -> AlienResult<()>;
     fn fsync(&self, inode: InodeID) -> AlienResult<()>;
 

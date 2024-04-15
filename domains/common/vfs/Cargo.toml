@@ -12,11 +12,11 @@ rref = { path = "../../../domain-tools/rref" }
 interface = { path = "../../../domain-tools/interface" }
 constants = { path = "../../../base/constants" }
 
-spin = { workspace = true }
-
 log = "0"
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
 unifs = { git = "https://github.com/os-module/rvfs.git" }
-
-# it might be deleted
-downcast-rs = { version = "1.2.0", default-features = false }
+spin = { workspace = true }
+downcast-rs = { workspace = true }
+cpio_reader = { workspace = true }
+libflate = { workspace = true }
+core2 = { workspace = true }

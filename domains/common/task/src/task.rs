@@ -134,6 +134,10 @@ impl Task {
         inner.status = state;
     }
 
+    pub fn set_tid_address(&self, addr: usize) {
+        let mut inner = self.inner.lock();
+        inner.clear_child_tid = addr;
+    }
     pub fn get_file(&self, fd: usize) -> Option<Arc<ShimFile>> {
         self.fd_table.lock().get(fd)
     }

@@ -214,7 +214,11 @@ pub fn load_domains() {
 
     // The vfs domain may use the device domain, so we need to init vfs domain after init device domain,
     // also it may use the task domain.
-    vfs.init().unwrap();
+    {
+        let initrd = mem::INITRD_DATA.lock();
+        let data = initrd.as_ref().unwrap();
+        vfs.init(data.as_slice()).unwrap();
+    }
     task.init().unwrap();
 
     let syscall = create_syscall_domain("syscall", None).unwrap();

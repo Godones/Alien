@@ -1,7 +1,12 @@
 use alloc::sync::Arc;
 
-use constants::{AlienError, AlienResult};
+use basic::config::FRAME_SIZE;
+use constants::{
+    io::{MMapFlags, MMapType, ProtFlags, MMAP_TYPE_MASK},
+    AlienError, AlienResult,
+};
 use interface::{TaskDomain, TmpHeapInfo, VfsDomain};
+use log::{info, warn};
 use rref::RRef;
 
 pub fn sys_brk(
@@ -19,4 +24,34 @@ pub fn sys_brk(
         return Err(AlienError::EINVAL);
     }
     task_domain.do_brk(addr)
+}
+
+pub fn sys_mmap(
+    task_domain: &Arc<dyn TaskDomain>,
+    addr: usize,
+    len: usize,
+    prot: usize,
+    flags: usize,
+    fd: usize,
+    offset: usize,
+) -> AlienResult<isize> {
+    if offset % FRAME_SIZE != 0 {
+        return Err(AlienError::EINVAL);
+    }
+    let prot = ProtFlags::from_bits_truncate(prot as _);
+    let _ty = MMapType::try_from((flags as u32 & MMAP_TYPE_MASK) as u8)
+        .map_err(|_| AlienError::EINVAL)?;
+    let flags = MMapFlags::from_bits_truncate(flags as u32);
+
+    if flags.contains(MMapFlags::MAP_ANONYMOUS) && offset != 0 {
+        return Err(AlienError::EINVAL);
+    }
+
+    info!(
+        "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
+        addr, len, prot, flags, fd, offset
+    );
+    task_domain
+        .do_mmap(addr, len, prot.bits(), flags.bits(), fd, offset)
+        .map(|addr| addr)
 }

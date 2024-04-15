@@ -128,6 +128,9 @@ impl HeapInfo {
             end,
         }
     }
+    pub fn contains(&self, addr: usize) -> bool {
+        addr >= self.start && addr < self.end
+    }
 }
 
 #[derive(Debug)]

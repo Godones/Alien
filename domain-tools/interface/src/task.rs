@@ -44,6 +44,16 @@ pub trait TaskDomain: Basic {
         envp_ptr: usize,
     ) -> AlienResult<isize>;
     fn do_yield(&self) -> AlienResult<isize>;
+    fn do_set_tid_address(&self, tidptr: usize) -> AlienResult<isize>;
+    fn do_mmap(
+        &self,
+        start: usize,
+        len: usize,
+        prot: u32,
+        flags: u32,
+        fd: usize,
+        offset: usize,
+    ) -> AlienResult<isize>;
 }
 
 #[derive(Debug, Default)]

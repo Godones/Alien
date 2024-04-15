@@ -92,11 +92,10 @@ fix:
 
 initrd:
 	@mkdir ./initrd
-	@cp ./build/* ./initrd
-	@-rm ./initrd/initramfs.cpio.gz
-	@-rm ./initrd/*.img
-	@-rm ./initrd/*.ld
-	@find ./initrd/* -print0 | cpio --null -ov --format=newc | gzip -9 > ./build/initramfs.cpio.gz
+	@cp ./build/g* ./initrd
+	@cp ./user/initrd/initramfs/* ./initrd -r
+	@cp ./user/bin/* ./initrd/bin -r
+	@cd ./initrd && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..
 	@rm -rf ./initrd
 
 
@@ -118,4 +117,4 @@ clean:
 	rm -rf target/
 	rm build/*.bin
 
-.PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS) fix
+.PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS) fix initrd

@@ -36,3 +36,47 @@ pub fn sys_execve(
 pub fn sys_yield(task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
     task_domain.do_yield()
 }
+
+pub fn sys_set_tid_address(task_domain: &Arc<dyn TaskDomain>, tidptr: usize) -> AlienResult<isize> {
+    task_domain.do_set_tid_address(tidptr)
+}
+
+pub fn sys_getuid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    Ok(0)
+}
+
+pub fn sys_set_pgid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    Ok(0)
+}
+
+pub fn sys_get_pgid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    Ok(0)
+}
+
+pub fn sys_set_sid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    Ok(0)
+}
+
+pub fn sys_get_pid(task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    task_domain.current_pid().map(|pid| pid as isize)
+}
+
+pub fn sys_get_ppid(task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    task_domain.current_ppid().map(|ppid| ppid as isize)
+}
+
+pub fn sys_get_euid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    Ok(0)
+}
+
+pub fn sys_get_gid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    Ok(0)
+}
+
+pub fn sys_get_egid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    Ok(0)
+}
+
+pub fn sys_get_tid(task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
+    task_domain.current_tid().map(|tid| tid as isize)
+}

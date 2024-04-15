@@ -51,7 +51,7 @@ fn common_load_or_create_fs(
 }
 
 /// Init the filesystem
-pub fn init_filesystem() -> VfsResult<()> {
+pub fn init_filesystem(initrd: &[u8]) -> VfsResult<()> {
     let ramfs_root = common_load_or_create_fs(false, "ramfs-1", b"/", Some(init_ramfs));
     SYSTEM_ROOT_FS.call_once(|| ramfs_root.clone());
 
@@ -84,7 +84,7 @@ pub fn init_filesystem() -> VfsResult<()> {
     path.join("tmp")?.mount(tmpfs_root.clone(), 0)?;
     path.join("dev/shm")?.mount(shm_ramfs_root, 0)?;
 
-    // initrd::populate_initrd(ramfs_root.clone())?;
+    crate::initrd::populate_initrd(ramfs_root.clone(), initrd)?;
 
     {
         let mut map = VFS_MAP.write();
@@ -113,7 +113,8 @@ pub fn init_filesystem() -> VfsResult<()> {
         _ => panic!("fatfs domain not found"),
     }
     println!("Vfs Tree:");
-    vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), true).unwrap();
+    vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
+        .unwrap();
     println!("Init filesystem success");
     Ok(())
 }

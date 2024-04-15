@@ -67,21 +67,6 @@ pub enum Fcntl64Cmd {
     Unknown = 0xffff,
 }
 
-bitflags! {
-    pub struct MapFlags: u32 {
-        /// 该段映射为共享映射，多个进程对该文件映射共享
-        const MAP_SHARED = 0x01;
-        /// (未使用到)对映射区域的写入操作会产生一个映射文件的复制，即私人的"写入时复制"(copy on write)对此区域作的任何修改都不会写回原来的文件内容。
-        const MAP_PRIVATE = 0x02;
-        /// 直接采用`addr`作为绝对地址创建映射。如果参数`start`所指的地址无法成功建立映射时，则放弃映射，不对地址做修正。
-        const MAP_FIXED = 0x10;
-        /// 不采用文件映射。
-        const MAP_ANONYMOUS = 0x20;
-        /// 映射时不保留空间，即可能在实际使用mmp出来的内存时内存溢出
-        const MAP_NORESERVE = 1 << 14;
-    }
-}
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct FsStat {
@@ -624,6 +609,43 @@ bitflags! {
         const RENAME_NOREPLACE = 1 << 0;
         /// This operation makes sense only for overlay/union filesystem implementations.
         const RENAME_WHITEOUT = 1 << 2;
+    }
+}
+bitflags! {
+    pub struct ProtFlags: u32 {
+        const PROT_NONE = 0x0;
+        const PROT_READ = 0x1;
+        const PROT_WRITE = 0x2;
+        const PROT_EXEC = 0x4;
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, IntEnum)]
+#[repr(u8)]
+pub enum MMapType {
+    File = 0x0, // Invalid
+    Shared = 0x1,
+    Private = 0x2,
+    SharedValidate = 0x3,
+}
+pub const MMAP_TYPE_MASK: u32 = 0xf;
+
+bitflags! {
+    pub struct MMapFlags : u32 {
+        const MAP_FIXED           = 0x10;
+        const MAP_ANONYMOUS       = 0x20;
+        const MAP_32BIT           = 0x40;
+        const MAP_GROWSDOWN       = 0x100;
+        const MAP_DENYWRITE       = 0x800;
+        const MAP_EXECUTABLE      = 0x1000;
+        const MAP_LOCKED          = 0x2000;
+        const MAP_NORESERVE       = 0x4000;
+        const MAP_POPULATE        = 0x8000;
+        const MAP_NONBLOCK        = 0x10000;
+        const MAP_STACK           = 0x20000;
+        const MAP_HUGETLB         = 0x40000;
+        const MAP_SYNC            = 0x80000;
+        const MAP_FIXED_NOREPLACE = 0x100000;
     }
 }
 

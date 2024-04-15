@@ -26,6 +26,7 @@ use crate::{
 };
 
 mod devfs;
+mod initrd;
 mod kfile;
 mod pipefs;
 mod procfs;
@@ -60,8 +61,8 @@ struct VfsDomainImpl;
 impl Basic for VfsDomainImpl {}
 
 impl VfsDomain for VfsDomainImpl {
-    fn init(&self) -> AlienResult<()> {
-        tree::init_filesystem().unwrap();
+    fn init(&self, initrd: &[u8]) -> AlienResult<()> {
+        tree::init_filesystem(initrd).unwrap();
         let task_domain = basic::get_domain("task").unwrap();
         match task_domain {
             DomainType::TaskDomain(task) => TASK_DOMAIN.call_once(|| task),

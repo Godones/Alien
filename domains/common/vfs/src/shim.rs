@@ -147,8 +147,9 @@ impl VfsFile for FsShimInode {
         let event = self.fs_domain.poll(self.ino, event)?;
         Ok(event)
     }
-    fn ioctl(&self, _cmd: u32, _arg: usize) -> VfsResult<usize> {
-        Err(VfsError::NoTTY)
+    fn ioctl(&self, cmd: u32, arg: usize) -> VfsResult<usize> {
+        let res = self.fs_domain.ioctl(self.ino, cmd, arg)?;
+        Ok(res)
     }
     fn flush(&self) -> VfsResult<()> {
         self.fs_domain.flush(self.ino)?;

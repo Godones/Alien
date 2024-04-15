@@ -81,19 +81,35 @@ mod core_impl {
     }
 
     pub fn trampoline_addr() -> usize {
-        unsafe { CORE_FUNC.get_unchecked().sys_trampoline_addr() }
+        static TRAMPOLINE_ADDR: Once<usize> = Once::new();
+        unsafe {
+            TRAMPOLINE_ADDR.call_once(|| CORE_FUNC.get_unchecked().sys_trampoline_addr());
+            *TRAMPOLINE_ADDR.get_unchecked()
+        }
     }
 
     pub fn kernel_satp() -> usize {
-        unsafe { CORE_FUNC.get_unchecked().sys_kernel_satp() }
+        static SATP: Once<usize> = Once::new();
+        unsafe {
+            SATP.call_once(|| CORE_FUNC.get_unchecked().sys_kernel_satp());
+            *SATP.get_unchecked()
+        }
     }
 
     pub fn trap_from_user() -> usize {
-        unsafe { CORE_FUNC.get_unchecked().sys_trap_from_user() }
+        static TRAP_FROM_USER: Once<usize> = Once::new();
+        unsafe {
+            TRAP_FROM_USER.call_once(|| CORE_FUNC.get_unchecked().sys_trap_from_user());
+            *TRAP_FROM_USER.get_unchecked()
+        }
     }
 
     pub fn trap_to_user() -> usize {
-        unsafe { CORE_FUNC.get_unchecked().sys_trap_to_user() }
+        static TRAP_TO_USER: Once<usize> = Once::new();
+        unsafe {
+            TRAP_TO_USER.call_once(|| CORE_FUNC.get_unchecked().sys_trap_to_user());
+            *TRAP_TO_USER.get_unchecked()
+        }
     }
 
     // todo!(delete)

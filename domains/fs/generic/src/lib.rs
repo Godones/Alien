@@ -165,6 +165,11 @@ impl FsDomain for GenericFsDomain {
         let res = inode.poll(mask)?;
         Ok(res)
     }
+    fn ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize> {
+        let inode = self.inode_map.lock().index(&inode).clone();
+        let res = inode.ioctl(cmd, arg)?;
+        Ok(res)
+    }
 
     fn flush(&self, inode: InodeID) -> AlienResult<()> {
         let inode = self.inode_map.lock().index(&inode).clone();

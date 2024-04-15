@@ -104,7 +104,14 @@ impl TaskDomain for TaskDomainImpl {
         Ok(task.pid.raw())
     }
     fn current_ppid(&self) -> AlienResult<usize> {
-        Ok(0)
+        let task = current_task().unwrap();
+        let p = task.inner().parent.clone();
+        if p.is_none() {
+            Ok(0)
+        } else {
+            let p = p.unwrap().upgrade().unwrap();
+            Ok(p.pid() as _)
+        }
     }
     fn current_to_wait(&self) -> AlienResult<()> {
         wait_queue::current_to_wait();
@@ -158,6 +165,23 @@ impl TaskDomain for TaskDomainImpl {
     fn do_yield(&self) -> AlienResult<isize> {
         do_suspend();
         Ok(0)
+    }
+
+    fn do_set_tid_address(&self, tidptr: usize) -> AlienResult<isize> {
+        let task = current_task().unwrap();
+        task.set_tid_address(tidptr);
+        Ok(task.tid() as _)
+    }
+    fn do_mmap(
+        &self,
+        start: usize,
+        len: usize,
+        prot: u32,
+        flags: u32,
+        fd: usize,
+        offset: usize,
+    ) -> AlienResult<isize> {
+        syscall::mmap::do_mmap(start, len, prot, flags, fd, offset)
     }
 }
 

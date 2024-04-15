@@ -30,7 +30,7 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
 ];
 
 pub fn init_domains() {
-    let mut initrd = mem::INITRD_DATA.lock();
+    let initrd = mem::INITRD_DATA.lock();
     if initrd.is_none() {
         panic!("Initrd data is not initialized");
     }
@@ -43,9 +43,11 @@ pub fn init_domains() {
     for entry in cpio_reader::iter_files(&buf) {
         let _mode = entry.mode();
         let name = entry.name();
-        let data = entry.file();
-        let domain_name = name.split_once('g').unwrap().1;
-        map.insert(domain_name.to_string(), data.to_vec());
+        if name.starts_with("g") {
+            let data = entry.file();
+            let domain_name = name.split_once('g').unwrap().1;
+            map.insert(domain_name.to_string(), data.to_vec());
+        }
     }
 
     let mut register = |identifier: &str, domain: DomainTypeRaw| {
@@ -57,5 +59,5 @@ pub fn init_domains() {
         register(identifier, *domain);
     }
 
-    initrd.take(); // release the initrd data
+    // initrd.take(); // release the initrd data
 }

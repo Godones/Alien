@@ -16,9 +16,16 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
+## unsafe basic crates
 spin = "0"
 log = "0"
 bitflags = "2.5"
-timestamp = { git = "https://github.com/Byte-OS/timestamp" }
 pod = { git = "https://github.com/asterinas/pod", rev = "d7dba56" }
-#downcast-rs = { version = "1.2.0", default-features = false } # safe crate
+core2 = { version = "0.4", default-features = false }
+
+
+## safe crates
+timestamp = { git = "https://github.com/Byte-OS/timestamp" }
+downcast-rs = { version = "1.2.0", default-features = false }
+cpio_reader = { version = "0.1.1" }
+libflate = { version = "2.0.0", default-features = false }

@@ -13,7 +13,7 @@ use Mstd::{
 fn main() -> isize {
     println!("Init process is running");
     if fork() == 0 {
-        // exec("/tests/bash\0", &[0 as *const u8], BASH_ENV);
+        // exec("/bin/bash\0", &[0 as *const u8], BASH_ENV);
         exec("/tests/shell\0", &[0 as *const u8], BASH_ENV);
     } else {
         if fork() == 0 {

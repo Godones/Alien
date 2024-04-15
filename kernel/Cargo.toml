@@ -23,8 +23,8 @@ interface = { path = "../domain-tools/interface" }
 corelib = { path = "../domain-tools/corelib" }
 basic = { path = "../domain-tools/basic", features = ["task"] }
 vfscore = { git = "https://github.com/os-module/rvfs.git" } #safe-crate
-cpio_reader = { version = "0.1.1" } #safe-crate
-libflate = { version = "2.0.0", default-features = false } #safe-crate
+cpio_reader = { workspace = true }
+libflate = { workspace = true }
 core2 = { version = "0.4", default-features = false }
 fdt = { path = "../safe-crates/fdt" }
 

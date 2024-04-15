@@ -3,6 +3,7 @@
 mod fs;
 mod mm;
 mod task;
+mod time;
 
 extern crate alloc;
 extern crate log;
@@ -13,11 +14,7 @@ use basic::println;
 use constants::AlienResult;
 use interface::{Basic, DomainType, SysCallDomain, TaskDomain, VfsDomain};
 
-use crate::{
-    fs::{sys_read, sys_write},
-    mm::sys_brk,
-    task::{sys_clone, sys_execve, sys_wait4, sys_yield},
-};
+use crate::{fs::*, mm::*, task::*, time::*};
 
 #[derive(Debug)]
 struct SysCallDomainImpl {
@@ -47,6 +44,13 @@ impl SysCallDomain for SysCallDomainImpl {
         // let tid = self.task_domain.current_tid().unwrap();
         // info!("[pid:{} tid:{}] syscall: {} {:?}",pid,tid, syscall_name, args);
         match syscall_id {
+            29 => sys_ioctl(
+                &self.vfs_domain,
+                &self.task_domain,
+                args[0],
+                args[1],
+                args[2],
+            ),
             63 => sys_read(
                 &self.vfs_domain,
                 &self.task_domain,
@@ -61,7 +65,19 @@ impl SysCallDomain for SysCallDomainImpl {
                 args[1] as *const u8,
                 args[2],
             ),
+            96 => sys_set_tid_address(&self.task_domain, args[0]),
+            113 => sys_clock_gettime(&self.task_domain, args[0], args[1]),
             124 => sys_yield(&self.task_domain),
+            154 => sys_set_pgid(&self.task_domain),
+            155 => sys_get_pgid(&self.task_domain),
+            157 => sys_set_sid(&self.task_domain),
+            172 => sys_get_pid(&self.task_domain),
+            173 => sys_get_ppid(&self.task_domain),
+            174 => sys_getuid(&self.task_domain),
+            175 => sys_get_euid(&self.task_domain),
+            176 => sys_get_gid(&self.task_domain),
+            177 => sys_get_egid(&self.task_domain),
+            178 => sys_get_tid(&self.task_domain),
             214 => sys_brk(&self.vfs_domain, &self.task_domain, args[0]),
             220 => sys_clone(
                 &self.task_domain,
@@ -71,8 +87,18 @@ impl SysCallDomain for SysCallDomainImpl {
                 args[3],
                 args[4],
             ),
-            260 => sys_wait4(&self.task_domain, args[0], args[1], args[2], args[3]),
             221 => sys_execve(&self.task_domain, args[0], args[1], args[2]),
+            222 => sys_mmap(
+                &self.task_domain,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+                args[4],
+                args[5],
+            ),
+            260 => sys_wait4(&self.task_domain, args[0], args[1], args[2], args[3]),
+
             _ => panic!("syscall [{}: {}] not found", syscall_id, syscall_name),
         }
     }
