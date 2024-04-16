@@ -36,7 +36,18 @@
     cargo domain build --name {domain_name}
     ```
    
+## 4. Run
+- rust
+- riscv64-linux-musl-gcc
+- git submodule update --init --recursive
 
-
+```
+make run
+```
+```
+make build        # build kernel
+make sdcard       # build all domains and user app
+make initrd       # build initrd (choose static busybox)
+```
 ## Reference
 [git submodule](https://iphysresearch.github.io/blog/post/programing/git/git_submodule/)

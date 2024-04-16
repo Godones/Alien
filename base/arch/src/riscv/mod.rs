@@ -78,7 +78,7 @@ pub fn activate_paging_mode(root_ppn: usize) {
 }
 
 pub fn sfence_vma_all() {
-    unsafe { riscv::asm::sfence_vma_all() }
+    riscv::asm::sfence_vma_all()
 }
 
 pub fn allow_access_user_memory() {

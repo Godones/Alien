@@ -13,7 +13,7 @@ config = { path = "../base/config" }
 mem = { path = "../base/mem" }
 arch = { path = "../base/arch" }
 
-riscv = "0"
+riscv = "0.11"
 log = "0"
 xmas-elf = "0.9"
 

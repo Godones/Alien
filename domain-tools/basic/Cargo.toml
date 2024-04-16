@@ -22,7 +22,7 @@ raw_plic = { path = "../../safe-crates/raw_plic" }
 goldfish_rtc = { path = "../../safe-crates/goldfish_rtc" }
 raw_uart16550 = { path = "../../safe-crates/raw_uart16550" }
 int-enum = "1"
-riscv = "0"
+riscv = "0.11"
 
 
 [features]

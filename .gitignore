@@ -26,5 +26,4 @@ build/*.img
 build/g*
 build/*.gz
 
-user/initrd
-user/bin
+user/initrd/

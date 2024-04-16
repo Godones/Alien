@@ -36,7 +36,7 @@ build:
 	@echo "Building..."
 	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 
-run: sdcard domains initrd build
+run: sdcard initrd build
 	qemu-system-riscv64 \
             -M virt \
             -bios default \
@@ -64,9 +64,10 @@ user:
 	@make all -C ./user/apps
 	@echo "Building user apps done"
 
-sdcard:$(FS) mount user
+
+sdcard:$(FS) mount user domains
 	@sudo cp build/gsshadow_blk $(FSMOUNT)/
-	@sudo cp user/bin/* $(FSMOUNT)/
+	@-sudo cp user/bin/* $(FSMOUNT)/
 	@sudo ls $(FSMOUNT)
 	@sudo umount $(FSMOUNT)
 	@rm -rf $(FSMOUNT)
@@ -97,7 +98,7 @@ initrd:
 	@mkdir ./initrd
 	@cp ./build/g* ./initrd
 	@cp ./user/initrd/initramfs/* ./initrd -r
-	@cp ./user/bin/* ./initrd/bin -r
+	@-cp ./user/bin/* ./initrd/bin -r
 	@cd ./initrd && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..
 	@rm -rf ./initrd
 
