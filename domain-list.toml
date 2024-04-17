@@ -5,6 +5,7 @@ members = [
     "task",
     "vfs",
     "buf_uart",
+    "buf_input",
     "cache_blk",
     "goldfish",
     "null",

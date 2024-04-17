@@ -24,7 +24,10 @@ use small_index::IndexAllocator;
 use task_meta::{TaskMeta, TaskStatus};
 
 use crate::{
-    elf::{build_vm_space, clone_vm_space, extend_thread_vm_space, VmmPageAllocator},
+    elf::{
+        build_vm_space, clone_vm_space, extend_thread_vm_space, FrameTrackerWrapper,
+        VmmPageAllocator,
+    },
     resource::{AuxVec, FdManager, HeapInfo, KStack, TidHandle, UserStack},
     vfs_shim::{ShimFile, STDIN, STDOUT},
 };
@@ -209,7 +212,7 @@ impl Task {
         let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
         for _ in 0..addition / FRAME_SIZE {
             let page = FrameTracker::new(1);
-            phy_frames.push(Box::new(page));
+            phy_frames.push(Box::new(FrameTrackerWrapper(page)));
         }
         let area = VmArea::new(
             end..end + addition,

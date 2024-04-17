@@ -13,17 +13,11 @@ constants = { path = "../../base/constants" }
 ksync = { path = "../../base/ksync" }
 rref = { path = "../rref" }
 arch = { path = "../../base/arch" }
-log = "0"
 pod = { workspace = true }
-page_table = { path = "../../safe-crates/page_table" }
 memory_addr = { path = "../../safe-crates/memory_addr" }
-ptable = { path = "../../safe-crates/ptable" }
-raw_plic = { path = "../../safe-crates/raw_plic" }
-goldfish_rtc = { path = "../../safe-crates/goldfish_rtc" }
-raw_uart16550 = { path = "../../safe-crates/raw_uart16550" }
 int-enum = "1"
 riscv = "0.11"
-
+log = "0"
 
 [features]
 task = []

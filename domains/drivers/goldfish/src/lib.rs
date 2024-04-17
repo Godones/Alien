@@ -7,7 +7,7 @@ use core::ops::Range;
 
 use basic::{io::SafeIORegion, println};
 use constants::{io::RtcTime, AlienResult};
-use goldfish_rtc::GoldFishRtc;
+use goldfish_rtc::{GoldFishRtc, GoldFishRtcIo};
 use interface::{Basic, DeviceBase, RtcDomain};
 use rref::RRef;
 use spin::Once;
@@ -16,6 +16,19 @@ static RTC: Once<GoldFishRtc> = Once::new();
 
 #[derive(Debug)]
 struct Rtc;
+
+#[derive(Debug)]
+pub struct SafeIORegionWrapper(SafeIORegion);
+
+impl GoldFishRtcIo for SafeIORegionWrapper {
+    fn read_at(&self, offset: usize) -> AlienResult<u32> {
+        self.0.read_at(offset)
+    }
+
+    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
+        self.0.write_at(offset, value)
+    }
+}
 
 impl Basic for Rtc {}
 
@@ -29,7 +42,7 @@ impl RtcDomain for Rtc {
     fn init(&self, address_range: Range<usize>) -> AlienResult<()> {
         println!("Rtc region: {:#x?}", address_range);
         let safe_region = SafeIORegion::from(address_range);
-        let rtc = GoldFishRtc::new(Box::new(safe_region));
+        let rtc = GoldFishRtc::new(Box::new(SafeIORegionWrapper(safe_region)));
         println!("current time: {:?}", rtc);
         RTC.call_once(|| rtc);
         Ok(())

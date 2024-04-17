@@ -2,8 +2,6 @@ use core::ops::{Deref, DerefMut};
 
 use config::FRAME_SIZE;
 use memory_addr::{PhysAddr, VirtAddr};
-use page_table::{NotLeafPage, Rv64PTE, ENTRY_COUNT};
-use ptable::PhysPage;
 use rref::domain_id;
 
 #[derive(Debug)]
@@ -55,11 +53,31 @@ impl FrameTracker {
     }
 
     fn end(&self) -> usize {
-        self.ptr + self.page_count * FRAME_SIZE
+        self.ptr + self.size()
     }
 
-    fn start(&self) -> usize {
-        self.ptr
+    pub fn size(&self) -> usize {
+        self.page_count * FRAME_SIZE
+    }
+
+    pub fn clear(&self) {
+        unsafe {
+            core::ptr::write_bytes(self.ptr as *mut u8, 0, self.size());
+        }
+    }
+    pub fn as_mut_slice_with<'a, T>(&self) -> &'a mut [T] {
+        assert_eq!(FRAME_SIZE % core::mem::size_of::<T>(), 0);
+        unsafe {
+            core::slice::from_raw_parts_mut(
+                self.ptr as *mut T,
+                self.size() / core::mem::size_of::<T>(),
+            )
+        }
+    }
+    pub fn as_slice_with<'a, T>(&self) -> &'a [T] {
+        let size = core::mem::size_of::<T>();
+        assert_eq!(FRAME_SIZE % size, 0);
+        unsafe { core::slice::from_raw_parts(self.ptr as *const T, self.size() / size) }
     }
 }
 
@@ -67,15 +85,13 @@ impl Deref for FrameTracker {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        unsafe { core::slice::from_raw_parts(self.ptr as *const u8, FRAME_SIZE * self.page_count) }
+        unsafe { core::slice::from_raw_parts(self.ptr as *const u8, self.size()) }
     }
 }
 
 impl DerefMut for FrameTracker {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe {
-            core::slice::from_raw_parts_mut(self.ptr as *mut u8, FRAME_SIZE * self.page_count)
-        }
+        unsafe { core::slice::from_raw_parts_mut(self.ptr as *mut u8, self.size()) }
     }
 }
 
@@ -84,44 +100,5 @@ impl Drop for FrameTracker {
         if self.dealloc {
             corelib::free_raw_pages(self.ptr as *mut u8, self.page_count, domain_id());
         }
-    }
-}
-
-impl NotLeafPage<Rv64PTE> for FrameTracker {
-    fn phys_addr(&self) -> PhysAddr {
-        PhysAddr::from(self.start())
-    }
-
-    fn virt_addr(&self) -> VirtAddr {
-        VirtAddr::from(self.start())
-    }
-
-    fn zero(&self) {
-        unsafe {
-            core::ptr::write_bytes(self.start() as *mut u8, 0, self.page_count * FRAME_SIZE);
-        }
-    }
-
-    fn as_pte_slice<'a>(&self) -> &'a [Rv64PTE] {
-        unsafe { core::slice::from_raw_parts_mut(self.start() as *mut u8 as _, ENTRY_COUNT) }
-    }
-
-    fn as_pte_mut_slice<'a>(&self) -> &'a mut [Rv64PTE] {
-        unsafe { core::slice::from_raw_parts_mut(self.start() as *mut u8 as _, ENTRY_COUNT) }
-    }
-}
-
-/// Implement [PhysPage](ptable::PhysPage) for FrameTracker
-impl PhysPage for FrameTracker {
-    fn phys_addr(&self) -> PhysAddr {
-        self.start_phy_addr()
-    }
-
-    fn as_bytes(&self) -> &[u8] {
-        self.deref()
-    }
-
-    fn as_mut_bytes(&mut self) -> &mut [u8] {
-        self.deref_mut()
     }
 }

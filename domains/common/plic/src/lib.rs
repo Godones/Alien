@@ -10,30 +10,61 @@ use alloc::{
     string::{String, ToString},
     sync::Arc,
 };
-use core::{cmp::min, ops::Range};
+use core::{
+    cmp::min,
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
 
 use basic::{arch, io::SafeIORegion, println};
 use config::CPU_NUM;
 use constants::AlienResult;
 use interface::{Basic, DeviceBase, PLICDomain};
 use ksync::Mutex;
-use raw_plic::{Mode, PLIC};
+use raw_plic::{Mode, PlicIO, PLIC};
 use rref::RRefVec;
 use spin::Once;
 
 static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 
 #[derive(Debug)]
+pub struct SafeIORegionWrapper(SafeIORegion);
+
+impl PlicIO for SafeIORegionWrapper {
+    fn read_at(&self, offset: usize) -> AlienResult<u32> {
+        self.0.read_at(offset)
+    }
+
+    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
+        self.0.write_at(offset, value)
+    }
+}
+
+enum DeviceDomain {
+    Name(String),
+    Domain(Arc<dyn DeviceBase>),
+}
+
+impl Debug for DeviceDomain {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        match self {
+            DeviceDomain::Name(name) => write!(f, "Name({})", name),
+            DeviceDomain::Domain(_) => write!(f, "Domain"),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct PLICDomainImpl {
-    table: Arc<Mutex<BTreeMap<usize, String>>>,
-    count: Arc<Mutex<BTreeMap<usize, usize>>>,
+    table: Mutex<BTreeMap<usize, DeviceDomain>>,
+    count: Mutex<BTreeMap<usize, usize>>,
 }
 
 impl PLICDomainImpl {
     pub fn new() -> Self {
         Self {
-            table: Arc::new(Mutex::new(BTreeMap::new())),
-            count: Arc::new(Mutex::new(BTreeMap::new())),
+            table: Mutex::new(BTreeMap::new()),
+            count: Mutex::new(BTreeMap::new()),
         }
     }
 }
@@ -45,7 +76,7 @@ impl PLICDomain for PLICDomainImpl {
         println!("plic region: {:#x?}", address_range);
         let plic_space = SafeIORegion::from(address_range);
         let privileges = [2; CPU_NUM];
-        PLIC.call_once(|| PLIC::new(Box::new(plic_space), privileges));
+        PLIC.call_once(|| PLIC::new(Box::new(SafeIORegionWrapper(plic_space)), privileges));
         println!("Init qemu plic success");
         Ok(())
     }
@@ -54,22 +85,24 @@ impl PLICDomain for PLICDomainImpl {
         let plic = PLIC.get().unwrap();
         let hart_id = arch::hart_id();
         let irq = plic.claim(hart_id as u32, Mode::Supervisor) as usize;
-        let table = self.table.lock();
-        let device_domain_name = table
+        let mut table = self.table.lock();
+        let device_domain = table
             .get(&irq)
             .or_else(|| panic!("no device for irq {}", irq))
             .unwrap();
 
-        let device_domain = basic::get_domain(device_domain_name).unwrap();
-        let device_domain = device_domain.try_into();
-        let device: Arc<dyn DeviceBase> = match device_domain {
-            Ok(device) => device,
-            Err(e) => panic!("{} is not a device domain: {:?}", device_domain_name, e),
-        };
-
-        device.handle_irq()?;
+        match device_domain {
+            DeviceDomain::Name(name) => {
+                let device_domain = basic::get_domain(name).unwrap();
+                let device_domain: Arc<dyn DeviceBase> = device_domain.try_into()?;
+                device_domain.handle_irq()?;
+                table.insert(irq, DeviceDomain::Domain(device_domain));
+            }
+            DeviceDomain::Domain(device) => {
+                device.handle_irq()?;
+            }
+        }
         plic.complete(hart_id as u32, Mode::Supervisor, irq as u32);
-
         *self
             .count
             .lock()
@@ -93,7 +126,8 @@ impl PLICDomain for PLICDomainImpl {
         plic.enable(hard_id as u32, Mode::Supervisor, irq as u32);
         let mut table = self.table.lock();
         let device_domain_name = core::str::from_utf8(device_domain_name.as_slice()).unwrap();
-        table.insert(irq, device_domain_name.to_string());
+        let domain = DeviceDomain::Name(device_domain_name.to_string());
+        table.insert(irq, domain);
         self.count.lock().insert(irq, 0);
         Ok(())
     }

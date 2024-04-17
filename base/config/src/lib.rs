@@ -39,3 +39,5 @@ pub const MAX_FD_NUM: usize = 4096;
 
 pub const USER_STACK_SIZE: usize = 0x4_000;
 pub const ELF_BASE_RELOCATE: usize = 0x400_0000;
+
+pub const MAX_INPUT_EVENT_NUM: u32 = 1024;

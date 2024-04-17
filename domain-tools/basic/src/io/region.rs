@@ -1,10 +1,7 @@
 use core::ops::Range;
 
 use constants::{AlienError, AlienResult};
-use goldfish_rtc::GoldFishRtcIo;
 use memory_addr::{PhysAddr, VirtAddr};
-use raw_plic::PlicIO;
-use raw_uart16550::Uart16550IO;
 
 #[derive(Debug, Clone)]
 pub struct SafeIORegion {
@@ -66,30 +63,30 @@ impl SafeIORegion {
     }
 }
 
-impl PlicIO for SafeIORegion {
-    fn read_at(&self, offset: usize) -> AlienResult<u32> {
-        SafeIORegion::read_at(self, offset)
-    }
-    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
-        SafeIORegion::write_at(self, offset, value)
-    }
-}
-
-impl GoldFishRtcIo for SafeIORegion {
-    fn read_at(&self, offset: usize) -> AlienResult<u32> {
-        SafeIORegion::read_at(self, offset)
-    }
-    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
-        SafeIORegion::write_at(self, offset, value)
-    }
-}
-
-impl Uart16550IO for SafeIORegion {
-    fn read_at(&self, offset: usize) -> AlienResult<u8> {
-        SafeIORegion::read_at(self, offset)
-    }
-
-    fn write_at(&self, offset: usize, value: u8) -> AlienResult<()> {
-        SafeIORegion::write_at(self, offset, value)
-    }
-}
+// impl PlicIO for SafeIORegion {
+//     fn read_at(&self, offset: usize) -> AlienResult<u32> {
+//         SafeIORegion::read_at(self, offset)
+//     }
+//     fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
+//         SafeIORegion::write_at(self, offset, value)
+//     }
+// }
+//
+// impl GoldFishRtcIo for SafeIORegion {
+//     fn read_at(&self, offset: usize) -> AlienResult<u32> {
+//         SafeIORegion::read_at(self, offset)
+//     }
+//     fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
+//         SafeIORegion::write_at(self, offset, value)
+//     }
+// }
+//
+// impl Uart16550IO for SafeIORegion {
+//     fn read_at(&self, offset: usize) -> AlienResult<u8> {
+//         SafeIORegion::read_at(self, offset)
+//     }
+//
+//     fn write_at(&self, offset: usize, value: u8) -> AlienResult<()> {
+//         SafeIORegion::write_at(self, offset, value)
+//     }
+// }

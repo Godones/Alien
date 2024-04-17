@@ -8,10 +8,23 @@ use core::{fmt::Debug, ops::Range};
 use basic::{io::SafeIORegion, println};
 use constants::AlienResult;
 use interface::{Basic, DeviceBase, UartDomain};
-use raw_uart16550::Uart16550;
+use raw_uart16550::{Uart16550, Uart16550IO};
 use spin::Once;
 
 static UART: Once<Uart16550> = Once::new();
+
+#[derive(Debug)]
+pub struct SafeIORegionWrapper(SafeIORegion);
+
+impl Uart16550IO for SafeIORegionWrapper {
+    fn read_at(&self, offset: usize) -> AlienResult<u8> {
+        self.0.read_at(offset)
+    }
+
+    fn write_at(&self, offset: usize, value: u8) -> AlienResult<()> {
+        self.0.write_at(offset, value)
+    }
+}
 
 #[derive(Debug)]
 struct UartDomainImpl;
@@ -29,7 +42,7 @@ impl UartDomain for UartDomainImpl {
         let region = &address_range;
         println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
         let io_region = SafeIORegion::from(region.clone());
-        let uart = Uart16550::new(Box::new(io_region));
+        let uart = Uart16550::new(Box::new(SafeIORegionWrapper(io_region)));
         uart.enable_receive_interrupt()?;
         UART.call_once(|| uart);
         Ok(())

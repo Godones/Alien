@@ -38,7 +38,7 @@ pub trait Basic: Send + Sync + Debug + Any {
     }
 }
 
-pub trait DeviceBase {
+pub trait DeviceBase: Send + Sync {
     fn handle_irq(&self) -> AlienResult<()>;
 }
 
