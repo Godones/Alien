@@ -28,6 +28,9 @@ cpio_reader = { workspace = true }
 libflate = { workspace = true }
 core2 = { version = "0.4", default-features = false }
 fdt = { git = "https://github.com/repnop/fdt" }
+downcast-rs = { workspace = true }
+
+
 
 [features]
 default = ["smp"]

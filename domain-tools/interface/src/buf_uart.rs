@@ -1,10 +1,11 @@
 use constants::AlienResult;
+use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::{proxy, recover};
 
 use crate::{Basic, DeviceBase};
 
-#[proxy(BufUartDomainProxy)]
-pub trait BufUartDomain: DeviceBase + Basic {
+#[proxy(BufUartDomainProxy, String)]
+pub trait BufUartDomain: DeviceBase + Basic + DowncastSync {
     fn init(&self, uart_domain_name: &str) -> AlienResult<()>;
     /// Write a character to the UART
     #[recover]
@@ -18,3 +19,5 @@ pub trait BufUartDomain: DeviceBase + Basic {
         Ok(true)
     }
 }
+
+impl_downcast!(sync BufUartDomain);

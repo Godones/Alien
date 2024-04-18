@@ -1,8 +1,42 @@
+mod super_trait;
+
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{
-    parse_macro_input, FnArg, ItemTrait, ReturnType, TraitItem, TraitItemFn, TypeParamBound,
+    parse::{Parse, ParseStream},
+    parse_macro_input, FnArg, ItemTrait, ReturnType, Token, TraitItem, TraitItemFn, Type,
 };
+
+use crate::super_trait::impl_supertrait;
+
+struct Proxy {
+    ident: Ident,
+    #[allow(unused)]
+    comma: Option<Token![,]>,
+    source: Option<Type>,
+}
+
+impl Parse for Proxy {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse()?;
+        let comma: Option<Token![,]> = input.parse()?;
+        match comma {
+            Some(c) => {
+                let ty = input.parse::<Type>()?;
+                Ok(Proxy {
+                    ident,
+                    comma: Some(c),
+                    source: Some(ty),
+                })
+            }
+            None => Ok(Proxy {
+                ident,
+                comma: None,
+                source: None,
+            }),
+        }
+    }
+}
 
 #[proc_macro_attribute]
 /// Whether to generate trampoline code for the function
@@ -34,9 +68,9 @@ pub fn proxy(
     attr: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let domain_name = parse_macro_input!(attr as Ident);
+    let proxy = parse_macro_input!(attr as Proxy);
     let trait_def = parse_macro_input!(item as ItemTrait);
-    let struct_def = def_struct(domain_name, trait_def.clone());
+    let struct_def = def_struct(proxy, trait_def.clone());
     quote!(
         #trait_def
         #struct_def
@@ -44,18 +78,37 @@ pub fn proxy(
     .into()
 }
 
-fn def_struct(ident: Ident, trait_def: ItemTrait) -> TokenStream {
+fn def_struct(proxy: Proxy, trait_def: ItemTrait) -> TokenStream {
     let trait_name = trait_def.ident.clone();
     let func_vec = trait_def.items.clone();
 
+    let ident = proxy.ident.clone();
     let supertrait_code = impl_supertrait(ident.clone(), trait_def.clone());
 
-    let (func_code, extern_func_code) = impl_func(func_vec, &trait_name, &ident);
+    let (func_code, extern_func_code) =
+        impl_func(func_vec, &trait_name, &ident, proxy.source.is_some());
     let macro_ident = format!("gen_for_{}", trait_name);
     let macro_ident = Ident::new(&macro_ident, trait_name.span());
 
     let impl_ident = format!("impl_for_{}", trait_name);
     let impl_ident = Ident::new(&impl_ident, trait_name.span());
+
+    let resource_field = if proxy.source.is_some() {
+        let ty = proxy.source.as_ref().unwrap();
+        quote! (
+            resource: Once<#ty>
+        )
+    } else {
+        quote!()
+    };
+
+    let resource_init = if proxy.source.is_some() {
+        quote! (
+            resource: Once::new()
+        )
+    } else {
+        quote!()
+    };
 
     quote::quote!(
         #[macro_export]
@@ -63,18 +116,26 @@ fn def_struct(ident: Ident, trait_def: ItemTrait) -> TokenStream {
             () => {
                 #[derive(Debug)]
                 pub struct #ident{
-                    id:u64,
-                    domain: alloc::boxed::Box<dyn  #trait_name>
+                    id:AtomicU64,
+                    domain: RwLock<alloc::boxed::Box<dyn #trait_name>>,
+                    old_domain: Mutex<alloc::vec::Vec<alloc::boxed::Box<dyn #trait_name>>>,
+                    domain_loader: Mutex<DomainLoader>,
+                    #resource_field
                 }
                 impl #ident{
-                    pub fn new(id:u64, domain: alloc::boxed::Box<dyn #trait_name>)->Self{
+                    pub fn new(id:u64, domain: alloc::boxed::Box<dyn #trait_name>,domain_loader: DomainLoader)->Self{
                         Self{
-                            id,
-                            domain
+                            id: AtomicU64::new(id),
+                            domain: RwLock::new(domain),
+                            old_domain: Mutex::new(alloc::vec::Vec::new()),
+                            domain_loader: Mutex::new(domain_loader),
+                            #resource_init
                         }
                     }
                 }
                 #supertrait_code
+
+
                 impl #trait_name for #ident{
                     #(#func_code)*
                 }
@@ -94,63 +155,18 @@ fn def_struct(ident: Ident, trait_def: ItemTrait) -> TokenStream {
     .into()
 }
 
-fn impl_supertrait(ident: Ident, trait_def: ItemTrait) -> TokenStream {
-    let supertraits = trait_def.supertraits.clone();
-    let mut code = vec![];
-    for supertrait in supertraits {
-        match supertrait {
-            TypeParamBound::Trait(trait_bound) => {
-                let path = trait_bound.path.clone();
-                let segments = path.segments;
-                for segment in segments {
-                    let trait_name = segment.ident.clone();
-                    match trait_name.to_string().as_str() {
-                        "DeviceBase" => {
-                            let device_base = quote!(
-                                impl DeviceBase for #ident{
-                                    fn handle_irq(&self)->AlienResult<()>{
-                                        if !self.is_active() {
-                                            return Err(AlienError::DOMAINCRASH);
-                                        }
-                                        self.domain.handle_irq()
-                                    }
-                                }
-                            );
-                            code.push(device_base)
-                        }
-                        "Basic" => {
-                            let basic = quote!(
-                                impl Basic for #ident{
-                                    fn is_active(&self)->bool{
-                                        self.domain.is_active()
-                                    }
-                                }
-                            );
-                            code.push(basic)
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    quote::quote!(
-        #(#code)*
-    )
-    .into()
-}
-
 fn impl_func(
     func_vec: Vec<TraitItem>,
     trait_name: &Ident,
     proxy_name: &Ident,
+    has_resource: bool,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let mut func_codes = vec![];
     let mut extern_func_codes = vec![];
     func_vec.iter().for_each(|item| match item {
         TraitItem::Fn(method) => {
-            let (func_code, extern_func_code) = impl_func_code(&method, trait_name, proxy_name);
+            let (func_code, extern_func_code) =
+                impl_func_code(&method, trait_name, proxy_name, has_resource);
             func_codes.push(func_code);
             extern_func_codes.push(extern_func_code);
         }
@@ -165,6 +181,7 @@ fn impl_func_code(
     func: &TraitItemFn,
     trait_name: &Ident,
     proxy_name: &Ident,
+    has_resource: bool,
 ) -> (TokenStream, TokenStream) {
     let has_recover = func
         .attrs
@@ -189,7 +206,7 @@ fn impl_func_code(
 
     attr.retain(|attr| {
         let path = attr.path();
-        !path.is_ident("recover")
+        !path.is_ident("recover") && !path.is_ident("no_check")
     });
 
     let sig = func.sig.clone();
@@ -220,10 +237,23 @@ fn impl_func_code(
         .collect::<Vec<Ident>>();
     match name.to_string().as_str() {
         "init" => {
+            if input_argv.len() > 0 {
+                assert_eq!(input_argv.len(), 1);
+            }
+            let resource_init = if has_resource {
+                let argv = input_argv[0].clone();
+                quote! (
+                    self.resource.call_once(|| #argv.to_owned());
+                )
+            } else {
+                quote!()
+            };
+
             let token = quote!(
                 #(#attr)*
                 #sig{
-                    self.domain.init(#(#input_argv),*)
+                    #resource_init
+                    self.domain.read().init(#(#input_argv),*)
                 }
             );
             (token, quote!())
@@ -286,8 +316,11 @@ fn gen_trampoline(
 
     if has_recover {
         let call = quote! (
-            unsafe{
-                #trampoline_ident(&self.domain,#(#input_argv),*)
+            {
+                let guard = self.domain.read();
+                unsafe {
+                    #trampoline_ident(&guard, #(#input_argv),*)
+                }
             }
         );
         let asm_code = quote!(
@@ -361,7 +394,7 @@ fn gen_trampoline(
             #[allow(non_snake_case)]
             fn #real_ident(domain:&alloc::boxed::Box<dyn #trait_name>,#(#fn_args),*) #out_put{
                 let res = domain.#func_name(#(#input_argv),*);
-                continuation::pop_continuation();
+                // continuation::pop_continuation();
                 res
             }
             #[allow(non_snake_case)]
@@ -378,7 +411,7 @@ fn gen_trampoline(
     } else {
         (
             quote! (
-                 self.domain.#func_name(#(#input_argv),*)
+                 self.domain.read().#func_name(#(#input_argv),*)
             ),
             quote!(),
         )

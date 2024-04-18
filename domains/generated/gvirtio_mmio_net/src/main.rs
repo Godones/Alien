@@ -9,7 +9,7 @@ use core::panic::PanicInfo;
 
 use basic::println;
 use corelib::CoreFunction;
-use interface::NetDomain;
+use interface::NetDeviceDomain;
 use rref::{domain_id, SharedHeapAlloc};
 
 #[no_mangle]
@@ -17,7 +17,7 @@ fn main(
     sys: Box<dyn CoreFunction>,
     domain_id: u64,
     shared_heap: Box<dyn SharedHeapAlloc>,
-) -> Box<dyn NetDomain> {
+) -> Box<dyn NetDeviceDomain> {
     // init basic
     corelib::init(sys);
     // init rref's shared heap

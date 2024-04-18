@@ -1,6 +1,7 @@
 use core::ops::Range;
 
 use constants::AlienResult;
+use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::RRefVec;
 
@@ -32,8 +33,8 @@ impl PackageBuffer {
     }
 }
 
-#[proxy(NetDomainProxy)]
-pub trait NetDomain: DeviceBase + Basic {
+#[proxy(NetDeviceDomainProxy, Range<usize>)]
+pub trait NetDeviceDomain: DeviceBase + Basic + DowncastSync {
     fn init(&self, device_info: Range<usize>) -> AlienResult<()>;
     // fn medium(&self) -> Medium;
 
@@ -80,3 +81,5 @@ pub trait NetDomain: DeviceBase + Basic {
     /// returns [`DevResult`]
     fn alloc_tx_buffer(&self, size: usize) -> AlienResult<TxBufferWrapper>;
 }
+
+impl_downcast!(sync NetDeviceDomain);

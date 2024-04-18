@@ -1,4 +1,5 @@
 use constants::AlienResult;
+use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::{RRef, RRefVec};
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
@@ -6,7 +7,7 @@ use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, 
 use crate::{Basic, DirEntryWrapper, InodeID};
 
 #[proxy(FsDomainProxy)]
-pub trait FsDomain: Basic {
+pub trait FsDomain: Basic + DowncastSync {
     fn init(&self) -> AlienResult<()>;
     fn mount(&self, mp: &RRefVec<u8>, dev_inode: Option<InodeID>) -> AlienResult<InodeID>;
     fn drop_inode(&self, inode: InodeID) -> AlienResult<()>;
@@ -75,7 +76,11 @@ pub trait FsDomain: Basic {
     fn fs_name(&self, name: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)>;
 }
 
+impl_downcast!(sync FsDomain);
+
 #[proxy(DevFsDomainProxy)]
-pub trait DevFsDomain: FsDomain {
+pub trait DevFsDomain: FsDomain + DowncastSync {
     fn register(&self, rdev: u64, device_domain_name: &RRefVec<u8>) -> AlienResult<()>;
 }
+
+impl_downcast!(sync DevFsDomain);

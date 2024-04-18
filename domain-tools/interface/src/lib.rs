@@ -12,7 +12,6 @@ mod net;
 mod plic;
 mod rtc;
 mod scheduler;
-mod sd;
 mod shadow_block;
 mod syscall;
 mod task;
@@ -74,7 +73,7 @@ pub enum DomainType {
     SysCallDomain(Arc<dyn SysCallDomain>),
     ShadowBlockDomain(Arc<dyn ShadowBlockDomain>),
     BufUartDomain(Arc<dyn BufUartDomain>),
-    NetDeviceDomain(Arc<dyn NetDomain>),
+    NetDeviceDomain(Arc<dyn NetDeviceDomain>),
     BufInputDomain(Arc<dyn BufInputDomain>),
     EmptyDeviceDomain(Arc<dyn EmptyDeviceDomain>),
     DevFsDomain(Arc<dyn DevFsDomain>),

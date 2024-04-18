@@ -20,10 +20,13 @@ pub trait CoreFunction: Send + Sync {
     fn blk_crash_trick(&self) -> bool;
     fn sys_read_time_ms(&self) -> u64;
     fn sys_get_domain(&self, name: &str) -> Option<DomainType>;
-    fn sys_create_domain(&self, identifier: &str) -> Option<DomainType>;
     fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize);
-    fn register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()>;
-    fn replace_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()>;
+    fn sys_create_domain(&self, identifier: &str) -> Option<DomainType>;
+    /// Register a new domain with the given name and type
+    fn sys_register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()>;
+    /// Replace the old domain with the new domain
+    fn sys_replace_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()>;
+    fn sys_reload_domain(&self, domain_name: &str) -> AlienResult<()>;
 }
 
 #[cfg(feature = "core_impl")]
@@ -138,14 +141,22 @@ mod core_impl {
     }
 
     pub fn register_domain(ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()> {
-        unsafe { CORE_FUNC.get_unchecked().register_domain(ident, ty, data) }
+        unsafe {
+            CORE_FUNC
+                .get_unchecked()
+                .sys_register_domain(ident, ty, data)
+        }
     }
 
     pub fn replace_domain(old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
         unsafe {
             CORE_FUNC
                 .get_unchecked()
-                .replace_domain(old_domain_name, new_domain_name)
+                .sys_replace_domain(old_domain_name, new_domain_name)
         }
+    }
+
+    pub fn reload_domain(domain_name: &str) -> AlienResult<()> {
+        unsafe { CORE_FUNC.get_unchecked().sys_reload_domain(domain_name) }
     }
 }

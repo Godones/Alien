@@ -1,11 +1,12 @@
 use constants::AlienResult;
+use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use pod::Pod;
 use rref::{RRef, RRefVec};
 
 use crate::{vfs::InodeID, Basic};
 #[proxy(TaskDomainProxy)]
-pub trait TaskDomain: Basic {
+pub trait TaskDomain: Basic + DowncastSync {
     fn init(&self) -> AlienResult<()>;
     // fn run(&self) -> AlienResult<()>;
     fn trap_frame_virt_addr(&self) -> AlienResult<usize>;
@@ -80,3 +81,5 @@ impl dyn TaskDomain {
         self.copy_to_user(dst, val.as_bytes())
     }
 }
+
+impl_downcast!(sync TaskDomain);

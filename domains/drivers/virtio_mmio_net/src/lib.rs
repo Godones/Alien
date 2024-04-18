@@ -11,7 +11,7 @@ use core::{
 };
 
 use constants::AlienResult;
-use interface::{Basic, DeviceBase, NetDomain, RxBufferWrapper, TxBufferWrapper};
+use interface::{Basic, DeviceBase, NetDeviceDomain, RxBufferWrapper, TxBufferWrapper};
 use ksync::Mutex;
 use rref::RRefVec;
 use spin::Once;
@@ -48,7 +48,7 @@ impl DeviceBase for VirtIoNetDomain {
 
 static NET: Once<Arc<Mutex<VirtIoNetWrapper>>> = Once::new();
 
-impl NetDomain for VirtIoNetDomain {
+impl NetDeviceDomain for VirtIoNetDomain {
     fn init(&self, device_info: Range<usize>) -> AlienResult<()> {
         let net = VirtIoNetWrapper::new(device_info);
         let net = Arc::new(Mutex::new(net));
@@ -125,6 +125,6 @@ impl NetDomain for VirtIoNetDomain {
     }
 }
 
-pub fn main() -> Box<dyn NetDomain> {
+pub fn main() -> Box<dyn NetDeviceDomain> {
     Box::new(VirtIoNetDomain::new())
 }

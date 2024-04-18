@@ -2,7 +2,11 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    sync::Arc,
+};
 use core::sync::atomic::AtomicBool;
 
 use constants::{AlienError, AlienResult};
@@ -14,14 +18,17 @@ use spin::Once;
 static BLOCK: Once<Arc<dyn BlkDeviceDomain>> = Once::new();
 
 #[derive(Debug)]
-pub struct ShadowBlockDomainImpl;
+pub struct ShadowBlockDomainImpl {
+    blk_domain_name: Once<String>,
+}
 
 impl ShadowBlockDomainImpl {
     pub fn new() -> Self {
-        Self
+        Self {
+            blk_domain_name: Once::new(),
+        }
     }
 }
-
 impl Basic for ShadowBlockDomainImpl {}
 
 impl DeviceBase for ShadowBlockDomainImpl {
@@ -37,6 +44,7 @@ impl ShadowBlockDomain for ShadowBlockDomainImpl {
             DomainType::BlkDeviceDomain(blk) => blk,
             _ => panic!("not a block domain"),
         };
+        self.blk_domain_name.call_once(|| blk_domain.to_string());
         BLOCK.call_once(|| blk);
         Ok(())
     }
@@ -55,13 +63,15 @@ impl ShadowBlockDomain for ShadowBlockDomainImpl {
             Err(AlienError::DOMAINCRASH) => {
                 error!("domain crash, try restart domain");
                 // try restart domain once
-                if blk.restart() {
+                let blk_domain_name = self.blk_domain_name.get().unwrap().as_str();
+                let res = basic::reload_domain(blk_domain_name);
+                if res.is_err() {
+                    error!("reload domain failed");
+                    return Err(AlienError::DOMAINCRASH);
+                } else {
                     error!("restart domain ok");
                     data = RRef::new([0u8; 512]);
                     blk.read_block(block, data)
-                } else {
-                    error!("restart domain failed");
-                    Err(AlienError::DOMAINCRASH)
                 }
             }
             Err(e) => Err(e),
@@ -82,5 +92,5 @@ impl ShadowBlockDomain for ShadowBlockDomainImpl {
 }
 
 pub fn main() -> Box<dyn ShadowBlockDomain> {
-    Box::new(ShadowBlockDomainImpl)
+    Box::new(ShadowBlockDomainImpl::new())
 }

@@ -1,4 +1,5 @@
 use constants::AlienResult;
+use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::{RRef, RRefVec};
 use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
@@ -31,8 +32,8 @@ impl DirEntryWrapper {
         }
     }
 }
-#[proxy(VfsDomainProxy)]
-pub trait VfsDomain: Basic {
+#[proxy(VfsDomainProxy,Vec<u8>)]
+pub trait VfsDomain: Basic + DowncastSync {
     fn init(&self, initrd: &[u8]) -> AlienResult<()>;
     fn vfs_poll(&self, inode: InodeID, events: VfsPollEvents) -> AlienResult<VfsPollEvents>;
     fn vfs_ioctl(&self, inode: InodeID, cmd: u32, arg: usize) -> AlienResult<usize>;
@@ -69,3 +70,5 @@ pub trait VfsDomain: Basic {
     fn vfs_fsync(&self, inode: InodeID) -> AlienResult<()>;
     fn vfs_inode_type(&self, inode: InodeID) -> AlienResult<VfsNodeType>;
 }
+
+impl_downcast!(sync VfsDomain);

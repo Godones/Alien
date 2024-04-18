@@ -104,7 +104,7 @@ impl DomainCreate for DomainCreateImpl {
 
 pub fn create_fs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<FsDomainProxy>> {
     create_domain(DomainTypeRaw::FsDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(FsDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(FsDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_blk_device_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<BlkDomainProxy>> {
@@ -117,38 +117,38 @@ pub fn create_cache_blk_device_domain(
     data: Option<Vec<u8>>,
 ) -> Option<Arc<CacheBlkDomainProxy>> {
     create_domain(DomainTypeRaw::CacheBlkDeviceDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(CacheBlkDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(CacheBlkDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_rtc_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<RtcDomainProxy>> {
     create_domain(DomainTypeRaw::RtcDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(RtcDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(RtcDomainProxy::new(id, domain, loader)))
 }
 
 #[cfg(feature = "gui")]
 pub fn create_gpu_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<GpuDomainProxy>> {
     create_domain(DomainTypeRaw::GpuDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(GpuDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(GpuDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_input_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<InputDomainProxy>> {
     create_domain(DomainTypeRaw::InputDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(InputDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(InputDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_uart_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<UartDomainProxy>> {
     create_domain(DomainTypeRaw::UartDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(UartDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(UartDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_plic_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<PLICDomainProxy>> {
     create_domain(DomainTypeRaw::PLICDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(PLICDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(PLICDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_task_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<TaskDomainProxy>> {
     create_domain(DomainTypeRaw::TaskDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(TaskDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(TaskDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_syscall_domain(
@@ -156,7 +156,7 @@ pub fn create_syscall_domain(
     data: Option<Vec<u8>>,
 ) -> Option<Arc<SysCallDomainProxy>> {
     create_domain(DomainTypeRaw::SysCallDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(SysCallDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(SysCallDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_shadow_block_domain(
@@ -164,7 +164,7 @@ pub fn create_shadow_block_domain(
     data: Option<Vec<u8>>,
 ) -> Option<Arc<ShadowBlockDomainProxy>> {
     create_domain(DomainTypeRaw::ShadowBlockDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(ShadowBlockDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(ShadowBlockDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_buf_uart_domain(
@@ -172,12 +172,12 @@ pub fn create_buf_uart_domain(
     data: Option<Vec<u8>>,
 ) -> Option<Arc<BufUartDomainProxy>> {
     create_domain(DomainTypeRaw::BufUartDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(BufUartDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(BufUartDomainProxy::new(id, domain, loader)))
 }
 
-pub fn create_net_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<NetDomainProxy>> {
+pub fn create_net_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<NetDeviceDomainProxy>> {
     create_domain(DomainTypeRaw::NetDeviceDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(NetDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(NetDeviceDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_buf_input_domain(
@@ -185,7 +185,7 @@ pub fn create_buf_input_domain(
     data: Option<Vec<u8>>,
 ) -> Option<Arc<BufInputDomainProxy>> {
     create_domain(DomainTypeRaw::BufInputDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(BufInputDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(BufInputDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_empty_device_domain(
@@ -193,17 +193,17 @@ pub fn create_empty_device_domain(
     data: Option<Vec<u8>>,
 ) -> Option<Arc<EmptyDeviceDomainProxy>> {
     create_domain(DomainTypeRaw::EmptyDeviceDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(EmptyDeviceDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(EmptyDeviceDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_vfs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<VfsDomainProxy>> {
     create_domain(DomainTypeRaw::VfsDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(VfsDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(VfsDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_devfs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<DevFsDomainProxy>> {
     create_domain(DomainTypeRaw::DevFsDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(DevFsDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(DevFsDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_scheduler_domain(
@@ -211,7 +211,7 @@ pub fn create_scheduler_domain(
     data: Option<Vec<u8>>,
 ) -> Option<Arc<SchedulerDomainProxy>> {
     create_domain(DomainTypeRaw::SchedulerDomain, ident, data)
-        .map(|(id, domain, _)| Arc::new(SchedulerDomainProxy::new(id, domain)))
+        .map(|(id, domain, loader)| Arc::new(SchedulerDomainProxy::new(id, domain, loader)))
 }
 pub fn create_domain<T: ?Sized>(
     ty: DomainTypeRaw,

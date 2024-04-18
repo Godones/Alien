@@ -1,11 +1,12 @@
 use core::ops::Range;
 
 use constants::{AlienError, AlienResult};
+use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 
 use crate::{Basic, DeviceBase};
-#[proxy(UartDomainProxy)]
-pub trait UartDomain: DeviceBase + Basic {
+#[proxy(UartDomainProxy,Range<usize>)]
+pub trait UartDomain: DeviceBase + Basic + DowncastSync {
     fn init(&self, device_info: Range<usize>) -> AlienResult<()>;
     /// Write a character to the UART
     fn putc(&self, ch: u8) -> AlienResult<()>;
@@ -26,3 +27,5 @@ pub trait UartDomain: DeviceBase + Basic {
         Err(AlienError::ENOSYS)
     }
 }
+
+impl_downcast!(sync UartDomain);

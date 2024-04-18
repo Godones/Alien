@@ -13,7 +13,7 @@ use spin::Lazy;
 
 use crate::{
     domain_helper::{SharedHeapAllocator, DOMAIN_CREATE},
-    domain_proxy::ShadowBlockDomainProxy,
+    domain_proxy::{BlkDomainProxy, ProxyExt, ShadowBlockDomainProxy},
 };
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
@@ -126,34 +126,34 @@ impl CoreFunction for DomainSyscall {
         super::query_domain(name)
     }
 
-    fn sys_create_domain(&self, identifier: &str) -> Option<DomainType> {
-        DOMAIN_CREATE.get().unwrap().create_domain(identifier)
-    }
-
     fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize) {
         crate::domain_proxy::continuation::set_current_task_id(next_tid);
         crate::task::switch(now, next)
     }
 
-    fn register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()> {
+    fn sys_create_domain(&self, identifier: &str) -> Option<DomainType> {
+        DOMAIN_CREATE.get().unwrap().create_domain(identifier)
+    }
+
+    fn sys_register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()> {
         crate::domain_loader::creator::register_domain_elf(ident, data.to_vec(), ty);
         Ok(())
     }
 
-    fn replace_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
+    fn sys_replace_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
         let old_domain = super::query_domain(old_domain_name).ok_or(AlienError::EINVAL)?;
         match old_domain {
             DomainType::ShadowBlockDomain(shadow_blk) => {
-                let (_id, new_domain, _) = crate::domain_loader::creator::create_domain(
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     DomainTypeRaw::ShadowBlockDomain,
                     new_domain_name,
                     None,
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
-                shadow_blk_proxy.replace(new_domain);
-                let backend_domain = shadow_blk_proxy.backend_domain();
-                shadow_blk_proxy.init(backend_domain.as_str())?;
+                shadow_blk_proxy.replace(new_domain, loader)?;
+                // todo!(release old domain's resource)
+
                 warn!(
                     "Try to replace domain: {} with domain: {}",
                     old_domain_name, new_domain_name
@@ -162,6 +162,19 @@ impl CoreFunction for DomainSyscall {
             }
             _ => {
                 panic!("replace domain not support");
+            }
+        }
+    }
+    fn sys_reload_domain(&self, domain_name: &str) -> AlienResult<()> {
+        let domain = super::query_domain(domain_name).ok_or(AlienError::EINVAL)?;
+        match domain {
+            DomainType::BlkDeviceDomain(blk) => {
+                let blk_proxy = blk.downcast_arc::<BlkDomainProxy>().unwrap();
+                blk_proxy.reload()
+            }
+            // todo!(release old domain's resource)
+            ty => {
+                panic!("reload domain {:?} not support", ty);
             }
         }
     }
