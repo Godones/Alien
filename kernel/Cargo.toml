@@ -27,7 +27,7 @@ vfscore = { git = "https://github.com/os-module/rvfs.git" } #safe-crate
 cpio_reader = { workspace = true }
 libflate = { workspace = true }
 core2 = { version = "0.4", default-features = false }
-fdt = { path = "../safe-crates/fdt" }
+fdt = { git = "https://github.com/repnop/fdt" }
 
 [features]
 default = ["smp"]

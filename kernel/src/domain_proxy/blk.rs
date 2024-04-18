@@ -57,7 +57,7 @@ impl BlkDeviceDomain for BlkDomainProxy {
         if !self.is_active() {
             return Err(AlienError::DOMAINCRASH);
         }
-        // self.domain.read(block, data)
+        // self.domain.read().read_block(block, data)
         let res = {
             let guard = self.domain.read();
             unsafe { blk_domain_proxy_read_trampoline(&guard, block, data) }
@@ -90,7 +90,6 @@ impl BlkDeviceDomain for BlkDomainProxy {
         // let mut loader = DomainLoader::new(self.domain_loader.data());
         // loader.load().unwrap();
         // let new_domain = loader.call(self.domain_id);
-
         let mut new_domain = self
             .domain_loader
             .call::<dyn BlkDeviceDomain>(self.domain_id);
@@ -115,7 +114,6 @@ unsafe fn blk_domain_proxy_read_trampoline(
 ) -> AlienResult<RRef<[u8; 512]>> {
     asm!(
         "addi sp, sp, -33*8",
-        "sd x0, 0*8(sp)",
         "sd x1, 1*8(sp)",
         "sd x2, 2*8(sp)",
         "sd x3, 3*8(sp)",
