@@ -9,6 +9,7 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers"}
+svdrivers = { path = "../../../safe-crates/svdrivers" }
 basic = { path = "../../../domain-tools/basic" }
 ksync = { path = "../../../base/ksync" }
 constants = { path = "../../../base/constants" }

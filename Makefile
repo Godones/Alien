@@ -95,7 +95,7 @@ fix:
 
 initrd:
 	@make -C user/initrd
-	@mkdir ./initrd
+	@mkdir -p ./initrd
 	@cp ./build/g* ./initrd
 	@cp ./user/initrd/initramfs/* ./initrd -r
 	@-cp ./user/bin/* ./initrd/bin -r
@@ -118,7 +118,6 @@ gdb-client:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
 clean:
-	rm -rf target/
-	rm build/*.bin
+	rm build/g*
 
 .PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS) fix initrd
