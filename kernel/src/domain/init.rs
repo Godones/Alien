@@ -7,6 +7,7 @@ use crate::domain_loader::creator::register_domain_elf;
 
 const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("buf_uart", DomainTypeRaw::BufUartDomain),
+    ("buf_input", DomainTypeRaw::BufInputDomain),
     ("cache_blk", DomainTypeRaw::CacheBlkDeviceDomain),
     ("devfs", DomainTypeRaw::DevFsDomain),
     ("fatfs", DomainTypeRaw::FsDomain),

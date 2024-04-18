@@ -62,31 +62,3 @@ impl SafeIORegion {
         self.range.end.as_usize() - self.range.start.as_usize()
     }
 }
-
-// impl PlicIO for SafeIORegion {
-//     fn read_at(&self, offset: usize) -> AlienResult<u32> {
-//         SafeIORegion::read_at(self, offset)
-//     }
-//     fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
-//         SafeIORegion::write_at(self, offset, value)
-//     }
-// }
-//
-// impl GoldFishRtcIo for SafeIORegion {
-//     fn read_at(&self, offset: usize) -> AlienResult<u32> {
-//         SafeIORegion::read_at(self, offset)
-//     }
-//     fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
-//         SafeIORegion::write_at(self, offset, value)
-//     }
-// }
-//
-// impl Uart16550IO for SafeIORegion {
-//     fn read_at(&self, offset: usize) -> AlienResult<u8> {
-//         SafeIORegion::read_at(self, offset)
-//     }
-//
-//     fn write_at(&self, offset: usize, value: u8) -> AlienResult<()> {
-//         SafeIORegion::write_at(self, offset, value)
-//     }
-// }
