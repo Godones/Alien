@@ -2,7 +2,7 @@
 	path = safe-crates/virtio-drivers
 	url = git@github.com:os-module/virtio-drivers.git
 
-[submodule "safe-crates/svdrivers"]
-	path = safe-crates/svdrivers
-	url = git@github.com:huyufeifei/svdrivers.git
 
+[submodule "safe-crates/safe-virtio-drivers"]
+	path = safe-crates/safe-virtio-drivers
+	url = git@github.com:os-module/safe-virtio-drivers.git
