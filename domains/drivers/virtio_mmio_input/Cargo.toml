@@ -9,8 +9,8 @@ edition = "2021"
 constants = { path = "../../../base/constants" }
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers",rev = "de1c3b1"}
 ksync = { path = "../../../base/ksync" }
 basic = { path = "../../../domain-tools/basic" }
-
+virtio-drivers = { git = "https://github.com/os-module/safe-virtio-drivers.git" }
+virtio_mmio_common = { path = "../virtio_mmio_common" }
 spin = { workspace = true }

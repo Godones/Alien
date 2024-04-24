@@ -8,13 +8,11 @@ edition = "2021"
 [dependencies]
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
-virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers"}
-svdrivers = { path = "../../../safe-crates/svdrivers" }
 basic = { path = "../../../domain-tools/basic" }
 ksync = { path = "../../../base/ksync" }
 constants = { path = "../../../base/constants" }
-
-
+virtio-drivers = { git = "https://github.com/os-module/safe-virtio-drivers.git" } # safe crate
+virtio_mmio_common = { path = "../virtio_mmio_common" }
 
 spin = { workspace = true }
 log = "0"

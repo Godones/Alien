@@ -39,11 +39,11 @@ impl NotLeafPage<Rv64PTE> for FrameTrackerWrapper {
     }
 
     fn as_pte_slice<'a>(&self) -> &'a [Rv64PTE] {
-        self.0.as_slice_with()
+        self.0.as_slice_with(0)
     }
 
     fn as_pte_mut_slice<'a>(&self) -> &'a mut [Rv64PTE] {
-        self.0.as_mut_slice_with()
+        self.0.as_mut_slice_with(0)
     }
 }
 
@@ -73,11 +73,11 @@ impl PhysPage for FrameTrackerWrapper {
     }
 
     fn as_bytes(&self) -> &[u8] {
-        self.0.as_slice_with()
+        self.0.as_slice_with(0)
     }
 
     fn as_mut_bytes(&mut self) -> &mut [u8] {
-        self.0.as_mut_slice_with()
+        self.0.as_mut_slice_with(0)
     }
 }
 

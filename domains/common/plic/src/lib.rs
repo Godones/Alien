@@ -31,12 +31,12 @@ static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 pub struct SafeIORegionWrapper(SafeIORegion);
 
 impl PlicIO for SafeIORegionWrapper {
-    fn read_at(&self, offset: usize) -> AlienResult<u32> {
-        self.0.read_at(offset)
+    fn read_at(&self, offset: usize) -> Result<u32, ()> {
+        self.0.read_at(offset).map_err(|_| ())
     }
 
-    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
-        self.0.write_at(offset, value)
+    fn write_at(&self, offset: usize, value: u32) -> Result<(), ()> {
+        self.0.write_at(offset, value).map_err(|_| ())
     }
 }
 

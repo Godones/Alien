@@ -65,19 +65,29 @@ impl FrameTracker {
             core::ptr::write_bytes(self.ptr as *mut u8, 0, self.size());
         }
     }
-    pub fn as_mut_slice_with<'a, T>(&self) -> &'a mut [T] {
-        assert_eq!(FRAME_SIZE % core::mem::size_of::<T>(), 0);
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                self.ptr as *mut T,
-                self.size() / core::mem::size_of::<T>(),
-            )
-        }
+    pub fn as_mut_slice_with<'a, T>(&self, offset: usize) -> &'a mut [T] {
+        let t_size = core::mem::size_of::<T>();
+        assert_eq!((self.size() - offset) % t_size, 0);
+        let ptr = self.ptr + offset;
+        unsafe { core::slice::from_raw_parts_mut(ptr as *mut T, (self.size() - offset) / t_size) }
     }
-    pub fn as_slice_with<'a, T>(&self) -> &'a [T] {
-        let size = core::mem::size_of::<T>();
-        assert_eq!(FRAME_SIZE % size, 0);
-        unsafe { core::slice::from_raw_parts(self.ptr as *const T, self.size() / size) }
+    pub fn as_slice_with<'a, T>(&self, offset: usize) -> &'a [T] {
+        let t_size = core::mem::size_of::<T>();
+        assert_eq!((self.size() - offset) % t_size, 0);
+        let ptr = self.ptr + offset;
+        unsafe { core::slice::from_raw_parts(ptr as *const T, (self.size() - offset) / t_size) }
+    }
+
+    pub fn as_mut_with<'a, T: Sized>(&self, offset: usize) -> &'a mut T {
+        assert!(offset + core::mem::size_of::<T>() <= self.size());
+        let ptr = self.ptr + offset;
+        unsafe { &mut *(ptr as *mut T) }
+    }
+
+    pub fn as_with<'a, T: Sized>(&self, offset: usize) -> &'a T {
+        assert!(offset + core::mem::size_of::<T>() <= self.size());
+        let ptr = self.ptr + offset;
+        unsafe { &*(ptr as *const T) }
     }
 }
 

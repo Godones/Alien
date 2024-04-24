@@ -17,12 +17,12 @@ static UART: Once<Uart16550> = Once::new();
 pub struct SafeIORegionWrapper(SafeIORegion);
 
 impl Uart16550IO for SafeIORegionWrapper {
-    fn read_at(&self, offset: usize) -> AlienResult<u8> {
-        self.0.read_at(offset)
+    fn read_at(&self, offset: usize) -> Result<u8, ()> {
+        self.0.read_at(offset).map_err(|_| ())
     }
 
-    fn write_at(&self, offset: usize, value: u8) -> AlienResult<()> {
-        self.0.write_at(offset, value)
+    fn write_at(&self, offset: usize, value: u8) -> Result<(), ()> {
+        self.0.write_at(offset, value).map_err(|_| ())
     }
 }
 
@@ -43,29 +43,34 @@ impl UartDomain for UartDomainImpl {
         println!("uart_addr: {:#x}-{:#x}", region.start, region.end);
         let io_region = SafeIORegion::from(region.clone());
         let uart = Uart16550::new(Box::new(SafeIORegionWrapper(io_region)));
-        uart.enable_receive_interrupt()?;
+        uart.enable_receive_interrupt();
         UART.call_once(|| uart);
         Ok(())
     }
 
     fn putc(&self, ch: u8) -> AlienResult<()> {
-        UART.get().unwrap().putc(ch)
+        UART.get().unwrap().putc(ch);
+        Ok(())
     }
 
     fn getc(&self) -> AlienResult<Option<u8>> {
-        UART.get().unwrap().getc()
+        let c = UART.get().unwrap().getc();
+        Ok(c)
     }
 
     fn have_data_to_get(&self) -> AlienResult<bool> {
-        UART.get().unwrap().have_data_to_get()
+        let res = UART.get().unwrap().have_data_to_get();
+        Ok(res)
     }
 
     fn enable_receive_interrupt(&self) -> AlienResult<()> {
-        UART.get().unwrap().enable_receive_interrupt()
+        UART.get().unwrap().enable_receive_interrupt();
+        Ok(())
     }
 
     fn disable_receive_interrupt(&self) -> AlienResult<()> {
-        UART.get().unwrap().disable_receive_interrupt()
+        UART.get().unwrap().disable_receive_interrupt();
+        Ok(())
     }
 }
 

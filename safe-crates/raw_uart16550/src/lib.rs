@@ -6,11 +6,9 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::fmt::Debug;
 
-use constants::AlienResult;
-
 pub trait Uart16550IO: Debug + Send + Sync {
-    fn read_at(&self, offset: usize) -> AlienResult<u8>;
-    fn write_at(&self, offset: usize, value: u8) -> AlienResult<()>;
+    fn read_at(&self, offset: usize) -> Result<u8, ()>;
+    fn write_at(&self, offset: usize, value: u8) -> Result<(), ()>;
 }
 
 const RHR: usize = 0x00;
@@ -48,18 +46,16 @@ impl Uart16550 {
 }
 
 impl Uart16550 {
-    pub fn enable_receive_interrupt(&self) -> AlienResult<()> {
+    pub fn enable_receive_interrupt(&self) {
         // set IER to 1
         self.region.write_at(IER, 1).unwrap();
-        Ok(())
     }
 
-    pub fn disable_receive_interrupt(&self) -> AlienResult<()> {
+    pub fn disable_receive_interrupt(&self) {
         // set IER to 0
         self.region.write_at(IER, 0).unwrap();
-        Ok(())
     }
-    pub fn putc(&self, ch: u8) -> AlienResult<()> {
+    pub fn putc(&self, ch: u8) {
         // check LCR DLAB = 0
         // check LSR empty
         loop {
@@ -70,24 +66,23 @@ impl Uart16550 {
                 break;
             }
         }
-        Ok(())
     }
 
-    pub fn getc(&self) -> AlienResult<Option<u8>> {
+    pub fn getc(&self) -> Option<u8> {
         // check LCR DLAB = 0
         // check LSR
         let lsr = self.region.read_at(LSR).unwrap();
         if (lsr & 1) == 1 {
             // read
-            Ok(Some(self.region.read_at(THR).unwrap()))
+            Some(self.region.read_at(THR).unwrap())
         } else {
-            Ok(None)
+            None
         }
         // read from RHR
     }
 
-    pub fn have_data_to_get(&self) -> AlienResult<bool> {
+    pub fn have_data_to_get(&self) -> bool {
         let lsr = self.region.read_at(LSR).unwrap();
-        Ok((lsr & 1) == 1)
+        (lsr & 1) == 1
     }
 }

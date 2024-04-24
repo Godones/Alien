@@ -1,0 +1,10 @@
+[package]
+name = "virtio_mmio_common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+basic = { path = "../../../domain-tools/basic" }
+virtio-drivers = { git = "https://github.com/os-module/safe-virtio-drivers.git" }

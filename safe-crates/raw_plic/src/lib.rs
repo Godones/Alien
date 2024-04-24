@@ -17,8 +17,6 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::fmt::Debug;
 
-use constants::AlienResult;
-
 const PRIORITY_OFFSET: usize = 0;
 const PENDING_OFFSET: usize = 0x1000;
 const ENABLE_OFFSET: usize = 0x2000;
@@ -31,8 +29,8 @@ const MAX_CONTEXT: usize = 15872;
 const MAX_INTERRUPT: usize = 1024;
 
 pub trait PlicIO: Debug + Send + Sync {
-    fn read_at(&self, offset: usize) -> AlienResult<u32>;
-    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()>;
+    fn read_at(&self, offset: usize) -> Result<u32, ()>;
+    fn write_at(&self, offset: usize, value: u32) -> Result<(), ()>;
 }
 
 /// The PLIC is a platform-level interrupt controller. It connects all external interrupts in the
