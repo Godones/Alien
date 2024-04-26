@@ -114,9 +114,14 @@ impl TaskDomain for TaskDomainImpl {
     fn fs_info(&self) -> AlienResult<(InodeID, InodeID)> {
         let task = current_task().unwrap();
         let fs_info = task.inner().fs_info.clone();
-        Ok((fs_info.root, fs_info.cwd))
+        Ok((fs_info.root.inode_id(), fs_info.cwd.inode_id()))
     }
 
+    fn set_cwd(&self, inode: InodeID) -> AlienResult<()> {
+        let task = current_task().unwrap();
+        task.inner().fs_info.cwd = Arc::new(ShimFile::new(inode));
+        Ok(())
+    }
     fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()> {
         let task = current_task().unwrap();
         task.write_bytes_to_user(VirtAddr::from(dst), buf)

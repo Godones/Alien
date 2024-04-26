@@ -94,17 +94,20 @@ pub struct TaskInner {
     pub resource_limits: Mutex<ResourceLimits>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct FsContext {
     /// current working directory
-    pub cwd: InodeID,
+    pub cwd: Arc<ShimFile>,
     /// root directory
-    pub root: InodeID,
+    pub root: Arc<ShimFile>,
 }
 
 impl FsContext {
     pub fn new(cwd: InodeID, root: InodeID) -> Self {
-        Self { cwd, root }
+        Self {
+            cwd: Arc::new(ShimFile::new(cwd)),
+            root: Arc::new(ShimFile::new(root)),
+        }
     }
 }
 

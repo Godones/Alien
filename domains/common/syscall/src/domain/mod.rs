@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use constants::AlienResult;
+use constants::{AlienError, AlienResult};
 use interface::{DomainTypeRaw, TaskDomain, VfsDomain};
 use log::warn;
 use rref::{RRef, RRefVec};
@@ -22,7 +22,7 @@ pub fn sys_load_domain(
     let attr = vfs_domain.vfs_getattr(file, attr)?;
     let size = attr.st_size;
     let buf = RRefVec::new(0, size as usize);
-    let ty = DomainTypeRaw::try_from(ty).map_err(|_| constants::LinuxErrno::EINVAL)?;
+    let ty = DomainTypeRaw::try_from(ty).map_err(|_| AlienError::EINVAL)?;
     warn!(
         "<sys_load_domain> domain_name: {:?}, ty:{:?}, size: {}KB",
         domain_name,

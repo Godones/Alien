@@ -89,7 +89,7 @@ fn user_path_at(fd: isize, path: &str) -> AlienResult<(InodeID, InodeID)> {
     let res = if !path.starts_with("/") {
         if fd == AT_FDCWD {
             let fs_context = &task.inner().fs_info;
-            (VFS_ROOT_ID, fs_context.cwd)
+            (VFS_ROOT_ID, fs_context.cwd.id)
         } else {
             let fd = fd as usize;
             let file = task.get_file(fd).ok_or(AlienError::EBADF)?;

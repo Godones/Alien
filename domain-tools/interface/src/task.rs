@@ -17,6 +17,7 @@ pub trait TaskDomain: Basic + DowncastSync {
     fn add_fd(&self, inode: InodeID) -> AlienResult<usize>;
     fn remove_fd(&self, fd: usize) -> AlienResult<InodeID>;
     fn fs_info(&self) -> AlienResult<(InodeID, InodeID)>;
+    fn set_cwd(&self, inode: InodeID) -> AlienResult<()>;
     fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()>;
     fn copy_from_user(&self, src: usize, buf: &mut [u8]) -> AlienResult<()>;
     fn read_string_from_user(

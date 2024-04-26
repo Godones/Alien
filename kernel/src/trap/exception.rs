@@ -16,7 +16,7 @@ pub fn syscall_exception_handler() {
     let parameters = cx.parameters();
     let _syscall_name = constants::syscall_name(parameters[0]);
 
-    info!(
+    debug!(
         "syscall {:?} parameters: {:?}",
         _syscall_name, parameters[0]
     );
@@ -38,6 +38,6 @@ pub fn syscall_exception_handler() {
         error!("syscall error: {:?}", err);
         err as isize
     });
-    info!("syscall {:?} result: {:?}", _syscall_name, result);
+    debug!("syscall {:?} result: {:?}", _syscall_name, result);
     cx.update_result(res as usize);
 }

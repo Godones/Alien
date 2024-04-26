@@ -78,6 +78,7 @@ impl SysCallDomain for SysCallDomainImpl {
                 args[2],
                 args[3],
             ),
+            49 => sys_chdir(&self.vfs_domain, &self.task_domain, args[0]),
             56 => sys_openat(
                 &self.vfs_domain,
                 &self.task_domain,

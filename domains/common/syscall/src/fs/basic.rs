@@ -412,3 +412,21 @@ pub fn sys_getdents64(
     task_domain.copy_to_user(buf, &tmp_buf.as_slice()[..r])?;
     Ok(r as isize)
 }
+
+pub fn sys_chdir(
+    vfs: &Arc<dyn VfsDomain>,
+    task_domain: &Arc<dyn TaskDomain>,
+    path: usize,
+) -> AlienResult<isize> {
+    let mut tmp_buf = RRefVec::<u8>::new(0, 256);
+    let len;
+    (tmp_buf, len) = task_domain.read_string_from_user(path, tmp_buf)?;
+    let path = core::str::from_utf8(&tmp_buf.as_slice()[..len]).unwrap();
+    info!("<sys_chdir> path: {:?}", path);
+    let (_, current_root) = task_domain.fs_info()?;
+
+    let path = RRefVec::from_slice(&path.as_bytes());
+    let id = vfs.vfs_open(current_root, &path, 0, 0)?;
+    task_domain.set_cwd(id)?;
+    Ok(0)
+}
