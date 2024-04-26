@@ -19,13 +19,13 @@ resolver = "2"
 ## unsafe basic crates
 spin = "0"
 log = "0"
-
 pod = { git = "https://github.com/asterinas/pod", rev = "d7dba56" }
 core2 = { version = "0.4", default-features = false }
 
 
 ## safe crates
 bitflags = "2.5"
+bit_field = "0.10"
 timestamp = { git = "https://github.com/Byte-OS/timestamp" }
 downcast-rs = { version = "1.2.0", default-features = false }
 cpio_reader = { version = "0.1.1" }

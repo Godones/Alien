@@ -23,6 +23,9 @@ impl TaskContext {
             s: [0; 12],
         }
     }
+    pub fn set_sp(&mut self, sp: usize) {
+        self.sp = sp;
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

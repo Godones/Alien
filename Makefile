@@ -36,7 +36,7 @@ build:
 	@echo "Building..."
 	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 
-run: sdcard initrd build
+run: sdcard domains initrd build
 	qemu-system-riscv64 \
             -M virt \
             -bios default \
@@ -65,7 +65,7 @@ user:
 	@echo "Building user apps done"
 
 
-sdcard:$(FS) mount user domains
+sdcard:$(FS) mount user #domains
 	@sudo cp build/gsshadow_blk $(FSMOUNT)/
 	@-sudo cp user/bin/* $(FSMOUNT)/
 	@sudo ls $(FSMOUNT)
@@ -87,7 +87,7 @@ mount:
 
 
 domains:
-	cargo domain build-all
+	cargo domain build-all -l "$(LOG)"
 
 
 fix:
@@ -120,5 +120,11 @@ gdb-client:
 clean:
 	rm build/g*
 	cargo clean
+
+kernel_asm:
+	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
+	@vim kernel.asm
+	@rm kernel.asm
+
 
 .PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS) fix initrd

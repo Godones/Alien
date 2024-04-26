@@ -1,6 +1,6 @@
 use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
-use gproxy::{proxy, recover};
+use gproxy::proxy;
 
 use crate::{Basic, DeviceBase};
 
@@ -8,7 +8,6 @@ use crate::{Basic, DeviceBase};
 pub trait BufUartDomain: DeviceBase + Basic + DowncastSync {
     fn init(&self, uart_domain_name: &str) -> AlienResult<()>;
     /// Write a character to the UART
-    #[recover]
     fn putc(&self, ch: u8) -> AlienResult<()>;
     /// Read a character from the UART
     fn getc(&self) -> AlienResult<Option<u8>>;

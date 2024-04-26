@@ -96,6 +96,12 @@ pub struct TimeSpec {
     pub tv_nsec: usize, //0~999999999
 }
 
+impl TimeSpec {
+    pub fn new(tv_sec: usize, tv_nsec: usize) -> Self {
+        Self { tv_sec, tv_nsec }
+    }
+}
+
 /// [`getitimer`] / [`setitimer`] 指定的类型，用户执行系统调用时获取和输入的计时器
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default, Pod)]

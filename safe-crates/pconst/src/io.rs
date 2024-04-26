@@ -1,24 +1,20 @@
-use core::fmt::Debug;
+use core::{fmt::Debug, mem::offset_of};
 
 use bitflags::bitflags;
 use int_enum::IntEnum;
 use pod::Pod;
+use vfscore::utils::VfsFileStat;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Pod)]
+#[repr(C)]
 pub struct IoVec {
-    pub base: *mut u8,
+    pub base: usize,
     pub len: usize,
 }
 
 impl IoVec {
-    pub fn new(base: *mut u8, len: usize) -> Self {
-        Self { base, len }
-    }
     pub fn empty() -> Self {
-        Self {
-            base: core::ptr::null_mut(),
-            len: 0,
-        }
+        Self { base: 0, len: 0 }
     }
 }
 
@@ -115,7 +111,7 @@ impl Default for FsStat {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, Pod)]
 #[repr(C)]
 pub struct FileStat {
     pub st_dev: u64,
@@ -138,6 +134,33 @@ pub struct FileStat {
     pub st_ctime_nsec: u64,
     unused: u64,
 } //128
+
+impl From<VfsFileStat> for FileStat {
+    fn from(value: VfsFileStat) -> Self {
+        Self {
+            st_dev: value.st_dev,
+            st_ino: value.st_ino,
+            st_mode: value.st_mode,
+            st_nlink: value.st_nlink,
+            st_uid: value.st_uid,
+            st_gid: value.st_gid,
+            st_rdev: value.st_rdev,
+            __pad: 0,
+            st_size: value.st_size,
+            st_blksize: value.st_blksize,
+            __pad2: 0,
+            st_blocks: value.st_blocks,
+            st_atime_sec: value.st_atime.sec,
+            st_atime_nsec: value.st_atime.nsec,
+            st_mtime_sec: value.st_mtime.sec,
+            st_mtime_nsec: value.st_mtime.nsec,
+            st_ctime_sec: value.st_ctime.nsec,
+            st_ctime_nsec: value.st_ctime.nsec,
+            unused: 0,
+        }
+    }
+}
+
 bitflags! {
     /// ppoll 使用，表示对应在文件上等待或者发生过的事件
     pub struct PollEvents: u16 {
@@ -426,7 +449,7 @@ impl Debug for Dirent64 {
 
 impl Dirent64 {
     pub fn new(name: &str, ino: u64, off: i64, ty: DirentType) -> Self {
-        let size = core::mem::size_of::<Self>() + name.len() + 1;
+        let size = core::mem::size_of::<Self>() + name.as_bytes().len() + 1;
         // align to 8 bytes
         let size = (size + 7) & !7;
         Self {
@@ -440,6 +463,10 @@ impl Dirent64 {
 
     pub fn as_slice(&self) -> &[u8] {
         self.as_bytes()
+    }
+
+    pub fn name_offset(&self) -> usize {
+        offset_of!(Self, name)
     }
 
     pub fn len(&self) -> usize {

@@ -213,8 +213,8 @@ impl File for KernelFile {
                         buf[count..count + slice.len()].copy_from_slice(slice);
                         let mut name = d.name.clone();
                         name.push('\0');
-                        let len = name.len();
-                        buf[count + slice.len()..count + slice.len() + len]
+                        let len = name.as_bytes().len();
+                        buf[count + dirent64.name_offset()..count + dirent64.name_offset() + len]
                             .copy_from_slice(name.as_bytes());
                         count += dirent64.len();
                     } else {

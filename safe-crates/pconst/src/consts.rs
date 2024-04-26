@@ -393,14 +393,14 @@ pub fn syscall_name(id: usize) -> &'static str {
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Pod)]
-pub struct PrLimit {
+pub struct RLimit64 {
     /// 软上限
     pub rlim_cur: u64,
     /// 硬上限
     pub rlim_max: u64,
 }
 
-impl PrLimit {
+impl RLimit64 {
     pub fn new(cur: u64, max: u64) -> Self {
         Self {
             rlim_cur: cur,
@@ -409,9 +409,18 @@ impl PrLimit {
     }
 }
 
+impl Default for RLimit64 {
+    fn default() -> Self {
+        Self {
+            rlim_cur: u64::MAX,
+            rlim_max: u64::MAX,
+        }
+    }
+}
+
 #[repr(usize)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone, IntEnum)]
-pub enum PrLimitRes {
+pub enum PrLimitResType {
     RlimitStack = 3,
     RlimitNofile = 7,
     RlimitAs = 9,

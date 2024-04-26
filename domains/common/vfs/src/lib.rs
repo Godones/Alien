@@ -6,10 +6,10 @@ use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::sync::atomic::AtomicU64;
 
 use constants::{
-    io::{OpenFlags, PollEvents},
+    io::{Fcntl64Cmd, OpenFlags, PollEvents, SeekFrom},
     AlienError, AlienResult,
 };
-use interface::{Basic, DomainType, InodeID, TaskDomain, VfsDomain};
+use interface::{Basic, DomainType, InodeID, SchedulerDomain, VfsDomain};
 use ksync::RwLock;
 use log::debug;
 use rref::{RRef, RRefVec};
@@ -28,6 +28,7 @@ use crate::{
 mod devfs;
 mod initrd;
 mod kfile;
+mod pipe;
 mod pipefs;
 mod procfs;
 mod ramfs;
@@ -35,7 +36,7 @@ mod shim;
 mod sys;
 mod tree;
 
-static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
+static SCHEDULER_DOMAIN: Once<Arc<dyn SchedulerDomain>> = Once::new();
 
 static VFS_MAP: RwLock<BTreeMap<InodeID, Arc<dyn File>>> = RwLock::new(BTreeMap::new());
 static INODE_ID: AtomicU64 = AtomicU64::new(4);
@@ -47,8 +48,18 @@ fn insert_dentry(dentry: Arc<dyn VfsDentry>, open_flags: OpenFlags) -> InodeID {
     id
 }
 
+fn insert_pipe_file(file: Arc<dyn File>) -> InodeID {
+    let id = INODE_ID.fetch_add(1, core::sync::atomic::Ordering::SeqCst);
+    VFS_MAP.write().insert(id, file);
+    id
+}
+
 fn remove_file(inode: InodeID) {
-    VFS_MAP.write().remove(&inode);
+    if (0..4).contains(&inode) {
+        debug!("<remove_file>, InodeID: {} is not correct", inode);
+    } else {
+        VFS_MAP.write().remove(&inode);
+    }
 }
 
 fn get_file(inode: InodeID) -> Option<Arc<dyn File>> {
@@ -63,10 +74,12 @@ impl Basic for VfsDomainImpl {}
 impl VfsDomain for VfsDomainImpl {
     fn init(&self, initrd: &[u8]) -> AlienResult<()> {
         tree::init_filesystem(initrd).unwrap();
-        let task_domain = basic::get_domain("task").unwrap();
-        match task_domain {
-            DomainType::TaskDomain(task) => TASK_DOMAIN.call_once(|| task),
-            _ => panic!("task domain not found"),
+        let scheduler_domain = basic::get_domain("scheduler").unwrap();
+        match scheduler_domain {
+            DomainType::SchedulerDomain(scheduler_domain) => {
+                SCHEDULER_DOMAIN.call_once(|| scheduler_domain);
+            }
+            _ => panic!("scheduler domain not found"),
         };
         Ok(())
     }
@@ -95,12 +108,10 @@ impl VfsDomain for VfsDomainImpl {
         let path = core::str::from_utf8(path.as_slice()).unwrap();
         let open_flags = OpenFlags::from_bits_truncate(open_flags);
         let mode = if open_flags.contains(OpenFlags::O_CREAT) {
-            None
-        } else {
             Some(VfsInodeMode::from_bits_truncate(mode))
+        } else {
+            None
         };
-        debug!("vfs_open:  path: {:?}, mode: {:?}", path, mode);
-
         let path = VfsPath::new(root, start.dentry()).join(path)?.open(mode)?;
         let id = insert_dentry(path, open_flags);
         Ok(id)
@@ -115,8 +126,7 @@ impl VfsDomain for VfsDomainImpl {
         inode: InodeID,
         mut attr: RRef<VfsFileStat>,
     ) -> AlienResult<RRef<VfsFileStat>> {
-        let dentry = get_file(inode).unwrap().dentry();
-        let vfs_attr = dentry.inode()?.get_attr()?;
+        let vfs_attr = get_file(inode).unwrap().get_attr()?;
         *attr = vfs_attr;
         Ok(attr)
     }
@@ -160,10 +170,67 @@ impl VfsDomain for VfsDomainImpl {
         file.fsync()?;
         Ok(())
     }
+    fn vfs_lseek(&self, inode: InodeID, seek: SeekFrom) -> AlienResult<u64> {
+        let file = get_file(inode).unwrap();
+        file.seek(seek)
+    }
     fn vfs_inode_type(&self, inode: InodeID) -> AlienResult<VfsNodeType> {
         let file = get_file(inode).unwrap();
         let res = file.inode().inode_type();
         Ok(res)
+    }
+    fn vfs_readdir(
+        &self,
+        inode: InodeID,
+        mut buf: RRefVec<u8>,
+    ) -> AlienResult<(RRefVec<u8>, usize)> {
+        let file = get_file(inode).unwrap();
+        let res = file.readdir(buf.as_mut_slice())?;
+        Ok((buf, res))
+    }
+    fn do_fcntl(&self, inode: InodeID, cmd: usize, args: usize) -> AlienResult<isize> {
+        const FD_CLOEXEC: usize = 1;
+        let cmd = Fcntl64Cmd::try_from(cmd as u32).unwrap();
+        let file = get_file(inode).unwrap();
+        match cmd {
+            Fcntl64Cmd::F_DUPFD_CLOEXEC => {
+                file.set_open_flag(file.get_open_flag() | OpenFlags::O_CLOEXEC);
+                Ok(0)
+            }
+            Fcntl64Cmd::F_GETFD => {
+                return if file.get_open_flag().contains(OpenFlags::O_CLOEXEC) {
+                    Ok(1)
+                } else {
+                    Ok(0)
+                };
+            }
+            Fcntl64Cmd::F_SETFD => {
+                debug!("fcntl: F_SETFD :{:?}", args & FD_CLOEXEC);
+                let open_flag = file.get_open_flag();
+                if args & FD_CLOEXEC == 0 {
+                    file.set_open_flag(open_flag & !OpenFlags::O_CLOEXEC);
+                } else {
+                    file.set_open_flag(open_flag | OpenFlags::O_CLOEXEC);
+                }
+                Ok(0)
+            }
+            Fcntl64Cmd::F_GETFL => {
+                return Ok(file.get_open_flag().bits() as isize);
+            }
+            Fcntl64Cmd::F_SETFL => {
+                let flag = OpenFlags::from_bits_truncate(args);
+                debug!("fcntl: F_SETFL :{:?}", flag,);
+                file.set_open_flag(flag);
+                Ok(0)
+            }
+            _ => Err(AlienError::EINVAL),
+        }
+    }
+    fn do_pipe2(&self, _flags: usize) -> AlienResult<(InodeID, InodeID)> {
+        let (reader, writer) = pipe::make_pipe_file();
+        let r = insert_pipe_file(reader);
+        let w = insert_pipe_file(writer);
+        Ok((r, w))
     }
 }
 

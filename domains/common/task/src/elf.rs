@@ -18,6 +18,8 @@ use page_table::{MappingFlags, NotLeafPage, PagingIf, Rv64PTE};
 use ptable::*;
 use xmas_elf::{
     program::{SegmentData, Type},
+    sections::SectionData,
+    symbol_table::Entry,
     ElfFile,
 };
 
@@ -218,6 +220,84 @@ pub fn load_to_vm_space(
     Ok(break_addr)
 }
 
+fn relocate(elf: &ElfFile, bias: usize) -> AlienResult<Vec<(usize, usize)>> {
+    let mut res = vec![];
+    let data = elf
+        .find_section_by_name(".rela.dyn")
+        .ok_or(AlienError::EINVAL)?
+        .get_data(elf)
+        .map_err(|_| AlienError::EINVAL)?;
+    let entries = match data {
+        SectionData::Rela64(entries) => entries,
+        _ => return Err(AlienError::EINVAL),
+    };
+
+    let dynsym = match elf
+        .find_section_by_name(".dynsym")
+        .ok_or(AlienError::EINVAL)?
+        .get_data(elf)
+        .map_err(|_| AlienError::EINVAL)?
+    {
+        SectionData::DynSymbolTable64(dsym) => dsym,
+        _ => return Err(AlienError::EINVAL),
+    };
+
+    for entry in entries.iter() {
+        const REL_GOT: u32 = 6;
+        const REL_PLT: u32 = 7;
+        const REL_RELATIVE: u32 = 8;
+        const R_RISCV_64: u32 = 2;
+        const R_RISCV_RELATIVE: u32 = 3;
+        match entry.get_type() {
+            REL_GOT | REL_PLT | R_RISCV_64 => {
+                let dynsym = &dynsym[entry.get_symbol_table_index() as usize];
+                let symval = if dynsym.shndx() == 0 {
+                    let name = dynsym.get_name(elf).map_err(|_| AlienError::EINVAL)?;
+                    panic!("need to find symbol: {:?}", name);
+                } else {
+                    bias + dynsym.value() as usize
+                };
+                let value = symval + entry.get_addend() as usize;
+                let addr = bias + entry.get_offset() as usize;
+                res.push((addr, value))
+            }
+            REL_RELATIVE | R_RISCV_RELATIVE => {
+                let value = bias + entry.get_addend() as usize;
+                let addr = bias + entry.get_offset() as usize;
+                res.push((addr, value))
+            }
+            t => unimplemented!("unknown type: {}", t),
+        }
+    }
+    let data = elf
+        .find_section_by_name(".rela.plt")
+        .ok_or(AlienError::EINVAL)?
+        .get_data(elf)
+        .map_err(|_| AlienError::EINVAL)?;
+    let entries = match data {
+        SectionData::Rela64(entries) => entries,
+        _ => return Err(AlienError::EINVAL),
+    };
+    for entry in entries.iter() {
+        match entry.get_type() {
+            5 => {
+                let dynsym = &dynsym[entry.get_symbol_table_index() as usize];
+                let symval = if dynsym.shndx() == 0 {
+                    let name = dynsym.get_name(elf).map_err(|_| AlienError::EINVAL)?;
+                    panic!("symbol not found: {:?}", name);
+                } else {
+                    dynsym.value() as usize
+                };
+                let value = bias + symval;
+                let addr = bias + entry.get_offset() as usize;
+                res.push((addr, value))
+            }
+            t => panic!("[kernel] unknown entry, type = {}", t),
+        }
+    }
+    Ok(res)
+}
+
 pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienResult<ELFInfo> {
     let elf = xmas_elf::ElfFile::new(elf).map_err(|_| AlienError::EINVAL)?;
     // if the elf file is a shared object, we should load the interpreter first
@@ -330,7 +410,16 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         res + bias as u64
     );
     // todo!(relocate)
-
+    if let Ok(kvs) = relocate(&elf, bias) {
+        kvs.into_iter().for_each(|kv| {
+            info!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
+            address_space
+                .write_val(VirtAddr::from(kv.0), &kv.1)
+                .unwrap()
+        })
+    } else {
+        error!("relocate failed");
+    }
     Ok(ELFInfo {
         address_space,
         entry: VirtAddr::from(elf.header.pt2.entry_point() as usize + bias),

@@ -6,3 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ksync = { path = "../../../base/ksync" }
+basic = { path = "../../../domain-tools/basic" }
+rref = { path = "../../../domain-tools/rref" }
+interface = { path = "../../../domain-tools/interface" }
+constants = { path = "../../../base/constants" }
+netcore = { git = "https://github.com/os-module/simple-net" }
+
+
+log = "0"

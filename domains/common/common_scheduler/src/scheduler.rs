@@ -1,13 +1,16 @@
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 
 use basic::sync::Mutex;
-use task_meta::{TaskMeta, TaskStatus};
+use task_meta::TaskStatus;
 
-use crate::processor::{switch_to_cpu, take_current_task};
+use crate::{
+    processor::{switch_to_cpu, take_current_task},
+    resource::TaskMetaExt,
+};
 
 pub trait Scheduler: Send + Sync {
-    fn add_task(&mut self, task_meta: Arc<Mutex<TaskMeta>>);
-    fn fetch_task(&mut self) -> Option<Arc<Mutex<TaskMeta>>>;
+    fn add_task(&mut self, task_meta: Arc<Mutex<TaskMetaExt>>);
+    fn fetch_task(&mut self) -> Option<Arc<Mutex<TaskMetaExt>>>;
     fn name(&self) -> &'static str;
 }
 
@@ -22,11 +25,11 @@ impl GlobalScheduler {
 }
 
 impl Scheduler for GlobalScheduler {
-    fn add_task(&mut self, task_meta: Arc<Mutex<TaskMeta>>) {
+    fn add_task(&mut self, task_meta: Arc<Mutex<TaskMetaExt>>) {
         self.scheduler.as_mut().unwrap().add_task(task_meta);
     }
 
-    fn fetch_task(&mut self) -> Option<Arc<Mutex<TaskMeta>>> {
+    fn fetch_task(&mut self) -> Option<Arc<Mutex<TaskMetaExt>>> {
         self.scheduler.as_mut().unwrap().fetch_task()
     }
     fn name(&self) -> &'static str {
@@ -40,17 +43,17 @@ pub fn set_scheduler(scheduler: Box<dyn Scheduler>) {
     GLOBAL_SCHEDULER.lock().set_scheduler(scheduler);
 }
 
-pub fn add_task(task_meta: Arc<Mutex<TaskMeta>>) {
+pub fn add_task(task_meta: Arc<Mutex<TaskMetaExt>>) {
     // log::info!("<add_task>: {:?}", task_meta.lock().tid());
     GLOBAL_SCHEDULER.lock().add_task(task_meta);
 }
 
-pub fn fetch_task() -> Option<Arc<Mutex<TaskMeta>>> {
+pub fn fetch_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
     GLOBAL_SCHEDULER.lock().fetch_task()
 }
 
 type Tid = usize;
-static TASK_WAIT_QUEUE: Mutex<BTreeMap<Tid, Arc<Mutex<TaskMeta>>>> = Mutex::new(BTreeMap::new());
+static TASK_WAIT_QUEUE: Mutex<BTreeMap<Tid, Arc<Mutex<TaskMetaExt>>>> = Mutex::new(BTreeMap::new());
 
 pub fn current_to_wait() {
     let task = take_current_task().unwrap();
@@ -74,5 +77,11 @@ pub fn do_suspend() {
     // task.access_inner().update_timer();
     // check_task_timer_expired();
     task.lock().set_status(TaskStatus::Ready);
+    switch_to_cpu(task);
+}
+
+pub fn exit_now() {
+    let task = take_current_task().unwrap();
+    task.lock().set_status(TaskStatus::Terminated);
     switch_to_cpu(task);
 }

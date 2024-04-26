@@ -29,9 +29,6 @@ pub fn do_execve(
         args.insert(0, "sh\0".to_string());
     }
     let mut data = Vec::new();
-    if path_str.contains("libc-bench") {
-        path_str = "libc-bench2".to_string();
-    }
     if crate::vfs_shim::read_all(&path_str, &mut data) {
         let res = task.do_execve(&path_str, data.as_slice(), args, envs);
         if res.is_err() {

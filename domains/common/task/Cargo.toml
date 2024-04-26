@@ -18,6 +18,7 @@ page_table = { path = "../../../safe-crates/page_table" }
 memory_addr = { path = "../../../safe-crates/memory_addr" }
 ptable = { path = "../../../safe-crates/ptable" }
 task_meta = { path = "../../../domain-tools/task_meta" }
+util = { path = "../../../safe-crates/util" }
 pod = { workspace = true }
 # now we trust the elf loader
 xmas-elf = "0.9"

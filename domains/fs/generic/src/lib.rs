@@ -35,11 +35,14 @@ use vfscore::{
 use crate::shim::MountDevShimInode;
 
 pub static VFS_DOMAIN: Once<Arc<dyn VfsDomain>> = Once::new();
+
+pub static ROOT_DENTRY: Once<Arc<dyn VfsDentry>> = Once::new();
+
 pub struct GenericFsDomain {
     fs: Arc<dyn VfsFsType>,
     inode_map: Mutex<BTreeMap<InodeID, Arc<dyn VfsInode>>>,
     inode_index: AtomicU64,
-    root_dentry: Once<Arc<dyn VfsDentry>>,
+    // root_dentry: Once<Arc<dyn VfsDentry>>,
     name: String,
     mount_func: Option<fn(root: &Arc<dyn VfsDentry>)>,
 }
@@ -62,14 +65,14 @@ impl GenericFsDomain {
             fs,
             inode_map: Mutex::new(BTreeMap::new()),
             inode_index: AtomicU64::new(0),
-            root_dentry: Once::new(),
+            // root_dentry: Once::new(),
             mount_func,
             name,
         }
     }
 
     pub fn root_dentry(&self) -> Arc<dyn VfsDentry> {
-        self.root_dentry.get().unwrap().clone()
+        ROOT_DENTRY.get().unwrap().clone()
     }
 }
 
@@ -109,7 +112,7 @@ impl FsDomain for GenericFsDomain {
         self.inode_map
             .lock()
             .insert(inode_id, root.inode().unwrap());
-        self.root_dentry.call_once(|| root);
+        ROOT_DENTRY.call_once(|| root);
         assert_eq!(inode_id, 0);
         Ok(inode_id)
     }

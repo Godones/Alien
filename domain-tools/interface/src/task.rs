@@ -15,6 +15,7 @@ pub trait TaskDomain: Basic + DowncastSync {
     fn heap_info(&self, tmp_heap_info: RRef<TmpHeapInfo>) -> AlienResult<RRef<TmpHeapInfo>>;
     fn get_fd(&self, fd: usize) -> AlienResult<InodeID>;
     fn add_fd(&self, inode: InodeID) -> AlienResult<usize>;
+    fn remove_fd(&self, fd: usize) -> AlienResult<InodeID>;
     fn fs_info(&self) -> AlienResult<(InodeID, InodeID)>;
     fn copy_to_user(&self, dst: usize, buf: &[u8]) -> AlienResult<()>;
     fn copy_from_user(&self, src: usize, buf: &mut [u8]) -> AlienResult<()>;
@@ -62,6 +63,20 @@ pub trait TaskDomain: Basic + DowncastSync {
         fd: usize,
         offset: usize,
     ) -> AlienResult<isize>;
+    fn do_munmap(&self, start: usize, len: usize) -> AlienResult<isize>;
+    fn do_sigaction(&self, signum: u8, act: usize, oldact: usize) -> AlienResult<isize>;
+    fn do_sigprocmask(&self, how: usize, set: usize, oldset: usize) -> AlienResult<isize>;
+    fn do_fcntl(&self, fd: usize, cmd: usize) -> AlienResult<(InodeID, usize)>;
+    fn do_prlimit(
+        &self,
+        pid: usize,
+        resource: usize,
+        new_limit: usize,
+        old_limit: usize,
+    ) -> AlienResult<isize>;
+    fn do_dup(&self, old_fd: usize, new_fd: Option<usize>) -> AlienResult<isize>;
+    fn do_pipe2(&self, r: InodeID, w: InodeID, pipe: usize) -> AlienResult<isize>;
+    fn do_exit(&self, exit_code: isize) -> AlienResult<isize>;
 }
 
 #[derive(Debug, Default)]

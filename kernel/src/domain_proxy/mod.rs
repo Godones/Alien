@@ -3,7 +3,10 @@ pub mod continuation;
 use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
 use core::{ops::Range, sync::atomic::AtomicU64};
 
-use constants::{io::RtcTime, AlienError, AlienResult};
+use constants::{
+    io::{RtcTime, SeekFrom},
+    AlienError, AlienResult,
+};
 use downcast_rs::{impl_downcast, DowncastSync};
 use interface::*;
 use ksync::{Mutex, RwLock};

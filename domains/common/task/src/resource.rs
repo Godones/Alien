@@ -1,19 +1,24 @@
 use alloc::{collections::BTreeMap, string::String, sync::Arc, vec::Vec};
-use core::fmt::{Debug, Formatter};
+use core::{
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
 
-use basic::{sync::Mutex, vm::frame::FrameTracker};
-use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, USER_STACK_SIZE};
+use basic::sync::Mutex;
+use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, PROCESS_HEAP_MAX, USER_STACK_SIZE};
 use constants::{
     aux::{
         AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_IGNORE, AT_PAGESZ, AT_PHDR,
         AT_PHENT, AT_PHNUM, AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
     },
-    AlienError, AlienResult,
+    io::{MMapFlags, ProtFlags},
+    AlienError, AlienResult, PrLimitResType, RLimit64,
 };
-use memory_addr::VirtAddr;
+use memory_addr::{align_up_4k, VirtAddr};
 use ptable::{VmIo, VmSpace};
 use small_index::IndexAllocator;
 use spin::Lazy;
+use util::SlotVec;
 
 use crate::{
     elf::{ELFInfo, VmmPageAllocator},
@@ -49,66 +54,40 @@ impl Drop for TidHandle {
 
 #[derive(Clone)]
 pub struct FdManager {
-    index_map: IndexAllocator<MAX_FD_NUM>,
-    fd_table: Vec<Option<Arc<ShimFile>>>,
+    fd_table: SlotVec<Arc<ShimFile>>,
 }
 
 impl Debug for FdManager {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("FdManager")
             .field("index_map_size", &MAX_FD_NUM)
-            .field("fd_table", &self.fd_table)
             .finish()
     }
 }
 
 impl FdManager {
     pub fn new() -> Self {
-        let mut fd_table = Vec::with_capacity(MAX_FD_NUM);
-        for _ in 0..MAX_FD_NUM {
-            fd_table.push(None);
-        }
         Self {
-            index_map: IndexAllocator::new(),
-            fd_table,
+            fd_table: SlotVec::with_capacity(MAX_FD_NUM),
         }
     }
     pub fn get(&self, fd: usize) -> Option<Arc<ShimFile>> {
-        if fd >= MAX_FD_NUM {
-            return None;
-        }
-        self.fd_table[fd].clone()
+        self.fd_table.get(fd).map(|x| x.clone())
     }
 
     pub fn insert(&mut self, file: Arc<ShimFile>) -> usize {
-        let fd = self.index_map.allocate().unwrap();
-        self.fd_table[fd] = Some(file);
-        fd
+        let index = self.fd_table.put(file);
+        index
+    }
+
+    pub fn remove(&mut self, fd: usize) -> Option<Arc<ShimFile>> {
+        self.fd_table.remove(fd)
+    }
+
+    pub fn insert_to(&mut self, fd: usize, file: Arc<ShimFile>) -> Option<Arc<ShimFile>> {
+        self.fd_table.put_at(fd, file)
     }
 }
-
-#[derive(Debug)]
-pub struct KStack {
-    frames: Option<FrameTracker>,
-}
-
-impl KStack {
-    pub fn new(pages: usize) -> Self {
-        let frames = FrameTracker::new(pages);
-        Self {
-            frames: Some(frames),
-        }
-    }
-
-    pub fn top(&self) -> VirtAddr {
-        self.frames.as_ref().unwrap().end_virt_addr()
-    }
-
-    pub fn release(&mut self) {
-        self.frames.take();
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct HeapInfo {
     /// 堆使用到的位置
@@ -323,5 +302,149 @@ impl AuxVec {
 
     pub fn table(&self) -> &BTreeMap<usize, u64> {
         &self.table
+    }
+}
+
+#[derive(Debug, Clone)]
+/// The Process should manage the mmap info
+pub struct MMapInfo {
+    /// The start address of the mmap, it is a constant
+    map_start: usize,
+    /// The regions of the mmap
+    regions: Vec<MMapRegion>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MMapRegion {
+    /// The start address of the mapping
+    pub start: usize,
+    /// The length of the mapping
+    pub len: usize,
+    pub map_len: usize,
+    /// The protection flags of the mapping
+    pub prot: ProtFlags,
+    /// The flags of the mapping
+    pub flags: MMapFlags,
+    /// The file descriptor to map
+    pub fd: Option<Arc<ShimFile>>,
+    /// The offset in the file to start from
+    pub offset: usize,
+}
+
+impl MMapInfo {
+    pub fn new() -> Self {
+        Self {
+            map_start: PROCESS_HEAP_MAX,
+            regions: Vec::new(),
+        }
+    }
+
+    pub fn alloc(&mut self, len: usize) -> Range<usize> {
+        let addr = self.map_start;
+        self.map_start += len;
+        // align to Frame size
+        self.map_start = (self.map_start + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+        addr..self.map_start
+    }
+
+    pub fn add_region(&mut self, region: MMapRegion) {
+        self.regions.push(region);
+    }
+
+    pub fn get_region(&self, addr: usize) -> Option<&MMapRegion> {
+        for region in self.regions.iter() {
+            if region.start <= addr && addr < region.start + region.len {
+                return Some(region);
+            }
+        }
+        None
+    }
+
+    pub fn remove_region(&mut self, addr: usize) {
+        let mut index = 0;
+        for region in self.regions.iter() {
+            if region.start <= addr && addr < region.start + region.len {
+                break;
+            }
+            index += 1;
+        }
+        self.regions.remove(index);
+    }
+}
+
+impl MMapRegion {
+    pub fn new(
+        start: usize,
+        len: usize,
+        map_len: usize,
+        prot: ProtFlags,
+        flags: MMapFlags,
+        fd: Option<Arc<ShimFile>>,
+        offset: usize,
+    ) -> Self {
+        Self {
+            start,
+            len,
+            map_len,
+            prot,
+            flags,
+            fd,
+            offset,
+        }
+    }
+    // [a-b]
+    // [a-c] [c-b]
+    pub fn split(&self, addr: usize) -> (Self, Self) {
+        let mut region1 = self.clone();
+        let mut region2 = self.clone();
+        region1.len = addr - self.start;
+        region1.map_len = align_up_4k(region1.len);
+        region2.start = addr;
+        region2.len = self.start + self.len - addr;
+        region2.map_len = align_up_4k(region2.len);
+        region2.offset += region1.len;
+        (region1, region2)
+    }
+
+    pub fn set_prot(&mut self, prot: ProtFlags) {
+        self.prot = prot;
+    }
+    pub fn set_flags(&mut self, flags: MMapFlags) {
+        self.flags = flags;
+    }
+}
+
+pub const RLIMIT_COUNT: usize = 16;
+
+#[derive(Debug)]
+pub struct ResourceLimits {
+    rlimits: [RLimit64; RLIMIT_COUNT],
+}
+
+impl ResourceLimits {
+    pub fn get_rlimit(&self, resource: PrLimitResType) -> &RLimit64 {
+        &self.rlimits[resource as usize]
+    }
+
+    pub fn get_rlimit_mut(&mut self, resource: PrLimitResType) -> &mut RLimit64 {
+        &mut self.rlimits[resource as usize]
+    }
+}
+
+impl Default for ResourceLimits {
+    fn default() -> Self {
+        let stack_size = RLimit64::new(USER_STACK_SIZE as u64, u64::MAX);
+        // let heap_size = RLimit64::new(USER_HEAP_SIZE_LIMIT as u64);
+        let open_files = RLimit64::new(4096, u64::MAX);
+        let limit_as = RLimit64::new(u64::MAX, u64::MAX);
+
+        let mut rlimits = Self {
+            rlimits: [RLimit64::default(); RLIMIT_COUNT],
+        };
+        *rlimits.get_rlimit_mut(PrLimitResType::RlimitAs) = limit_as;
+        *rlimits.get_rlimit_mut(PrLimitResType::RlimitStack) = stack_size;
+        // *rlimits.get_rlimit_mut(PrLimitResType::RLIMIT_DATA) = heap_size;
+        *rlimits.get_rlimit_mut(PrLimitResType::RlimitNofile) = open_files;
+        rlimits
     }
 }

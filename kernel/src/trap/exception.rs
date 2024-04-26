@@ -16,6 +16,10 @@ pub fn syscall_exception_handler() {
     let parameters = cx.parameters();
     let _syscall_name = constants::syscall_name(parameters[0]);
 
+    info!(
+        "syscall {:?} parameters: {:?}",
+        _syscall_name, parameters[0]
+    );
     let result = syscall_domain!().call(
         parameters[0],
         [
@@ -27,10 +31,13 @@ pub fn syscall_exception_handler() {
             parameters[6],
         ],
     );
-
     // cx is changed during sys_exec, so we have to call it again
     let trap_frame_phy_addr = task_domain.trap_frame_phy_addr().unwrap();
     let cx = TrapFrame::from_raw_phy_ptr(PhysAddr::from(trap_frame_phy_addr));
-    // debug!("syscall [{}] result: {:x?}, sepc: {}",syscall_name, result,cx.sepc);
-    cx.update_result(result.unwrap() as usize);
+    let res = result.unwrap_or_else(|err| {
+        error!("syscall error: {:?}", err);
+        err as isize
+    });
+    info!("syscall {:?} result: {:?}", _syscall_name, result);
+    cx.update_result(res as usize);
 }

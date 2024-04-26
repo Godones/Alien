@@ -1,7 +1,13 @@
+mod ipc;
+mod resource;
+
 use alloc::sync::Arc;
 
 use constants::AlienResult;
 use interface::{SchedulerDomain, TaskDomain};
+pub use ipc::*;
+use log::info;
+pub use resource::*;
 
 pub fn sys_clone(
     task_domain: &Arc<dyn TaskDomain>,
@@ -80,4 +86,14 @@ pub fn sys_get_egid(_task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
 
 pub fn sys_get_tid(task_domain: &Arc<dyn TaskDomain>) -> AlienResult<isize> {
     task_domain.current_tid().map(|tid| tid as isize)
+}
+
+pub fn sys_exit(task_domain: &Arc<dyn TaskDomain>, status: usize) -> AlienResult<isize> {
+    info!("<sys_exit> status: {}", status);
+    task_domain.do_exit(status as isize)
+}
+
+pub fn sys_exit_group(task_domain: &Arc<dyn TaskDomain>, status: usize) -> AlienResult<isize> {
+    info!("<sys_exit_group> status: {}", status);
+    task_domain.do_exit(status as isize)
 }

@@ -13,3 +13,6 @@ vfscore = { git = "https://github.com/os-module/rvfs.git" }
 dynfs = { git = "https://github.com/os-module/rvfs.git" }
 ksync = { path = "../../../base/ksync" }
 generic = { path = "../generic" }
+
+log = "0"
+spin = { workspace = true }

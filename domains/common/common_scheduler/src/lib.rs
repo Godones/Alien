@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 mod processor;
+pub mod resource;
 mod scheduler;
 
 extern crate alloc;
@@ -11,11 +12,12 @@ use alloc::{boxed::Box, sync::Arc};
 use basic::{println, sync::Mutex};
 use constants::AlienResult;
 use interface::{Basic, SchedulerDomain};
+use log::debug;
 use rref::RRef;
 pub use scheduler::Scheduler;
 use task_meta::TaskMeta;
 
-use crate::processor::run_task;
+use crate::{processor::run_task, resource::TaskMetaExt};
 
 #[derive(Debug)]
 pub struct CommonSchedulerDomain {
@@ -52,9 +54,11 @@ impl SchedulerDomain for CommonSchedulerDomain {
         }
     }
 
-    fn add_one_task(&self, task_meta: RRef<TaskMeta>) -> AlienResult<()> {
-        scheduler::add_task(Arc::new(Mutex::new(*task_meta)));
-        Ok(())
+    fn add_one_task(&self, task_meta: RRef<TaskMeta>) -> AlienResult<usize> {
+        let task_meta = TaskMetaExt::new(*task_meta);
+        let kstack_top = task_meta.kstack.top();
+        scheduler::add_task(Arc::new(Mutex::new(task_meta)));
+        Ok(kstack_top.as_usize())
     }
     fn current_to_wait(&self) -> AlienResult<()> {
         scheduler::current_to_wait();
@@ -67,6 +71,12 @@ impl SchedulerDomain for CommonSchedulerDomain {
     }
     fn yield_now(&self) -> AlienResult<()> {
         scheduler::do_suspend();
+        Ok(())
+    }
+
+    fn exit_now(&self) -> AlienResult<()> {
+        debug!("<exit_now>");
+        scheduler::exit_now();
         Ok(())
     }
 }

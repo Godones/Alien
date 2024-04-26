@@ -105,6 +105,12 @@ impl TaskDomain for TaskDomainImpl {
         Ok(fd)
     }
 
+    fn remove_fd(&self, fd: usize) -> AlienResult<InodeID> {
+        let task = current_task().unwrap();
+        let file = task.remove_file(fd).ok_or(AlienError::EBADF)?;
+        Ok(file.inode_id())
+    }
+
     fn fs_info(&self) -> AlienResult<(InodeID, InodeID)> {
         let task = current_task().unwrap();
         let fs_info = task.inner().fs_info.clone();
@@ -208,6 +214,40 @@ impl TaskDomain for TaskDomainImpl {
         offset: usize,
     ) -> AlienResult<isize> {
         syscall::mmap::do_mmap(start, len, prot, flags, fd, offset)
+    }
+
+    fn do_munmap(&self, start: usize, len: usize) -> AlienResult<isize> {
+        syscall::mmap::do_munmap(start, len)
+    }
+
+    fn do_sigaction(&self, signum: u8, act: usize, oldact: usize) -> AlienResult<isize> {
+        syscall::signal::do_sigaction(signum, act, oldact)
+    }
+    fn do_sigprocmask(&self, how: usize, set: usize, oldset: usize) -> AlienResult<isize> {
+        syscall::signal::do_sigprocmask(how, set, oldset)
+    }
+    fn do_fcntl(&self, fd: usize, cmd: usize) -> AlienResult<(InodeID, usize)> {
+        syscall::fs::do_fcntl(fd, cmd)
+    }
+    fn do_prlimit(
+        &self,
+        pid: usize,
+        resource: usize,
+        new_limit: usize,
+        old_limit: usize,
+    ) -> AlienResult<isize> {
+        syscall::prlimit::do_prlimit(pid, resource, new_limit, old_limit)
+    }
+    fn do_dup(&self, old_fd: usize, new_fd: Option<usize>) -> AlienResult<isize> {
+        syscall::fs::do_dup(old_fd, new_fd)
+    }
+
+    fn do_pipe2(&self, r: InodeID, w: InodeID, pipe: usize) -> AlienResult<isize> {
+        syscall::fs::do_pipe2(r, w, pipe)
+    }
+
+    fn do_exit(&self, exit_code: isize) -> AlienResult<isize> {
+        syscall::exit::do_exit(exit_code as i32)
     }
 }
 

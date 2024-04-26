@@ -2,6 +2,7 @@
 //!
 
 use bitflags::*;
+use pod::Pod;
 
 use super::number::SignalNumber;
 use crate::signal::SimpleBitSet;
@@ -16,7 +17,7 @@ pub const SIG_IGN: usize = 1;
 
 /// 和信号处理函数相关的信息定义
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Pod)]
 pub struct SigAction {
     /// 用户定义的处理函数地址
     ///
@@ -70,7 +71,8 @@ impl SigAction {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Default,Pod)]
+    #[repr(C)]
     /// 信号处理指定参数，详见 `https://man7.org/linux/man-pages/man2/rt_sigaction.2.html`
     pub struct SigActionFlags : usize {
         const SA_NOCLDSTOP = 1;

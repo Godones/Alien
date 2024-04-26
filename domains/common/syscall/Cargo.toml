@@ -12,5 +12,5 @@ rref = { path = "../../../domain-tools/rref" }
 constants = { path = "../../../base/constants" }
 pod = { workspace = true }
 vfscore = { git = "https://github.com/os-module/rvfs.git" }
-
+bit_field = { workspace = true }
 log = "0"

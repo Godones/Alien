@@ -43,7 +43,7 @@ fn main() {
             subcommand::new::create_domain(name);
         }
         Some(Commands::BuildAll { log }) => {
-            println!("Building all domain projects");
+            println!("Building all domain projects, LOG: {log}");
             subcommand::build::build_all(log);
         }
         Some(Commands::Build { name, log }) => {

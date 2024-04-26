@@ -46,12 +46,17 @@ pub fn sys_mmap(
     if flags.contains(MMapFlags::MAP_ANONYMOUS) && offset != 0 {
         return Err(AlienError::EINVAL);
     }
-
     info!(
         "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
         addr, len, prot, flags, fd, offset
     );
-    task_domain
+    let res = task_domain
         .do_mmap(addr, len, prot.bits(), flags.bits(), fd, offset)
-        .map(|addr| addr)
+        .map(|addr| addr);
+    info!("mmap: res: {:#x?}", res);
+    res
+}
+
+pub fn sys_unmap(task_domain: &Arc<dyn TaskDomain>, addr: usize, len: usize) -> AlienResult<isize> {
+    task_domain.do_munmap(addr, len)
 }

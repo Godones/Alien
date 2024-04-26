@@ -14,12 +14,17 @@ use basic::{
     vm::frame::FrameTracker,
 };
 use config::*;
-use constants::{signal::SignalNumber, task::CloneFlags, AlienResult};
+use constants::{
+    signal::{SignalHandlers, SignalNumber, SignalReceivers},
+    task::CloneFlags,
+    AlienResult,
+};
 use interface::{InodeID, VFS_ROOT_ID};
 use memory_addr::{PhysAddr, VirtAddr};
 use page_table::MappingFlags;
 use pod::Pod;
 use ptable::{PhysPage, VmArea, VmAreaType, VmIo, VmSpace};
+use rref::RRef;
 use small_index::IndexAllocator;
 use task_meta::{TaskMeta, TaskStatus};
 
@@ -28,7 +33,8 @@ use crate::{
         build_vm_space, clone_vm_space, extend_thread_vm_space, FrameTrackerWrapper,
         VmmPageAllocator,
     },
-    resource::{AuxVec, FdManager, HeapInfo, KStack, TidHandle, UserStack},
+    resource::{AuxVec, FdManager, HeapInfo, MMapInfo, ResourceLimits, TidHandle, UserStack},
+    scheduler_domain,
     vfs_shim::{ShimFile, STDIN, STDOUT},
 };
 
@@ -43,13 +49,20 @@ pub struct Task {
     /// 否则发送信号
     pub send_sigchld_when_exit: bool,
     /// 内核栈
-    pub kernel_stack: KStack,
+    pub kernel_stack: usize,
     /// 地址空间
     pub address_space: Arc<Mutex<VmSpace<VmmPageAllocator>>>,
     /// 文件描述符表
     pub fd_table: Arc<Mutex<FdManager>>,
     /// 堆空间
     pub heap: Arc<Mutex<HeapInfo>>,
+    /// mmap
+    pub mmap: Arc<Mutex<MMapInfo>>,
+    /// 信号量对应的一组处理函数。
+    /// 因为发送信号是通过 pid/tid 查找的，因此放在 inner 中一起调用时更容易导致死锁
+    pub signal_handlers: Arc<Mutex<SignalHandlers>>,
+    /// 接收信号的结构。每个线程中一定是独特的，而上面的 handler 可能是共享的
+    pub signal_receivers: Arc<Mutex<SignalReceivers>>,
     /// 线程计数器，用于分配同一个线程组中的线程序号
     pub threads: Arc<Mutex<IndexAllocator<MAX_THREAD_NUM>>>,
     /// 更详细的信息
@@ -68,8 +81,6 @@ pub struct TaskInner {
     pub parent: Option<Weak<Task>>,
     /// 孩子任务控制块的集合
     pub children: BTreeMap<usize, Arc<Task>>,
-    /// 任务上下文
-    pub context: TaskContext,
     /// 文件系统的信息
     pub fs_info: FsContext,
     /// 返回值
@@ -79,6 +90,8 @@ pub struct TaskInner {
     pub clear_child_tid: usize,
     /// 栈空间的信息
     pub stack: Range<usize>,
+    /// resource limits
+    pub resource_limits: Mutex<ResourceLimits>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -116,10 +129,6 @@ impl Task {
         let inner = self.inner.lock();
         inner.status
     }
-
-    pub fn create_task_meta(&self) -> TaskMeta {
-        TaskMeta::new(self.tid(), self.inner().context)
-    }
     pub fn set_tid_address(&self, addr: usize) {
         let mut inner = self.inner.lock();
         inner.clear_child_tid = addr;
@@ -130,6 +139,14 @@ impl Task {
 
     pub fn add_file(&self, file: Arc<ShimFile>) -> usize {
         self.fd_table.lock().insert(file)
+    }
+
+    pub fn add_file_to_fd(&self, file: Arc<ShimFile>, fd: usize) -> Option<Arc<ShimFile>> {
+        self.fd_table.lock().insert_to(fd, file)
+    }
+
+    pub fn remove_file(&self, fd: usize) -> Option<Arc<ShimFile>> {
+        self.fd_table.lock().remove(fd)
     }
 
     pub fn token(&self) -> usize {
@@ -237,15 +254,17 @@ impl Task {
         }
         let elf_info = elf_info.unwrap();
         let address_space = elf_info.address_space;
-        let k_stack = KStack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE);
-        let k_stack_top = k_stack.top();
+
         let stack_info =
             elf_info.stack_top.as_usize() - USER_STACK_SIZE..elf_info.stack_top.as_usize();
-        let task = Task {
+        let mut task = Task {
             tid,
-            kernel_stack: k_stack,
+            kernel_stack: 0,
             pid,
             address_space: Arc::new(Mutex::new(address_space)),
+            mmap: Arc::new(Mutex::new(MMapInfo::new())),
+            signal_handlers: Arc::new(Mutex::new(SignalHandlers::new())),
+            signal_receivers: Arc::new(Mutex::new(SignalReceivers::new())),
             fd_table: {
                 let mut fd_table = FdManager::new();
                 fd_table.insert(STDIN.clone());
@@ -269,11 +288,11 @@ impl Task {
                 status: TaskStatus::Ready,
                 parent: None,
                 children: BTreeMap::new(),
-                context: TaskContext::new_user(k_stack_top),
                 fs_info: FsContext::new(VFS_ROOT_ID, VFS_ROOT_ID),
                 exit_code: 0,
                 clear_child_tid: 0,
                 stack: stack_info,
+                resource_limits: Mutex::new(ResourceLimits::default()),
             }),
             send_sigchld_when_exit: false,
         };
@@ -284,9 +303,17 @@ impl Task {
             AuxVec::default(),
             name.to_string(),
         );
+
+        let context = TaskContext::new_user(VirtAddr::from(0));
+        let task_meta = TaskMeta::new(task.tid.raw(), context);
+        let k_stack_top = scheduler_domain!()
+            .add_one_task(RRef::new(task_meta))
+            .unwrap();
+        task.kernel_stack = k_stack_top;
+
         let user_sp = user_stack.init(&mut task.address_space.lock()).unwrap();
         let trap_frame = task.trap_frame();
-        *trap_frame = TrapFrame::new_user(elf_info.entry, user_sp, k_stack_top);
+        *trap_frame = TrapFrame::new_user(elf_info.entry, user_sp, VirtAddr::from(k_stack_top));
         trap_frame.update_tp(VirtAddr::from(elf_info.tls)); // tp --> tls
         Some(task)
     }
@@ -356,16 +383,16 @@ impl Task {
             Arc::new(Mutex::new(self.heap.lock().clone()))
         };
 
-        let k_stack = KStack::new(USER_KERNEL_STACK_SIZE / FRAME_SIZE);
-        let k_stack_top = k_stack.top();
-
         info!("create task pid:{:?}, tid:{:?}", pid, tid);
-        let task = Task {
+        let mut task = Task {
             tid: tid.clone(),
-            kernel_stack: k_stack,
+            kernel_stack: 0,
             pid,
             threads,
             address_space,
+            mmap: Arc::new(Mutex::new(MMapInfo::new())),
+            signal_handlers: Arc::new(Mutex::new(SignalHandlers::new())),
+            signal_receivers: Arc::new(Mutex::new(SignalReceivers::new())),
             fd_table,
             heap,
             inner: Mutex::new(TaskInner {
@@ -374,7 +401,6 @@ impl Task {
                 status: TaskStatus::Ready,
                 parent,
                 children: BTreeMap::new(),
-                context: TaskContext::new_user(k_stack_top),
                 fs_info,
                 exit_code: 0,
                 clear_child_tid: if clone_args.flags.contains(CloneFlags::CLONE_CHILD_CLEARTID) {
@@ -383,16 +409,24 @@ impl Task {
                     0
                 },
                 stack,
+                resource_limits: Mutex::new(ResourceLimits::default()),
             }),
             send_sigchld_when_exit: clone_args.sig == SignalNumber::SIGCHLD,
         };
+
+        let context = TaskContext::new_user(VirtAddr::from(0));
+        let task_meta = TaskMeta::new(task.tid.raw(), context);
+        let k_stack_top = scheduler_domain!()
+            .add_one_task(RRef::new(task_meta))
+            .unwrap();
+        task.kernel_stack = k_stack_top;
 
         // let old_trap_context = self.trap_frame();
         let trap_context = task.trap_frame();
 
         // *trap_context = *old_trap_context;
         // 设置内核栈地址
-        trap_context.update_k_sp(k_stack_top);
+        trap_context.update_k_sp(VirtAddr::from(k_stack_top));
 
         // 检查是否需要设置 tls
         if clone_args.flags.contains(CloneFlags::CLONE_SETTLS) {
@@ -453,11 +487,15 @@ impl Task {
         info!("argv:{:?}, env:{:?}", argv, envp);
         let mut user_stack = UserStack::new(elf_info.stack_top, argv, envp, aux, name.to_string());
         let user_sp = user_stack.init(&mut self.address_space.lock())?;
-        info!("user_sp: {:#x}", user_sp);
+        info!(
+            "user_sp: {:#x}, kernel_sp: {:#x}",
+            user_sp, self.kernel_stack
+        );
         drop(inner);
         let trap_frame = self.trap_frame();
 
-        *trap_frame = TrapFrame::new_user(elf_info.entry, user_sp, self.kernel_stack.top());
+        *trap_frame =
+            TrapFrame::new_user(elf_info.entry, user_sp, VirtAddr::from(self.kernel_stack));
         trap_frame.update_tp(VirtAddr::from(elf_info.tls)); // tp --> tls
         Ok(())
     }

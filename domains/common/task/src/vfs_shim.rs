@@ -44,6 +44,12 @@ impl ShimFile {
     }
 }
 
+impl Drop for ShimFile {
+    fn drop(&mut self) {
+        let _ = VFS_DOMAIN.get().unwrap().vfs_close(self.id);
+    }
+}
+
 pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
     let task = current_task();
     let path = if task.is_none() {

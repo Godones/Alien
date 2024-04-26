@@ -4,6 +4,7 @@ pub use action::{
     SigAction, SigActionDefault, SigActionFlags, SIGNAL_RETURN_TRAP, SIG_DFL, SIG_IGN,
 };
 pub use number::SignalNumber;
+use pod::Pod;
 pub use siginfo::{SigInfo, SigProcMaskHow};
 pub use ucontext::SignalUserContext;
 
@@ -120,7 +121,8 @@ impl SignalReceivers {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, Pod)]
+#[repr(C)]
 pub struct SimpleBitSet(pub usize);
 
 impl SimpleBitSet {
@@ -165,7 +167,7 @@ impl Into<Vec<SignalNumber>> for SimpleBitSet {
         let mut ans = Vec::new();
         for i in 0..64 {
             if self.0 & (1 << i) != 0 {
-                ans.push(SignalNumber::try_from(i + 1).unwrap());
+                ans.push(SignalNumber::try_from(i).unwrap());
             }
         }
         ans
