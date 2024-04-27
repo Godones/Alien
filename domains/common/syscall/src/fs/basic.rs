@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use alloc::{sync::Arc, vec};
 use core::cmp::min;
 
 use basic::{
@@ -7,7 +7,7 @@ use basic::{
 };
 use bit_field::BitField;
 use constants::{
-    io::{FaccessatFlags, FaccessatMode, FileStat, IoVec, SeekFrom, StatFlags},
+    io::{FaccessatFlags, FaccessatMode, FileStat, IoVec, PollEvents, PollFd, SeekFrom, StatFlags},
     time::TimeSpec,
     AlienError, AlienResult, AT_FDCWD,
 };
@@ -380,6 +380,65 @@ pub fn sys_pselect6(
     }
 }
 
+pub fn sys_ppoll(
+    vfs: &Arc<dyn VfsDomain>,
+    task_domain: &Arc<dyn TaskDomain>,
+    scheduler_domain: &Arc<dyn SchedulerDomain>,
+    fds_ptr: usize,
+    nfds: usize,
+    timeout: usize,
+    sigmask: usize,
+) -> AlienResult<isize> {
+    debug!(
+        "<sys_ppoll> fds: {:#x} nfds: {:?} timeout: {:#x} sigmask: {:#x}",
+        fds_ptr, nfds, timeout, sigmask
+    );
+    let mut fds = vec![0u8; core::mem::size_of::<PollFd>() * nfds];
+    task_domain.copy_from_user(fds_ptr, fds.as_mut_slice())?;
+    info!("fds: {:?}", fds);
+    let wait_time = if timeout != 0 {
+        let time_spec = task_domain.read_val_from_user::<TimeSpec>(timeout)?;
+        Some(time_spec.to_clock() + TimeSpec::now().to_clock())
+    } else {
+        None
+    }; // wait forever
+    let mut res = 0;
+    loop {
+        for idx in 0..nfds {
+            let mut pfd = PollFd::from_bytes(&fds[idx * core::mem::size_of::<PollFd>()..]);
+            if let Ok(file) = task_domain.get_fd(pfd.fd as usize) {
+                let vfs_event = VfsPollEvents::from_bits_truncate(pfd.events.bits());
+                let event = vfs.vfs_poll(file, vfs_event)?;
+                if !event.is_empty() {
+                    res += 1;
+                }
+                info!("[ppoll]: event: {:?}", event);
+                pfd.revents = PollEvents::from_bits_truncate(event.bits())
+            } else {
+                // todo: error
+                pfd.events = PollEvents::INVAL;
+            }
+            let range = (idx * core::mem::size_of::<PollFd>())
+                ..((idx + 1) * core::mem::size_of::<PollFd>());
+            fds[range].copy_from_slice(&pfd.as_bytes());
+        }
+        if res > 0 {
+            // copy to user
+            task_domain.copy_to_user(fds_ptr, &fds)?;
+            debug!("ppoll return {:?}", fds);
+            return Ok(res as isize);
+        }
+        if let Some(wait_time) = wait_time {
+            if wait_time <= TimeSpec::now().to_clock() {
+                debug!("ppoll timeout");
+                return Ok(0);
+            }
+        }
+        info!("<sys_ppoll> suspend");
+        scheduler_domain.yield_now()?;
+    }
+}
+
 pub fn sys_getdents64(
     vfs: &Arc<dyn VfsDomain>,
     task_domain: &Arc<dyn TaskDomain>,
@@ -414,4 +473,22 @@ pub fn sys_chdir(
     let id = vfs.vfs_open(current_root, &path, 0, 0)?;
     task_domain.set_cwd(id)?;
     Ok(0)
+}
+
+pub fn sys_getcwd(
+    vfs: &Arc<dyn VfsDomain>,
+    task_domain: &Arc<dyn TaskDomain>,
+    buf: usize,
+    size: usize,
+) -> AlienResult<isize> {
+    if buf == 0 {
+        return Err(AlienError::EINVAL);
+    }
+    let (_, cwd) = task_domain.fs_info()?;
+    let mut tmp_buf = RRefVec::<u8>::new(0, size);
+    let r;
+    (tmp_buf, r) = vfs.vfs_get_path(cwd, tmp_buf)?;
+    info!("<sys_getcwd> buf: {:#x} size: {:?} r: {:?}", buf, size, r);
+    task_domain.copy_to_user(buf, &tmp_buf.as_slice()[..r])?;
+    Ok(r as isize)
 }

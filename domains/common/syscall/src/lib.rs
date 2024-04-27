@@ -54,6 +54,7 @@ impl SysCallDomain for SysCallDomainImpl {
         // let tid = self.task_domain.current_tid().unwrap();
         // info!("[pid:{} tid:{}] syscall: {} {:?}",pid,tid, syscall_name, args);
         match syscall_id {
+            17 => sys_getcwd(&self.vfs_domain, &self.task_domain, args[0], args[1]),
             23 => sys_dup(&self.task_domain, args[0]),
             24 => sys_dup2(&self.task_domain, args[0], args[1]),
             25 => sys_fcntl(
@@ -141,6 +142,15 @@ impl SysCallDomain for SysCallDomainImpl {
                 args[3],
                 args[4],
                 args[5],
+            ),
+            73 => sys_ppoll(
+                &self.vfs_domain,
+                &self.task_domain,
+                &self.scheduler,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
             ),
             79 => sys_fstatat(
                 &self.vfs_domain,

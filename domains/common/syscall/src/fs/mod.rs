@@ -4,7 +4,7 @@ mod control;
 use alloc::sync::Arc;
 
 pub use basic::*;
-use constants::{AlienError, AlienResult, AT_FDCWD};
+use constants::{AlienResult, AT_FDCWD};
 pub use control::*;
 use interface::{InodeID, TaskDomain, VFS_ROOT_ID};
 use log::info;
