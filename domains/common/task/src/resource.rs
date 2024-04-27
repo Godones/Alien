@@ -200,7 +200,7 @@ impl UserStack {
         data: &Vec<u64>,
         vm_space: &mut VmSpace<VmmPageAllocator>,
     ) -> AlienResult<()> {
-        for data in data.iter().rev() {
+        for data in data.iter() {
             self.push_u64(*data, vm_space)?;
         }
         Ok(())

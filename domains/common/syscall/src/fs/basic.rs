@@ -17,6 +17,8 @@ use pod::Pod;
 use rref::{RRef, RRefVec};
 use vfscore::utils::{VfsFileStat, VfsPollEvents};
 
+use crate::fs::user_path_at;
+
 pub fn sys_openat(
     vfs: &Arc<dyn VfsDomain>,
     task_domain: &Arc<dyn TaskDomain>,
@@ -32,17 +34,13 @@ pub fn sys_openat(
     let len;
     (tmp_buf, len) = task_domain.read_string_from_user(path as usize, tmp_buf)?;
     let path = core::str::from_utf8(&tmp_buf.as_slice()[..len]).unwrap();
-    debug!(
+    info!(
         "<sys_openat> path: {:?} flags: {:?} mode: {:?}",
         path, flags, mode
     );
-    let current_root = if dirfd as isize == AT_FDCWD {
-        let (_, cwd) = task_domain.fs_info()?;
-        cwd
-    } else {
-        let current_root = task_domain.get_fd(dirfd)?;
-        current_root
-    };
+
+    let (_, current_root) = user_path_at(task_domain, dirfd as isize, path)?;
+
     let path = RRefVec::from_slice(&path.as_bytes());
     let file = vfs.vfs_open(current_root, &path, mode as _, flags as _)?;
     let fd = task_domain.add_fd(file)?;
@@ -177,13 +175,7 @@ pub fn sys_fstatat(
         "<sys_fstatat> path_ptr: {:#x?}, path: {:?}, len:{} flags: {:?}",
         path_ptr, path, len, flag
     );
-    let current_root = if dirfd as isize == AT_FDCWD {
-        let (_, cwd) = task_domain.fs_info()?;
-        cwd
-    } else {
-        let current_root = task_domain.get_fd(dirfd)?;
-        current_root
-    };
+    let (_, current_root) = user_path_at(task_domain, dirfd as isize, path)?;
     let path = RRefVec::from_slice(&path.as_bytes());
     // todo!(VfsFileStat == FileStat)
     let attr = RRef::new(VfsFileStat::default());
@@ -217,13 +209,7 @@ pub fn sys_faccessat(
         "<sys_faccessat> path: {:?} flag: {:?} mode: {:?}",
         path, flag, mode
     );
-    let current_root = if dirfd == AT_FDCWD as usize {
-        let (_, cwd) = task_domain.fs_info()?;
-        cwd
-    } else {
-        let current_root = task_domain.get_fd(dirfd)?;
-        current_root
-    };
+    let (_, current_root) = user_path_at(task_domain, dirfd as isize, path)?;
     let path = RRefVec::from_slice(&path.as_bytes());
     let id = vfs.vfs_open(current_root, &path, 0, 0)?;
     info!("<sys_faccessat> id: {:?}", id);
@@ -423,8 +409,7 @@ pub fn sys_chdir(
     (tmp_buf, len) = task_domain.read_string_from_user(path, tmp_buf)?;
     let path = core::str::from_utf8(&tmp_buf.as_slice()[..len]).unwrap();
     info!("<sys_chdir> path: {:?}", path);
-    let (_, current_root) = task_domain.fs_info()?;
-
+    let (_, current_root) = user_path_at(task_domain, AT_FDCWD, path)?;
     let path = RRefVec::from_slice(&path.as_bytes());
     let id = vfs.vfs_open(current_root, &path, 0, 0)?;
     task_domain.set_cwd(id)?;

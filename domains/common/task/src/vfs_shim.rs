@@ -62,7 +62,7 @@ pub fn read_all(file_name: &str, buf: &mut Vec<u8>) -> bool {
     let res = VFS_DOMAIN
         .get()
         .unwrap()
-        .vfs_open(path.0, &name, 0, OpenFlags::O_RDONLY.bits());
+        .vfs_open(path.1, &name, 0, OpenFlags::O_RDONLY.bits());
 
     if res.is_err() {
         info!("open file {} failed, err:{:?}", file_name, res.err());

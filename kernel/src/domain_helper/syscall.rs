@@ -7,7 +7,7 @@ use constants::{AlienError, AlienResult};
 use corelib::CoreFunction;
 use interface::*;
 use ksync::Mutex;
-use log::{info, warn};
+use log::warn;
 use platform::iprint;
 use spin::Lazy;
 
@@ -53,7 +53,7 @@ impl CoreFunction for DomainSyscall {
 
     fn sys_free_pages(&self, domain_id: u64, p: *mut u8, n: usize) {
         let n = n.next_power_of_two();
-        info!("[Domain: {}] free pages: {}, ptr: {:p}", domain_id, n, p);
+        debug!("[Domain: {}] free pages: {}, ptr: {:p}", domain_id, n, p);
         let mut binding = DOMAIN_PAGE_MAP.lock();
         let vec = binding.entry(domain_id).or_insert(Vec::new());
         let start = p as usize >> FRAME_BITS;
@@ -140,7 +140,7 @@ impl CoreFunction for DomainSyscall {
         Ok(())
     }
 
-    fn sys_replace_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
+    fn sys_update_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
         let old_domain = super::query_domain(old_domain_name).ok_or(AlienError::EINVAL)?;
         match old_domain {
             DomainType::ShadowBlockDomain(shadow_blk) => {

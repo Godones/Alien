@@ -18,7 +18,8 @@ build:
 
 BUILD_CRATES := \
 	init \
-	shell \
+	dtest \
+	domain \
 #	run_test \
 	tests \
 	sleep \

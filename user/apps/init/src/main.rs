@@ -4,8 +4,6 @@
 extern crate alloc;
 
 use Mstd::{
-    domain::{load_domain, replace_domain, DomainTypeRaw},
-    fs::{open, read, OpenFlags},
     println,
     process::{exec, exit, fork, wait, waitpid},
     thread::m_yield,
@@ -19,36 +17,6 @@ fn main() -> isize {
         // exec("/tests/shell\0", &[0 as *const u8], BASH_ENV);
     } else {
         if fork() == 0 {
-            let sshadow_blk_fd = open("/tests/gsshadow_blk\0", OpenFlags::O_RDWR);
-            if sshadow_blk_fd == -1 {
-                println!("Failed to open /tests/gsshadow_blk");
-            } else {
-                println!("Opened /tests/gsshadow_blk, fd: {}", sshadow_blk_fd);
-            }
-            let res = load_domain(
-                sshadow_blk_fd as _,
-                DomainTypeRaw::ShadowBlockDomain,
-                "sshadow_blk",
-            );
-            println!("load_domain res: {}", res);
-            let res = replace_domain("shadow_blk-1", "sshadow_blk");
-            println!("replace_domain res: {}", res);
-            // let bash_file_test = open("/tests/bash\0", OpenFlags::O_RDWR);
-            // if bash_file_test == -1 {
-            //     println!("Failed to open /tests/bash");
-            // } else {
-            //     println!("Opened /tests/bash, fd: {}", bash_file_test);
-            // }
-            // let mut buf = [0u8; 100];
-            // let mut count = 0;
-            // loop {
-            //     let res = read(bash_file_test as usize, &mut buf);
-            //     if res == 0 {
-            //         break;
-            //     }
-            //     count += res;
-            // }
-            // println!("Read /bin/bash count: {}", count);
             loop {
                 m_yield();
             }

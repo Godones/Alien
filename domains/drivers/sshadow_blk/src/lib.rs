@@ -52,7 +52,7 @@ impl ShadowBlockDomain for ShadowBlockDomainImpl {
     fn read_block(&self, block: u32, data: RRef<[u8; 512]>) -> AlienResult<RRef<[u8; 512]>> {
         static FLAG: AtomicBool = AtomicBool::new(false);
         if !FLAG.load(core::sync::atomic::Ordering::Relaxed) {
-            error!("<SShadowBlockDomainImpl> read block: {}", block);
+            error!("<SShadowBlockDomainImpl Mask> read block: {}", block);
             FLAG.store(true, core::sync::atomic::Ordering::Relaxed);
         }
         let blk = BLOCK.get().unwrap();

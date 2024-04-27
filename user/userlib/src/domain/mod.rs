@@ -1,4 +1,4 @@
-use crate::syscall::{sys_load_domain, sys_replace_domain};
+use crate::syscall::{sys_register_domain, sys_update_domain};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DomainTypeRaw {
@@ -21,12 +21,12 @@ pub enum DomainTypeRaw {
     DevFsDomain = 17,
     SchedulerDomain = 18,
 }
-pub fn load_domain(fd: usize, ty: DomainTypeRaw, name: &str) -> isize {
-    sys_load_domain(fd, ty as u8, name.as_ptr(), name.len())
+pub fn register_domain(fd: usize, ty: DomainTypeRaw, name: &str) -> isize {
+    sys_register_domain(fd, ty as u8, name.as_ptr(), name.len())
 }
 
-pub fn replace_domain(old_name: &str, new_name: &str) -> isize {
-    sys_replace_domain(
+pub fn update_domain(old_name: &str, new_name: &str) -> isize {
+    sys_update_domain(
         old_name.as_ptr(),
         old_name.len(),
         new_name.as_ptr(),
