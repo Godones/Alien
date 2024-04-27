@@ -210,7 +210,14 @@ impl SysCallDomain for SysCallDomainImpl {
                 args[2],
                 args[3],
             ),
-            889 => sys_replace_domain(&self.task_domain, args[0], args[1], args[2], args[3]),
+            889 => sys_replace_domain(
+                &self.task_domain,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+                args[4] as u8,
+            ),
             _ => panic!("syscall [{}: {}] not found", syscall_id, syscall_name),
         }
     }

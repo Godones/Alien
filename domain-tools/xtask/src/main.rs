@@ -48,7 +48,7 @@ fn main() {
         }
         Some(Commands::Build { name, log }) => {
             println!("Building domain project: {}, LOG: {}", name, log);
-            subcommand::build::build_domain(name, log);
+            subcommand::build::build_single(name, log);
         }
         None => {}
     }

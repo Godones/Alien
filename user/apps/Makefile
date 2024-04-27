@@ -20,6 +20,7 @@ BUILD_CRATES := \
 	init \
 	dtest \
 	domain \
+	dgpu \
 #	run_test \
 	tests \
 	sleep \
@@ -30,11 +31,11 @@ BUILD_CRATES := \
 	mkdir \
 	print \
 
-ifeq ($(GUI),y)
-	BUILD_CRATES += egui \
-					sysinfo \
-					todo \
-					slint \
-					memory-game \
-					printdemo
-endif
+#ifeq ($(GUI),y)
+#	BUILD_CRATES += egui \
+#					sysinfo \
+#					todo \
+#					slint \
+#					memory-game \
+#					printdemo
+#endif

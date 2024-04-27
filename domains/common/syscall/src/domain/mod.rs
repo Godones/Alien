@@ -1,5 +1,6 @@
 use alloc::sync::Arc;
 
+use basic::println;
 use constants::{AlienError, AlienResult};
 use interface::{DomainTypeRaw, TaskDomain, VfsDomain};
 use log::warn;
@@ -14,6 +15,9 @@ pub fn sys_load_domain(
     domain_name: usize,
     len: usize,
 ) -> AlienResult<isize> {
+    if len == 0 {
+        return Err(AlienError::EINVAL);
+    }
     let mut tmp_buf = RRefVec::<u8>::new(0, len);
     task_domain.copy_from_user(domain_name, tmp_buf.as_mut_slice())?;
     let domain_name = core::str::from_utf8(tmp_buf.as_slice()).unwrap();
@@ -41,17 +45,23 @@ pub fn sys_replace_domain(
     old_len: usize,
     new_domain_name: usize,
     new_len: usize,
+    ty: u8,
 ) -> AlienResult<isize> {
+    if new_len == 0 && (old_len == 0 && ty == 0) {
+        return Err(AlienError::EINVAL);
+    }
     let mut tmp_buf = RRefVec::<u8>::new(0, old_len);
     task_domain.copy_from_user(old_domain_name, tmp_buf.as_mut_slice())?;
     let old_domain_name = core::str::from_utf8(tmp_buf.as_slice()).unwrap();
     let mut tmp_buf = RRefVec::<u8>::new(0, new_len);
     task_domain.copy_from_user(new_domain_name, tmp_buf.as_mut_slice())?;
     let new_domain_name = core::str::from_utf8(tmp_buf.as_slice()).unwrap();
+    let ty = DomainTypeRaw::try_from(ty).map_err(|_| AlienError::EINVAL)?;
     warn!(
         "<sys_replace_domain> old_domain_name: {:?}, new_domain_name: {:?}",
         old_domain_name, new_domain_name
     );
-    basic::replace_domain(old_domain_name, new_domain_name)?;
+    println!("try to update domain: {}, ty: {:?}", new_domain_name, ty);
+    basic::update_domain(old_domain_name, new_domain_name, ty)?;
     Ok(0)
 }

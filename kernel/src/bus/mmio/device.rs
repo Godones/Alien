@@ -7,7 +7,6 @@ use crate::bus::CommonDeviceInfo;
 pub struct MmioBus {
     common_devices: VecDeque<MmioCommonDevice>,
     // devices: Vec<Arc<dyn MmioDevice>>,
-    // drivers: Vec<Arc<dyn MmioDriver>>,
 }
 
 impl MmioBus {
@@ -15,7 +14,6 @@ impl MmioBus {
         Self {
             common_devices: VecDeque::new(),
             // devices: Vec::new(),
-            // drivers: Vec::new(),
         }
     }
     pub(super) fn register_mmio_device(&mut self, device: MmioCommonDevice) {
@@ -31,7 +29,7 @@ impl MmioBus {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MmioCommonDevice {
     io_region: SafeIORegion,
     info: CommonDeviceInfo,

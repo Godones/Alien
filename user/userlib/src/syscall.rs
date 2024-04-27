@@ -354,4 +354,12 @@ syscall!(sys_event, SYSCALL_EVENT, *mut u64, usize);
 syscall!(__system_shutdown, SYSCALL_SYSTEMSHUTDOWN);
 
 syscall!(sys_register_domain, 888, usize, u8, *const u8, usize);
-syscall!(sys_update_domain, 889, *const u8, usize, *const u8, usize);
+syscall!(
+    sys_update_domain,
+    889,
+    *const u8,
+    usize,
+    *const u8,
+    usize,
+    u8
+);

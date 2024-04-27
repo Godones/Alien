@@ -12,7 +12,7 @@ use platform::iprint;
 use spin::Lazy;
 
 use crate::{
-    domain_helper::{SharedHeapAllocator, DOMAIN_CREATE},
+    domain_helper::{device::update_device_domain, SharedHeapAllocator, DOMAIN_CREATE},
     domain_proxy::{BlkDomainProxy, ProxyExt, ShadowBlockDomainProxy},
 };
 
@@ -140,10 +140,15 @@ impl CoreFunction for DomainSyscall {
         Ok(())
     }
 
-    fn sys_update_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
-        let old_domain = super::query_domain(old_domain_name).ok_or(AlienError::EINVAL)?;
+    fn sys_update_domain(
+        &self,
+        old_domain_name: &str,
+        new_domain_name: &str,
+        ty: DomainTypeRaw,
+    ) -> AlienResult<()> {
+        let old_domain = super::query_domain(old_domain_name);
         match old_domain {
-            DomainType::ShadowBlockDomain(shadow_blk) => {
+            Some(DomainType::ShadowBlockDomain(shadow_blk)) => {
                 let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     DomainTypeRaw::ShadowBlockDomain,
                     new_domain_name,
@@ -153,12 +158,25 @@ impl CoreFunction for DomainSyscall {
                 let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
                 shadow_blk_proxy.replace(new_domain, loader)?;
                 // todo!(release old domain's resource)
-
                 warn!(
                     "Try to replace domain: {} with domain: {}",
                     old_domain_name, new_domain_name
                 );
                 Ok(())
+            }
+            None => {
+                println!(
+                    "<sys_update_domain> old domain {:?} not found",
+                    old_domain_name
+                );
+                match ty {
+                    DomainTypeRaw::GpuDomain => {
+                        println!("update gpu domain: {}", new_domain_name);
+                        update_device_domain(ty, new_domain_name)?;
+                        Ok(())
+                    }
+                    _ => Err(AlienError::EINVAL),
+                }
             }
             _ => {
                 panic!("replace domain not support");

@@ -25,3 +25,33 @@ members = [
     "procfs",
     "fifo_scheduler",
 ]
+
+init_members = [
+    "plic",
+    "syscall",
+    "task",
+    "vfs",
+    "buf_uart",
+    "buf_input",
+    "cache_blk",
+    "goldfish",
+    "null",
+    "random",
+    "shadow_blk",
+    "uart16550",
+    "virtio_mmio_block",
+    "virtio_mmio_net",
+    "devfs",
+    "fatfs",
+    "pipefs",
+    "ramfs",
+    "sysfs",
+    "procfs",
+    "fifo_scheduler",
+]
+
+disk_members = [
+    "sshadow_blk",
+    "virtio_mmio_gpu",
+    "virtio_mmio_input",
+]

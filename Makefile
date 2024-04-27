@@ -10,9 +10,11 @@ FS ?=fat
 IMG := build/sdcard.img
 FSMOUNT := ./diskfs
 FEATURES := smp
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
 
-
-QEMU_ARGS += -nographic
+QEMU_ARGS :=
 
 ifeq ($(GUI),y)
 	QEMU_ARGS += -device virtio-gpu-device
@@ -29,7 +31,7 @@ endif
 QEMU_ARGS += -initrd ./build/initramfs.cpio.gz
 QEMU_ARGS += -append "rdinit=/init"
 
-
+FEATURES := $(subst $(space),$(comma),$(FEATURES))
 all:run
 
 build:
@@ -66,7 +68,7 @@ user:
 
 
 sdcard:$(FS) mount user #domains
-	@sudo cp build/gsshadow_blk $(FSMOUNT)/
+	@sudo cp build/disk/* $(FSMOUNT)/
 	@-sudo cp user/bin/* $(FSMOUNT)/
 	@sudo ls $(FSMOUNT)
 	@sudo umount $(FSMOUNT)
@@ -96,7 +98,7 @@ fix:
 initrd:
 	@make -C user/initrd
 	@mkdir -p ./initrd
-	@cp ./build/g* ./initrd
+	@cp ./build/init/g* ./initrd
 	@cp ./user/initrd/initramfs/* ./initrd -r
 	@-cp ./user/bin/* ./initrd/bin -r
 	@cd ./initrd && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..

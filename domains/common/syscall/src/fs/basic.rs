@@ -395,7 +395,7 @@ pub fn sys_ppoll(
     );
     let mut fds = vec![0u8; core::mem::size_of::<PollFd>() * nfds];
     task_domain.copy_from_user(fds_ptr, fds.as_mut_slice())?;
-    info!("fds: {:?}", fds);
+    debug!("fds: {:?}", fds);
     let wait_time = if timeout != 0 {
         let time_spec = task_domain.read_val_from_user::<TimeSpec>(timeout)?;
         Some(time_spec.to_clock() + TimeSpec::now().to_clock())
@@ -412,7 +412,7 @@ pub fn sys_ppoll(
                 if !event.is_empty() {
                     res += 1;
                 }
-                info!("[ppoll]: event: {:?}", event);
+                debug!("[ppoll]: event: {:?}", event);
                 pfd.revents = PollEvents::from_bits_truncate(event.bits())
             } else {
                 // todo: error
@@ -434,7 +434,7 @@ pub fn sys_ppoll(
                 return Ok(0);
             }
         }
-        info!("<sys_ppoll> suspend");
+        debug!("<sys_ppoll> suspend");
         scheduler_domain.yield_now()?;
     }
 }
