@@ -10,7 +10,7 @@ use Mstd::{
 #[no_mangle]
 fn main() -> isize {
     let sshadow_blk_fd = open("/tests/gsshadow_blk\0", OpenFlags::O_RDONLY);
-    if sshadow_blk_fd == -1 {
+    if sshadow_blk_fd < 0 {
         println!("Failed to open /tests/gsshadow_blk");
         return -1;
     } else {
@@ -22,18 +22,22 @@ fn main() -> isize {
         );
         println!("load_domain res: {}", res);
 
-        if res == -1 {
+        if res != 0 {
             println!("Failed to register domain sshadow_blk");
             return -1;
         }
-        let res = update_domain("shadow_blk-1", "sshadow_blk");
+        let res = update_domain(
+            "shadow_blk-1",
+            "sshadow_blk",
+            DomainTypeRaw::ShadowBlockDomain,
+        );
         println!("replace_domain res: {}", res);
-        if res == -1 {
+        if res != 0 {
             println!("Failed to update domain shadow_blk-1");
             return -1;
         }
         let bash_file_test = open("/tests/bash\0", OpenFlags::O_RDWR);
-        if bash_file_test == -1 {
+        if bash_file_test < 0 {
             println!("Failed to open /tests/bash");
             return -1;
         } else {

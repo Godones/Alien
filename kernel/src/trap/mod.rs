@@ -172,7 +172,7 @@ impl TrapHandler for Trap {
             }
             Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                panic!("[User] page fault");
+                panic!("[User] {:?}, stval:{:#x?} sepc:{:#x?}", self, stval, sepc);
             }
             Trap::Exception(Exception::InstructionPageFault) => {
                 panic!("[User] instruction page fault")

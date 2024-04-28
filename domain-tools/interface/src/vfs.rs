@@ -71,7 +71,7 @@ pub trait VfsDomain: Basic + DowncastSync {
     fn vfs_lseek(&self, inode: InodeID, seek: SeekFrom) -> AlienResult<u64>;
     fn vfs_inode_type(&self, inode: InodeID) -> AlienResult<VfsNodeType>;
     fn vfs_readdir(&self, inode: InodeID, buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)>;
-
+    fn vfs_get_path(&self, inode: InodeID, buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)>;
     fn do_fcntl(&self, inode: InodeID, cmd: usize, args: usize) -> AlienResult<isize>;
     fn do_pipe2(&self, flags: usize) -> AlienResult<(InodeID, InodeID)>;
 }

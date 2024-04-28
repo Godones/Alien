@@ -1,3 +1,4 @@
+pub mod device;
 mod sheap;
 mod syscall;
 
@@ -44,7 +45,7 @@ impl DomainContainer {
                 );
             }
             platform::println!(
-                "<register domain>: {}, it's name is {}",
+                "<attach domain>: {}, it's name is {}",
                 identifier,
                 identifier
             );
@@ -53,7 +54,7 @@ impl DomainContainer {
             let counter = self.ty_counter.entry(identifier.clone()).or_insert(0);
             *counter += 1;
             let name = format!("{}-{}", identifier, counter);
-            platform::println!("<register domain>: {}, it's name is {}", identifier, name);
+            platform::println!("<attach domain>: {}, it's name is {}", identifier, name);
             self.domains.insert(name, domain);
         }
     }

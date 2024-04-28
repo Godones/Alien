@@ -188,6 +188,20 @@ impl VfsDomain for VfsDomainImpl {
         let res = file.readdir(buf.as_mut_slice())?;
         Ok((buf, res))
     }
+
+    fn vfs_get_path(
+        &self,
+        inode: InodeID,
+        mut buf: RRefVec<u8>,
+    ) -> AlienResult<(RRefVec<u8>, usize)> {
+        let file = get_file(inode).unwrap();
+        let path = file.dentry().path();
+        let path = path.as_bytes();
+        let copy_len = core::cmp::min(path.len(), buf.len());
+        buf.as_mut_slice()[..copy_len].copy_from_slice(&path[..copy_len]);
+        Ok((buf, copy_len))
+    }
+
     fn do_fcntl(&self, inode: InodeID, cmd: usize, args: usize) -> AlienResult<isize> {
         const FD_CLOEXEC: usize = 1;
         let cmd = Fcntl64Cmd::try_from(cmd as u32).unwrap();

@@ -163,6 +163,8 @@ impl From<VfsFileStat> for FileStat {
 
 bitflags! {
     /// ppoll 使用，表示对应在文件上等待或者发生过的事件
+    #[derive(Pod)]
+    #[repr(C)]
     pub struct PollEvents: u16 {
         /// 可读
         const IN = 0x0001;
@@ -178,7 +180,7 @@ bitflags! {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Pod)]
 /// ppoll 系统调用参数用到的结构
 pub struct PollFd {
     /// 等待的 fd
@@ -187,6 +189,16 @@ pub struct PollFd {
     pub events: PollEvents,
     /// 返回的事件
     pub revents: PollEvents,
+}
+
+impl Default for PollFd {
+    fn default() -> Self {
+        Self {
+            fd: 0,
+            events: PollEvents::empty(),
+            revents: PollEvents::empty(),
+        }
+    }
 }
 
 bitflags! {

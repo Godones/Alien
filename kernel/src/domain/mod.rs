@@ -127,13 +127,15 @@ fn init_device() -> Arc<dyn PLICDomain> {
                     // register irq
                 }
                 VirtioMmioDeviceType::Input => {
-                    let input_driver = create_input_domain("virtio_mmio_input", None).unwrap();
-                    input_driver.init(address..address + size).unwrap();
-                    domain_helper::register_domain(
-                        "virtio_mmio_input",
-                        DomainType::InputDomain(input_driver),
-                        false,
-                    );
+                    let input_driver = create_input_domain("virtio_mmio_input", None);
+                    if let Some(input_driver) = input_driver {
+                        input_driver.init(address..address + size).unwrap();
+                        domain_helper::register_domain(
+                            "virtio_mmio_input",
+                            DomainType::InputDomain(input_driver),
+                            false,
+                        );
+                    }
                     // register irq
                     // plic.register_irq(
                     //     irq.unwrap() as _,
@@ -143,13 +145,15 @@ fn init_device() -> Arc<dyn PLICDomain> {
                 }
                 #[cfg(feature = "gui")]
                 VirtioMmioDeviceType::GPU => {
-                    let gpu_driver = create_gpu_domain("virtio_mmio_gpu", None).unwrap();
-                    gpu_driver.init(address..address + size).unwrap();
-                    domain_helper::register_domain(
-                        "virtio_mmio_gpu",
-                        DomainType::GpuDomain(gpu_driver),
-                        false,
-                    );
+                    let gpu_driver = create_gpu_domain("virtio_mmio_gpu", None);
+                    if let Some(gpu_driver) = gpu_driver {
+                        gpu_driver.init(address..address + size).unwrap();
+                        domain_helper::register_domain(
+                            "virtio_mmio_gpu",
+                            DomainType::GpuDomain(gpu_driver),
+                            false,
+                        );
+                    }
                 }
                 _ => {
                     warn!("unknown device: {:?}", device.device_type());

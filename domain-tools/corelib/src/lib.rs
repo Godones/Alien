@@ -25,7 +25,12 @@ pub trait CoreFunction: Send + Sync {
     /// Register a new domain with the given name and type
     fn sys_register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()>;
     /// Replace the old domain with the new domain
-    fn sys_update_domain(&self, old_domain_name: &str, new_domain_name: &str) -> AlienResult<()>;
+    fn sys_update_domain(
+        &self,
+        old_domain_name: &str,
+        new_domain_name: &str,
+        ty: DomainTypeRaw,
+    ) -> AlienResult<()>;
     fn sys_reload_domain(&self, domain_name: &str) -> AlienResult<()>;
 }
 
@@ -148,11 +153,15 @@ mod core_impl {
         }
     }
 
-    pub fn replace_domain(old_domain_name: &str, new_domain_name: &str) -> AlienResult<()> {
+    pub fn update_domain(
+        old_domain_name: &str,
+        new_domain_name: &str,
+        ty: DomainTypeRaw,
+    ) -> AlienResult<()> {
         unsafe {
             CORE_FUNC
                 .get_unchecked()
-                .sys_update_domain(old_domain_name, new_domain_name)
+                .sys_update_domain(old_domain_name, new_domain_name, ty)
         }
     }
 

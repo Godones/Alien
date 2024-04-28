@@ -58,7 +58,11 @@ impl Run for RegisterArgs {
             "sshadow_blk",
         );
         println!("load_domain res: {}", res);
-        let res = update_domain("shadow_blk-1", "sshadow_blk");
+        let res = update_domain(
+            "shadow_blk-1",
+            "sshadow_blk",
+            DomainTypeRaw::ShadowBlockDomain,
+        );
         println!("replace_domain res: {}", res);
         0
     }
@@ -66,7 +70,11 @@ impl Run for RegisterArgs {
 
 impl Run for UpdateArgs {
     fn run(&self) -> isize {
-        let res = update_domain("shadow_blk-1", "sshadow_blk");
+        let res = update_domain(
+            "shadow_blk-1",
+            "sshadow_blk",
+            DomainTypeRaw::ShadowBlockDomain,
+        );
         println!("replace_domain res: {}", res);
         0
     }

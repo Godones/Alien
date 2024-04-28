@@ -25,11 +25,12 @@ pub fn register_domain(fd: usize, ty: DomainTypeRaw, name: &str) -> isize {
     sys_register_domain(fd, ty as u8, name.as_ptr(), name.len())
 }
 
-pub fn update_domain(old_name: &str, new_name: &str) -> isize {
+pub fn update_domain(old_name: &str, new_name: &str, ty: DomainTypeRaw) -> isize {
     sys_update_domain(
         old_name.as_ptr(),
         old_name.len(),
         new_name.as_ptr(),
         new_name.len(),
+        ty as u8,
     )
 }

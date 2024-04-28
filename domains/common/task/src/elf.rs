@@ -220,28 +220,26 @@ pub fn load_to_vm_space(
     Ok(break_addr)
 }
 
-fn relocate(elf: &ElfFile, bias: usize) -> AlienResult<Vec<(usize, usize)>> {
+fn relocate_dyn(elf: &ElfFile, bias: usize) -> AlienResult<Vec<(usize, usize)>> {
     let mut res = vec![];
     let data = elf
         .find_section_by_name(".rela.dyn")
-        .ok_or(AlienError::EINVAL)?
+        .unwrap()
         .get_data(elf)
-        .map_err(|_| AlienError::EINVAL)?;
+        .unwrap();
     let entries = match data {
         SectionData::Rela64(entries) => entries,
         _ => return Err(AlienError::EINVAL),
     };
-
     let dynsym = match elf
         .find_section_by_name(".dynsym")
-        .ok_or(AlienError::EINVAL)?
+        .unwrap()
         .get_data(elf)
-        .map_err(|_| AlienError::EINVAL)?
+        .unwrap()
     {
         SectionData::DynSymbolTable64(dsym) => dsym,
         _ => return Err(AlienError::EINVAL),
     };
-
     for entry in entries.iter() {
         const REL_GOT: u32 = 6;
         const REL_PLT: u32 = 7;
@@ -269,6 +267,11 @@ fn relocate(elf: &ElfFile, bias: usize) -> AlienResult<Vec<(usize, usize)>> {
             t => unimplemented!("unknown type: {}", t),
         }
     }
+    Ok(res)
+}
+
+fn relocate_plt(elf: &ElfFile, bias: usize) -> AlienResult<Vec<(usize, usize)>> {
+    let mut res = vec![];
     let data = elf
         .find_section_by_name(".rela.plt")
         .ok_or(AlienError::EINVAL)?
@@ -276,6 +279,15 @@ fn relocate(elf: &ElfFile, bias: usize) -> AlienResult<Vec<(usize, usize)>> {
         .map_err(|_| AlienError::EINVAL)?;
     let entries = match data {
         SectionData::Rela64(entries) => entries,
+        _ => return Err(AlienError::EINVAL),
+    };
+    let dynsym = match elf
+        .find_section_by_name(".dynsym")
+        .unwrap()
+        .get_data(elf)
+        .unwrap()
+    {
+        SectionData::DynSymbolTable64(dsym) => dsym,
         _ => return Err(AlienError::EINVAL),
     };
     for entry in entries.iter() {
@@ -333,7 +345,7 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         .program_iter()
         .find(|x| x.get_type().unwrap() == Type::Tls)
         .map(|ph| ph.virtual_addr())
-        .unwrap_or(0);
+        .unwrap_or(0 + bias as u64);
     info!("ELF tls: {:#x}", tls);
 
     let mut address_space = VmSpace::new();
@@ -410,16 +422,28 @@ pub fn build_vm_space(elf: &[u8], args: &mut Vec<String>, name: &str) -> AlienRe
         res + bias as u64
     );
     // todo!(relocate)
-    if let Ok(kvs) = relocate(&elf, bias) {
-        kvs.into_iter().for_each(|kv| {
-            info!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
-            address_space
-                .write_val(VirtAddr::from(kv.0), &kv.1)
-                .unwrap()
-        })
-    } else {
-        error!("relocate failed");
+    if bias != 0 {
+        // if the elf file is a shared object, we should relocate it
+        if let Ok(kvs) = relocate_dyn(&elf, bias) {
+            kvs.into_iter().for_each(|kv| {
+                debug!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
+                address_space
+                    .write_val(VirtAddr::from(kv.0), &kv.1)
+                    .unwrap()
+            });
+            info!("relocate dynamic section success")
+        }
+        if let Ok(kvs) = relocate_plt(&elf, bias) {
+            kvs.into_iter().for_each(|kv| {
+                debug!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
+                address_space
+                    .write_val(VirtAddr::from(kv.0), &kv.1)
+                    .unwrap()
+            });
+            info!("relocate plt section success");
+        }
     }
+
     Ok(ELFInfo {
         address_space,
         entry: VirtAddr::from(elf.header.pt2.entry_point() as usize + bias),
