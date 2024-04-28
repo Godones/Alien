@@ -4,7 +4,8 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 
-use basic::{io::SafeIORegion, vm::frame::FrameTracker};
+use basic::{io::SafeIORegion, println, vm::frame::FrameTracker};
+use constants::AlienError;
 use virtio_drivers::{
     error::{VirtIoError, VirtIoResult},
     hal::{DevicePage, Hal, QueuePage, VirtIoDeviceIo},
@@ -89,4 +90,13 @@ impl<const SIZE: usize> Hal<SIZE> for HalImpl {
         let frame = FrameTracker::new(pages);
         Box::new(Page(frame))
     }
+
+    fn to_paddr(va: usize) -> usize {
+        va
+    }
+}
+
+pub fn to_alien_err(e: VirtIoError) -> AlienError {
+    println!("{:?}", e);
+    AlienError::DOMAINCRASH
 }

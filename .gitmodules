@@ -1,4 +1,1 @@
-[submodule "safe-crates/virtio-drivers"]
-	path = safe-crates/virtio-drivers
-	url = git@github.com:os-module/virtio-drivers.git
 
