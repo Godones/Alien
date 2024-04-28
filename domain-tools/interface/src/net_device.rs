@@ -6,14 +6,20 @@ use gproxy::proxy;
 use rref::RRefVec;
 
 use crate::{Basic, DeviceBase};
+#[derive(Debug)]
 pub struct PackageBuffer(RRefVec<u8>);
 
 pub type TxBufferWrapper = PackageBuffer;
 pub type RxBufferWrapper = PackageBuffer;
 
 impl PackageBuffer {
+    /// Construct a new buffer
+    pub fn new(initial_value: u8, size: usize) -> Self {
+        Self(RRefVec::new(initial_value, size))
+    }
+
     /// Constructs the buffer from the given slice.
-    pub fn new(buf: RRefVec<u8>) -> Self {
+    pub fn from(buf: RRefVec<u8>) -> Self {
         Self(buf)
     }
 
@@ -53,15 +59,15 @@ pub trait NetDeviceDomain: DeviceBase + Basic + DowncastSync {
     /// Size of the transmit queue.
     fn tx_queue_size(&self) -> AlienResult<usize>;
 
-    /// Gives back the `rx_buf` to the receive queue for later receiving.
-    ///
-    /// `rx_buf` should be the same as the one returned by
-    /// [`NetDriverOps::receive`].
-    fn recycle_rx_buffer(&self, rx_buf: TxBufferWrapper) -> AlienResult<()>;
+    // /// Gives back the `rx_buf` to the receive queue for later receiving.
+    // ///
+    // /// `rx_buf` should be the same as the one returned by
+    // /// [`NetDriverOps::receive`].
+    // fn recycle_rx_buffer(&self, rx_buf: RxBufferWrapper) -> AlienResult<()>;
 
     /// Poll the transmit queue and gives back the buffers for previous transmiting.
     /// returns [`DevResult`].
-    fn recycle_tx_buffers(&self) -> AlienResult<()>;
+    // fn recycle_tx_buffers(&self) -> AlienResult<()>;
 
     /// Transmits a packet in the buffer to the network, without blocking,
     /// returns [`DevResult`].
@@ -77,9 +83,9 @@ pub trait NetDeviceDomain: DeviceBase + Basic + DowncastSync {
     /// [`DevError::Again`].
     fn receive(&self) -> AlienResult<RxBufferWrapper>;
 
-    /// Allocate a memory buffer of a specified size for network transmission,
-    /// returns [`DevResult`]
-    fn alloc_tx_buffer(&self, size: usize) -> AlienResult<TxBufferWrapper>;
+    // /// Allocate a memory buffer of a specified size for network transmission,
+    // /// returns [`DevResult`]
+    // fn alloc_tx_buffer(&self, size: usize) -> AlienResult<TxBufferWrapper>;
 }
 
 impl_downcast!(sync NetDeviceDomain);
