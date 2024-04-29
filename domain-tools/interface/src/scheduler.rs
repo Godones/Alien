@@ -1,8 +1,10 @@
+use alloc::vec::Vec;
+
 use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::RRef;
-use task_meta::TaskMeta;
+use task_meta::{TaskContext, TaskMeta};
 
 use crate::Basic;
 
@@ -20,6 +22,31 @@ pub trait SchedulerDomain: Basic + DowncastSync {
     /// Yield the current task
     fn yield_now(&self) -> AlienResult<()>;
     fn exit_now(&self) -> AlienResult<()>;
+    fn dump_meta_data(&self, data: &mut SchedulerDataContainer) -> AlienResult<()>;
 }
 
 impl_downcast!(sync SchedulerDomain);
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct CpuLocalData {
+    pub cpu_context: TaskContext,
+    pub task: Option<TaskData>,
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+pub struct KStackData {
+    pub kstack_top: usize,
+    pub pages: usize,
+}
+#[derive(Debug, Copy, Clone)]
+pub struct TaskData {
+    pub task_meta: TaskMeta,
+    pub kstack_data: KStackData,
+}
+
+#[derive(Debug, Default)]
+pub struct SchedulerDataContainer {
+    pub cpu_local: CpuLocalData,
+    pub task_wait_queue: Vec<TaskData>,
+    pub task_ready_queue: Vec<TaskData>,
+}

@@ -53,7 +53,8 @@ pub fn fetch_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
 }
 
 type Tid = usize;
-static TASK_WAIT_QUEUE: Mutex<BTreeMap<Tid, Arc<Mutex<TaskMetaExt>>>> = Mutex::new(BTreeMap::new());
+pub static TASK_WAIT_QUEUE: Mutex<BTreeMap<Tid, Arc<Mutex<TaskMetaExt>>>> =
+    Mutex::new(BTreeMap::new());
 
 pub fn current_to_wait() {
     let task = take_current_task().unwrap();

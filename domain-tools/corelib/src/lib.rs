@@ -18,7 +18,6 @@ pub trait CoreFunction: Send + Sync {
     fn sys_trap_to_user(&self) -> usize;
     /// This func will be deleted
     fn blk_crash_trick(&self) -> bool;
-    fn sys_read_time_ms(&self) -> u64;
     fn sys_get_domain(&self, name: &str) -> Option<DomainType>;
     fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize);
     fn sys_create_domain(&self, identifier: &str) -> Option<DomainType>;
@@ -32,6 +31,10 @@ pub trait CoreFunction: Send + Sync {
         ty: DomainTypeRaw,
     ) -> AlienResult<()>;
     fn sys_reload_domain(&self, domain_name: &str) -> AlienResult<()>;
+    fn map_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<usize>;
+    fn unmapped_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<()>;
+
+    fn vaddr_to_paddr_in_kernel(&self, vaddr: usize) -> AlienResult<usize>;
 }
 
 #[cfg(feature = "core_impl")]
@@ -127,10 +130,6 @@ mod core_impl {
         unsafe { CORE_FUNC.get_unchecked().blk_crash_trick() }
     }
 
-    pub fn read_time_ms() -> u64 {
-        unsafe { CORE_FUNC.get_unchecked().sys_read_time_ms() }
-    }
-
     pub fn get_domain(name: &str) -> Option<DomainType> {
         unsafe { CORE_FUNC.get_unchecked().sys_get_domain(name) }
     }
@@ -167,5 +166,25 @@ mod core_impl {
 
     pub fn reload_domain(domain_name: &str) -> AlienResult<()> {
         unsafe { CORE_FUNC.get_unchecked().sys_reload_domain(domain_name) }
+    }
+
+    pub fn map_kstack_for_task(task_id: usize, pages: usize) -> AlienResult<usize> {
+        unsafe {
+            CORE_FUNC
+                .get_unchecked()
+                .map_kstack_for_task(task_id, pages)
+        }
+    }
+
+    pub fn unmapped_kstack_for_task(task_id: usize, pages: usize) -> AlienResult<()> {
+        unsafe {
+            CORE_FUNC
+                .get_unchecked()
+                .unmapped_kstack_for_task(task_id, pages)
+        }
+    }
+
+    pub fn vaddr_to_paddr_in_kernel(vaddr: usize) -> AlienResult<usize> {
+        unsafe { CORE_FUNC.get_unchecked().vaddr_to_paddr_in_kernel(vaddr) }
     }
 }

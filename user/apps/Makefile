@@ -21,6 +21,7 @@ BUILD_CRATES := \
 	dtest \
 	domain \
 	dgpu \
+	dtask \
 #	run_test \
 	tests \
 	sleep \

@@ -84,3 +84,24 @@ impl ProxyExt for BlkDomainProxy {
         Ok(())
     }
 }
+
+impl SchedulerDomainProxy {
+    pub fn replace(
+        &self,
+        new_domain: Box<dyn SchedulerDomain>,
+        loader: DomainLoader,
+    ) -> AlienResult<()> {
+        let mut old_domain = self.domain.write();
+        // let mut old = self.old_domain.lock();
+        // *self.domain_loader.lock() = loader;
+        // // swap the old domain with the new one
+        // // and push the old domain to the old domain list( we will fix it)
+        // old.push(core::mem::replace(&mut *old_domain, new_domain));
+        // old_domain.init()
+        println!("Try dump old domain data");
+        let mut data = SchedulerDataContainer::default();
+        old_domain.dump_meta_data(&mut data)?;
+        println!("old domain data: {:?}", data);
+        Err(AlienError::EINVAL)
+    }
+}

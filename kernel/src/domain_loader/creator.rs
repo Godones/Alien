@@ -59,7 +59,6 @@ impl DomainCreate for DomainCreateImpl {
                 domain_helper::register_domain("ramfs", DomainType::FsDomain(ramfs.clone()), false);
                 Some(DomainType::FsDomain(ramfs))
             }
-            #[cfg(feature = "gui")]
             "virtio-mmio-gpu" => {
                 let virtio_mmio_gpu = create_gpu_domain("virtio-mmio-gpu", None)?;
                 domain_helper::register_domain(
@@ -124,7 +123,6 @@ pub fn create_rtc_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<RtcDo
         .map(|(id, domain, loader)| Arc::new(RtcDomainProxy::new(id, domain, loader)))
 }
 
-#[cfg(feature = "gui")]
 pub fn create_gpu_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<GpuDomainProxy>> {
     create_domain(DomainTypeRaw::GpuDomain, ident, data)
         .map(|(id, domain, loader)| Arc::new(GpuDomainProxy::new(id, domain, loader)))

@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, sync::Arc, vec};
+use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use core::sync::atomic::AtomicUsize;
 
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
@@ -7,7 +7,7 @@ use ksync::RwLock;
 use log::info;
 use page_table::MappingFlags;
 use platform::{config::DEVICE_SPACE, println};
-use ptable::{VmArea, VmAreaEqual, VmAreaType, VmSpace};
+use ptable::{PhysPage, VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
 
 use crate::frame::{FrameTracker, VmmPageAllocator};
@@ -153,17 +153,46 @@ pub fn query_kernel_space(addr: usize) -> Option<usize> {
         .map(|(phy_addr, _, _)| phy_addr.as_usize())
 }
 
-pub fn is_in_kernel_space(vaddr: usize, size: usize) -> bool {
-    info!("[is_in_kernel_space]: {:#x}-{:#x}", vaddr, vaddr + size);
-    let kernel_space = KERNEL_SPACE.read();
-    let mut addr = vaddr;
-    while addr < vaddr + size {
-        if !kernel_space.is_mapped(addr) {
-            return false;
-        }
-        addr += FRAME_SIZE;
-        // align to next page
-        addr = (addr + FRAME_SIZE - 1) & !(FRAME_SIZE - 1);
+/// Layout:
+///
+/// TRAMPOLINE
+/// |   |
+/// |   |
+/// Guard Page
+/// |   |
+/// |   |
+/// Guard Page
+pub fn map_kstack_for_task(task_id: usize, pages: usize) -> AlienResult<usize> {
+    let kstack_base = TRAMPOLINE - (task_id + 1) * (pages + 1) * FRAME_SIZE;
+    let kstack_lower = kstack_base + FRAME_SIZE;
+    let kstack_upper = kstack_lower + pages * FRAME_SIZE;
+    let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
+    for _ in 0..pages {
+        phy_frames.push(Box::new(crate::alloc_frame_trackers(1)));
     }
-    true
+    let kstack_area = VmArea::new(
+        kstack_lower..kstack_upper,
+        MappingFlags::READ | MappingFlags::WRITE,
+        phy_frames,
+    );
+    let mut kernel_space = KERNEL_SPACE.write();
+    kernel_space.map(VmAreaType::VmArea(kstack_area)).unwrap();
+    info!(
+        "task {} kstack: {:#x?}-{:#x?}",
+        task_id, kstack_lower, kstack_upper
+    );
+    Ok(kstack_upper)
+}
+
+pub fn unmap_kstack_for_task(task_id: usize, pages: usize) -> AlienResult<()> {
+    let kstack_base = TRAMPOLINE - (task_id + 1) * (pages + 1) * FRAME_SIZE;
+    let kstack_lower = kstack_base + FRAME_SIZE;
+    let kstack_upper = kstack_lower + pages * FRAME_SIZE;
+    let mut kernel_space = KERNEL_SPACE.write();
+    kernel_space.unmap(kstack_lower).unwrap();
+    info!(
+        "unmap task {} kstack: {:#x?}-{:#x?}",
+        task_id, kstack_lower, kstack_upper
+    );
+    Ok(())
 }

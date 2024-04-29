@@ -143,7 +143,6 @@ fn init_device() -> Arc<dyn PLICDomain> {
                     // )
                     //     .unwrap()
                 }
-                #[cfg(feature = "gui")]
                 VirtioMmioDeviceType::GPU => {
                     let gpu_driver = create_gpu_domain("virtio_mmio_gpu", None);
                     if let Some(gpu_driver) = gpu_driver {

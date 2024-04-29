@@ -13,7 +13,7 @@ use spin::Lazy;
 
 use crate::{
     domain_helper::{device::update_device_domain, SharedHeapAllocator, DOMAIN_CREATE},
-    domain_proxy::{BlkDomainProxy, ProxyExt, ShadowBlockDomainProxy},
+    domain_proxy::{BlkDomainProxy, ProxyExt, SchedulerDomainProxy, ShadowBlockDomainProxy},
 };
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
@@ -118,10 +118,6 @@ impl CoreFunction for DomainSyscall {
         BLK_CRASH.load(core::sync::atomic::Ordering::Relaxed)
     }
 
-    fn sys_read_time_ms(&self) -> u64 {
-        crate::timer::get_time_ms() as u64
-    }
-
     fn sys_get_domain(&self, name: &str) -> Option<DomainType> {
         super::query_domain(name)
     }
@@ -164,6 +160,21 @@ impl CoreFunction for DomainSyscall {
                 );
                 Ok(())
             }
+            Some(DomainType::SchedulerDomain(scheduler)) => {
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    DomainTypeRaw::SchedulerDomain,
+                    new_domain_name,
+                    None,
+                )
+                .ok_or(AlienError::EINVAL)?;
+                println!(
+                    "Try to replace scheduler domain {} with {}",
+                    old_domain_name, new_domain_name
+                );
+                let scheduler_proxy = scheduler.downcast_arc::<SchedulerDomainProxy>().unwrap();
+                scheduler_proxy.replace(new_domain, loader)?;
+                Err(AlienError::EINVAL)
+            }
             None => {
                 println!(
                     "<sys_update_domain> old domain {:?} not found",
@@ -195,6 +206,16 @@ impl CoreFunction for DomainSyscall {
                 panic!("reload domain {:?} not support", ty);
             }
         }
+    }
+    fn map_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<usize> {
+        mem::map_kstack_for_task(task_id, pages)
+    }
+    fn unmapped_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<()> {
+        mem::unmap_kstack_for_task(task_id, pages)
+    }
+
+    fn vaddr_to_paddr_in_kernel(&self, vaddr: usize) -> AlienResult<usize> {
+        mem::query_kernel_space(vaddr).ok_or(AlienError::EINVAL)
     }
 }
 

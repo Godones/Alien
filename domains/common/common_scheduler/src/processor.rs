@@ -12,8 +12,8 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct CPU {
-    task: RefCell<Option<Arc<Mutex<TaskMetaExt>>>>,
-    context: TaskContext,
+    pub(crate) task: RefCell<Option<Arc<Mutex<TaskMetaExt>>>>,
+    pub(crate) context: TaskContext,
 }
 
 impl CPU {
@@ -53,9 +53,10 @@ pub fn take_current_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
 
 pub fn run_task() -> ! {
     loop {
-        let task = current_task();
+        let task = take_current_task();
         if task.is_some() {
             let task = task.unwrap();
+            assert_eq!(Arc::strong_count(&task), 1);
             let status = task.lock().status();
             info!("task status: {:?}", status);
             assert_eq!(status, TaskStatus::Terminated);

@@ -92,6 +92,8 @@ impl<const SIZE: usize> Hal<SIZE> for HalImpl {
     }
 
     fn to_paddr(va: usize) -> usize {
+        // println!("<virtio hal> to_paddr: {:#x}", va);
+        let va = basic::vaddr_to_paddr_in_kernel(va).expect("vaddr_to_paddr_in_kernel failed");
         va
     }
 }

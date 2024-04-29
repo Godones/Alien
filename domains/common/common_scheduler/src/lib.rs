@@ -1,6 +1,7 @@
 #![no_std]
 #![forbid(unsafe_code)]
 
+mod dump;
 mod processor;
 pub mod resource;
 mod scheduler;
@@ -11,7 +12,7 @@ use alloc::{boxed::Box, sync::Arc};
 
 use basic::{println, sync::Mutex};
 use constants::AlienResult;
-use interface::{Basic, SchedulerDomain};
+use interface::{Basic, SchedulerDataContainer, SchedulerDomain};
 use log::debug;
 use rref::RRef;
 pub use scheduler::Scheduler;
@@ -77,6 +78,10 @@ impl SchedulerDomain for CommonSchedulerDomain {
     fn exit_now(&self) -> AlienResult<()> {
         debug!("<exit_now>");
         scheduler::exit_now();
+        Ok(())
+    }
+    fn dump_meta_data(&self, data: &mut SchedulerDataContainer) -> AlienResult<()> {
+        dump::dump_meta_data(data);
         Ok(())
     }
 }

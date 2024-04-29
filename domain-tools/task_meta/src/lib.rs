@@ -1,6 +1,6 @@
 #![no_std]
 #![forbid(unsafe_code)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 #[repr(C)]
 pub struct TaskContext {
     /// ra
@@ -28,7 +28,7 @@ impl TaskContext {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct TaskMeta {
     pub context: TaskContext,
     // other fields
@@ -61,9 +61,10 @@ impl TaskMeta {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Default)]
 pub enum TaskStatus {
     /// 就绪态
+    #[default]
     Ready,
     /// 运行态
     Running,

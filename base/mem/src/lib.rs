@@ -16,8 +16,8 @@ pub use memory_addr::{PhysAddr, VirtAddr};
 pub use page_table::MappingFlags;
 pub use ptable::*;
 pub use vmm::{
-    alloc_free_region, is_in_kernel_space, kernel_satp, map_area_to_kernel, query_kernel_space,
-    unmap_region_from_kernel,
+    alloc_free_region, kernel_satp, map_area_to_kernel, map_kstack_for_task, query_kernel_space,
+    unmap_kstack_for_task, unmap_region_from_kernel,
 };
 
 #[global_allocator]

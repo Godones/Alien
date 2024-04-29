@@ -24,6 +24,7 @@ members = [
     "sysfs",
     "procfs",
     "fifo_scheduler",
+    "random_scheduler",
 ]
 
 init_members = [
@@ -54,4 +55,5 @@ disk_members = [
     "sshadow_blk",
     "virtio_mmio_gpu",
     "virtio_mmio_input",
+    "random_scheduler",
 ]

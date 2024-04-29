@@ -105,3 +105,31 @@ impl TrapFrame {
         ]
     }
 }
+
+#[derive(Debug)]
+pub struct KStack {
+    top: VirtAddr,
+    tid: usize,
+    pages: usize,
+}
+
+impl KStack {
+    pub fn new(tid: usize, pages: usize) -> Self {
+        let top = corelib::map_kstack_for_task(tid, pages).expect("map kstack failed");
+        Self {
+            top: VirtAddr::from(top),
+            tid,
+            pages,
+        }
+    }
+
+    pub fn top(&self) -> VirtAddr {
+        self.top
+    }
+}
+
+impl Drop for KStack {
+    fn drop(&mut self) {
+        corelib::unmapped_kstack_for_task(self.tid, self.pages).expect("unmap kstack failed");
+    }
+}

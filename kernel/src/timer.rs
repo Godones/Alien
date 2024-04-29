@@ -6,12 +6,6 @@ pub fn read_timer() -> usize {
     arch::read_timer()
 }
 
-/// 获取当前时间，以 ms 为单位
-pub fn get_time_ms() -> isize {
-    const MSEC_PER_SEC: usize = 1000;
-    (read_timer() / (CLOCK_FREQ / MSEC_PER_SEC)) as isize
-}
-
 #[inline]
 pub fn set_next_trigger() {
     const TICKS_PER_SEC: usize = 10;
