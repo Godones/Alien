@@ -1,4 +1,7 @@
-use core::alloc::{GlobalAlloc, Layout};
+use core::{
+    alloc::{GlobalAlloc, Layout},
+    sync::atomic::AtomicUsize,
+};
 
 use spin::Mutex;
 use talc::{OomHandler, Span, Talc, Talck};
@@ -8,14 +11,18 @@ use crate::{common::FRAME_SIZE, memory::sbrk};
 #[global_allocator]
 static ALLOCATOR: Talck<Mutex<()>, MyOomHandler> = Talc::new(MyOomHandler).lock();
 
+static HEAP_START: AtomicUsize = AtomicUsize::new(0);
+static HEAP_END: AtomicUsize = AtomicUsize::new(0);
 pub fn init_heap() {
     let heap_began = sbrk(0);
     let after_alloc = sbrk(0x1000) + 0x1000;
     // println!("init heap range: {:#x} - {:#x}", heap_began, after_alloc);
+    HEAP_START.store(heap_began as usize, core::sync::atomic::Ordering::Relaxed);
+    HEAP_END.store(after_alloc as usize, core::sync::atomic::Ordering::Relaxed);
     unsafe {
         ALLOCATOR
-            .talc()
-            .init(Span::new(heap_began as *mut u8, after_alloc as *mut u8));
+            .lock()
+            .claim((Span::new(heap_began as *mut u8, after_alloc as *mut u8)));
     }
 }
 
@@ -40,24 +47,19 @@ impl OomHandler for MyOomHandler {
         let alloc_heap = sbrk(size as isize) + size as isize;
 
         // println!("oom occur, alloc_heap: {:#x}", alloc_heap);
-        let old_arena = talc.get_arena();
+        // let old_arena = talc.get_arena();
 
-        // we're going to extend the arena upward, doubling its size
-        // but we'll be sure not to extend past the limit
-        let new_arena = old_arena
-            .extend(0, old_arena.size())
-            .below(alloc_heap as *mut u8);
+        let old_end = HEAP_END.load(core::sync::atomic::Ordering::Relaxed);
+        HEAP_END.store(alloc_heap as usize, core::sync::atomic::Ordering::Relaxed);
+        let start = HEAP_START.load(core::sync::atomic::Ordering::Relaxed);
+        let old_heap = Span::new(start as *mut u8, old_end as *mut u8);
+        let new_heap = Span::new(start as *mut u8, alloc_heap as *mut u8);
 
-        if new_arena == old_arena {
-            // we won't be extending the arena, so we should return Err
+        let res = unsafe { talc.extend(old_heap, new_heap) };
+        if res == old_heap {
+            // println!("oom failed");
             return Err(());
         }
-
-        unsafe {
-            // we're assuming the new memory up to ARENA_TOP_LIMIT is allocatable
-            talc.extend(new_arena);
-        };
-
         Ok(())
     }
 }

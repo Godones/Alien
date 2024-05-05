@@ -100,10 +100,10 @@ impl LogDomainProxy {
 impl SchedulerDomainProxy {
     pub fn replace(
         &self,
-        new_domain: Box<dyn SchedulerDomain>,
-        loader: DomainLoader,
+        _new_domain: Box<dyn SchedulerDomain>,
+        _loader: DomainLoader,
     ) -> AlienResult<()> {
-        let mut old_domain = self.domain.write();
+        let old_domain = self.domain.write();
         // let mut old = self.old_domain.lock();
         // *self.domain_loader.lock() = loader;
         // // swap the old domain with the new one

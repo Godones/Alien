@@ -1,5 +1,6 @@
 #![no_std]
 #![forbid(unsafe_code)]
+#![feature(trait_upcasting)]
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
