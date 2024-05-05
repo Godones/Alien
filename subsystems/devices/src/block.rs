@@ -1,14 +1,16 @@
 use alloc::sync::Arc;
+
 use constants::DeviceId;
 use device_interface::BlockDevice;
-use spin::Once;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
-use vfscore::VfsResult;
-
 use drivers::block_device::GenericBlockDevice;
+use spin::Once;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
+    VfsResult,
+};
 pub static BLOCK_DEVICE: Once<Arc<GenericBlockDevice>> = Once::new();
 
 pub fn init_block_device(block_device: Arc<GenericBlockDevice>) {

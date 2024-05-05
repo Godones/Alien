@@ -2,21 +2,21 @@
 //! 内核也可以因为内部事件而给进程发送信号，通知进程发生了某个事件。
 //!
 //! 有关 Alien 中信号的具体处理流程可见 [`signal_handler`]。
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};
 use core::mem::size_of;
 
-use constants::signal::{
-    SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
-    SignalReceivers, SignalUserContext, SimpleBitSet,
+use constants::{
+    signal::{
+        SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
+        SignalReceivers, SignalUserContext, SimpleBitSet,
+    },
+    LinuxErrno,
 };
-use constants::LinuxErrno;
 use ksync::Mutex;
 use syscall_table::syscall_func;
+use timer::{read_timer, TimeSpec};
 
 use crate::task::{current_task, do_exit, do_suspend};
-use timer::{read_timer, TimeSpec};
 
 /// 记录每个线程的信号量，从 tid 获取信号相关信息
 static TID2SIGNALS: Mutex<BTreeMap<usize, Arc<Mutex<SignalReceivers>>>> =

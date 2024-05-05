@@ -1,7 +1,6 @@
 use alloc::vec::Vec;
 
 use slint::Rgb8Pixel;
-
 use Mstd::io::{flush_frame_buffer, frame_buffer};
 
 pub struct SwapBuffer {

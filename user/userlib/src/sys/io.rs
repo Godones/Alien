@@ -1,6 +1,8 @@
-use crate::syscall::{sys_read, sys_write};
 use core::fmt::Write;
+
 use core2::io::Read;
+
+use crate::syscall::{sys_read, sys_write};
 
 type Result<T> = core2::io::Result<T>;
 pub type Stderr = Stdout;

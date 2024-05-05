@@ -6,11 +6,9 @@
 extern crate Mstd;
 extern crate alloc;
 
-use alloc::rc::Rc;
-use alloc::vec::Vec;
+use alloc::{rc::Rc, vec::Vec};
 
-use slint::platform::WindowEvent;
-use slint::Model;
+use slint::{platform::WindowEvent, Model};
 use slint_helper::{MyPlatform, SwapBuffer};
 use virt2slint::Converter;
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};

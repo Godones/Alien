@@ -1,24 +1,29 @@
-use crate::fs::stdio::{STDIN, STDOUT};
-use crate::mm::map::MMapInfo;
-use crate::task::context::Context;
-use crate::task::heap::HeapInfo;
-use crate::task::stack::Stack;
-use crate::task::task::{TaskInner, TaskTimer, TidHandle};
-use crate::task::{FsContext, StatisticalData, Task, TaskState, GLOBAL_TASK_MANAGER};
-use alloc::collections::BTreeMap;
-use alloc::string::ToString;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{collections::BTreeMap, string::ToString, sync::Arc, vec::Vec};
+
 use bit_field::BitField;
 use config::{CPU_NUM, FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
-use constants::ipc::RobustList;
-use constants::signal::{SignalHandlers, SignalReceivers};
-use constants::{AlienError, AlienResult};
+use constants::{
+    ipc::RobustList,
+    signal::{SignalHandlers, SignalReceivers},
+    AlienError, AlienResult,
+};
 use gmanager::MinimalManager;
 use ksync::Mutex;
 use mem::kernel_space;
 use smpscheduler::FifoTask;
 use vfs::kfile::File;
+
+use crate::{
+    fs::stdio::{STDIN, STDOUT},
+    mm::map::MMapInfo,
+    task::{
+        context::Context,
+        heap::HeapInfo,
+        stack::Stack,
+        task::{TaskInner, TaskTimer, TidHandle},
+        FsContext, StatisticalData, Task, TaskState, GLOBAL_TASK_MANAGER,
+    },
+};
 
 type FdManager = MinimalManager<Arc<dyn File>>;
 

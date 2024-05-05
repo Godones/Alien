@@ -1,14 +1,16 @@
-use crate::frame::{alloc_frames, free_frames};
+use core::alloc::GlobalAlloc;
+
 #[cfg(feature = "buddy")]
 use buddy_system_allocator::LockedHeap;
 use config::FRAME_SIZE;
-use core::alloc::GlobalAlloc;
 use ksync::Mutex;
 use log::trace;
 #[cfg(feature = "rslab")]
 use rslab::{init_slab_system, SlabAllocator};
 #[cfg(feature = "talloc")]
 use talc::{Talc, Talck};
+
+use crate::frame::{alloc_frames, free_frames};
 
 pub struct HeapAllocator {
     #[cfg(feature = "talloc")]

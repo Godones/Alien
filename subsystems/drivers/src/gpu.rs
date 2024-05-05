@@ -1,9 +1,8 @@
 use device_interface::{DeviceBase, GpuDevice};
-use virtio_drivers::device::gpu::VirtIOGpu;
-use virtio_drivers::transport::mmio::MmioTransport;
+use ksync::Mutex;
+use virtio_drivers::{device::gpu::VirtIOGpu, transport::mmio::MmioTransport};
 
 use crate::hal::HalImpl;
-use ksync::Mutex;
 
 pub struct VirtIOGpuWrapper {
     gpu: Mutex<VirtIOGpu<HalImpl, MmioTransport>>,

@@ -1,6 +1,6 @@
 //! 有关 Unix 协议族下的套接字结构。(目前有关的功能有待支持)
-use alloc::string::String;
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc};
+
 use constants::LinuxErrno;
 use ksync::Mutex;
 use vfs::kfile::File;

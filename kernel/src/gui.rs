@@ -1,8 +1,8 @@
 //! GUI 相关的系统调用
-use crate::task::current_task;
+use devices::{GPU_DEVICE, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 
-use devices::{GPU_DEVICE, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
+use crate::task::current_task;
 
 const FB_VADDR: usize = 0x1000_0000;
 

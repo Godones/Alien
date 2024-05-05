@@ -1,8 +1,10 @@
 pub mod config;
 
-use crate::PlatformInfo;
 use core::ops::Range;
+
 use spin::Once;
+
+use crate::PlatformInfo;
 
 const FDT: &[u8] = include_bytes!("../../../../tools/hifive-unmatched-a00.dtb");
 

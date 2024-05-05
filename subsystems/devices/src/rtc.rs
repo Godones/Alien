@@ -1,16 +1,20 @@
-use alloc::format;
-use alloc::sync::Arc;
-use constants::io::{RtcTime, TeletypeCommand};
-use constants::DeviceId;
+use alloc::{format, sync::Arc};
 use core::cmp::min;
+
+use constants::{
+    io::{RtcTime, TeletypeCommand},
+    DeviceId,
+};
 use device_interface::RtcDevice;
 use spin::Once;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{VfsFileStat, VfsNodeType};
-use vfscore::VfsResult;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    superblock::VfsSuperBlock,
+    utils::{VfsFileStat, VfsNodeType},
+    VfsResult,
+};
 
 pub static RTC_DEVICE: Once<Arc<dyn RtcDevice>> = Once::new();
 

@@ -1,10 +1,11 @@
-use alloc::format;
-use alloc::string::{String, ToString};
+use alloc::{
+    format,
+    string::{String, ToString},
+};
 use core::fmt::{Debug, Formatter, Pointer};
 
-use bitflags::bitflags;
-
 pub use attr::*;
+use bitflags::bitflags;
 
 use crate::syscall::*;
 

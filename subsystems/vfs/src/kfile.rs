@@ -1,16 +1,21 @@
-use crate::system_root_fs;
 use alloc::sync::Arc;
-use constants::io::{Dirent64, DirentType, OpenFlags, PollEvents, SeekFrom};
-use constants::AlienResult;
-use constants::LinuxErrno;
 use core::fmt::{Debug, Formatter};
+
+use constants::{
+    io::{Dirent64, DirentType, OpenFlags, PollEvents, SeekFrom},
+    AlienResult, LinuxErrno,
+};
 use downcast_rs::{impl_downcast, DowncastSync};
 use ksync::Mutex;
-use vfscore::dentry::VfsDentry;
-use vfscore::error::VfsError;
-use vfscore::inode::VfsInode;
-use vfscore::path::VfsPath;
-use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
+use vfscore::{
+    dentry::VfsDentry,
+    error::VfsError,
+    inode::VfsInode,
+    path::VfsPath,
+    utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
+};
+
+use crate::system_root_fs;
 
 pub struct KernelFile {
     pos: Mutex<u64>,

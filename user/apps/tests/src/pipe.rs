@@ -1,8 +1,10 @@
 use alloc::format;
 
-use Mstd::fs::{close, read, write};
-use Mstd::ipc::pipe;
-use Mstd::process::{fork, wait};
+use Mstd::{
+    fs::{close, read, write},
+    ipc::pipe,
+    process::{fork, wait},
+};
 
 const STR: &str = "Hello, world!";
 

@@ -2,7 +2,6 @@ use alloc::string::String;
 use core::fmt;
 
 use core2::io::{BufRead, Read, Write};
-
 use stdio::*;
 pub use stdio::{stdin, stdout, StdinLock, StdoutLock};
 

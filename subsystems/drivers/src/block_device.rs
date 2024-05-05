@@ -1,27 +1,27 @@
-use alloc::boxed::Box;
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
-use constants::LinuxErrno;
-use core::cmp::min;
-use core::fmt::{Debug, Formatter};
-use core::num::NonZeroUsize;
-use core::ops::{Deref, DerefMut};
-use core::ptr::NonNull;
-use lru::LruCache;
-use virtio_drivers::device::blk::VirtIOBlk;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use alloc::{boxed::Box, collections::BTreeMap, sync::Arc, vec::Vec};
+use core::{
+    cmp::min,
+    fmt::{Debug, Formatter},
+    num::NonZeroUsize,
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+};
 
-use constants::AlienResult;
-use ksync::{Mutex, RwLock};
-
-use crate::hal::HalImpl;
 use config::FRAME_SIZE;
+use constants::{AlienResult, LinuxErrno};
 use device_interface::{BlockDevice, DeviceBase, LowBlockDevice};
+use ksync::{Mutex, RwLock};
+use lru::LruCache;
 use mem::{alloc_frames, free_frames};
 use platform::config::BLOCK_CACHE_FRAMES;
 use shim::KTask;
+use virtio_drivers::{
+    device::blk::VirtIOBlk,
+    transport::mmio::{MmioTransport, VirtIOHeader},
+};
 pub use visionfive2_sd::Vf2SdDriver;
+
+use crate::hal::HalImpl;
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
 
 pub struct GenericBlockDevice {

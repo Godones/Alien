@@ -2,10 +2,9 @@
 #![no_main]
 extern crate alloc;
 
-use alloc::string::String;
-use alloc::vec::Vec;
-use Mstd::fs::get_cwd;
-use Mstd::println;
+use alloc::{string::String, vec::Vec};
+
+use Mstd::{fs::get_cwd, println};
 
 #[no_mangle]
 fn main(argc: usize, argv: Vec<String>) -> isize {

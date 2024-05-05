@@ -1,8 +1,10 @@
 pub mod config;
 
-use crate::PlatformInfo;
 use core::ops::Range;
+
 use spin::Once;
+
+use crate::PlatformInfo;
 
 pub const FDT: &[u8] = include_bytes!("../../../../tools/jh7110-visionfive-v2.dtb");
 

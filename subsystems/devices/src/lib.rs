@@ -10,18 +10,17 @@ mod uart;
 
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use core::ptr::NonNull;
 
-use crate::prob::Probe;
-use alloc::vec::Vec;
 pub use block::{BLKDevice, BLOCK_DEVICE};
 use config::MAX_INPUT_EVENT_NUM;
-use core::ptr::NonNull;
 use device_interface::{DeviceBase, GpuDevice, LowBlockDevice};
-use drivers::block_device::GenericBlockDevice;
-use drivers::rtc::GoldFishRtc;
-use drivers::uart::{Uart, Uart16550, Uart8250};
+use drivers::{
+    block_device::GenericBlockDevice,
+    rtc::GoldFishRtc,
+    uart::{Uart, Uart16550, Uart8250},
+};
 use fdt::Fdt;
 pub use gpu::{GPUDevice, GPU_DEVICE};
 pub use input::{INPUTDevice, KEYBOARD_INPUT_DEVICE, MOUSE_INPUT_DEVICE};
@@ -30,8 +29,12 @@ use log::info;
 use platform::println;
 pub use rtc::{RTCDevice, RTC_DEVICE};
 pub use uart::{UARTDevice, UART_DEVICE};
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
-use virtio_drivers::transport::{DeviceType, Transport};
+use virtio_drivers::transport::{
+    mmio::{MmioTransport, VirtIOHeader},
+    DeviceType, Transport,
+};
+
+use crate::prob::Probe;
 
 pub struct DeviceInfo {
     pub device: Arc<dyn DeviceBase>,
@@ -317,8 +320,9 @@ fn init_net(_nic: Option<prob::DeviceInfo>) {
 
         match nic.compatible.as_str() {
             "virtio,mmio" => {
-                use config::{QEMU_GATEWAY, QEMU_IP};
                 use core::str::FromStr;
+
+                use config::{QEMU_GATEWAY, QEMU_IP};
                 use drivers::net::{NetNeedFunc, VirtIONetDriver};
                 use smoltcp::wire::IpAddress;
                 let virtio_net = VirtIONetDriver::from_mmio(base_addr);

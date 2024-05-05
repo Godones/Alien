@@ -1,8 +1,7 @@
 //! panic 处理
 
-use crate::symbol::find_symbol_with_addr;
-use core::panic::PanicInfo;
-use core::sync::atomic::AtomicBool;
+use core::{panic::PanicInfo, sync::atomic::AtomicBool};
+
 use platform::{println, system_shutdown};
 #[cfg(all(not(feature = "debug-eh-frame"), not(feature = "debug-frame-point")))]
 use tracer::CompilerTracer;
@@ -11,6 +10,8 @@ use tracer::DwarfTracer;
 #[cfg(feature = "debug-frame-point")]
 use tracer::FramePointTracer;
 use tracer::{Tracer, TracerProvider};
+
+use crate::symbol::find_symbol_with_addr;
 
 /// 递归标志
 static RECURSION: AtomicBool = AtomicBool::new(false);

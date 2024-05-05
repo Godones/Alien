@@ -1,9 +1,9 @@
 use alloc::sync::Arc;
+
 use constants::io::MountFlags;
 use dynfs::DynFsDirInode;
 use spin::Once;
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
+use vfscore::{dentry::VfsDentry, fstype::VfsFsType};
 
 use crate::CommonFsProviderImpl;
 

@@ -3,12 +3,14 @@
 //! 目前包括系统调用异常处理 [`syscall_exception_handler`]、页错误异常处理 [`page_exception_handler`] (包括
 //! 指令页错误异常处理 [`instruction_page_fault_exception_handler`]、 加载页错误异常处理[`load_page_fault_exception_handler`]、
 //! 储存页错误异常处理 [`store_page_fault_exception_handler`]) 和 文件读入异常处理 [`trap_common_read_file`]。
-use crate::task::{current_task, current_trap_frame};
 use alloc::sync::Arc;
+
 use arch::interrupt_enable;
 use constants::{AlienError, AlienResult};
 use riscv::register::scause::{Exception, Trap};
 use vfs::kfile::File;
+
+use crate::task::{current_task, current_trap_frame};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {

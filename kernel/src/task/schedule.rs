@@ -1,15 +1,17 @@
 //! CPU 调度
 use alloc::sync::Arc;
 use core::hint::spin_loop;
-use smpscheduler::FifoTask;
 
 use constants::signal::SignalNumber;
+use smpscheduler::FifoTask;
 
-use crate::ipc::send_signal;
-use crate::task::context::switch;
-use crate::task::cpu::current_cpu;
-use crate::task::task::TaskState;
-use crate::task::{take_current_task, Task, GLOBAL_TASK_MANAGER};
+use crate::{
+    ipc::send_signal,
+    task::{
+        context::switch, cpu::current_cpu, take_current_task, task::TaskState, Task,
+        GLOBAL_TASK_MANAGER,
+    },
+};
 
 /// 在 CPU 启动并初始化完毕后初次进入用户态时，或者在一个任务将要让渡 CPU 时 将会执行该函数。
 ///

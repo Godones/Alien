@@ -1,11 +1,13 @@
-use alloc::sync::Arc;
-use alloc::vec;
+use alloc::{sync::Arc, vec};
+
 use constants::AlienResult;
 use core2::io::Read;
 use cpio_reader::Mode;
-use vfscore::dentry::VfsDentry;
-use vfscore::path::VfsPath;
-use vfscore::utils::{VfsInodeMode, VfsNodeType};
+use vfscore::{
+    dentry::VfsDentry,
+    path::VfsPath,
+    utils::{VfsInodeMode, VfsNodeType},
+};
 
 pub fn populate_initrd(root: Arc<dyn VfsDentry>) -> AlienResult<()> {
     root.inode()?

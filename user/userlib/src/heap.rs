@@ -3,8 +3,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use spin::Mutex;
 use talc::{OomHandler, Span, Talc, Talck};
 
-use crate::common::FRAME_SIZE;
-use crate::memory::sbrk;
+use crate::{common::FRAME_SIZE, memory::sbrk};
 
 #[global_allocator]
 static ALLOCATOR: Talck<Mutex<()>, MyOomHandler> = Talc::new(MyOomHandler).lock();

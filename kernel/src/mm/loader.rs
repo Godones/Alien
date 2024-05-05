@@ -1,20 +1,27 @@
-use crate::fs;
-use crate::ipc::ShmInfo;
-use crate::mm::elf::{ELFError, ELFInfo, ELFReader};
-use crate::trap::TrapFrame;
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+use core::{cmp::min, fmt::Debug};
+
 use config::*;
-use core::cmp::min;
-use core::fmt::Debug;
 use mem::{VmmPageAllocator, FRAME_REF_MANAGER};
-use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
-use page_table::pte::MappingFlags;
-use page_table::table::Sv39PageTable;
+use page_table::{
+    addr::{align_up_4k, PhysAddr, VirtAddr},
+    pte::MappingFlags,
+    table::Sv39PageTable,
+};
 use spin::Lazy;
 use xmas_elf::program::{SegmentData, Type};
+
+use crate::{
+    fs,
+    ipc::ShmInfo,
+    mm::elf::{ELFError, ELFInfo, ELFReader},
+    trap::TrapFrame,
+};
 
 extern "C" {
     fn strampoline();
@@ -206,7 +213,11 @@ pub fn build_elf_address_space(
             _ => return Err(ELFError::NoEntrySegment),
         };
         let path = core::str::from_utf8(data).unwrap();
-        assert!(path.starts_with("/lib/ld-musl-riscv64"),"interpreter: {:?}", path);
+        assert!(
+            path.starts_with("/lib/ld-musl-riscv64"),
+            "interpreter: {:?}",
+            path
+        );
         let mut new_args = vec!["/tests/libc.so\0".to_string()];
         // args.remove(0); // remove the first arg
         new_args.extend(args.clone());
@@ -373,7 +384,7 @@ pub fn build_elf_address_space(
         res + bias as u64
     );
     // relocate if elf is dynamically linked
-    if bias != 0{
+    if bias != 0 {
         if let Ok(kvs) = elf.relocate_plt(bias) {
             kvs.into_iter().for_each(|kv| {
                 trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);

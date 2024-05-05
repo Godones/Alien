@@ -1,10 +1,13 @@
-use crate::task::current_task;
-use alloc::string::{String, ToString};
-use alloc::vec;
-use constants::net::Domain;
-use constants::{AlienResult, LinuxErrno};
+use alloc::{
+    string::{String, ToString},
+    vec,
+};
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+use constants::{net::Domain, AlienResult, LinuxErrno};
 use knet::addr::{RawIpV4Addr, SocketAddrExt};
+
+use crate::task::current_task;
 
 /// 地址解析，将根据`family_user_addr`的[`Domain`]类型分类进行解析。
 ///

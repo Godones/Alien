@@ -1,9 +1,8 @@
 #![no_std]
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
+
 use downcast_rs::{impl_downcast, DowncastSync};
 use spin::Once;
 

@@ -1,13 +1,9 @@
-use alloc::string::String;
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{string::String, vec, vec::Vec};
 use core::fmt::{Debug, Formatter};
 
 use mem::VmmPageAllocator;
 use page_table::table::Sv39PageTable;
-use xmas_elf::sections::SectionData;
-use xmas_elf::symbol_table::Entry;
-use xmas_elf::ElfFile;
+use xmas_elf::{sections::SectionData, symbol_table::Entry, ElfFile};
 
 #[allow(unused)]
 #[derive(Debug)]
@@ -57,7 +53,7 @@ impl ELFReader for ElfFile<'_> {
         Err(ELFError::NotSupported)
     }
 
-    fn relocate_dyn(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>{
+    fn relocate_dyn(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError> {
         let mut res = vec![];
         let data = self
             .find_section_by_name(".rela.plt")
@@ -96,10 +92,9 @@ impl ELFReader for ElfFile<'_> {
             }
         }
         Ok(res)
-
     }
 
-    fn relocate_plt(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>{
+    fn relocate_plt(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError> {
         let mut res = vec![];
         let data = self
             .find_section_by_name(".rela.dyn")

@@ -1,5 +1,7 @@
-use Mstd::fs::{close, fstat, open, read, seek, write, OpenFlags, Stat};
-use Mstd::println;
+use Mstd::{
+    fs::{close, fstat, open, read, seek, write, OpenFlags, Stat},
+    println,
+};
 
 pub fn seek_test() -> isize {
     let fd = open("/test.txt\0", OpenFlags::O_CREAT | OpenFlags::O_WRONLY);

@@ -12,18 +12,15 @@
 //!
 //! Reference: https://cloud.tencent.com/developer/article/1176832
 //!
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{collections::BTreeMap, sync::Arc, vec, vec::Vec};
 use core::cmp::min;
 
+use constants::{AlienError, AlienResult};
 use ksync::Mutex;
 use smpscheduler::FifoTask;
+use timer::read_timer;
 
 use crate::task::{Task, GLOBAL_TASK_MANAGER};
-use constants::{AlienError, AlienResult};
-use timer::read_timer;
 
 /// 用于记录一个进程等待一个 futex 的相关信息
 pub struct FutexWaiter {

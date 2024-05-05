@@ -12,6 +12,7 @@ extern crate platform;
 extern crate alloc;
 extern crate unwinder;
 use alloc::boxed::Box;
+
 pub use syscall_table::*;
 mod fs;
 mod gui;
@@ -23,10 +24,14 @@ mod task;
 mod time;
 mod trap;
 
-use crate::task::DriverTaskImpl;
-use core::hint::spin_loop;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    hint::spin_loop,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
 use platform::platform_machine_info;
+
+use crate::task::DriverTaskImpl;
 
 /// 多核启动标志
 static STARTED: AtomicBool = AtomicBool::new(false);

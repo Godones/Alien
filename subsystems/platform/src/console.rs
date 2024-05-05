@@ -1,4 +1,5 @@
 use core::fmt::{Arguments, Result, Write};
+
 use ksync::Mutex;
 use preprint::Print;
 /// 系统启动初期使用的输出函数

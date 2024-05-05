@@ -1,7 +1,10 @@
 //! uname系统调用实现
-use constants::sys::{Rusage, RusageFlag, Sysinfo, SyslogAction, TimeVal};
-use constants::{AlienResult, LinuxErrno};
 use core::cmp::min;
+
+use constants::{
+    sys::{Rusage, RusageFlag, Sysinfo, SyslogAction, TimeVal},
+    AlienResult, LinuxErrno,
+};
 use syscall_table::syscall_func;
 use timer::{get_time_ms, TimeFromFreq};
 

@@ -1,6 +1,4 @@
-use core::cmp::min;
-use core::fmt::Debug;
-use core::ops::Range;
+use core::{cmp::min, fmt::Debug, ops::Range};
 
 use fdt::Fdt;
 

@@ -1,29 +1,36 @@
 //! Alien 中有关进程的系统调用 和 多核的相关支持。
-use alloc::string::{String, ToString};
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 use core::cell::UnsafeCell;
+
+use config::CPU_NUM;
+use constants::{
+    ipc::FutexOp,
+    signal::SignalNumber,
+    task::{CloneFlags, WaitOptions},
+    AlienError, AlienResult, PrLimit, PrLimitRes,
+};
+use ksync::Mutex;
 use log::{info, warn};
+use platform::system_shutdown;
 use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::Lazy;
-
-use constants::ipc::FutexOp;
-use constants::signal::SignalNumber;
-use constants::task::{CloneFlags, WaitOptions};
-use constants::{AlienError, AlienResult};
-use constants::{PrLimit, PrLimitRes};
-use ksync::Mutex;
 use syscall_table::syscall_func;
 
-use crate::fs;
-use crate::ipc::{futex, global_logoff_signals};
-use crate::task::context::Context;
-use crate::task::schedule::schedule;
-use crate::task::task::{Task, TaskState};
-use crate::task::INIT_PROCESS;
-use crate::trap::{check_task_timer_expired, TrapFrame};
-use config::CPU_NUM;
-use platform::system_shutdown;
+use crate::{
+    fs,
+    ipc::{futex, global_logoff_signals},
+    task::{
+        context::Context,
+        schedule::schedule,
+        task::{Task, TaskState},
+        INIT_PROCESS,
+    },
+    trap::{check_task_timer_expired, TrapFrame},
+};
 
 /// 记录当前 CPU 上正在执行的线程 和 线程上下文
 #[derive(Debug, Clone)]

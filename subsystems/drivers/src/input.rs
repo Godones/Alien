@@ -1,15 +1,16 @@
-use alloc::collections::VecDeque;
-use alloc::sync::Arc;
+use alloc::{collections::VecDeque, sync::Arc};
 use core::ptr::NonNull;
-use log::info;
 
 use device_interface::{DeviceBase, InputDevice};
-use virtio_drivers::device::input::VirtIOInput;
-use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
+use ksync::Mutex;
+use log::info;
+use shim::KTask;
+use virtio_drivers::{
+    device::input::VirtIOInput,
+    transport::mmio::{MmioTransport, VirtIOHeader},
+};
 
 use crate::hal::HalImpl;
-use ksync::Mutex;
-use shim::KTask;
 
 pub struct VirtIOInputDriver {
     inner: Mutex<InputDriverInner>,

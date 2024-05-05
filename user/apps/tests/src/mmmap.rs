@@ -1,5 +1,7 @@
-use Mstd::fs::{close, fstat, open, write, OpenFlags, Stat};
-use Mstd::ipc::{mmap, munmap, MapFlags, ProtFlags};
+use Mstd::{
+    fs::{close, fstat, open, write, OpenFlags, Stat},
+    ipc::{mmap, munmap, MapFlags, ProtFlags},
+};
 
 pub fn mmap_test() {
     println!("Test mmap and munmap");

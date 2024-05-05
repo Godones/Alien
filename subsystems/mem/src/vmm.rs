@@ -1,12 +1,16 @@
-use crate::frame::VmmPageAllocator;
 use alloc::sync::Arc;
+
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
 use ksync::Mutex;
-use page_table::addr::{PhysAddr, VirtAddr};
-use page_table::pte::MappingFlags;
-use page_table::table::Sv39PageTable;
+use page_table::{
+    addr::{PhysAddr, VirtAddr},
+    pte::MappingFlags,
+    table::Sv39PageTable,
+};
 use platform::config::MMIO;
 use spin::Lazy;
+
+use crate::frame::VmmPageAllocator;
 
 extern "C" {
     fn stext();

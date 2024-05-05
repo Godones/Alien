@@ -3,8 +3,7 @@
 
 extern crate alloc;
 
-use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use Mstd::time::sleep;
 

@@ -4,11 +4,14 @@
 extern crate Mstd;
 
 use core::str;
-use Mstd::fs::close;
-use Mstd::println;
-use Mstd::process::{exit, fork};
-use Mstd::socket::*;
-use Mstd::time::sleep;
+
+use Mstd::{
+    fs::close,
+    println,
+    process::{exit, fork},
+    socket::*,
+    time::sleep,
+};
 
 const INTADDR: u32 = 2130706433; //127.0.0.1
 const PORT: u16 = 8899;

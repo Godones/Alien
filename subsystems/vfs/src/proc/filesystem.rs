@@ -1,14 +1,17 @@
-use crate::FS;
-use alloc::string::String;
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc};
 use core::cmp::min;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::fstype::FileSystemFlags;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{VfsFileStat, VfsNodePerm, VfsNodeType};
-use vfscore::VfsResult;
+
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    fstype::FileSystemFlags,
+    inode::{InodeAttr, VfsInode},
+    superblock::VfsSuperBlock,
+    utils::{VfsFileStat, VfsNodePerm, VfsNodeType},
+    VfsResult,
+};
+
+use crate::FS;
 
 pub struct SystemSupportFS;
 

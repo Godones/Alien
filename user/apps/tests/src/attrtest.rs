@@ -1,5 +1,4 @@
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
 use Mstd::fs::{
     close, fgetxattr, flistxattr, fsetxattr, fstat, ftruncate, open, read, seek, write, OpenFlags,

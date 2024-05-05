@@ -1,15 +1,20 @@
 use alloc::sync::Arc;
-use constants::io::{LocalModes, TeletypeCommand, Termios, WinSize};
-use constants::DeviceId;
+
+use constants::{
+    io::{LocalModes, TeletypeCommand, Termios, WinSize},
+    DeviceId,
+};
 use device_interface::UartDevice;
 use ksync::Mutex;
 use spin::Once;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
-use vfscore::VfsResult;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    superblock::VfsSuperBlock,
+    utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
+    VfsResult,
+};
 
 pub static UART_DEVICE: Once<Arc<dyn UartDevice>> = Once::new();
 

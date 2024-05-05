@@ -1,6 +1,7 @@
 pub mod config;
-use crate::PlatformInfo;
 use spin::Once;
+
+use crate::PlatformInfo;
 
 pub static DTB: Once<usize> = Once::new();
 

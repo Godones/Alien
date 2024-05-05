@@ -1,5 +1,6 @@
-use config::{CPU_NUM, STACK_SIZE, STACK_SIZE_BITS};
 use core::arch::asm;
+
+use config::{CPU_NUM, STACK_SIZE, STACK_SIZE_BITS};
 
 #[link_section = ".bss.stack"]
 static mut STACK: [u8; STACK_SIZE * CPU_NUM] = [0; STACK_SIZE * CPU_NUM];

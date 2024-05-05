@@ -4,21 +4,22 @@
 extern crate alloc;
 #[macro_use]
 extern crate platform;
-use crate::dev::DevFsProviderImpl;
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::sync::Arc;
-use constants::AlienResult;
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+    sync::Arc,
+};
 use core::ops::Index;
+
+use constants::AlienResult;
 use dynfs::DynFsKernelProvider;
 use ksync::Mutex;
 use spin::{Lazy, Once};
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
 #[cfg(feature = "ext")]
 use vfscore::inode::VfsInode;
-use vfscore::path::VfsPath;
-use vfscore::utils::VfsTimeSpec;
+use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, utils::VfsTimeSpec};
+
+use crate::dev::DevFsProviderImpl;
 pub mod dev;
 #[cfg(feature = "ext")]
 mod extffi;

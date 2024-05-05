@@ -11,9 +11,12 @@
 //! 向下层的具体套接字中传递相应地址时，传递的也是 [`SocketAddrExt`] 结构。
 //!
 use alloc::string::String;
+use core::{
+    fmt::Debug,
+    net::{IpAddr, SocketAddr},
+};
+
 use constants::net::Domain;
-use core::fmt::Debug;
-use core::net::{IpAddr, SocketAddr};
 
 /// 用于存储套接字通信地址的结构，分为本地路径地址和网络套接字地址。
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]

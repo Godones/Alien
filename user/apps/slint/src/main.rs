@@ -7,9 +7,8 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use slint::platform::WindowEvent;
-use virt2slint::Converter;
-
 use slint_helper::{MyPlatform, SwapBuffer};
+use virt2slint::Converter;
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 
 slint::include_modules!();

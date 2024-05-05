@@ -1,8 +1,8 @@
 #![no_std]
 
-use constants::io::RtcTime;
-use constants::AlienResult;
 use core::any::Any;
+
+use constants::{io::RtcTime, AlienResult};
 
 pub trait DeviceBase: Sync + Send {
     fn handle_irq(&self);

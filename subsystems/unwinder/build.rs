@@ -1,6 +1,4 @@
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+use std::{fs::File, io::Write, path::Path};
 
 fn main() {
     println!("cargo:rerun-if-changed={}", "src/");
