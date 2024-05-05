@@ -50,8 +50,8 @@ pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, _mask: usize) -> AlienRes
         None
     }; // wait forever
     let mut res = 0;
-    let task = current_task().unwrap();
     loop {
+        let task = current_task().unwrap();
         for pfd in fds.iter_mut() {
             if let Some(file) = task.get_file(pfd.fd as usize) {
                 let event = file.poll(pfd.events)?;

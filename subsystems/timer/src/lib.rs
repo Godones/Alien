@@ -91,7 +91,7 @@ impl TimeSpec {
         let time = arch::read_timer();
         Self {
             tv_sec: time / CLOCK_FREQ,
-            tv_nsec: (time % CLOCK_FREQ) * 1000000000 / CLOCK_FREQ,
+            tv_nsec: (time % CLOCK_FREQ) * 1000_000_000 / CLOCK_FREQ,
         }
     }
 

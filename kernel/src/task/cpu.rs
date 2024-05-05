@@ -3,7 +3,7 @@ use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cell::UnsafeCell;
-use log::{error, info, warn};
+use log::{info, warn};
 use smpscheduler::{FifoSmpScheduler, FifoTask, ScheduleHart};
 use spin::Lazy;
 
@@ -134,29 +134,18 @@ pub fn do_exit(exit_code: i32) -> isize {
     task.update_state(TaskState::Zombie);
     task.update_exit_code(exit_code);
     global_logoff_signals(task.get_tid() as usize);
-    // clear_child_tid 的值不为 0，则将这个用户地址处的值写为0
-    let addr = task.access_inner().clear_child_tid;
-    if addr != 0 {
-        // 确认这个地址在用户地址空间中。如果没有也不需要报错，因为线程马上就退出了
-        let addr = task.transfer_raw_ptr(addr as *mut i32);
-        *addr = 0;
-    }
-
     // 回收一些物理页，不然等到wait系统调用真正进行回收时，可能会出现OOM
-    // 可回收物理页包括trap页以及内核栈页
     // 在这里还不能回收内核栈页，因为还需要用到内核栈页来执行下面的代码
-    // 所以只回收trap页
-    // 在wait系统调用中，会回收内核栈页
     task.pre_recycle();
     info!("pre recycle done");
     let clear_child_tid = task.clear_child_tid();
     if clear_child_tid != 0 {
         let phy_addr = task.transfer_raw_ptr(clear_child_tid as *mut usize);
         *phy_addr = 0;
-        error!("exit wake futex on {:#x}", clear_child_tid);
+        info!("exit wake futex on {:#x}", clear_child_tid);
         futex(clear_child_tid, FutexOp::FutexWake as u32, 1, 0, 0, 0);
     } else {
-        error!("exit clear_child_tid is 0");
+        info!("exit clear_child_tid is 0");
     }
     schedule();
     0
@@ -288,7 +277,6 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     trap_frame.update_res(0);
     let tid = new_task.get_tid();
     GLOBAL_TASK_MANAGER.add_task(Arc::new(FifoTask::new(new_task)));
-    // do_suspend();
     tid
 }
 
