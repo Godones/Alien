@@ -1,27 +1,32 @@
-use bit_field::BitField;
 use core::arch::{asm, global_asm};
-use riscv::register::sstatus::SPP;
-use riscv::register::{sepc, sscratch, sstatus, stval, stvec};
 
-use constants::signal::SignalNumber;
-use constants::signal::SIGNAL_RETURN_TRAP;
-use constants::time::TimerType;
-pub use context::TrapFrame;
-pub use exception::trap_common_read_file;
-
-use crate::ipc::{send_signal, signal_handler, signal_return, solve_futex_wait};
-use crate::task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend};
-use crate::time::{check_timer_queue, set_next_trigger_in_kernel};
-use ::interrupt::external_interrupt_handler;
-use ::interrupt::record_irq;
+use ::interrupt::{external_interrupt_handler, record_irq};
 use arch::{
     external_interrupt_enable, interrupt_disable, interrupt_enable, is_interrupt_enable,
     timer_interrupt_enable,
 };
+use bit_field::BitField;
 use config::TRAMPOLINE;
-use constants::AlienError;
-use riscv::register::scause::{Exception, Interrupt, Trap};
-use riscv::register::stvec::TrapMode;
+use constants::{
+    signal::{SignalNumber, SIGNAL_RETURN_TRAP},
+    time::TimerType,
+    AlienError,
+};
+pub use context::TrapFrame;
+pub use exception::trap_common_read_file;
+use riscv::register::{
+    scause::{Exception, Interrupt, Trap},
+    sepc, sscratch, sstatus,
+    sstatus::SPP,
+    stval, stvec,
+    stvec::TrapMode,
+};
+
+use crate::{
+    ipc::{send_signal, signal_handler, signal_return, solve_futex_wait},
+    task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend},
+    time::{check_timer_queue, set_next_trigger_in_kernel},
+};
 
 mod context;
 mod exception;

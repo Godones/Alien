@@ -1,19 +1,15 @@
 #![no_std]
 extern crate alloc;
 
-use alloc::collections::BTreeMap;
-use alloc::format;
-use alloc::string::String;
-use alloc::sync::Arc;
-use spin::Once;
-
-use ksync::Mutex;
-use plic::{Mode, PLIC};
+use alloc::{collections::BTreeMap, format, string::String, sync::Arc};
 
 use arch::hart_id;
 use config::CPU_NUM;
 use device_interface::DeviceBase;
+use ksync::Mutex;
 use platform::println;
+use plic::{Mode, PLIC};
+use spin::Once;
 
 pub static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 pub static INTERRUPT_RECORD: Mutex<BTreeMap<usize, usize>> = Mutex::new(BTreeMap::new());

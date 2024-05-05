@@ -1,11 +1,14 @@
-use crate::task::{current_task, do_suspend};
 use alloc::vec::Vec;
-use constants::io::{PollEvents, PollFd};
-use constants::AlienResult;
-use constants::LinuxErrno;
+
+use constants::{
+    io::{PollEvents, PollFd},
+    AlienResult, LinuxErrno,
+};
 use log::{info, warn};
 use syscall_table::syscall_func;
 use timer::TimeSpec;
+
+use crate::task::{current_task, do_suspend};
 
 /// 一个系统调用，用于在一些文件描述符上等待事件。作用与 [`pselect6`] 相似。
 ///

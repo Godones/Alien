@@ -1,9 +1,10 @@
-use alloc::string::{String, ToString};
-
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::ops::Range;
-use fdt::standard_nodes::Compatible;
-use fdt::Fdt;
+
+use fdt::{standard_nodes::Compatible, Fdt};
 
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {

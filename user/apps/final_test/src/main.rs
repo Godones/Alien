@@ -1,9 +1,12 @@
 #![no_main]
 #![no_std]
 
-use Mstd::process::{exec, exit, fork, waitpid};
-use Mstd::thread::m_yield;
-use Mstd::{println, system_shutdown};
+use Mstd::{
+    println,
+    process::{exec, exit, fork, waitpid},
+    system_shutdown,
+    thread::m_yield,
+};
 
 #[no_mangle]
 fn main() -> isize {

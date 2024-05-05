@@ -1,9 +1,10 @@
-use alloc::format;
-use alloc::vec::Vec;
+use alloc::{format, vec::Vec};
 
-use Mstd::process::{getpid, CloneFlags};
-use Mstd::thread::{gettid, thread_create};
-use Mstd::time::sleep;
+use Mstd::{
+    process::{getpid, CloneFlags},
+    thread::{gettid, thread_create},
+    time::sleep,
+};
 
 const STACK_SIZE: usize = 2 * 1024;
 

@@ -19,23 +19,20 @@ mod qemu_riscv;
 #[cfg(feature = "vf2")]
 mod starfive2_riscv;
 
+#[cfg(feature = "hifive")]
+use hifive_riscv::{basic_machine_info, console_putchar};
+#[cfg(feature = "hifive")]
+pub use hifive_riscv::{config, set_timer, system_shutdown};
 #[cfg(feature = "qemu_riscv")]
 use qemu_riscv::{basic_machine_info, console_putchar};
 #[cfg(feature = "qemu_riscv")]
 pub use qemu_riscv::{config, set_timer, system_shutdown};
-
 #[cfg(feature = "vf2")]
 use starfive2_riscv::{basic_machine_info, console_putchar};
 #[cfg(feature = "vf2")]
 pub use starfive2_riscv::{config, set_timer, system_shutdown};
 
-#[cfg(feature = "hifive")]
-use hifive_riscv::{basic_machine_info, console_putchar};
-
-use crate::common_riscv::sbi::hart_start;
-use crate::console::PrePrint;
-#[cfg(feature = "hifive")]
-pub use hifive_riscv::{config, set_timer, system_shutdown};
+use crate::{common_riscv::sbi::hart_start, console::PrePrint};
 
 #[no_mangle]
 pub fn platform_init(hart_id: usize, _dtb: usize) {

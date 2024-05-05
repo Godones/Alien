@@ -1,5 +1,5 @@
-use alloc::format;
-use alloc::string::String;
+use alloc::{format, string::String};
+
 use constants::io::RtcTime;
 use device_interface::{DeviceBase, RtcDevice};
 use log::trace;

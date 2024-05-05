@@ -1,18 +1,17 @@
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
 use core::ops::Range;
 
 use bitflags::bitflags;
-use page_table::addr::{align_up_4k, VirtAddr};
-use page_table::pte::MappingFlags;
-
-use crate::task::current_task;
 use config::{FRAME_SIZE, PROCESS_HEAP_MAX};
-use constants::io::MapFlags;
-use constants::AlienResult;
-use constants::LinuxErrno;
+use constants::{io::MapFlags, AlienResult, LinuxErrno};
+use page_table::{
+    addr::{align_up_4k, VirtAddr},
+    pte::MappingFlags,
+};
 use syscall_table::syscall_func;
 use vfs::kfile::File;
+
+use crate::task::current_task;
 
 bitflags! {
     pub struct ProtFlags: u32 {

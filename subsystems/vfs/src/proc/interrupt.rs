@@ -1,12 +1,15 @@
 use alloc::sync::Arc;
 use core::cmp::min;
+
 use interrupt::interrupts_info;
-use vfscore::error::VfsError;
-use vfscore::file::VfsFile;
-use vfscore::inode::{InodeAttr, VfsInode};
-use vfscore::superblock::VfsSuperBlock;
-use vfscore::utils::{VfsFileStat, VfsNodePerm, VfsNodeType};
-use vfscore::VfsResult;
+use vfscore::{
+    error::VfsError,
+    file::VfsFile,
+    inode::{InodeAttr, VfsInode},
+    superblock::VfsSuperBlock,
+    utils::{VfsFileStat, VfsNodePerm, VfsNodeType},
+    VfsResult,
+};
 
 pub struct InterruptRecord;
 

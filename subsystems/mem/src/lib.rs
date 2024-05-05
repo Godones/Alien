@@ -14,10 +14,8 @@ mod manager;
 mod vmm;
 
 pub use frame::{alloc_frame_trackers, alloc_frames, free_frames, FrameTracker, VmmPageAllocator};
-
-pub use vmm::{kernel_pgd, kernel_satp, kernel_space, map_region_to_kernel, query_kernel_space};
-
 pub use manager::FRAME_REF_MANAGER;
+pub use vmm::{kernel_pgd, kernel_satp, kernel_space, map_region_to_kernel, query_kernel_space};
 #[global_allocator]
 static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::new();
 

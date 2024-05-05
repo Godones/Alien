@@ -1,6 +1,7 @@
-use Mstd::println;
-use Mstd::time::get_time_ms;
-use Mstd::time::sleep;
+use Mstd::{
+    println,
+    time::{get_time_ms, sleep},
+};
 
 pub fn time_test() -> isize {
     println!("Test sleep....");

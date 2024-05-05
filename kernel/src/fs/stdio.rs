@@ -1,8 +1,8 @@
 use alloc::sync::Arc;
+
 use constants::io::OpenFlags;
 use spin::Lazy;
-use vfs::kfile::KernelFile;
-use vfs::system_root_fs;
+use vfs::{kfile::KernelFile, system_root_fs};
 use vfscore::path::VfsPath;
 
 type Stdin = KernelFile;

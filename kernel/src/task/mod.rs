@@ -6,17 +6,17 @@
 //! [`schedule`] 子模块指明了 Alien 中有关 CPU 调度的相关机制
 //! [`stack`] 子模块定义了 Alien 中有关内核栈的相关结构。
 //! [`task`] 子模块定义了 Alien 中有关进程控制块的定义。
-use crate::fs::read_all;
-use crate::task::schedule::schedule_now;
-pub use crate::task::task::FsContext;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
+
 pub use cpu::*;
 use shim::{KTask, KTaskShim};
 use smpscheduler::FifoTask;
 use spin::Lazy;
 pub use task::{StatisticalData, Task, TaskState};
 use timer::get_time_ms;
+
+pub use crate::task::task::FsContext;
+use crate::{fs::read_all, task::schedule::schedule_now};
 
 mod context;
 mod cpu;

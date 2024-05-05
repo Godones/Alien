@@ -3,44 +3,56 @@
 //! Alien 中对于进程\线程的相关概念的设计与 Linux 类似，进程和线程共用一个控制块结构。
 //! 使用 `clone` 创建新的进程(线程)时，会根据 flag 指明父子进程之间资源共享的程度。
 //! tid 是标识不同任务的唯一标识。
-use crate::fs::stdio::{STDIN, STDOUT};
-use crate::ipc::{global_register_signals, ShmInfo};
-use crate::mm::loader::{
-    build_cow_address_space, build_elf_address_space, build_thread_address_space, UserStack,
+use alloc::{
+    collections::BTreeMap,
+    format,
+    string::{String, ToString},
+    sync::{Arc, Weak},
+    vec,
+    vec::Vec,
 };
-use crate::mm::map::{MMapInfo, MMapRegion, ProtFlags};
-use crate::task::context::Context;
-use crate::task::heap::HeapInfo;
-use crate::task::stack::Stack;
-use crate::trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame};
-use alloc::collections::BTreeMap;
-use alloc::string::{String, ToString};
-use alloc::sync::{Arc, Weak};
-use alloc::vec::Vec;
-use alloc::{format, vec};
+use core::{
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
+
 use bit_field::BitField;
 use config::*;
-use constants::aux::*;
-use constants::io::MapFlags;
-use constants::ipc::RobustList;
-use constants::signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext};
-use constants::sys::TimeVal;
-use constants::task::CloneFlags;
-use constants::time::TimerType;
-use constants::{AlienError, AlienResult};
-use constants::{LinuxErrno, PrLimit, PrLimitRes};
-use core::fmt::{Debug, Formatter};
-use core::ops::Range;
+use constants::{
+    aux::*,
+    io::MapFlags,
+    ipc::RobustList,
+    signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext},
+    sys::TimeVal,
+    task::CloneFlags,
+    time::TimerType,
+    AlienError, AlienResult, LinuxErrno, PrLimit, PrLimitRes,
+};
 use gmanager::MinimalManager;
 use ksync::{Mutex, MutexGuard};
 use mem::{kernel_satp, VmmPageAllocator, FRAME_REF_MANAGER};
-use page_table::addr::{align_down_4k, align_up_4k, VirtAddr};
-use page_table::pte::MappingFlags;
-use page_table::table::Sv39PageTable;
+use page_table::{
+    addr::{align_down_4k, align_up_4k, VirtAddr},
+    pte::MappingFlags,
+    table::Sv39PageTable,
+};
 use spin::Lazy;
 use timer::{read_timer, ITimerVal, TimeNow, ToClock};
 use vfs::kfile::File;
 use vfscore::dentry::VfsDentry;
+
+use crate::{
+    fs::stdio::{STDIN, STDOUT},
+    ipc::{global_register_signals, ShmInfo},
+    mm::{
+        loader::{
+            build_cow_address_space, build_elf_address_space, build_thread_address_space, UserStack,
+        },
+        map::{MMapInfo, MMapRegion, ProtFlags},
+    },
+    task::{context::Context, heap::HeapInfo, stack::Stack},
+    trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame},
+};
 
 type FdManager = MinimalManager<Arc<dyn File>>;
 

@@ -7,24 +7,23 @@
 //! 的规定，我们只需为套接字文件规定好 [`socket_file_release`]、[`socket_file_write`]、[`socket_file_read`]、
 //! [`socket_ready_to_read`]、[`socket_ready_to_write`] 几个操作函数，即可快速的创建套接字文件，并将其放入进程的文件描述
 //! 符表中，具体有关套接字文件的创建，可见 [`SocketData::new`] 的实现。
-use crate::addr::SocketAddrExt;
-use crate::port::neterror2alien;
-use crate::unix::UnixSocket;
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use constants::io::{OpenFlags, PollEvents, SeekFrom};
-use constants::net::{Domain, ShutdownFlag, SocketType};
-use constants::AlienResult;
-use constants::LinuxErrno;
-use core::fmt::{Debug, Formatter};
-use core::net::SocketAddr;
+use alloc::{boxed::Box, sync::Arc};
+use core::{
+    fmt::{Debug, Formatter},
+    net::SocketAddr,
+};
+
+use constants::{
+    io::{OpenFlags, PollEvents, SeekFrom},
+    net::{Domain, ShutdownFlag, SocketType},
+    AlienResult, LinuxErrno,
+};
 use ksync::{Mutex, MutexGuard};
-use netcore::tcp::TcpSocket;
-use netcore::udp::UdpSocket;
+use netcore::{tcp::TcpSocket, udp::UdpSocket};
 use vfs::kfile::File;
-use vfscore::dentry::VfsDentry;
-use vfscore::inode::VfsInode;
-use vfscore::utils::VfsFileStat;
+use vfscore::{dentry::VfsDentry, inode::VfsInode, utils::VfsFileStat};
+
+use crate::{addr::SocketAddrExt, port::neterror2alien, unix::UnixSocket};
 
 pub trait SocketFileExt {
     fn get_socketdata(&self) -> AlienResult<MutexGuard<Box<SocketData>>>;

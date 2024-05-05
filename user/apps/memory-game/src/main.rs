@@ -5,18 +5,20 @@ extern crate Mstd;
 extern crate alloc;
 extern crate libm;
 
-use alloc::rc::Rc;
-use alloc::vec::Vec;
+use alloc::{rc::Rc, vec::Vec};
 use core::time::Duration;
 
-use rand::prelude::{SliceRandom, SmallRng};
-use rand::SeedableRng;
-use slint::platform::WindowEvent;
-use slint::{Model, VecModel};
+use rand::{
+    prelude::{SliceRandom, SmallRng},
+    SeedableRng,
+};
+use slint::{platform::WindowEvent, Model, VecModel};
 use slint_helper::{MyPlatform, SwapBuffer};
 use virt2slint::Converter;
-use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
-use Mstd::time::get_time_ms;
+use Mstd::{
+    io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES},
+    time::get_time_ms,
+};
 
 slint::include_modules!();
 

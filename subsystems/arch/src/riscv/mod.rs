@@ -1,10 +1,9 @@
 mod regs;
 
-pub use regs::*;
-
 use core::arch::asm;
-use riscv::asm::sfence_vma_all;
-use riscv::register::satp;
+
+pub use regs::*;
+use riscv::{asm::sfence_vma_all, register::satp};
 
 /// 获取当前的 hart id
 pub fn hart_id() -> usize {

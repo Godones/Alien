@@ -2,7 +2,6 @@ use alloc::rc::Rc;
 use core::time::Duration;
 
 use slint::platform::software_renderer::MinimalSoftwareWindow;
-
 use Mstd::time::{TimeSpec, TimeVal};
 
 pub struct MyPlatform {

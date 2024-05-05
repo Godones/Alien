@@ -1,14 +1,20 @@
-use crate::manager::FRAME_REF_MANAGER;
 use alloc::format;
+use core::{
+    mem::forget,
+    ops::{Deref, DerefMut},
+};
+
 use config::{FRAME_BITS, FRAME_SIZE};
-use core::mem::forget;
-use core::ops::{Deref, DerefMut};
 use ksync::Mutex;
 use log::trace;
-use page_table::addr::{PhysAddr, VirtAddr};
-use page_table::table::PagingIf;
+use page_table::{
+    addr::{PhysAddr, VirtAddr},
+    table::PagingIf,
+};
 use pager::{PageAllocator, PageAllocatorExt};
 use platform::println;
+
+use crate::manager::FRAME_REF_MANAGER;
 
 #[cfg(feature = "pager_bitmap")]
 pub static FRAME_ALLOCATOR: Mutex<pager::Bitmap<0>> = Mutex::new(pager::Bitmap::new());

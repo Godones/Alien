@@ -1,5 +1,5 @@
-use alloc::collections::BTreeMap;
-use alloc::sync::Arc;
+use alloc::{collections::BTreeMap, sync::Arc};
+
 use constants::DeviceId;
 use devfs::DevKernelProvider;
 use devices::{
@@ -11,10 +11,12 @@ use log::info;
 use null::NullDevice;
 use random::RandomDevice;
 use spin::Lazy;
-use vfscore::dentry::VfsDentry;
-use vfscore::fstype::VfsFsType;
-use vfscore::inode::VfsInode;
-use vfscore::utils::{VfsNodeType, VfsTimeSpec};
+use vfscore::{
+    dentry::VfsDentry,
+    fstype::VfsFsType,
+    inode::VfsInode,
+    utils::{VfsNodeType, VfsTimeSpec},
+};
 
 mod null;
 mod random;

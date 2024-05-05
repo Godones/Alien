@@ -1,6 +1,6 @@
 extern crate tinyrlibc;
-use core::ffi::c_void;
-use core::fmt::Write;
+use core::{ffi::c_void, fmt::Write};
+
 use cty::{c_char, c_int, size_t};
 
 #[no_mangle]

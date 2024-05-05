@@ -1,6 +1,7 @@
-use crate::free_frames;
 use config::FRAME_SIZE;
 use ksync::Mutex;
+
+use crate::free_frames;
 
 pub static INITRD_DATA: Mutex<Option<InitrdData>> = Mutex::new(None);
 

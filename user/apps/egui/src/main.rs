@@ -4,13 +4,17 @@ extern crate Mstd;
 extern crate alloc;
 
 use alloc::sync::Arc;
-use simplegui::complex::desktop::Desktop;
-use simplegui::complex::terminal::GodTerminal;
-use simplegui::GPUDevice;
-use Mstd::gui::embedded_graphics::geometry::{Point, Size};
-use Mstd::io::{flush_frame_buffer, frame_buffer, VIRTGPU_XRES, VIRTGPU_YRES};
-use Mstd::println;
-use Mstd::sync::mutex::Mutex;
+
+use simplegui::{
+    complex::{desktop::Desktop, terminal::GodTerminal},
+    GPUDevice,
+};
+use Mstd::{
+    gui::embedded_graphics::geometry::{Point, Size},
+    io::{flush_frame_buffer, frame_buffer, VIRTGPU_XRES, VIRTGPU_YRES},
+    println,
+    sync::mutex::Mutex,
+};
 
 struct GpuDevice {
     frame_buffer: &'static mut [u8],

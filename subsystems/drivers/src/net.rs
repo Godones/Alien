@@ -1,11 +1,12 @@
 use core::ptr::NonNull;
 
-use crate::hal::HalImpl;
 pub use loopback::LoopbackDev;
 use netcore::{KernelNetFunc, NetInstant};
 use timer::TimeSpec;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_net::VirtIONetDeviceWrapper;
+
+use crate::hal::HalImpl;
 
 pub const NET_BUFFER_LEN: usize = 4096;
 pub const NET_QUEUE_SIZE: usize = 128;

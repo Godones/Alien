@@ -3,10 +3,12 @@
 
 extern crate alloc;
 
-use alloc::string::String;
-use alloc::vec::Vec;
-use Mstd::fs::{openat, FileMode, OpenFlags};
-use Mstd::println;
+use alloc::{string::String, vec::Vec};
+
+use Mstd::{
+    fs::{openat, FileMode, OpenFlags},
+    println,
+};
 
 #[no_mangle]
 fn main(_argc: usize, argv: Vec<String>) -> isize {

@@ -1,10 +1,12 @@
 #[cfg(feature = "net_test")]
 pub mod nettest {
-    use crate::net::port::neterror2alien;
     use alloc::vec::Vec;
-    use constants::AlienResult;
     use core::net::{IpAddr, SocketAddr};
+
+    use constants::AlienResult;
     use netcore::tcp::TcpSocket;
+
+    use crate::net::port::neterror2alien;
 
     /// A TCP stream between a local and a remote socket.
     pub struct TcpStream(TcpSocket);

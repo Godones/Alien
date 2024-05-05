@@ -6,14 +6,13 @@
 #![feature(naked_functions)]
 extern crate alloc;
 
-use alloc::string::String;
-use alloc::string::ToString;
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::arch::asm;
 
-use crate::heap::init_heap;
-use crate::process::exit;
-use crate::syscall::__system_shutdown;
+use crate::{heap::init_heap, process::exit, syscall::__system_shutdown};
 
 pub mod common;
 pub mod fs;

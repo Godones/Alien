@@ -2,16 +2,10 @@
 #![no_main]
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::vec;
-use alloc::vec::Vec;
-use core::clone::Clone;
-use core::convert::Into;
-use core::default::Default;
-use core::iter::Iterator;
-use slint::platform::WindowEvent;
-use slint::{FilterModel, Model, SortModel};
+use alloc::{boxed::Box, rc::Rc, vec, vec::Vec};
+use core::{clone::Clone, convert::Into, default::Default, iter::Iterator};
+
+use slint::{platform::WindowEvent, FilterModel, Model, SortModel};
 use slint_helper::{MyPlatform, SwapBuffer};
 use virt2slint::Converter;
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};

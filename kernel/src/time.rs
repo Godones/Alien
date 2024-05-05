@@ -10,15 +10,17 @@
 //! 在任务控制块中记录相应数据的字段为 `timer`(结构为 `TaskTimer` )。
 //!
 //! 对于时间片 (每次引发时钟中断的时间间隔) 大小的设计：目前 Alien 中用户态和内核态下采用相同的时间片间隔，1s 内触发 10 次时钟中断。
-use crate::task::{current_task, do_suspend, StatisticalData};
-use constants::sys::TimeVal;
-use constants::time::{ClockId, TimerType};
-use constants::LinuxErrno;
+use constants::{
+    sys::TimeVal,
+    time::{ClockId, TimerType},
+    LinuxErrno,
+};
 use log::{info, warn};
-use platform::config::CLOCK_FREQ;
-use platform::set_timer;
+use platform::{config::CLOCK_FREQ, set_timer};
 use syscall_table::syscall_func;
 use timer::{read_timer, ITimerVal, TimeNow, TimeSpec, Times};
+
+use crate::task::{current_task, do_suspend, StatisticalData};
 
 /// 每秒包含的 时间片 数，每隔一个时间片，就会产生一个时钟中断
 const TICKS_PER_SEC: usize = 10;

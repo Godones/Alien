@@ -1,12 +1,16 @@
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use spin::Mutex;
-
-use Mstd::fs::{chdir, get_cwd};
-use Mstd::process::{exec, exit, fork, waitpid};
-use Mstd::thread::m_yield;
-use Mstd::{println, system_shutdown};
+use Mstd::{
+    fs::{chdir, get_cwd},
+    println,
+    process::{exec, exit, fork, waitpid},
+    system_shutdown,
+    thread::m_yield,
+};
 
 #[derive(Debug)]
 pub struct Parameter {

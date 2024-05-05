@@ -6,8 +6,7 @@
 extern crate Mstd;
 extern crate alloc;
 
-use alloc::string::String;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 mod alloctest;
 mod attrtest;
