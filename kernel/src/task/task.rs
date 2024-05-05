@@ -582,23 +582,13 @@ impl TaskInner {
 
     /// 返回 trap 上下文的一个可变指针
     pub fn trap_frame_ptr(&self) -> *mut TrapFrame {
-        let trap_context_base = if self.thread_number != 0 {
-            let base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
-            base
-        } else {
-            TRAP_CONTEXT_BASE
-        };
+        let trap_context_base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
         trap_context_base as *mut TrapFrame
     }
 
     /// 返回 trap 上下文的一个可变引用
     pub fn trap_frame(&self) -> &'static mut TrapFrame {
-        let trap_context_base = if self.thread_number != 0 {
-            let base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
-            base
-        } else {
-            TRAP_CONTEXT_BASE
-        };
+        let trap_context_base = TRAP_CONTEXT_BASE - self.thread_number * FRAME_SIZE;
         let (physical, _, _) = self
             .address_space
             .lock()

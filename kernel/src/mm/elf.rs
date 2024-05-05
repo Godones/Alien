@@ -48,14 +48,58 @@ pub struct ELFInfo {
 
 pub trait ELFReader {
     fn build_elf(&mut self) -> Result<ELFInfo, ELFError>;
-    fn relocate(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>;
+    fn relocate_dyn(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>;
+    fn relocate_plt(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>;
 }
 
 impl ELFReader for ElfFile<'_> {
     fn build_elf(&mut self) -> Result<ELFInfo, ELFError> {
         Err(ELFError::NotSupported)
     }
-    fn relocate(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError> {
+
+    fn relocate_dyn(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>{
+        let mut res = vec![];
+        let data = self
+            .find_section_by_name(".rela.plt")
+            .ok_or(ELFError::RelocationError)?
+            .get_data(self)
+            .map_err(|_| ELFError::RelocationError)?;
+        let entries = match data {
+            SectionData::Rela64(entries) => entries,
+            _ => return Err(ELFError::RelocationError),
+        };
+        let dynsym = match self
+            .find_section_by_name(".dynsym")
+            .ok_or(ELFError::DynsymNotFind)?
+            .get_data(self)
+            .map_err(|_| ELFError::DynsymNotFind)?
+        {
+            SectionData::DynSymbolTable64(dsym) => Ok(dsym),
+            _ => Err(ELFError::DynsymNotFind),
+        }?;
+
+        for entry in entries.iter() {
+            match entry.get_type() {
+                5 => {
+                    let dynsym = &dynsym[entry.get_symbol_table_index() as usize];
+                    let symval = if dynsym.shndx() == 0 {
+                        let name = dynsym.get_name(self).map_err(|_| ELFError::DynsymNotFind)?;
+                        panic!("symbol not found: {:?}", name);
+                    } else {
+                        dynsym.value() as usize
+                    };
+                    let value = bias + symval;
+                    let addr = bias + entry.get_offset() as usize;
+                    res.push((addr, value))
+                }
+                t => panic!("[kernel] unknown entry, type = {}", t),
+            }
+        }
+        Ok(res)
+
+    }
+
+    fn relocate_plt(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>{
         let mut res = vec![];
         let data = self
             .find_section_by_name(".rela.dyn")
@@ -100,34 +144,6 @@ impl ELFReader for ElfFile<'_> {
                     res.push((addr, value))
                 }
                 t => unimplemented!("unknown type: {}", t),
-            }
-        }
-
-        //
-        let data = self
-            .find_section_by_name(".rela.plt")
-            .ok_or(ELFError::RelocationError)?
-            .get_data(self)
-            .map_err(|_| ELFError::RelocationError)?;
-        let entries = match data {
-            SectionData::Rela64(entries) => entries,
-            _ => return Err(ELFError::RelocationError),
-        };
-        for entry in entries.iter() {
-            match entry.get_type() {
-                5 => {
-                    let dynsym = &dynsym[entry.get_symbol_table_index() as usize];
-                    let symval = if dynsym.shndx() == 0 {
-                        let name = dynsym.get_name(self).map_err(|_| ELFError::DynsymNotFind)?;
-                        panic!("symbol not found: {:?}", name);
-                    } else {
-                        dynsym.value() as usize
-                    };
-                    let value = bias + symval;
-                    let addr = bias + entry.get_offset() as usize;
-                    res.push((addr, value))
-                }
-                t => panic!("[kernel] unknown entry, type = {}", t),
             }
         }
         Ok(res)

@@ -11,7 +11,10 @@ use Mstd::thread::m_yield;
 fn main() -> isize {
     println!("Init process is running");
     if fork() == 0 {
-        exec("/tests/bash\0", &[0 as *const u8], BASH_ENV);
+        // let sh = "sh\0";
+        let bash = "bash\0";
+        exec("/tests/bash\0", &[bash.as_ptr(),0 as *const u8], BASH_ENV);
+        // exec("/bin/sh\0", &[sh.as_ptr(),0 as *const u8], BASH_ENV);
         // exec("/bin/shell\0", &[0 as *const u8], BASH_ENV);
     } else {
         if fork() == 0 {

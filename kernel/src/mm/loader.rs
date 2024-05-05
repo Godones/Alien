@@ -13,6 +13,7 @@ use mem::{VmmPageAllocator, FRAME_REF_MANAGER};
 use page_table::addr::{align_up_4k, PhysAddr, VirtAddr};
 use page_table::pte::MappingFlags;
 use page_table::table::Sv39PageTable;
+use spin::Lazy;
 use xmas_elf::program::{SegmentData, Type};
 
 extern "C" {
@@ -100,7 +101,6 @@ pub fn build_thread_address_space(
         .next()
         .unwrap();
     // copy data
-    // find the
     let (phy, _flag, page_size) = table.query(VirtAddr::from(TRAP_CONTEXT_BASE)).unwrap();
     assert_eq!(usize::from(page_size), FRAME_SIZE);
     // copy data
@@ -179,6 +179,12 @@ pub fn build_cow_address_space(
     address_space
 }
 
+static LD_MUSL_RV64_CACHE: Lazy<Vec<u8>> = Lazy::new(|| {
+    let mut data = vec![];
+    fs::read_all("/tests/libc.so", &mut data);
+    data
+});
+
 pub fn build_elf_address_space(
     elf: &[u8],
     args: &mut Vec<String>,
@@ -200,19 +206,14 @@ pub fn build_elf_address_space(
             _ => return Err(ELFError::NoEntrySegment),
         };
         let path = core::str::from_utf8(data).unwrap();
-        assert!(path.starts_with("/lib/ld-musl-riscv64-sf.so.1"));
-        let mut new_args = vec!["/libc.so\0".to_string()];
+        assert!(path.starts_with("/lib/ld-musl-riscv64"),"interpreter: {:?}", path);
+        let mut new_args = vec!["/tests/libc.so\0".to_string()];
+        // args.remove(0); // remove the first arg
         new_args.extend(args.clone());
         *args = new_args;
         // load interpreter
-        let mut data = vec![];
         warn!("load interpreter: {}, new_args:{:?}", path, args);
-        if fs::read_all("libc.so", &mut data) {
-            return build_elf_address_space(&data, args, "libc.so");
-        } else {
-            error!("[map_elf] Found interpreter path: {}", path);
-            panic!("load interpreter failed");
-        }
+        return build_elf_address_space(&LD_MUSL_RV64_CACHE, args, "/tests/libc.so");
     }
 
     // calculate bias for dynamic linked elf
@@ -372,12 +373,23 @@ pub fn build_elf_address_space(
         res + bias as u64
     );
     // relocate if elf is dynamically linked
-    if let Ok(kvs) = elf.relocate(bias) {
-        kvs.into_iter().for_each(|kv| {
-            trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
-            let (addr, ..) = address_space.query(VirtAddr::from(kv.0)).unwrap();
-            unsafe { (addr.as_usize() as *mut usize).write(kv.1) }
-        })
+    if bias != 0{
+        if let Ok(kvs) = elf.relocate_plt(bias) {
+            kvs.into_iter().for_each(|kv| {
+                trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
+                let (addr, ..) = address_space.query(VirtAddr::from(kv.0)).unwrap();
+                unsafe { (addr.as_usize() as *mut usize).write(kv.1) }
+            });
+            info!("relocate plt done")
+        }
+        if let Ok(kvs) = elf.relocate_dyn(bias) {
+            kvs.into_iter().for_each(|kv| {
+                trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
+                let (addr, ..) = address_space.query(VirtAddr::from(kv.0)).unwrap();
+                unsafe { (addr.as_usize() as *mut usize).write(kv.1) }
+            });
+            info!("relocate dyn done")
+        }
     }
     Ok(ELFInfo {
         address_space,
@@ -387,7 +399,7 @@ pub fn build_elf_address_space(
         ph_num: elf.header.pt2.ph_count() as usize,
         ph_entry_size: elf.header.pt2.ph_entry_size() as usize,
         ph_drift: res as usize + bias,
-        tls: tls as usize,
+        tls: tls as usize + bias,
         bias,
         name: name.to_string(),
     })
