@@ -35,4 +35,3 @@ downcast-rs = { workspace = true }
 [features]
 default = ["smp"]
 smp = ["platform/smp"]
-gui = []

@@ -17,10 +17,14 @@ impl Log for SimpleLogger {
             Level::Debug => 32, // Green
             Level::Trace => 90, // BrightBlack
         };
+        let path = record.file();
+        let line = record.line();
         println!(
-            "\u{1B}[{}m[{:>1}] {}\u{1B}[0m",
+            "\u{1B}[{}m[{:>5}] [{:?}:{}] {}\u{1B}[0m",
             color,
             record.level(),
+            path.unwrap_or(""),
+            line.unwrap_or(0),
             record.args(),
         );
     }

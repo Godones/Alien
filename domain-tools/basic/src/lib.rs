@@ -6,6 +6,7 @@ pub mod arch;
 pub mod bus;
 pub mod config;
 pub mod io;
+#[cfg(feature = "log")]
 pub mod logging;
 pub mod sync;
 #[cfg(feature = "task")]

@@ -13,7 +13,9 @@ use spin::Lazy;
 
 use crate::{
     domain_helper::{device::update_device_domain, SharedHeapAllocator, DOMAIN_CREATE},
-    domain_proxy::{BlkDomainProxy, ProxyExt, SchedulerDomainProxy, ShadowBlockDomainProxy},
+    domain_proxy::{
+        BlkDomainProxy, LogDomainProxy, ProxyExt, SchedulerDomainProxy, ShadowBlockDomainProxy,
+    },
 };
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
@@ -175,6 +177,22 @@ impl CoreFunction for DomainSyscall {
                 scheduler_proxy.replace(new_domain, loader)?;
                 Err(AlienError::EINVAL)
             }
+            Some(DomainType::LogDomain(logger)) => {
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    DomainTypeRaw::LogDomain,
+                    new_domain_name,
+                    None,
+                )
+                .ok_or(AlienError::EINVAL)?;
+                println!(
+                    "Try to replace logger domain {} with {}",
+                    old_domain_name, new_domain_name
+                );
+                let logger_proxy = logger.downcast_arc::<LogDomainProxy>().unwrap();
+                logger_proxy.replace(new_domain, loader)?;
+                Ok(())
+            }
+
             None => {
                 println!(
                     "<sys_update_domain> old domain {:?} not found",

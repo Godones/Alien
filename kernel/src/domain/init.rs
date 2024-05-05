@@ -27,8 +27,8 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("uart16550", DomainTypeRaw::UartDomain),
     ("virtio_mmio_net", DomainTypeRaw::NetDeviceDomain),
     ("virtio_mmio_block", DomainTypeRaw::BlkDeviceDomain),
-    // ("virtio_mmio_gpu", DomainTypeRaw::GpuDomain),
-    // ("virtio_mmio_input", DomainTypeRaw::InputDomain),
+    ("logger", DomainTypeRaw::LogDomain), // ("virtio_mmio_gpu", DomainTypeRaw::GpuDomain),
+                                          // ("virtio_mmio_input", DomainTypeRaw::InputDomain),
 ];
 
 pub fn init_domains() {

@@ -12,11 +12,14 @@ mod time;
 extern crate alloc;
 extern crate log;
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{boxed::Box, format, sync::Arc};
 
 use basic::println;
 use constants::AlienResult;
-use interface::{Basic, DomainType, SchedulerDomain, SysCallDomain, TaskDomain, VfsDomain};
+use interface::{
+    Basic, DomainType, LogDomain, SchedulerDomain, SysCallDomain, TaskDomain, VfsDomain,
+};
+use rref::RRefVec;
 
 use crate::{domain::*, fs::*, mm::*, signal::*, socket::sys_socket, system::*, task::*, time::*};
 
@@ -25,6 +28,7 @@ struct SysCallDomainImpl {
     vfs_domain: Arc<dyn VfsDomain>,
     task_domain: Arc<dyn TaskDomain>,
     scheduler: Arc<dyn SchedulerDomain>,
+    logger: Arc<dyn LogDomain>,
 }
 
 impl SysCallDomainImpl {
@@ -32,11 +36,13 @@ impl SysCallDomainImpl {
         vfs_domain: Arc<dyn VfsDomain>,
         task_domain: Arc<dyn TaskDomain>,
         scheduler: Arc<dyn SchedulerDomain>,
+        logger: Arc<dyn LogDomain>,
     ) -> Self {
         Self {
             vfs_domain,
             task_domain,
             scheduler,
+            logger,
         }
     }
 }
@@ -45,6 +51,12 @@ impl Basic for SysCallDomainImpl {}
 
 impl SysCallDomain for SysCallDomainImpl {
     fn init(&self) -> AlienResult<()> {
+        let log_info = "syscall domain test log domain.";
+        self.logger.log(
+            interface::Level::Info,
+            RRefVec::from_slice(log_info.as_bytes()),
+        )?;
+        println!("syscall domain init");
         Ok(())
     }
 
@@ -52,7 +64,16 @@ impl SysCallDomain for SysCallDomainImpl {
         let syscall_name = constants::syscall_name(syscall_id);
         // let pid = self.task_domain.current_pid().unwrap();
         // let tid = self.task_domain.current_tid().unwrap();
-        // info!("[pid:{} tid:{}] syscall: {} {:?}",pid,tid, syscall_name, args);
+        // log::trace!("[pid:{} tid:{}] syscall: {} {:?}",0,0, syscall_name, args);
+
+        if syscall_id == 61 {
+            let log_info = format!("syscall: {}", syscall_name);
+            self.logger.log(
+                interface::Level::Info,
+                RRefVec::from_slice(log_info.as_bytes()),
+            )?;
+        }
+
         match syscall_id {
             17 => sys_getcwd(&self.vfs_domain, &self.task_domain, args[0], args[1]),
             23 => sys_dup(&self.task_domain, args[0]),
@@ -241,10 +262,16 @@ pub fn main() -> Box<dyn SysCallDomain> {
         _ => panic!("scheduler domain not found"),
     };
 
-    println!("syscall domain began to work");
+    let logger = basic::get_domain("logger").unwrap();
+    let logger = match logger {
+        DomainType::LogDomain(logger) => logger,
+        _ => panic!("logger domain not found"),
+    };
+
     Box::new(SysCallDomainImpl::new(
         vfs_domain,
         task_domain,
         scheduler_domain,
+        logger,
     ))
 }

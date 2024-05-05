@@ -20,6 +20,7 @@ pub enum DomainTypeRaw {
     EmptyDeviceDomain = 16,
     DevFsDomain = 17,
     SchedulerDomain = 18,
+    LogDomain = 19,
 }
 pub fn register_domain(fd: usize, ty: DomainTypeRaw, name: &str) -> isize {
     sys_register_domain(fd, ty as u8, name.as_ptr(), name.len())

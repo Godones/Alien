@@ -35,6 +35,8 @@ gen_for_ShadowBlockDomain!();
 gen_for_BlkDeviceDomain!();
 
 gen_for_DevFsDomain!();
+gen_for_LogDomain!();
+
 impl_for_FsDomain!(DevFsDomainProxy);
 impl Basic for DevFsDomainProxy {
     fn is_active(&self) -> bool {
@@ -82,6 +84,16 @@ impl ProxyExt for BlkDomainProxy {
         domain.init(device_info.clone()).unwrap();
         core::mem::forget(new_domain);
         Ok(())
+    }
+}
+
+impl LogDomainProxy {
+    pub fn replace(&self, new_domain: Box<dyn LogDomain>, loader: DomainLoader) -> AlienResult<()> {
+        let mut old_domain = self.domain.write();
+        let mut old = self.old_domain.lock();
+        *self.domain_loader.lock() = loader;
+        old.push(core::mem::replace(&mut *old_domain, new_domain));
+        old_domain.init()
     }
 }
 

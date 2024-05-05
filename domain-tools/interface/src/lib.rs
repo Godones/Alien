@@ -8,6 +8,7 @@ mod empty_device;
 mod fs;
 mod gpu;
 mod input_device;
+mod logger;
 mod net;
 mod net_device;
 mod plic;
@@ -50,6 +51,7 @@ pub use empty_device::*;
 pub use fs::*;
 pub use gpu::*;
 pub use input_device::*;
+pub use logger::*;
 pub use net_device::*;
 pub use plic::*;
 pub use rtc::*;
@@ -59,6 +61,7 @@ pub use syscall::*;
 pub use task::*;
 pub use uart::*;
 pub use vfs::*;
+
 #[derive(Clone, Debug)]
 pub enum DomainType {
     FsDomain(Arc<dyn FsDomain>),
@@ -79,6 +82,7 @@ pub enum DomainType {
     EmptyDeviceDomain(Arc<dyn EmptyDeviceDomain>),
     DevFsDomain(Arc<dyn DevFsDomain>),
     SchedulerDomain(Arc<dyn SchedulerDomain>),
+    LogDomain(Arc<dyn LogDomain>),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DomainTypeRaw {
@@ -100,6 +104,7 @@ pub enum DomainTypeRaw {
     EmptyDeviceDomain = 16,
     DevFsDomain = 17,
     SchedulerDomain = 18,
+    LogDomain = 19,
 }
 
 impl TryFrom<u8> for DomainTypeRaw {
@@ -125,6 +130,7 @@ impl TryFrom<u8> for DomainTypeRaw {
             16 => Ok(DomainTypeRaw::EmptyDeviceDomain),
             17 => Ok(DomainTypeRaw::DevFsDomain),
             18 => Ok(DomainTypeRaw::SchedulerDomain),
+            19 => Ok(DomainTypeRaw::LogDomain),
             _ => Err(()),
         }
     }

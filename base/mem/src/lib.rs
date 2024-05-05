@@ -12,6 +12,7 @@ mod vmm;
 
 pub use data::INITRD_DATA;
 pub use frame::{alloc_frame_trackers, alloc_frames, free_frames};
+use ksync::Mutex;
 pub use memory_addr::{PhysAddr, VirtAddr};
 pub use page_table::MappingFlags;
 pub use ptable::*;
@@ -21,7 +22,7 @@ pub use vmm::{
 };
 
 #[global_allocator]
-static HEAP_ALLOCATOR: Talck<spin::Mutex<()>, ClaimOnOom> =
+static HEAP_ALLOCATOR: Talck<Mutex<()>, ClaimOnOom> =
     Talc::new(unsafe { ClaimOnOom::new(Span::from_const_array(core::ptr::addr_of!(KERNEL_HEAP))) })
         .lock();
 static mut KERNEL_HEAP: [u8; config::KERNEL_HEAP_SIZE] = [0; config::KERNEL_HEAP_SIZE];

@@ -210,6 +210,12 @@ pub fn create_scheduler_domain(
     create_domain(DomainTypeRaw::SchedulerDomain, ident, data)
         .map(|(id, domain, loader)| Arc::new(SchedulerDomainProxy::new(id, domain, loader)))
 }
+
+pub fn create_log_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<LogDomainProxy>> {
+    create_domain(DomainTypeRaw::LogDomain, ident, data)
+        .map(|(id, domain, loader)| Arc::new(LogDomainProxy::new(id, domain, loader)))
+}
+
 pub fn create_domain<T: ?Sized>(
     ty: DomainTypeRaw,
     ident: &str,

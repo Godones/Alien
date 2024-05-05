@@ -10,7 +10,8 @@ members = [
     "domains/drivers/*",
     "domains/common/*",
     "safe-crates/*",
-    "domains/fs/*", "user/apps/domain", "user/apps/dtest", "user/apps/dgpu", "user/apps/dtask",
+    "domains/fs/*",
+    "user/apps/d*",
 ]
 
 resolver = "2"
