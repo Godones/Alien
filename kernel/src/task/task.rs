@@ -36,7 +36,6 @@ use page_table::{
     pte::MappingFlags,
     table::Sv39PageTable,
 };
-use spin::Lazy;
 use timer::{read_timer, ITimerVal, TimeNow, ToClock};
 use vfs::kfile::File;
 use vfscore::dentry::VfsDentry;
@@ -50,37 +49,15 @@ use crate::{
         },
         map::{MMapInfo, MMapRegion, ProtFlags},
     },
-    task::{context::Context, heap::HeapInfo, stack::Stack},
+    task::{
+        context::Context,
+        resource::{HeapInfo, TidHandle},
+        stack::Stack,
+    },
     trap::{trap_common_read_file, trap_return, user_trap_vector, TrapFrame},
 };
 
 type FdManager = MinimalManager<Arc<dyn File>>;
-
-/// 这里把MinimalManager复用为tid分配器，通常，MinimalManager会将数据插入到最小可用位置并返回位置，
-/// 但tid的分配并不需要实际存储信息，因此可以插入任意的数据，这里为了节省空间，将数据定义为u8
-pub static TID_MANAGER: Lazy<Mutex<MinimalManager<u8>>> =
-    Lazy::new(|| Mutex::new(MinimalManager::new(MAX_THREAD_NUM)));
-
-/// 用于存储线程的tid
-#[derive(Debug)]
-pub struct TidHandle(pub usize);
-
-impl TidHandle {
-    /// 获取一个新的线程 tid (来自于 `TID_MANAGER` 分配)
-    pub fn new() -> Option<Self> {
-        let tid = TID_MANAGER.lock().insert(0);
-        if tid.is_err() {
-            return None;
-        }
-        Some(Self(tid.unwrap()))
-    }
-}
-
-impl Drop for TidHandle {
-    fn drop(&mut self) {
-        TID_MANAGER.lock().remove(self.0).unwrap();
-    }
-}
 
 #[derive(Debug)]
 pub struct Task {

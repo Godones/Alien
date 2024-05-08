@@ -5,10 +5,10 @@ extern crate alloc;
 extern crate platform;
 use arch::activate_paging_mode;
 use config::FRAME_BITS;
-use heap::HeapAllocator;
 use platform::config::HEAP_SIZE;
 pub mod data;
 mod frame;
+#[cfg(feature = "buddy")]
 mod heap;
 mod manager;
 mod vmm;
@@ -16,8 +16,19 @@ mod vmm;
 pub use frame::{alloc_frame_trackers, alloc_frames, free_frames, FrameTracker, VmmPageAllocator};
 pub use manager::FRAME_REF_MANAGER;
 pub use vmm::{kernel_pgd, kernel_satp, kernel_space, map_region_to_kernel, query_kernel_space};
+
+#[cfg(feature = "buddy")]
 #[global_allocator]
-static HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::new();
+static HEAP_ALLOCATOR: heap::HeapAllocator = heap::HeapAllocator::new();
+
+#[cfg(feature = "talc")]
+#[global_allocator]
+static HEAP_ALLOCATOR: talc::Talck<ksync::Mutex<()>, talc::ClaimOnOom> = talc::Talc::new(unsafe {
+    talc::ClaimOnOom::new(talc::Span::from_const_array(core::ptr::addr_of!(
+        KERNEL_HEAP
+    )))
+})
+.lock();
 
 #[cfg(any(feature = "talloc", feature = "buddy"))]
 static mut KERNEL_HEAP: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
@@ -32,7 +43,7 @@ pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
         println!("Frame allocator init success");
         #[cfg(feature = "initrd")]
         data::relocate_removable_data();
-        #[cfg(any(feature = "talloc", feature = "buddy"))]
+        #[cfg(feature = "buddy")]
         HEAP_ALLOCATOR.init(unsafe { &mut KERNEL_HEAP });
         #[cfg(feature = "talloc")]
         println!("Talloc allocator init success");

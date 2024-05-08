@@ -20,8 +20,8 @@ use crate::{fs::read_all, task::schedule::schedule_now};
 
 mod context;
 mod cpu;
-mod heap;
 mod kthread;
+mod resource;
 pub mod schedule;
 mod stack;
 mod task;

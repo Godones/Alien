@@ -18,9 +18,9 @@ use crate::{
     mm::map::MMapInfo,
     task::{
         context::Context,
-        heap::HeapInfo,
+        resource::{HeapInfo, TidHandle},
         stack::Stack,
-        task::{TaskInner, TaskTimer, TidHandle},
+        task::{TaskInner, TaskTimer},
         FsContext, StatisticalData, Task, TaskState, GLOBAL_TASK_MANAGER,
     },
 };
