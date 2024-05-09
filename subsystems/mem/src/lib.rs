@@ -11,6 +11,8 @@ mod frame;
 #[cfg(feature = "buddy")]
 mod heap;
 mod manager;
+#[cfg(feature = "talloc")]
+mod talc_wrapper;
 mod vmm;
 
 pub use frame::{alloc_frame_trackers, alloc_frames, free_frames, FrameTracker, VmmPageAllocator};
@@ -23,12 +25,7 @@ static HEAP_ALLOCATOR: heap::HeapAllocator = heap::HeapAllocator::new();
 
 #[cfg(feature = "talc")]
 #[global_allocator]
-static HEAP_ALLOCATOR: talc::Talck<ksync::Mutex<()>, talc::ClaimOnOom> = talc::Talc::new(unsafe {
-    talc::ClaimOnOom::new(talc::Span::from_const_array(core::ptr::addr_of!(
-        KERNEL_HEAP
-    )))
-})
-.lock();
+static HEAP_ALLOCATOR: talc_wrapper::TalcAllocator = talc_wrapper::TalcAllocator;
 
 #[cfg(any(feature = "talloc", feature = "buddy"))]
 static mut KERNEL_HEAP: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
