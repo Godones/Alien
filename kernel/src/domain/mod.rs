@@ -80,22 +80,22 @@ fn init_device() -> Arc<dyn PLICDomain> {
         .for_each(|device| {
             let address = device.address().as_usize();
             let size = device.io_region().size();
-            let _irq = device.irq();
             match device.device_type() {
                 VirtioMmioDeviceType::Network => {
-                    let net_driver = create_net_domain("virtio_mmio_net", None).unwrap();
+                    let net_driver = create_net_device_domain("virtio_mmio_net", None).unwrap();
                     net_driver.init(address..address + size).unwrap();
                     domain_helper::register_domain(
                         "virtio_mmio_net",
                         DomainType::NetDeviceDomain(net_driver.clone()),
                         false,
                     );
+                    let irq = device.irq();
                     // register irq
-                    // plic.register_irq(
-                    //     irq.unwrap() as _,
-                    //     &RRefVec::from_slice("virtio_mmio_net-1".as_bytes()),
-                    // )
-                    // .unwrap()
+                    plic.register_irq(
+                        irq.unwrap() as _,
+                        &RRefVec::from_slice("virtio_mmio_net-1".as_bytes()),
+                    )
+                    .unwrap()
                 }
                 VirtioMmioDeviceType::Block => {
                     let blk_driver = create_blk_device_domain("virtio_mmio_block", None).unwrap();
@@ -219,6 +219,10 @@ pub fn load_domains() {
     // we need to register vfs and task domain before init device, because we need to use vfs and task domain in some
     // device init function
     let plic = init_device();
+
+    let net_stack = create_net_stack_domain("net_stack", None).unwrap();
+    net_stack.init("virtio_mmio_net-1").unwrap();
+    domain_helper::register_domain("net_stack", DomainType::NetDomain(net_stack), true);
 
     devfs.init().unwrap();
     fatfs.init().unwrap();

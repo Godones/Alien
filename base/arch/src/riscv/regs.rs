@@ -31,6 +31,9 @@ impl ExtSstatus {
     pub fn set_spie(&mut self) {
         self.0 |= 1 << 5;
     }
+    pub fn spie(&self) -> bool {
+        (self.0 & (1 << 5)) != 0
+    }
     pub fn sie(&self) -> bool {
         (self.0 & (1 << 1)) != 0
     }

@@ -26,7 +26,8 @@ members = [
     "fifo_scheduler",
     "random_scheduler",
     "logger",
-    "xlogger"
+    "xlogger",
+    "net_stack",
 ]
 
 init_members = [
@@ -51,7 +52,8 @@ init_members = [
     "sysfs",
     "procfs",
     "fifo_scheduler",
-    "logger"
+    "logger",
+    "net_stack",
 ]
 
 disk_members = [

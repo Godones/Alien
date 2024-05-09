@@ -4,7 +4,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 
-use basic::{io::SafeIORegion, println, vm::frame::FrameTracker};
+use basic::{io::SafeIORegion, vm::frame::FrameTracker};
 use constants::AlienError;
 use virtio_drivers::{
     error::{VirtIoError, VirtIoResult},
@@ -99,6 +99,6 @@ impl<const SIZE: usize> Hal<SIZE> for HalImpl {
 }
 
 pub fn to_alien_err(e: VirtIoError) -> AlienError {
-    println!("{:?}", e);
+    log::error!("{:?}", e);
     AlienError::DOMAINCRASH
 }

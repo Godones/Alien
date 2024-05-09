@@ -42,6 +42,9 @@ impl BlkDeviceDomain for BlkDomain {
         Ok(())
     }
     fn read_block(&self, block: u32, mut data: RRef<[u8; 512]>) -> AlienResult<RRef<[u8; 512]>> {
+        if basic::blk_crash_trick() {
+            panic!("blk crash trick");
+        }
         BLK.get()
             .unwrap()
             .lock()

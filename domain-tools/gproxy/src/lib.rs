@@ -394,7 +394,7 @@ fn gen_trampoline(
             #[allow(non_snake_case)]
             fn #real_ident(domain:&alloc::boxed::Box<dyn #trait_name>,#(#fn_args),*) #out_put{
                 let res = domain.#func_name(#(#input_argv),*);
-                // continuation::pop_continuation();
+                continuation::pop_continuation();
                 res
             }
             #[allow(non_snake_case)]

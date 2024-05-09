@@ -52,6 +52,7 @@ pub use fs::*;
 pub use gpu::*;
 pub use input_device::*;
 pub use logger::*;
+pub use net::NetDomain;
 pub use net_device::*;
 pub use plic::*;
 pub use rtc::*;
@@ -83,6 +84,7 @@ pub enum DomainType {
     DevFsDomain(Arc<dyn DevFsDomain>),
     SchedulerDomain(Arc<dyn SchedulerDomain>),
     LogDomain(Arc<dyn LogDomain>),
+    NetDomain(Arc<dyn NetDomain>),
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DomainTypeRaw {
@@ -105,6 +107,7 @@ pub enum DomainTypeRaw {
     DevFsDomain = 17,
     SchedulerDomain = 18,
     LogDomain = 19,
+    NetDomain = 20,
 }
 
 impl TryFrom<u8> for DomainTypeRaw {
@@ -131,6 +134,7 @@ impl TryFrom<u8> for DomainTypeRaw {
             17 => Ok(DomainTypeRaw::DevFsDomain),
             18 => Ok(DomainTypeRaw::SchedulerDomain),
             19 => Ok(DomainTypeRaw::LogDomain),
+            20 => Ok(DomainTypeRaw::NetDomain),
             _ => Err(()),
         }
     }

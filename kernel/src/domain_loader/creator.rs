@@ -69,7 +69,7 @@ impl DomainCreate for DomainCreateImpl {
                 Some(DomainType::GpuDomain(virtio_mmio_gpu))
             }
             "virtio-mmio-net" => {
-                let virtio_mmio_net = create_net_domain("virtio-mmio-net", None)?;
+                let virtio_mmio_net = create_net_device_domain("virtio-mmio-net", None)?;
                 domain_helper::register_domain(
                     "virtio-mmio-net",
                     DomainType::NetDeviceDomain(virtio_mmio_net.clone()),
@@ -172,7 +172,10 @@ pub fn create_buf_uart_domain(
         .map(|(id, domain, loader)| Arc::new(BufUartDomainProxy::new(id, domain, loader)))
 }
 
-pub fn create_net_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<NetDeviceDomainProxy>> {
+pub fn create_net_device_domain(
+    ident: &str,
+    data: Option<Vec<u8>>,
+) -> Option<Arc<NetDeviceDomainProxy>> {
     create_domain(DomainTypeRaw::NetDeviceDomain, ident, data)
         .map(|(id, domain, loader)| Arc::new(NetDeviceDomainProxy::new(id, domain, loader)))
 }
@@ -214,6 +217,11 @@ pub fn create_scheduler_domain(
 pub fn create_log_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<LogDomainProxy>> {
     create_domain(DomainTypeRaw::LogDomain, ident, data)
         .map(|(id, domain, loader)| Arc::new(LogDomainProxy::new(id, domain, loader)))
+}
+
+pub fn create_net_stack_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<NetDomainProxy>> {
+    create_domain(DomainTypeRaw::NetDomain, ident, data)
+        .map(|(id, domain, loader)| Arc::new(NetDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_domain<T: ?Sized>(

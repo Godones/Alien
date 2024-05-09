@@ -10,3 +10,5 @@ basic = { path = "../../../domain-tools/basic" }
 constants = { path = "../../../base/constants" }
 rref = { path = "../../../domain-tools/rref" }
 virtio-drivers = { git = "https://github.com/os-module/safe-virtio-drivers.git" }
+
+log = "0"

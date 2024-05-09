@@ -36,7 +36,7 @@ gen_for_BlkDeviceDomain!();
 
 gen_for_DevFsDomain!();
 gen_for_LogDomain!();
-
+gen_for_NetDomain!();
 impl_for_FsDomain!(DevFsDomainProxy);
 impl Basic for DevFsDomainProxy {
     fn is_active(&self) -> bool {

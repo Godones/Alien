@@ -20,3 +20,13 @@ pub fn sys_socket(
     // panic!("sys_socket not implemented");
     Err(AlienError::ENOSYS)
 }
+
+pub fn sys_socket_pair(
+    _task_domain: &Arc<dyn TaskDomain>,
+    _domain: usize,
+    _s_type: usize,
+    _protocol: usize,
+    _sv: usize,
+) -> AlienResult<isize> {
+    panic!("sys_socket_pair not implemented");
+}

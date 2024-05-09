@@ -1,8 +1,8 @@
 TARGET := riscv64gc-unknown-none-elf
 PROFILE := release
 KERNEL := target/$(TARGET)/$(PROFILE)/kernel
-NET ?=n
-SMP ?= 1
+NET ?=y
+SMP ?=1
 MEMORY_SIZE := 1024M
 LOG ?=INFO
 GUI ?=n
@@ -38,7 +38,7 @@ build:
 	@echo "Building..."
 	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 
-run: sdcard domains initrd build
+run: domains sdcard initrd build
 	qemu-system-riscv64 \
             -M virt \
             -bios default \

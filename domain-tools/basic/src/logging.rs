@@ -20,7 +20,7 @@ impl Log for SimpleLogger {
         let path = record.file();
         let line = record.line();
         println!(
-            "\u{1B}[{}m[{:>5}] [{:?}:{}] {}\u{1B}[0m",
+            "\u{1B}[1;{}m[{:>5}] [{:?}:{}] {}\u{1B}[0m",
             color,
             record.level(),
             path.unwrap_or(""),

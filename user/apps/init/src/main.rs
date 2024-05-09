@@ -3,6 +3,8 @@
 
 extern crate alloc;
 
+use core::arch::asm;
+
 use Mstd::{
     println,
     process::{exec, exit, fork, wait, waitpid},
@@ -21,6 +23,11 @@ fn main() -> isize {
     } else {
         if fork() == 0 {
             loop {
+                for _ in 0..1000_000 {
+                    unsafe {
+                        asm!("nop");
+                    }
+                }
                 m_yield();
             }
         } else {

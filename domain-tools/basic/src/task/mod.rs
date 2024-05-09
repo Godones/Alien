@@ -31,7 +31,7 @@ pub struct TrapFrame {
     k_sp: usize,
     trap_handler: usize,
     hart_id: usize,
-    sstatus: ExtSstatus,
+    pub sstatus: ExtSstatus,
     fg: [usize; 2],
 }
 

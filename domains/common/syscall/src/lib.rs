@@ -21,7 +21,7 @@ use interface::{
 };
 use rref::RRefVec;
 
-use crate::{domain::*, fs::*, mm::*, signal::*, socket::sys_socket, system::*, task::*, time::*};
+use crate::{domain::*, fs::*, mm::*, signal::*, socket::*, system::*, task::*, time::*};
 
 #[derive(Debug)]
 struct SysCallDomainImpl {
@@ -201,6 +201,7 @@ impl SysCallDomain for SysCallDomainImpl {
             177 => sys_get_egid(&self.task_domain),
             178 => sys_get_tid(&self.task_domain),
             198 => sys_socket(&self.task_domain, args[0], args[1], args[2]),
+            199 => sys_socket_pair(&self.task_domain, args[0], args[1], args[2], args[3]),
             214 => sys_brk(&self.vfs_domain, &self.task_domain, args[0]),
             215 => sys_unmap(&self.task_domain, args[0], args[1]),
             220 => sys_clone(
