@@ -4,7 +4,7 @@ use gproxy::proxy;
 use rref::{RRef, RRefVec};
 use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 
-use crate::Basic;
+use crate::{Basic, SocketID};
 
 pub type InodeID = u64;
 pub const VFS_ROOT_ID: InodeID = 0;
@@ -74,6 +74,10 @@ pub trait VfsDomain: Basic + DowncastSync {
     fn vfs_get_path(&self, inode: InodeID, buf: RRefVec<u8>) -> AlienResult<(RRefVec<u8>, usize)>;
     fn do_fcntl(&self, inode: InodeID, cmd: usize, args: usize) -> AlienResult<isize>;
     fn do_pipe2(&self, flags: usize) -> AlienResult<(InodeID, InodeID)>;
+    /// Create a socket and return the inode id
+    fn do_socket(&self, socket_id: SocketID) -> AlienResult<InodeID>;
+    /// Get the socket id from inode id
+    fn socket_id(&self, inode: InodeID) -> AlienResult<SocketID>;
 }
 
 impl_downcast!(sync VfsDomain);

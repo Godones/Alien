@@ -2,6 +2,7 @@ mod init;
 
 extern crate alloc;
 use alloc::{boxed::Box, sync::Arc};
+use core::sync::atomic::AtomicUsize;
 
 use basic::bus::mmio::VirtioMmioDeviceType;
 use domain_helper::{alloc_domain_id, SharedHeapAllocator};
@@ -82,6 +83,14 @@ fn init_device() -> Arc<dyn PLICDomain> {
             let size = device.io_region().size();
             match device.device_type() {
                 VirtioMmioDeviceType::Network => {
+                    static NET_COUNT: AtomicUsize = AtomicUsize::new(0);
+                    NET_COUNT.fetch_add(1, core::sync::atomic::Ordering::SeqCst);
+
+                    if NET_COUNT.load(core::sync::atomic::Ordering::SeqCst) > 1 {
+                        warn!("only support one network device");
+                        return;
+                    }
+
                     let net_driver = create_net_device_domain("virtio_mmio_net", None).unwrap();
                     net_driver.init(address..address + size).unwrap();
                     domain_helper::register_domain(
@@ -90,10 +99,19 @@ fn init_device() -> Arc<dyn PLICDomain> {
                         false,
                     );
                     let irq = device.irq();
+
+                    let net_stack = create_net_stack_domain("net_stack", None).unwrap();
+                    net_stack.init("virtio_mmio_net-1").unwrap();
+                    domain_helper::register_domain(
+                        "net_stack",
+                        DomainType::NetDomain(net_stack),
+                        true,
+                    );
+
                     // register irq
                     plic.register_irq(
                         irq.unwrap() as _,
-                        &RRefVec::from_slice("virtio_mmio_net-1".as_bytes()),
+                        &RRefVec::from_slice("net_stack".as_bytes()),
                     )
                     .unwrap()
                 }
@@ -219,10 +237,6 @@ pub fn load_domains() {
     // we need to register vfs and task domain before init device, because we need to use vfs and task domain in some
     // device init function
     let plic = init_device();
-
-    let net_stack = create_net_stack_domain("net_stack", None).unwrap();
-    net_stack.init("virtio_mmio_net-1").unwrap();
-    domain_helper::register_domain("net_stack", DomainType::NetDomain(net_stack), true);
 
     devfs.init().unwrap();
     fatfs.init().unwrap();

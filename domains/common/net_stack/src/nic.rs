@@ -1,7 +1,7 @@
 use lose_net_stack::{net_trait::NetInterface, MacAddress};
 use rref::RRefVec;
 
-use crate::{hexdump::hexdump, NET_INTERFACE};
+use crate::NET_INTERFACE;
 
 #[derive(Debug)]
 pub struct NetMod;
@@ -9,7 +9,7 @@ pub struct NetMod;
 impl NetInterface for NetMod {
     fn send(buf: &[u8]) {
         log::error!("send data {} bytes", buf.len());
-        hexdump(buf);
+        // hexdump(buf);
         let shared_buf = RRefVec::from_slice(buf);
         NET_INTERFACE.get().unwrap().transmit(&shared_buf).unwrap();
     }

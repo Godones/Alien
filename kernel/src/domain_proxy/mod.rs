@@ -1,10 +1,11 @@
 pub mod continuation;
 
 use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
-use core::{ops::Range, sync::atomic::AtomicU64};
+use core::{net::SocketAddrV4, ops::Range, sync::atomic::AtomicU64};
 
 use constants::{
-    io::{RtcTime, SeekFrom},
+    io::{PollEvents, RtcTime, SeekFrom},
+    net::*,
     AlienError, AlienResult,
 };
 use downcast_rs::{impl_downcast, DowncastSync};

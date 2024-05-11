@@ -23,6 +23,8 @@ BUILD_CRATES := \
 	dgpu \
 	dtask \
 	dlog \
+	ping \
+	server \
 #	run_test \
 	tests \
 	sleep \

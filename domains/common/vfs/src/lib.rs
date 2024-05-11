@@ -10,7 +10,7 @@ use constants::{
     io::{Fcntl64Cmd, OpenFlags, PollEvents, SeekFrom},
     AlienError, AlienResult,
 };
-use interface::{Basic, DomainType, InodeID, SchedulerDomain, VfsDomain};
+use interface::{Basic, DomainType, InodeID, NetDomain, SchedulerDomain, SocketID, VfsDomain};
 use ksync::RwLock;
 use log::debug;
 use rref::{RRef, RRefVec};
@@ -23,6 +23,7 @@ use vfscore::{
 
 use crate::{
     kfile::{File, KernelFile},
+    socket::SocketFile,
     tree::system_root_fs,
 };
 
@@ -34,11 +35,12 @@ mod pipefs;
 mod procfs;
 mod ramfs;
 mod shim;
+mod socket;
 mod sys;
 mod tree;
 
 static SCHEDULER_DOMAIN: Once<Arc<dyn SchedulerDomain>> = Once::new();
-
+static NET_STACK_DOMAIN: Once<Arc<dyn NetDomain>> = Once::new();
 static VFS_MAP: RwLock<BTreeMap<InodeID, Arc<dyn File>>> = RwLock::new(BTreeMap::new());
 static INODE_ID: AtomicU64 = AtomicU64::new(4);
 
@@ -49,7 +51,7 @@ fn insert_dentry(dentry: Arc<dyn VfsDentry>, open_flags: OpenFlags) -> InodeID {
     id
 }
 
-fn insert_pipe_file(file: Arc<dyn File>) -> InodeID {
+fn insert_special_file(file: Arc<dyn File>) -> InodeID {
     let id = INODE_ID.fetch_add(1, core::sync::atomic::Ordering::SeqCst);
     VFS_MAP.write().insert(id, file);
     id
@@ -81,6 +83,13 @@ impl VfsDomain for VfsDomainImpl {
                 SCHEDULER_DOMAIN.call_once(|| scheduler_domain);
             }
             _ => panic!("scheduler domain not found"),
+        };
+        let net_stack_domain = basic::get_domain("net_stack").unwrap();
+        match net_stack_domain {
+            DomainType::NetDomain(net_stack_domain) => {
+                NET_STACK_DOMAIN.call_once(|| net_stack_domain);
+            }
+            _ => panic!("net_stack domain not found"),
         };
         Ok(())
     }
@@ -243,9 +252,23 @@ impl VfsDomain for VfsDomainImpl {
     }
     fn do_pipe2(&self, _flags: usize) -> AlienResult<(InodeID, InodeID)> {
         let (reader, writer) = pipe::make_pipe_file();
-        let r = insert_pipe_file(reader);
-        let w = insert_pipe_file(writer);
+        let r = insert_special_file(reader);
+        let w = insert_special_file(writer);
         Ok((r, w))
+    }
+    fn do_socket(&self, socket_id: SocketID) -> AlienResult<InodeID> {
+        let socket_file = SocketFile::new(
+            NET_STACK_DOMAIN.get().unwrap().clone(),
+            socket_id,
+            OpenFlags::O_RDWR,
+        );
+        let inode_id = insert_special_file(Arc::new(socket_file));
+        Ok(inode_id)
+    }
+    fn socket_id(&self, inode: InodeID) -> AlienResult<SocketID> {
+        let file = get_file(inode).unwrap();
+        let socket_file = file.downcast_arc::<SocketFile>().unwrap();
+        Ok(socket_file.socket_id())
     }
 }
 

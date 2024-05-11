@@ -61,11 +61,34 @@ impl File for PipeFile {
         }
         self.inode_copy.write_at(0, buf).map_err(|e| e.into())
     }
+    fn read_at(&self, _offset: u64, buf: &mut [u8]) -> AlienResult<usize> {
+        self.read(buf)
+    }
+    fn write_at(&self, _offset: u64, buf: &[u8]) -> AlienResult<usize> {
+        self.write(buf)
+    }
+
+    fn flush(&self) -> AlienResult<()> {
+        Ok(())
+    }
+
+    fn fsync(&self) -> AlienResult<()> {
+        Ok(())
+    }
+
     fn seek(&self, _pos: SeekFrom) -> AlienResult<u64> {
         Err(AlienError::ESPIPE)
     }
+
     fn get_attr(&self) -> AlienResult<VfsFileStat> {
         Err(AlienError::ENOSYS)
+    }
+
+    fn set_open_flag(&self, flag: OpenFlags) {
+        *self.open_flag.lock() = flag;
+    }
+    fn get_open_flag(&self) -> OpenFlags {
+        *self.open_flag.lock()
     }
     fn dentry(&self) -> Arc<dyn VfsDentry> {
         panic!("PipeFile has no dentry")

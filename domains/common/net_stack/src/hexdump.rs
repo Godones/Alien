@@ -1,5 +1,6 @@
 use basic::{print, println};
 
+#[allow(unused)]
 pub fn hexdump(data: &[u8]) {
     const PRELAND_WIDTH: usize = 70;
     println!("{:-^1$}", " hexdump ", PRELAND_WIDTH);

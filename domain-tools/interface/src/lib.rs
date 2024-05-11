@@ -52,7 +52,7 @@ pub use fs::*;
 pub use gpu::*;
 pub use input_device::*;
 pub use logger::*;
-pub use net::NetDomain;
+pub use net::*;
 pub use net_device::*;
 pub use plic::*;
 pub use rtc::*;
@@ -155,6 +155,7 @@ impl TryInto<Arc<dyn DeviceBase>> for DomainType {
             DomainType::BufUartDomain(domain) => Ok(domain),
             DomainType::BufInputDomain(domain) => Ok(domain),
             DomainType::NetDeviceDomain(domain) => Ok(domain),
+            DomainType::NetDomain(domain) => Ok(domain),
             _ => Err(AlienError::EINVAL),
         }
     }

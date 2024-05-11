@@ -48,7 +48,7 @@ run: domains sdcard initrd build
             -$(QEMU_ARGS) \
             -smp $(SMP) -m $(MEMORY_SIZE) \
             -serial mon:stdio
-	-rm $(IMG)
+	-#rm $(IMG)
 
 fake_run:
 	qemu-system-riscv64 \

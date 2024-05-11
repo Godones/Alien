@@ -14,3 +14,4 @@ spin = { workspace = true }
 ksync = { path = "../../../base/ksync" }
 lose-net-stack = { git = "https://github.com/os-module/lose-net-stack", branch = "new_feature", features = ["log"]}
 log = "0"
+downcast-rs = { workspace = true }

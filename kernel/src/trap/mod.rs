@@ -165,25 +165,28 @@ impl TrapHandler for Trap {
             | Trap::Exception(Exception::LoadFault)
             | Trap::Exception(Exception::InstructionFault)
             | Trap::Exception(Exception::IllegalInstruction) => {
-                error!(
-                    "[User] {:?} in application,stval:{:#x?} sepc:{:#x?}",
+                panic!(
+                    "<do_user_handle> {:?} in application,stval:{:#x?} sepc:{:#x?}",
                     self, stval, sepc
                 );
             }
             Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
-                panic!("[User] {:?}, stval:{:#x?} sepc:{:#x?}", self, stval, sepc);
+                panic!(
+                    "<do_user_handle> {:?}, stval:{:#x?} sepc:{:#x?}",
+                    self, stval, sepc
+                );
             }
             Trap::Exception(Exception::InstructionPageFault) => {
-                panic!("[User] instruction page fault")
+                panic!("<do_user_handle> instruction page fault")
             }
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                trace!("[User] timer interrupt");
+                trace!("<do_user_handle> timer interrupt");
                 timer::set_next_trigger();
                 scheduler_domain!().yield_now().expect("do_yield failed");
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
-                trace!("[User] external interrupt");
+                trace!("<do_user_handle> external interrupt");
                 plic_domain!().handle_irq().expect("handle_irq failed");
             }
             _ => {
@@ -201,7 +204,7 @@ impl TrapHandler for Trap {
         let sepc = sepc::read();
         match self {
             Trap::Interrupt(Interrupt::SupervisorTimer) => {
-                trace!("[kernel] timer interrupt");
+                trace!("<do_kernel_handle> timer interrupt");
                 // record_irq(1);
                 // check_timer_queue();
                 // solve_futex_wait();
@@ -214,6 +217,7 @@ impl TrapHandler for Trap {
                 );
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
+                trace!("<do_kernel_handle> external interrupt");
                 plic_domain!().handle_irq().expect("handle_irq failed");
             }
             _ => {

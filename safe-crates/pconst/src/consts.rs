@@ -64,7 +64,10 @@ pub enum LinuxErrno {
     EINPROGRESS = -115,
     /// 拒绝连接
     ECONNREFUSED = -111,
+    /// Address already in use
+    EALREADY = -114,
     DOMAINCRASH = -255,
+    EBLOCKING = -256,
 }
 
 impl Display for LinuxErrno {
@@ -123,6 +126,8 @@ impl Display for LinuxErrno {
             LinuxErrno::EINPROGRESS => "Connection already in progress".to_string(),
             LinuxErrno::ECONNREFUSED => "Connection refused".to_string(),
             LinuxErrno::DOMAINCRASH => "Domain crash".to_string(),
+            LinuxErrno::EBLOCKING => "Blocking".to_string(),
+            LinuxErrno::EALREADY => "Port already in use".to_string(),
         };
         write!(f, "{}", str)
     }

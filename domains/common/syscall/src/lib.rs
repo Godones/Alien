@@ -16,9 +16,7 @@ use alloc::{boxed::Box, format, sync::Arc};
 
 use basic::println;
 use constants::AlienResult;
-use interface::{
-    Basic, DomainType, LogDomain, SchedulerDomain, SysCallDomain, TaskDomain, VfsDomain,
-};
+use interface::*;
 use rref::RRefVec;
 
 use crate::{domain::*, fs::*, mm::*, signal::*, socket::*, system::*, task::*, time::*};
@@ -29,6 +27,7 @@ struct SysCallDomainImpl {
     task_domain: Arc<dyn TaskDomain>,
     scheduler: Arc<dyn SchedulerDomain>,
     logger: Arc<dyn LogDomain>,
+    net_stack_domain: Arc<dyn NetDomain>,
 }
 
 impl SysCallDomainImpl {
@@ -37,12 +36,14 @@ impl SysCallDomainImpl {
         task_domain: Arc<dyn TaskDomain>,
         scheduler: Arc<dyn SchedulerDomain>,
         logger: Arc<dyn LogDomain>,
+        net_stack_domain: Arc<dyn NetDomain>,
     ) -> Self {
         Self {
             vfs_domain,
             task_domain,
             scheduler,
             logger,
+            net_stack_domain,
         }
     }
 }
@@ -200,8 +201,122 @@ impl SysCallDomain for SysCallDomainImpl {
             176 => sys_get_gid(&self.task_domain),
             177 => sys_get_egid(&self.task_domain),
             178 => sys_get_tid(&self.task_domain),
-            198 => sys_socket(&self.task_domain, args[0], args[1], args[2]),
-            199 => sys_socket_pair(&self.task_domain, args[0], args[1], args[2], args[3]),
+            198 => sys_socket(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+            ),
+            199 => sys_socket_pair(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+            ),
+            200 => sys_bind(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+            ),
+            201 => sys_listen(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+            ),
+            202 => sys_accept(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                &self.scheduler,
+                args[0],
+                args[1],
+                args[2],
+            ),
+            203 => sys_connect(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                &self.scheduler,
+                args[0],
+                args[1],
+                args[2],
+            ),
+            204 => sys_getsockname(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+            ),
+            205 => sys_getpeername(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+            ),
+            206 => sys_sendto(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+                args[4],
+                args[5],
+            ),
+            207 => sys_recvfrom(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                &self.scheduler,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+                args[4],
+                args[5],
+            ),
+            208 => sys_set_socket_opt(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+                args[4],
+            ),
+            209 => sys_get_socket_opt(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+                args[2],
+                args[3],
+                args[4],
+            ),
+            210 => sys_shutdown(
+                &self.task_domain,
+                &self.vfs_domain,
+                &self.net_stack_domain,
+                args[0],
+                args[1],
+            ),
             214 => sys_brk(&self.vfs_domain, &self.task_domain, args[0]),
             215 => sys_unmap(&self.task_domain, args[0], args[1]),
             220 => sys_clone(
@@ -269,10 +384,17 @@ pub fn main() -> Box<dyn SysCallDomain> {
         _ => panic!("logger domain not found"),
     };
 
+    let net_stack_domain = basic::get_domain("net_stack").unwrap();
+    let net_stack_domain = match net_stack_domain {
+        DomainType::NetDomain(net_stack_domain) => net_stack_domain,
+        _ => panic!("net_stack domain not found"),
+    };
+
     Box::new(SysCallDomainImpl::new(
         vfs_domain,
         task_domain,
         scheduler_domain,
         logger,
+        net_stack_domain,
     ))
 }

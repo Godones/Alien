@@ -1,4 +1,7 @@
+use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+
 use int_enum::IntEnum;
+use pod::Pod;
 
 #[repr(usize)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, IntEnum)]
@@ -97,4 +100,61 @@ pub enum TcpSocketOption {
     TCP_MAXSEG = 2,
     TCP_INFO = 11,
     TCP_CONGESTION = 13,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod)]
+pub struct SocketAddrInRaw {
+    pub family: u16,
+    pub in_port: u16,
+    pub addr: [u8; 4],
+    pub sin_zero: [u8; 8],
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SocketAddrIn {
+    pub family: u16,
+    pub in_port: u16,
+    pub addr: Ipv4Addr,
+    pub sin_zero: [u8; 8],
+}
+
+impl From<SocketAddrIn> for SocketAddr {
+    fn from(value: SocketAddrIn) -> Self {
+        SocketAddr::V4(SocketAddrV4::new(value.addr, value.in_port))
+    }
+}
+
+impl Default for SocketAddrIn {
+    fn default() -> Self {
+        Self {
+            family: Domain::AF_INET as u16,
+            in_port: 0,
+            addr: Ipv4Addr::new(0, 0, 0, 0),
+            sin_zero: [0; 8],
+        }
+    }
+}
+
+impl From<SocketAddrInRaw> for SocketAddrIn {
+    fn from(value: SocketAddrInRaw) -> Self {
+        Self {
+            family: value.family,
+            in_port: value.in_port,
+            addr: Ipv4Addr::from(value.addr),
+            sin_zero: value.sin_zero,
+        }
+    }
+}
+
+impl From<SocketAddrIn> for SocketAddrInRaw {
+    fn from(value: SocketAddrIn) -> Self {
+        Self {
+            family: value.family,
+            in_port: value.in_port,
+            addr: value.addr.octets(),
+            sin_zero: value.sin_zero,
+        }
+    }
 }
