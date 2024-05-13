@@ -8,7 +8,7 @@ use constants::{
     },
     AlienError, AlienResult,
 };
-use interface::{InodeID, NetDomain, SchedulerDomain, SocketArgTuple, TaskDomain, VfsDomain};
+use interface::{NetDomain, SchedulerDomain, SocketArgTuple, TaskDomain, VfsDomain};
 use log::error;
 use rref::{RRef, RRefVec};
 
@@ -256,6 +256,7 @@ pub fn sys_sendto(
         let addr_raw = task_domain.read_val_from_user::<SocketAddrInRaw>(addr)?;
         let socket_addr =
             SocketAddrV4::new(Ipv4Addr::from(addr_raw.addr), addr_raw.in_port.to_be());
+        error!("<sys_sendto> remote_addr: {:?}", socket_addr);
         let socket_addr = RRef::new(socket_addr);
         Some(socket_addr)
     } else {

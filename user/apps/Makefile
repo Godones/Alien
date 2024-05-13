@@ -24,7 +24,7 @@ BUILD_CRATES := \
 	dtask \
 	dlog \
 	ping \
-	server \
+	client \
 #	run_test \
 	tests \
 	sleep \

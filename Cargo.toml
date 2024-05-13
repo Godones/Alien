@@ -11,7 +11,7 @@ members = [
     "domains/common/*",
     "safe-crates/*",
     "domains/fs/*",
-    "user/apps/d*", "user/apps/ping", "user/apps/server",
+    "user/apps/d*", "user/apps/ping", "user/apps/client",
 ]
 
 resolver = "2"

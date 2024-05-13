@@ -73,15 +73,16 @@ impl DeviceBase for NetStack {
     fn handle_irq(&self) -> AlienResult<()> {
         info!("<handle_irq> NetStack handle_irq");
         let nic = NET_INTERFACE.get().unwrap();
-        nic.handle_irq()?;
-        let res = nic.can_receive()?;
-        if res {
-            let shared_buf = RRefVec::new(0, 1600);
-            let (mut shared_buf, len) = nic.receive(shared_buf).unwrap();
+        let mut shared_buf = RRefVec::new(0, 1600);
+        while nic.can_receive()? {
+            let (mut buf, len) = nic.receive(shared_buf).unwrap();
             println!("recv data {} bytes", len);
             self.net_server
-                .analysis_net_data(&mut shared_buf.as_mut_slice()[..len])
+                .analysis_net_data(&mut buf.as_mut_slice()[..len]);
+            shared_buf = buf;
         }
+        nic.handle_irq()?;
+        info!("<handle_irq> net stack handle irq success");
         Ok(())
     }
 }
@@ -92,7 +93,7 @@ impl NetDomain for NetStack {
         match nic_domain {
             DomainType::NetDeviceDomain(nic_domain) => {
                 NET_INTERFACE.call_once(|| nic_domain);
-                println!("net stack init successed!");
+                println!("net stack init successes!");
                 Ok(())
             }
             _ => Err(AlienError::EINVAL),
@@ -154,7 +155,7 @@ impl NetDomain for NetStack {
             .clone()
             .bind(local)
             .map_err(|_| AlienError::EALREADY)?;
-        log::info!("socket_addr: {:?}", *socket_addr);
+        info!("socket_addr: {:?}", *socket_addr.deref());
         Ok(None)
     }
 

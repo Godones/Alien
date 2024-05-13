@@ -7,7 +7,7 @@ use crate::{scheduler_domain, syscall_domain, task_domain};
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {
     // enable interrupt
-    interrupt_enable();
+    // interrupt_enable();
     let task_domain = task_domain!();
     let tid = scheduler_domain!().current_tid().unwrap();
     let trap_frame_phy_addr = task_domain.trap_frame_phy_addr().unwrap();

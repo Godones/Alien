@@ -13,5 +13,6 @@ constants = { path = "../../../base/constants" }
 spin = { workspace = true }
 ksync = { path = "../../../base/ksync" }
 lose-net-stack = { git = "https://github.com/os-module/lose-net-stack", branch = "new_feature", features = ["log"]}
+#lose-net-stack = { path = "../../../../os-modules/lose-net-stack", features = ["log"] }
 log = "0"
 downcast-rs = { workspace = true }

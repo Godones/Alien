@@ -1,2 +1,3 @@
 [alias]
 domain = "run -p xtask --"
+server = "run -p domain-server --"

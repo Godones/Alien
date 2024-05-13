@@ -217,7 +217,7 @@ impl TrapHandler for Trap {
                 );
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
-                trace!("<do_kernel_handle> external interrupt");
+                println!("<do_kernel_handle> external interrupt");
                 plic_domain!().handle_irq().expect("handle_irq failed");
             }
             _ => {
