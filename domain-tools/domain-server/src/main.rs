@@ -19,7 +19,7 @@ fn main() {
             Request::Get(domain) => {
                 println!("Qemu client try to get file: {}", domain);
                 let path = Path::new("./build/disk/");
-                let path = path.join(format!("g{}", domain));
+                let path = path.join(format!("{}", domain));
                 println!("Path: {:?}, exist: {}", path, path.exists());
                 let file = OpenOptions::new().read(true).open(&path);
                 match file {
@@ -60,6 +60,7 @@ fn main() {
                     sock.send_to("NODATA".as_bytes(), src).expect("send failed");
                     continue;
                 }
+                // println!("Qemu client send req: {offset}");
                 sock.send_to(&data[offset..end], src).expect("send failed");
             }
             Request::End(end) => {

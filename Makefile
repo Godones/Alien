@@ -70,6 +70,7 @@ user:
 sdcard:$(FS) mount user #domains
 	@sudo cp build/disk/* $(FSMOUNT)/
 	@-sudo cp user/bin/* $(FSMOUNT)/
+	@sudo mkdir -p $(FSMOUNT)/domains
 	@sudo ls $(FSMOUNT)
 	@sudo umount $(FSMOUNT)
 	@rm -rf $(FSMOUNT)

@@ -268,7 +268,7 @@ fn vfsnodetype2dirent64(ty: VfsNodeType) -> DirentType {
 
 impl Drop for KernelFile {
     fn drop(&mut self) {
-        let _ = self.flush();
-        let _ = self.fsync();
+        // let _ = self.flush();
+        // let _ = self.fsync();
     }
 }

@@ -1,4 +1,3 @@
-use arch::interrupt_enable;
 use basic::task::TrapFrame;
 use mem::PhysAddr;
 

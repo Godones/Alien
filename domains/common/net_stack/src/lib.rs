@@ -28,7 +28,7 @@ use interface::{
     Basic, DeviceBase, DomainType, NetDeviceDomain, NetDomain, SocketArgTuple, SocketID,
 };
 use ksync::Mutex;
-use log::info;
+use log::{debug, info};
 use lose_net_stack::{connection::NetServer, MacAddress};
 use rref::{RRef, RRefVec};
 use spin::Once;
@@ -73,15 +73,15 @@ impl DeviceBase for NetStack {
     fn handle_irq(&self) -> AlienResult<()> {
         info!("<handle_irq> NetStack handle_irq");
         let nic = NET_INTERFACE.get().unwrap();
+        nic.handle_irq()?;
         let mut shared_buf = RRefVec::new(0, 1600);
         while nic.can_receive()? {
             let (mut buf, len) = nic.receive(shared_buf).unwrap();
-            println!("recv data {} bytes", len);
+            debug!("recv data {} bytes", len);
             self.net_server
                 .analysis_net_data(&mut buf.as_mut_slice()[..len]);
             shared_buf = buf;
         }
-        nic.handle_irq()?;
         info!("<handle_irq> net stack handle irq success");
         Ok(())
     }
