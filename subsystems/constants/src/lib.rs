@@ -1,7 +1,9 @@
 #![no_std]
 //! 导出 `pconst` 中的常量和数据结构， 定义Alien OS的错误类型
 
+use pconst::time::TimeVal;
 pub use pconst::*;
+
 pub type AlienError = LinuxErrno;
 pub type AlienResult<T> = Result<T, AlienError>;
 
@@ -36,3 +38,18 @@ impl From<u64> for DeviceId {
 }
 
 pub const AT_FDCWD: isize = -100isize;
+
+const USEC_PER_SEC: usize = 1000_000;
+
+pub trait FromUsize {
+    fn from_usize(value: usize) -> Self;
+}
+
+impl FromUsize for TimeVal {
+    fn from_usize(value: usize) -> Self {
+        Self {
+            tv_sec: value / USEC_PER_SEC,
+            tv_usec: value % USEC_PER_SEC,
+        }
+    }
+}

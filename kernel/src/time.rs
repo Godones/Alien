@@ -11,9 +11,8 @@
 //!
 //! 对于时间片 (每次引发时钟中断的时间间隔) 大小的设计：目前 Alien 中用户态和内核态下采用相同的时间片间隔，1s 内触发 10 次时钟中断。
 use constants::{
-    sys::TimeVal,
-    time::{ClockId, TimerType},
-    LinuxErrno,
+    time::{ClockId, TimeVal, TimerType},
+    FromUsize, LinuxErrno,
 };
 use log::{info, warn};
 use platform::{config::CLOCK_FREQ, set_timer};
@@ -117,7 +116,7 @@ pub fn nanosleep(req: *mut u8, _: *mut u8) -> isize {
 /// Reference: [clock_get_time](https://www.man7.org/linux/man-pages/man3/clock_gettime.3.html)
 #[syscall_func(113)]
 pub fn clock_get_time(clock_id: usize, tp: *mut u8) -> isize {
-    let id = ClockId::from_raw(clock_id).unwrap();
+    let id = ClockId::try_from(clock_id).unwrap();
     let task = current_task().unwrap();
     match id {
         ClockId::Monotonic | ClockId::Realtime | ClockId::ProcessCputimeId => {
@@ -147,7 +146,7 @@ pub fn getitimer(_which: usize, current_value: usize) -> isize {
     let timer = &task.access_inner().timer;
     let itimer = ITimerVal {
         it_interval: timer.timer_interval,
-        it_value: timer.timer_remained.into(),
+        it_value: TimeVal::from_usize(timer.timer_remained),
     };
     task.access_inner()
         .copy_to_user(&itimer, current_value as *mut ITimerVal);
@@ -176,7 +175,7 @@ pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize 
         let timer = task.access_inner().get_timer();
         let itimer = ITimerVal {
             it_interval: timer.timer_interval.into(),
-            it_value: timer.timer_remained.into(),
+            it_value: TimeVal::from_usize(timer.timer_remained),
         };
         task.access_inner()
             .copy_to_user(&itimer, old_value as *mut ITimerVal);
@@ -196,7 +195,7 @@ pub fn setitimer(which: usize, current_value: usize, old_value: usize) -> isize 
 /// Reference: [clock_getres](https://www.man7.org/linux/man-pages/man3/clock_getres.3.html)
 #[syscall_func(114)]
 pub fn clock_getres(id: usize, res: usize) -> isize {
-    let id = ClockId::from_raw(id).unwrap();
+    let id = ClockId::try_from(id).unwrap();
     info!("clock_getres: id {:?} ,res {:#x}", id, res);
     let task = current_task().unwrap();
     let time_res = match id {
@@ -224,7 +223,7 @@ pub fn clock_getres(id: usize, res: usize) -> isize {
 #[syscall_func(115)]
 pub fn clock_nanosleep(clock_id: usize, flags: usize, req: usize, remain: usize) -> isize {
     const TIMER_ABSTIME: usize = 1;
-    let id = ClockId::from_raw(clock_id).unwrap();
+    let id = ClockId::try_from(clock_id).unwrap();
     info!(
         "clock_nanosleep: id {:?} ,flags {:#x}, req {:#x}, remain {:#x}",
         id, flags, req, remain

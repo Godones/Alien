@@ -44,7 +44,7 @@ pub fn sys_mount(
     );
     let find = vfs::system_support_fs(&fs_type).ok_or(LinuxErrno::EINVAL)?;
     let path = VfsPath::new(vfs::system_root_fs(), system_root_fs());
-    let fs_root = match find.fs_name() {
+    let fs_root = match find.fs_name().as_str() {
         name @ ("tmpfs" | "ramfs" | "fat32") => {
             let fs = vfs::system_support_fs(name).unwrap();
             let dev = if name.eq("fat32") {
@@ -365,7 +365,7 @@ pub fn sys_writev(fd: usize, iovec: usize, iovcnt: usize) -> AlienResult<isize> 
             continue;
         }
         let len = iov.len;
-        let buf = process.transfer_buffer(base, len);
+        let buf = process.transfer_buffer(base as *mut u8, len);
         for b in buf.iter() {
             let r = file.write(b)?;
             count += r;
@@ -394,7 +394,7 @@ pub fn sys_readv(fd: usize, iovec: usize, iovcnt: usize) -> AlienResult<isize> {
             continue;
         }
         let len = iov.len;
-        let mut buf = task.transfer_buffer(base, len);
+        let mut buf = task.transfer_buffer(base as *mut u8, len);
         for b in buf.iter_mut() {
             info!("read file: {:?}, len:{:?}", fd, b.len());
             let r = file.read(b)?;

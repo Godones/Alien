@@ -29,7 +29,7 @@ impl SystemSupportFS {
             } else {
                 res.push_str("      ");
             }
-            res.push_str(fs.fs_name());
+            res.push_str(&fs.fs_name());
             res.push_str("\n");
         }
         res

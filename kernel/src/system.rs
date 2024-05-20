@@ -2,7 +2,8 @@
 use core::cmp::min;
 
 use constants::{
-    sys::{Rusage, RusageFlag, Sysinfo, SyslogAction, TimeVal},
+    sys::{Rusage, RusageFlag, Sysinfo, SyslogAction},
+    time::TimeVal,
     AlienResult, LinuxErrno,
 };
 use syscall_table::syscall_func;
@@ -209,7 +210,7 @@ pub fn getrusage(who: isize, usage: usize) -> AlienResult<isize> {
     info!("getrusage: who: {:?}, usage: {}", who, usage);
     let task = current_task().unwrap();
     let static_info = task.access_inner().statistical_data().clone();
-    let mut task_usage = Rusage::new();
+    let mut task_usage = Rusage::default();
     task_usage.ru_utime = TimeVal::from_freq(static_info.tms_utime);
     task_usage.ru_stime = TimeVal::from_freq(static_info.tms_stime);
     task.access_inner()
