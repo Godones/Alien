@@ -11,7 +11,7 @@ use constants::{
     ipc::FutexOp,
     signal::SignalNumber,
     task::{CloneFlags, WaitOptions},
-    AlienError, AlienResult, PrLimit, PrLimitRes,
+    AlienError, AlienResult, PrLimitResType, RLimit64,
 };
 use ksync::Mutex;
 use log::{info, warn};
@@ -266,7 +266,7 @@ pub fn clone(flag: usize, stack: usize, ptid: usize, tls: usize, ctid: usize) ->
     let clone_flag = CloneFlags::from_bits_truncate(flag as u32);
     // check whether flag include signal
     let sig = flag & 0xff;
-    let sig = SignalNumber::from(sig);
+    let sig = SignalNumber::try_from(sig as u8).unwrap();
     let mut task = current_task().unwrap();
 
     let child_num = task.access_inner().children.len();
@@ -426,23 +426,23 @@ pub fn prlimit64(pid: usize, resource: usize, new_limit: *const u8, old_limit: *
     assert!(pid == 0 || pid == current_task().unwrap().get_pid() as usize);
     let task = current_task().unwrap();
     let mut inner = task.access_inner();
-    if let Ok(resource) = PrLimitRes::try_from(resource) {
+    if let Ok(resource) = PrLimitResType::try_from(resource) {
         if !old_limit.is_null() {
             let limit = inner.get_prlimit(resource);
             warn!("get rlimit nofile to {:?}", limit);
-            inner.copy_to_user(&limit, old_limit as *mut PrLimit);
+            inner.copy_to_user(&limit, old_limit as *mut RLimit64);
         }
         match resource {
-            PrLimitRes::RlimitStack => {}
-            PrLimitRes::RlimitNofile => {
+            PrLimitResType::RlimitStack => {}
+            PrLimitResType::RlimitNofile => {
                 if !new_limit.is_null() {
-                    let mut limit = PrLimit::new(0, 0);
-                    inner.copy_from_user(new_limit as *const PrLimit, &mut limit);
+                    let mut limit = RLimit64::new(0, 0);
+                    inner.copy_from_user(new_limit as *const RLimit64, &mut limit);
                     warn!("set rlimit nofile to {:?}", limit);
                     inner.set_prlimit(resource, limit);
                 }
             }
-            PrLimitRes::RlimitAs => {}
+            PrLimitResType::RlimitAs => {}
         }
     }
     0

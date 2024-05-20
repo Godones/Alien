@@ -3,7 +3,7 @@ use core::ops::Range;
 
 use bitflags::bitflags;
 use config::{FRAME_SIZE, PROCESS_HEAP_MAX};
-use constants::{io::MapFlags, AlienResult, LinuxErrno};
+use constants::{io::MMapFlags, AlienResult, LinuxErrno};
 use page_table::{
     addr::{align_up_4k, VirtAddr},
     pte::MappingFlags,
@@ -58,7 +58,7 @@ pub struct MMapRegion {
     /// The protection flags of the mapping
     pub prot: ProtFlags,
     /// The flags of the mapping
-    pub flags: MapFlags,
+    pub flags: MMapFlags,
     /// The file descriptor to map
     pub fd: Option<Arc<dyn File>>,
     /// The offset in the file to start from
@@ -121,7 +121,7 @@ impl MMapRegion {
         len: usize,
         map_len: usize,
         prot: ProtFlags,
-        flags: MapFlags,
+        flags: MMapFlags,
         fd: Option<Arc<dyn File>>,
         offset: usize,
     ) -> Self {
@@ -152,7 +152,7 @@ impl MMapRegion {
     pub fn set_prot(&mut self, prot: ProtFlags) {
         self.prot = prot;
     }
-    pub fn set_flags(&mut self, flags: MapFlags) {
+    pub fn set_flags(&mut self, flags: MMapFlags) {
         self.flags = flags;
     }
 }
@@ -174,7 +174,7 @@ pub fn do_munmap(start: usize, len: usize) -> isize {
 /// + `start`: 所要创建的映射区的起始地址。当该值为0时，内核将自动为其分配一段内存空间创建内存映射。该值在函数运行过程中将被调整为与4K对齐。
 /// + `len`: 指明所要创建的映射区的长度。该值在函数运行过程中将被调整为与4K对齐。
 /// + `prot`: 指明创建内存映射区的初始保护位。具体可见[`ProtFlags`]。
-/// + `flags`: 指明mmap操作的相关设置。具体可见[`MapFlags`]。
+/// + `flags`: 指明mmap操作的相关设置。具体可见[`MMapFlags`]。
 /// + `fd`: 指明要创建内存映射的文件的文件描述符。
 /// + `offset`: 将从文件中偏移量为`offset`处开始映射。该值需要和4K对齐。
 ///
@@ -192,7 +192,7 @@ pub fn do_mmap(
     let process = current_task().unwrap();
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
-    let flags = MapFlags::from_bits_truncate(flags);
+    let flags = MMapFlags::from_bits_truncate(flags);
     warn!(
         "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
         start, len, prot, flags, fd, offset

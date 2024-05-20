@@ -29,7 +29,7 @@ const FD_CLOEXEC: usize = 1;
 pub fn fcntl(fd: usize, cmd: usize, arg: usize) -> AlienResult<isize> {
     let task = current_task().unwrap();
     let file = task.get_file(fd).ok_or(LinuxErrno::EBADF)?;
-    let cmd = Fcntl64Cmd::try_from(cmd).map_err(|_| LinuxErrno::EINVAL)?;
+    let cmd = Fcntl64Cmd::try_from(cmd as u32).map_err(|_| LinuxErrno::EINVAL)?;
     info!("fcntl:{:?} {:?} ", cmd, arg);
     match cmd {
         Fcntl64Cmd::F_DUPFD => {

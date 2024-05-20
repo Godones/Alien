@@ -20,13 +20,12 @@ use bit_field::BitField;
 use config::*;
 use constants::{
     aux::*,
-    io::MapFlags,
+    io::MMapFlags,
     ipc::RobustList,
     signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext},
-    sys::TimeVal,
     task::CloneFlags,
-    time::TimerType,
-    AlienError, AlienResult, LinuxErrno, PrLimit, PrLimitRes,
+    time::{TimeVal, TimerType},
+    AlienError, AlienResult, LinuxErrno, PrLimitResType, RLimit64,
 };
 use gmanager::MinimalManager;
 use ksync::{Mutex, MutexGuard};
@@ -161,7 +160,7 @@ impl TaskTimer {
     /// 清除当前的计数器信息，将 timer_remained 置为 0
     pub fn clear(&mut self) {
         self.timer_type = TimerType::NONE;
-        self.timer_interval = TimeVal::new();
+        self.timer_interval = TimeVal::default();
         self.timer_remained = 0;
         self.expired = false;
     }
@@ -172,7 +171,7 @@ impl Default for TaskTimer {
     fn default() -> Self {
         Self {
             timer_type: TimerType::NONE,
-            timer_interval: TimeVal::new(),
+            timer_interval: TimeVal::default(),
             timer_remained: 0,
             start: 0,
             expired: false,
@@ -546,26 +545,28 @@ impl TaskInner {
     }
 
     /// 获取当前进程对于资源的限制
-    pub fn get_prlimit(&self, resource: PrLimitRes) -> PrLimit {
+    pub fn get_prlimit(&self, resource: PrLimitResType) -> RLimit64 {
         match resource {
-            PrLimitRes::RlimitStack => PrLimit::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64),
-            PrLimitRes::RlimitNofile => {
-                let max_fd = self.fd_table.lock().max();
-                PrLimit::new(max_fd as u64, max_fd as u64)
+            PrLimitResType::RlimitStack => {
+                RLimit64::new(USER_STACK_SIZE as u64, USER_STACK_SIZE as u64)
             }
-            PrLimitRes::RlimitAs => PrLimit::new(u64::MAX, u64::MAX),
+            PrLimitResType::RlimitNofile => {
+                let max_fd = self.fd_table.lock().max();
+                RLimit64::new(max_fd as u64, max_fd as u64)
+            }
+            PrLimitResType::RlimitAs => RLimit64::new(u64::MAX, u64::MAX),
         }
     }
 
     /// 设置当前进程对于资源的限制
-    pub fn set_prlimit(&mut self, resource: PrLimitRes, value: PrLimit) {
+    pub fn set_prlimit(&mut self, resource: PrLimitResType, value: RLimit64) {
         match resource {
-            PrLimitRes::RlimitStack => {}
-            PrLimitRes::RlimitNofile => {
+            PrLimitResType::RlimitStack => {}
+            PrLimitResType::RlimitNofile => {
                 let new_max_fd = value.rlim_cur;
                 self.fd_table.lock().set_max(new_max_fd as usize);
             }
-            PrLimitRes::RlimitAs => {}
+            PrLimitResType::RlimitAs => {}
         }
     }
 
@@ -913,7 +914,7 @@ impl TaskInner {
         }
         // 到此说明计时器已经到时间了，更新计时器
         // 如果是 one-shot 计时器，则 timer_interval_us == 0，这样赋值也恰好是符合语义的
-        self.timer.timer_remained = if self.timer.timer_interval == TimeVal::new() {
+        self.timer.timer_remained = if self.timer.timer_interval == TimeVal::default() {
             0
         } else {
             self.timer.start = now;
@@ -980,7 +981,7 @@ impl TaskInner {
     /// + `start`: 所要创建的映射区的起始地址。当该值为0时，内核将自动为其分配一段内存空间创建内存映射。该值在函数运行过程中将被调整为与4K对齐。
     /// + `len`: 指明所要创建的映射区的长度。该值在函数运行过程中将被调整为与4K对齐。
     /// + `prot`: 指明创建内存映射区的初始保护位。具体可见[`ProtFlags`]。
-    /// + `flags`: 指明mmap操作的相关设置。具体可见[`MapFlags`]。
+    /// + `flags`: 指明mmap操作的相关设置。具体可见[`MMapFlags`]。
     /// + `fd`: 指明要创建内存映射的文件的文件描述符。
     /// + `offset`: 将从文件中偏移量为`offset`处开始映射。该值需要和4K对齐。
     ///
@@ -990,12 +991,12 @@ impl TaskInner {
         start: usize,
         len: usize,
         prot: ProtFlags,
-        flags: MapFlags,
+        flags: MMapFlags,
         fd: usize,
         offset: usize,
     ) -> AlienResult<usize> {
         // start == 0 表明需要OS为其找一段内存，而 MAP_FIXED 表明必须 mmap 在固定位置。两者是冲突的
-        if start == 0 && flags.contains(MapFlags::MAP_FIXED) {
+        if start == 0 && flags.contains(MMapFlags::MAP_FIXED) {
             return Err(LinuxErrno::EINVAL);
         }
 
@@ -1005,7 +1006,7 @@ impl TaskInner {
         }
 
         // not map to file
-        let fd = if flags.contains(MapFlags::MAP_ANONYMOUS) {
+        let fd = if flags.contains(MMapFlags::MAP_ANONYMOUS) {
             None
         } else {
             let file = self
@@ -1033,7 +1034,7 @@ impl TaskInner {
                 start = 0x1000;
             }
             start..start + len
-        } else if flags.contains(MapFlags::MAP_FIXED) {
+        } else if flags.contains(MMapFlags::MAP_FIXED) {
             let len = align_up_4k(len);
             if start > self.heap.lock().start {
                 error!("mmap fixed address conflict with heap");
@@ -1296,7 +1297,7 @@ impl TaskInner {
                     AlienError::EAGAIN
                 } else {
                     error!("do_store_page_fault panic :{:#x}", o_addr);
-                    AlienError::ETMP
+                    AlienError::EPERM
                 }
             })?;
         // .expect(format!("addr:{:#x}", addr).as_str());

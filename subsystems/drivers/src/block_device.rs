@@ -223,14 +223,14 @@ impl LowBlockDevice for VirtIOBlkWrapper {
         let res = self
             .device
             .lock()
-            .read_block(block_id, buf)
+            .read_blocks(block_id, buf)
             .map_err(|_| LinuxErrno::EIO.into());
         res
     }
     fn write_block(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
         self.device
             .lock()
-            .write_block(block_id, buf)
+            .write_blocks(block_id, buf)
             .map_err(|_| LinuxErrno::EIO.into())
     }
 

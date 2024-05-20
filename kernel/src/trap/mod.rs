@@ -142,7 +142,7 @@ impl TrapHandler for Trap {
                     if err == AlienError::EAGAIN {
                         // println!("thread need wait");
                         do_suspend();
-                    } else if err == AlienError::ETMP {
+                    } else if err == AlienError::EPERM {
                         do_exit(-1);
                     } else {
                         send_signal(tid as usize, SignalNumber::SIGSEGV as usize)

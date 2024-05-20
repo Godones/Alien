@@ -1,6 +1,6 @@
 #![no_std]
 
-use constants::sys::TimeVal;
+use constants::time::TimeVal;
 use platform::config::CLOCK_FREQ;
 use vfscore::utils::VfsTimeSpec;
 /// 每秒包含的毫秒数

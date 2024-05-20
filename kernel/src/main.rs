@@ -1,5 +1,4 @@
 #![feature(atomic_from_mut)]
-#![feature(ip_in_core)]
 #![no_std]
 #![no_main]
 

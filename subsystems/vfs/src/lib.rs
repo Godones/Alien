@@ -143,8 +143,13 @@ pub fn init_filesystem() -> AlienResult<()> {
         .open(None)
         .expect("open /dev/sda failed")
         .inode()?;
+
+    println!("mount fs success XXXXX");
     let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
+    println!("mount fs success XXXXX");
     path.join("tests")?.mount(diskfs_root, 0)?;
+    println!("mount fs success");
+
     vfscore::path::print_fs_tree(&mut VfsOutPut, ramfs_root.clone(), "".to_string(), false)
         .unwrap();
 

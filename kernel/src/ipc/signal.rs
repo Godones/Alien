@@ -41,7 +41,11 @@ pub fn get_signals_from_tid(tid: usize) -> Option<Arc<Mutex<SignalReceivers>>> {
 pub fn send_signal(tid: usize, signum: usize) {
     if let Some(signals) = get_signals_from_tid(tid) {
         // 获取目标线程(可以是自己)的 signals 数组
-        warn!("send signal {:?} to {}", SignalNumber::from(signum), tid);
+        warn!(
+            "send signal {:?} to {}",
+            SignalNumber::try_from(signum as u8),
+            tid
+        );
         signals.lock().try_add_bit(signum);
     }
 }
@@ -62,7 +66,7 @@ pub fn sigaction(sig: usize, action: usize, old_action: usize) -> isize {
     let action = action as *const SigAction;
     let old_action = old_action as *mut SigAction;
     // check whether sig is valid
-    let signum = SignalNumber::from(sig);
+    let signum = SignalNumber::try_from(sig as u8).unwrap();
     if signum == SignalNumber::SIGSTOP
         || signum == SignalNumber::SIGKILL
         || signum == SignalNumber::ERR
@@ -182,7 +186,7 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
         let set_mut = task_inner.transfer_raw_ptr_mut(oldset as *mut usize);
         *set_mut = signal_receivers.mask.bits();
     }
-    let how = SigProcMaskHow::from(how);
+    let how = SigProcMaskHow::try_from(how).unwrap();
     warn!("sigprocmask: how: {:?}, set: {:x}", how, set);
     if set != 0 {
         let set = task_inner.transfer_raw_ptr(set as *const usize);
@@ -195,9 +199,6 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
             }
             SigProcMaskHow::SigSetMask => {
                 signal_receivers.mask = SimpleBitSet::from(*set);
-            }
-            SigProcMaskHow::Unknown => {
-                return LinuxErrno::EINVAL as isize;
             }
         }
     }
@@ -222,7 +223,11 @@ pub fn sigprocmask(how: usize, set: usize, oldset: usize, _sig_set_size: usize) 
 /// Reference: [kill](https://man7.org/linux/man-pages/man2/kill.2.html)
 #[syscall_func(129)]
 pub fn kill(pid: usize, sig: usize) -> isize {
-    warn!("kill pid {}, signal id {:?}", pid, SignalNumber::from(sig));
+    warn!(
+        "kill pid {}, signal id {:?}",
+        pid,
+        SignalNumber::try_from(sig as u8).unwrap()
+    );
     if pid > 0 {
         //println!("kill pid {}, signal id {}", pid, signal_id);
         if sig > 0 {
@@ -244,7 +249,11 @@ pub fn kill(pid: usize, sig: usize) -> isize {
 /// Reference: [tkill](https://man7.org/linux/man-pages/man2/tkill.2.html)
 #[syscall_func(130)]
 pub fn tkill(tid: usize, sig: usize) -> isize {
-    warn!("tkill tid {}, signal id {:?}", tid, SignalNumber::from(sig));
+    warn!(
+        "tkill tid {}, signal id {:?}",
+        tid,
+        SignalNumber::try_from(sig as u8).unwrap()
+    );
     if tid > 0 && sig > 0 {
         //println!("kill pid {}, signal id {}", pid, signal_id);
         send_signal(tid, sig);
@@ -292,7 +301,7 @@ pub fn signal_handler() {
     let handler = task_inner.signal_handlers.clone();
     let handler = handler.lock();
     if let Some(signum) = receiver.get_one_signal() {
-        let sig = SignalNumber::from(signum);
+        let sig = SignalNumber::try_from(signum as u8).unwrap();
         error!("task {:?} receive signal {:?}", task.tid, sig);
         match sig {
             SignalNumber::SIGSEGV | SignalNumber::SIGBUS => {
