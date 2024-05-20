@@ -90,6 +90,8 @@ mount:
 
 
 domains:
+	if [ ! -d "build/disk" ]; then mkdir -p build/disk; fi
+	if [ ! -d "build/init" ]; then mkdir -p build/init; fi
 	cd domains && cargo domain build-all -l "$(LOG)"
 	cp domains/build/disk/* build/disk/ -r
 	cp domains/build/init/* build/init/ -r

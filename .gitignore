@@ -21,10 +21,5 @@ rust-project.json
 
 .idea
 
-build/*.bin
-build/*.img
-build/g*
-build/*.gz
-build/disk
-build/init
+build
 user/initrd/
