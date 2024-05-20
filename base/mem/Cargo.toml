@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config  = { path = "../../domain-tools/config" }
-arch = { path = "../../domain-tools/arch" }
-ksync = { path = "../../domain-tools/ksync" }
+config  = { path = "../../domain-lib/config" }
+arch = { path = "../../domain-lib/arch" }
+ksync = { path = "../../domain-lib/ksync" }
 platform = { path = "../platform" }
 page_table = { git = "https://github.com/os-module/page-table.git", package = "page-table" }
 memory_addr = { git ="https://github.com/os-module/memory_addr" }

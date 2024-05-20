@@ -5,13 +5,15 @@ members = [
     "user/apps/init",
     "user/apps/shell",
     "base/*",
-    "domain-tools/*",
+    "domain-lib/*",
     "domains/generated/g*",
     "domains/drivers/*",
     "domains/common/*",
     "domains/fs/*",
     "tools/*",
-    "user/apps/d*", "user/apps/ping", "user/apps/client",
+    "user/apps/d*",
+    "user/apps/ping",
+    "user/apps/client",
 ]
 resolver = "2"
 

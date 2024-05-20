@@ -90,11 +90,9 @@ mount:
 
 
 domains:
-	cargo domain build-all -l "$(LOG)"
-
-
-fix:
-	make -C domains fix  DOMAIN_LIST="$(domains)"
+	cd domains && cargo domain build-all -l "$(LOG)"
+	cp domains/build/disk/* build/disk/ -r
+	cp domains/build/init/* build/init/ -r
 
 initrd:
 	@make -C user/initrd

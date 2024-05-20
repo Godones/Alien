@@ -12,6 +12,8 @@
 
 ## 3. Create a new Domain
 
+cd to domains directory
+
 1. run cargo command
 
    ```
