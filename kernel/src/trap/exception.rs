@@ -14,7 +14,7 @@ pub fn syscall_exception_handler() {
 
     cx.update_sepc(cx.sepc() + 4);
     let parameters = cx.parameters();
-    let _syscall_name = constants::syscall_name(parameters[0]);
+    let _syscall_name = pconst::syscall_name(parameters[0]);
 
     if parameters[0] != 72 && parameters[0] != 124 {
         debug!(

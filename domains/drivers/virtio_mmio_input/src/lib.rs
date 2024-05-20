@@ -5,10 +5,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::{fmt::Debug, ops::Range};
 
-use basic::io::SafeIORegion;
-use constants::{AlienError, AlienResult};
+use basic::{io::SafeIORegion, sync::Mutex, AlienError, AlienResult};
 use interface::{Basic, DeviceBase, InputDomain};
-use ksync::Mutex;
 use spin::Once;
 use virtio_drivers::{device::input::VirtIOInput, transport::mmio::MmioTransport};
 use virtio_mmio_common::{HalImpl, SafeIORW};

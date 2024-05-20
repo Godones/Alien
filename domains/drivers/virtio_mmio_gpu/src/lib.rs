@@ -5,10 +5,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::{fmt::Debug, ops::Range};
 
-use basic::io::SafeIORegion;
-use constants::AlienResult;
+use basic::{io::SafeIORegion, sync::Mutex, AlienResult};
 use interface::{Basic, DeviceBase, GpuDomain};
-use ksync::Mutex;
 use log::info;
 use rref::RRefVec;
 use spin::Once;

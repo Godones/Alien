@@ -1,9 +1,10 @@
-use constants::{io::SeekFrom, AlienResult};
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
+use pconst::io::SeekFrom;
 use rref::{RRef, RRefVec};
 use vfscore::utils::{VfsFileStat, VfsNodeType, VfsPollEvents};
 
+use super::AlienResult;
 use crate::{Basic, SocketID};
 
 pub type InodeID = u64;

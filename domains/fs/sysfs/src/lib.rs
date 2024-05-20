@@ -3,10 +3,10 @@
 extern crate alloc;
 use alloc::{boxed::Box, string::ToString, sync::Arc};
 
+use basic::sync::Mutex;
 use dynfs::DynFsKernelProvider;
 use generic::GenericFsDomain;
 use interface::FsDomain;
-use ksync::Mutex;
 use vfscore::utils::VfsTimeSpec;
 #[derive(Clone)]
 pub struct CommonFsProviderImpl;

@@ -3,10 +3,10 @@
 extern crate alloc;
 use alloc::{boxed::Box, string::ToString, sync::Arc};
 
+use basic::sync::Mutex;
 use dynfs::{DynFsDirInode, DynFsKernelProvider};
 use generic::GenericFsDomain;
 use interface::FsDomain;
-use ksync::Mutex;
 use vfscore::{dentry::VfsDentry, error::VfsError, utils::VfsTimeSpec};
 
 use crate::{

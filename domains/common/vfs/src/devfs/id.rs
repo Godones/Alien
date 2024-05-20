@@ -1,7 +1,6 @@
 use alloc::collections::BTreeMap;
 
-use constants::DeviceId;
-use ksync::Mutex;
+use basic::{constants::DeviceId, sync::Mutex};
 use spin::Lazy;
 use vfscore::utils::VfsNodeType;
 

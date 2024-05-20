@@ -18,7 +18,6 @@ mod shadow_block;
 mod syscall;
 mod task;
 mod uart;
-#[allow(unused)]
 mod vfs;
 
 extern crate alloc;
@@ -26,7 +25,10 @@ extern crate alloc;
 use alloc::sync::Arc;
 use core::{any::Any, fmt::Debug};
 
-use constants::{AlienError, AlienResult};
+use pconst::LinuxErrno;
+
+type AlienError = LinuxErrno;
+type AlienResult<T> = Result<T, LinuxErrno>;
 
 pub trait Basic: Send + Sync + Debug + Any {
     #[cfg(feature = "domain")]

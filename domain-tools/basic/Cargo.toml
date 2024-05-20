@@ -6,18 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config = { path = "../../base/config" }
+config = { path = "../config" }
+arch = { path = "../arch" }
+ksync = { path = "../ksync" }
+
 corelib = { path = "../corelib", features = ["core_impl"]}
 task_meta = { path = "../task_meta" }
-constants = { path = "../../base/constants" }
-ksync = { path = "../../base/ksync" }
 rref = { path = "../rref" }
-arch = { path = "../../base/arch" }
-pod = { workspace = true }
-memory_addr = { path = "../../safe-crates/memory_addr" }
+
+pod = { git = "https://github.com/asterinas/pod", rev = "d7dba56" }
+memory_addr = { git ="https://github.com/os-module/memory_addr" }
 int-enum = "1"
 riscv = "0.11"
-log = {version = "0", optional = true }
+log = { version = "0", optional = true }
+pconst = { git = "https://github.com/os-module/pconst.git", features = ["special_error"] }
 
 [features]
 default = ["log"]

@@ -7,9 +7,10 @@ edition = "2021"
 
 [dependencies]
 interface = { path = "../../../domain-tools/interface" }
-fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
-vfscore = { git = "https://github.com/os-module/rvfs.git" }
-ksync = { path = "../../../base/ksync" }
+basic = { path = "../../../domain-tools/basic" }
+
 generic = { path = "../generic" }
+fat-vfs = { git = "https://github.com/os-module/rvfs.git" }
+vfscore = { git = "https://github.com/os-module/rvfs.git", features = ["linux_error"] }
 log = "0"
-spin = { workspace = true }
+spin = "0"

@@ -15,11 +15,15 @@ pub use frame::{alloc_frame_trackers, alloc_frames, free_frames};
 use ksync::Mutex;
 pub use memory_addr::{PhysAddr, VirtAddr};
 pub use page_table::MappingFlags;
+use pconst::LinuxErrno;
 pub use ptable::*;
 pub use vmm::{
     alloc_free_region, kernel_satp, map_area_to_kernel, map_kstack_for_task, query_kernel_space,
     unmap_kstack_for_task, unmap_region_from_kernel,
 };
+
+type AlienError = LinuxErrno;
+type AlienResult<T> = Result<T, AlienError>;
 
 #[global_allocator]
 static HEAP_ALLOCATOR: Talck<Mutex<()>, ClaimOnOom> =

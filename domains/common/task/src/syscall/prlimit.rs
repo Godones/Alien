@@ -1,4 +1,4 @@
-use constants::{AlienResult, PrLimitResType};
+use basic::{constants::PrLimitResType, AlienResult};
 use memory_addr::VirtAddr;
 
 use crate::processor::current_task;

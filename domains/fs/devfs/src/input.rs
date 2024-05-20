@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use constants::DeviceId;
+use basic::constants::DeviceId;
 use interface::BufInputDomain;
 use vfscore::{
     error::VfsError,

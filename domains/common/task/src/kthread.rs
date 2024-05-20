@@ -1,12 +1,10 @@
 use alloc::{collections::BTreeMap, string::ToString, sync::Arc};
 
 use basic::{
+    constants::signal::{SignalHandlers, SignalReceivers},
     println,
     sync::Mutex,
     task::{TaskContext, TaskContextExt},
-};
-use constants::{
-    signal::{SignalHandlers, SignalReceivers},
     AlienResult,
 };
 use interface::VFS_ROOT_ID;

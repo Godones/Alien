@@ -9,7 +9,7 @@ edition = "2021"
 spin = "0"
 interface = { path = "../interface" }
 task_meta = { path = "../task_meta" }
-constants = { path = "../../base/constants" }
+pconst = { git = "https://github.com/os-module/pconst.git", features = ["special_error"] }
 
 [features]
 core_impl = []

@@ -8,6 +8,4 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic", default-features = false }
-constants = { path = "../../../base/constants" }
-
 log = "0"

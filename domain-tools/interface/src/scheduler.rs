@@ -1,11 +1,11 @@
 use alloc::vec::Vec;
 
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::RRef;
 use task_meta::{TaskContext, TaskMeta};
 
+use super::AlienResult;
 use crate::Basic;
 
 #[proxy(SchedulerDomainProxy)]

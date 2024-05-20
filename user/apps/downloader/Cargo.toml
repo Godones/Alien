@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 Mstd = {path = "../../userlib" }
-pconst = { path = "../../../safe-crates/pconst" }
+pconst = { git = "https://github.com/os-module/pconst.git" }

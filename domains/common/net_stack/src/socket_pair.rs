@@ -1,8 +1,7 @@
 use alloc::{collections::VecDeque, sync::Arc};
 use core::cmp;
 
-use constants::{io::PollEvents, AlienError, AlienResult};
-use ksync::Mutex;
+use basic::{constants::io::PollEvents, sync::Mutex, AlienError, AlienResult};
 
 use crate::SocketFile;
 

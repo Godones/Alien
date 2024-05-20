@@ -1,9 +1,9 @@
 use core::ops::Range;
 
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 
+use super::AlienResult;
 use crate::{Basic, DeviceBase};
 
 #[proxy(InputDomainProxy,Range<usize>)]

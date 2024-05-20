@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
-use constants::{
-    io::{Fcntl64Cmd, TeletypeCommand},
+use basic::{
+    constants::io::{Fcntl64Cmd, TeletypeCommand},
     AlienError, AlienResult,
 };
 use interface::{TaskDomain, VfsDomain};

@@ -1,9 +1,9 @@
 use core::ops::Range;
 
-use constants::{AlienError, AlienResult};
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 
+use super::{AlienError, AlienResult};
 use crate::{Basic, DeviceBase};
 #[proxy(UartDomainProxy,Range<usize>)]
 pub trait UartDomain: DeviceBase + Basic + DowncastSync {

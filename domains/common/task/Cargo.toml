@@ -9,17 +9,16 @@ edition = "2021"
 basic = { path = "../../../domain-tools/basic", features = ["task"] }
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
-small-index = { git = "https://github.com/os-module/small-index" }
-spin = "0"
-config = { path = "../../../base/config" }
-constants = { path = "../../../base/constants" }
-vfscore = { git = "https://github.com/os-module/rvfs.git" }
-page_table = { path = "../../../safe-crates/page_table" }
-memory_addr = { path = "../../../safe-crates/memory_addr" }
-ptable = { path = "../../../safe-crates/ptable" }
 task_meta = { path = "../../../domain-tools/task_meta" }
-util = { path = "../../../safe-crates/util" }
-pod = { workspace = true }
-# now we trust the elf loader
-xmas-elf = "0.9"
+
+small-index = { git = "https://github.com/os-module/small-index" }
+vfscore = { git = "https://github.com/os-module/rvfs.git", features = ["linux_error"] }
+page_table = { git = "https://github.com/os-module/page-table.git", package = "page-table" }
+memory_addr = { git ="https://github.com/os-module/memory_addr" }
+ptable = { git = "https://github.com/os-module/vmspace", package = "vmspace" }
+pod = { git = "https://github.com/asterinas/pod", rev = "d7dba56" }
+
+spin = "0"
 log = "0"
+# now we trust the elf loader
+xmas-elf = "0.9"  # unsafe lib

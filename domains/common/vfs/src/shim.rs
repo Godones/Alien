@@ -4,8 +4,8 @@ use alloc::{
     vec::Vec,
 };
 
+use basic::sync::Mutex;
 use interface::{DirEntryWrapper, FsDomain, InodeID};
-use ksync::Mutex;
 use rref::{RRef, RRefVec};
 use unifs::dentry::UniFsDentry;
 use vfscore::{

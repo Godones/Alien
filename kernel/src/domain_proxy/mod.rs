@@ -3,20 +3,23 @@ pub mod continuation;
 use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
 use core::{net::SocketAddrV4, ops::Range, sync::atomic::AtomicU64};
 
-use constants::{
-    io::{PollEvents, RtcTime, SeekFrom},
-    net::*,
-    AlienError, AlienResult,
-};
 use downcast_rs::{impl_downcast, DowncastSync};
 use interface::*;
 use ksync::{Mutex, RwLock};
+use pconst::{
+    io::{PollEvents, RtcTime, SeekFrom},
+    net::*,
+};
 use rref::{RRef, RRefVec};
 use spin::Once;
 use task_meta::TaskMeta;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 
-use crate::domain_loader::loader::DomainLoader;
+use crate::{
+    domain_loader::loader::DomainLoader,
+    error::{AlienError, AlienResult},
+};
+
 gen_for_BufInputDomain!();
 gen_for_BufUartDomain!();
 gen_for_CacheBlkDeviceDomain!();

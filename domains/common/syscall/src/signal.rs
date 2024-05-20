@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
-use constants::{
-    signal::{SigProcMaskHow, SignalNumber},
+use basic::{
+    constants::signal::{SigProcMaskHow, SignalNumber},
     AlienError, AlienResult,
 };
 use interface::TaskDomain;

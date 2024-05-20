@@ -19,10 +19,10 @@ use alloc::{
 };
 use core::fmt::Debug;
 
+use basic::sync::Mutex;
 use devfs::{DevFs, DevKernelProvider};
 use generic::GenericFsDomain;
 use interface::{DevFsDomain, DomainType, TaskDomain};
-use ksync::Mutex;
 use log::info;
 use spin::{Lazy, Once};
 use vfscore::{inode::VfsInode, utils::VfsTimeSpec};

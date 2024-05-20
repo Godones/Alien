@@ -1,14 +1,14 @@
 use core::net::SocketAddrV4;
 
-use constants::{
-    io::PollEvents,
-    net::{Domain, ShutdownFlag, SocketAddrIn, SocketType},
-    AlienResult,
-};
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
+use pconst::{
+    io::PollEvents,
+    net::{Domain, ShutdownFlag, SocketAddrIn, SocketType},
+};
 use rref::{RRef, RRefVec};
 
+use super::AlienResult;
 use crate::{Basic, DeviceBase};
 
 pub type SocketID = usize;

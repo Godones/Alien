@@ -1,12 +1,14 @@
 use alloc::{sync::Arc, vec, vec::Vec};
 use core::{cmp, net::SocketAddrV4};
 
-use constants::{
-    io::PollEvents,
-    net::{Domain, SocketType},
+use basic::{
+    constants::{
+        io::PollEvents,
+        net::{Domain, SocketType},
+    },
+    sync::Mutex,
     AlienError, AlienResult,
 };
-use ksync::Mutex;
 use lose_net_stack::{connection::NetServer, net_trait::SocketInterface};
 
 use crate::{nic::NetMod, SocketFile};

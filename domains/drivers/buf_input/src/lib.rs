@@ -3,8 +3,7 @@
 extern crate alloc;
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 
-use basic::{config::MAX_INPUT_EVENT_NUM, println, sync::Mutex};
-use constants::{AlienError, AlienResult};
+use basic::{config::MAX_INPUT_EVENT_NUM, println, sync::Mutex, AlienError, AlienResult};
 use interface::{Basic, BufInputDomain, DeviceBase, DomainType, InputDomain, SchedulerDomain};
 use spin::Once;
 

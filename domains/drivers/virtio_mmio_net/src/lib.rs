@@ -9,10 +9,8 @@ use core::{
     ops::Range,
 };
 
-use basic::io::SafeIORegion;
-use constants::AlienResult;
+use basic::{io::SafeIORegion, sync::Mutex, AlienResult};
 use interface::{Basic, DeviceBase, NetDeviceDomain};
-use ksync::Mutex;
 use rref::RRefVec;
 use spin::Once;
 use virtio_drivers::{device::net::VirtIONet, transport::mmio::MmioTransport};

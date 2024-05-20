@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use constants::{AlienError, AlienResult};
+use basic::{AlienError, AlienResult};
 use interface::{TaskDomain, VfsDomain};
 
 pub fn sys_pipe2(

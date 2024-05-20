@@ -6,12 +6,12 @@ extern crate alloc;
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
 use core::sync::atomic::AtomicU64;
 
-use constants::{
-    io::{Fcntl64Cmd, OpenFlags, PollEvents, SeekFrom},
+use basic::{
+    constants::io::{Fcntl64Cmd, OpenFlags, PollEvents, SeekFrom},
+    sync::RwLock,
     AlienError, AlienResult,
 };
 use interface::{Basic, DomainType, InodeID, NetDomain, SchedulerDomain, SocketID, VfsDomain};
-use ksync::RwLock;
 use log::debug;
 use rref::{RRef, RRefVec};
 use spin::Once;

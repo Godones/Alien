@@ -5,10 +5,8 @@ extern crate alloc;
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use core::fmt::Debug;
 
-use basic::println;
-use constants::{AlienError, AlienResult};
+use basic::{println, sync::Mutex, AlienError, AlienResult};
 use interface::{Basic, BufUartDomain, DeviceBase, DomainType, SchedulerDomain, UartDomain};
-use ksync::Mutex;
 use spin::Once;
 
 static UART: Once<Arc<dyn UartDomain>> = Once::new();

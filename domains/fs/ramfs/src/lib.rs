@@ -6,9 +6,9 @@ extern crate alloc;
 use alloc::{boxed::Box, string::ToString, sync::Arc};
 use core::fmt::Debug;
 
+use basic::sync::Mutex;
 use generic::GenericFsDomain;
 use interface::FsDomain;
-use ksync::Mutex;
 use ramfs::{RamFs, RamFsProvider};
 use vfscore::utils::VfsTimeSpec;
 

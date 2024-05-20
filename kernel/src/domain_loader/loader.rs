@@ -6,7 +6,6 @@ use core::{
 };
 
 use config::FRAME_SIZE;
-use constants::{AlienError, AlienResult};
 use log::{debug, info, trace};
 use mem::{MappingFlags, PhysPage, VirtAddr, VmArea};
 use xmas_elf::{
@@ -19,6 +18,7 @@ use xmas_elf::{
 use crate::{
     domain_helper,
     domain_helper::{DomainSyscall, SharedHeapAllocator},
+    error::{AlienError, AlienResult},
 };
 
 pub struct DomainLoader {

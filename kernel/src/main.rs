@@ -14,6 +14,7 @@ mod domain;
 mod domain_helper;
 mod domain_loader;
 mod domain_proxy;
+mod error;
 mod task;
 mod timer;
 mod trap;

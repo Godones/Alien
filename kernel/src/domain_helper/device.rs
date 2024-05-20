@@ -1,8 +1,12 @@
 use basic::bus::mmio::VirtioMmioDeviceType;
-use constants::{AlienError, AlienResult};
 use interface::{DomainType, DomainTypeRaw, GpuDomain};
 
-use crate::{domain_helper, domain_loader::creator::create_gpu_domain, mmio_bus};
+use crate::{
+    domain_helper,
+    domain_loader::creator::create_gpu_domain,
+    error::{AlienError, AlienResult},
+    mmio_bus,
+};
 
 pub fn update_device_domain(ty: DomainTypeRaw, identifier: &str) -> AlienResult<()> {
     match ty {

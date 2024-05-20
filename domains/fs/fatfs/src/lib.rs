@@ -6,10 +6,10 @@ extern crate alloc;
 use alloc::{boxed::Box, string::ToString, sync::Arc};
 use core::fmt::Debug;
 
+use basic::sync::Mutex;
 use fat_vfs::{FatFs, FatFsProvider};
 use generic::GenericFsDomain;
 use interface::FsDomain;
-use ksync::Mutex;
 use vfscore::utils::VfsTimeSpec;
 
 #[derive(Debug, Clone)]

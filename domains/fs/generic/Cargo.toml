@@ -9,8 +9,7 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
-constants = { path = "../../../base/constants" }
-vfscore = { git = "https://github.com/os-module/rvfs.git" }
-ksync = { path = "../../../base/ksync" }
+
+vfscore = { git = "https://github.com/os-module/rvfs.git", features = ["linux_error"] }
 log = "0"
-spin = { workspace = true }
+spin = "0"

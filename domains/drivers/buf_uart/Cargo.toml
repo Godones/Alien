@@ -9,6 +9,5 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
-ksync = { path = "../../../base/ksync" }
-constants = { path = "../../../base/constants" }
-spin = { workspace = true }
+
+spin = "0"

@@ -4,10 +4,8 @@ extern crate alloc;
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{cmp::min, fmt::Debug, num::NonZeroUsize};
 
-use basic::config::FRAME_SIZE;
-use constants::AlienResult;
+use basic::{config::FRAME_SIZE, sync::Mutex, AlienResult};
 use interface::{Basic, CacheBlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain};
-use ksync::Mutex;
 use log::info;
 use lru::LruCache;
 use rref::{RRef, RRefVec};

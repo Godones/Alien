@@ -9,9 +9,5 @@ edition = "2021"
 basic = { path = "../../../domain-tools/basic", features = ["task"] }
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
-constants = { path = "../../../base/constants" }
 task_meta = { path = "../../../domain-tools/task_meta" }
-memory_addr = { path = "../../../safe-crates/memory_addr" }
-config = { path = "../../../base/config" }
-
 log = "0"

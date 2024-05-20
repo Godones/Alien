@@ -1,8 +1,8 @@
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::RRefVec;
 
+use super::AlienResult;
 use crate::Basic;
 
 #[proxy(LogDomainProxy)]

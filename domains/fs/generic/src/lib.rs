@@ -15,10 +15,8 @@ use core::{
     sync::atomic::AtomicU64,
 };
 
-use basic::println;
-use constants::AlienResult;
+use basic::{println, sync::Mutex, AlienResult};
 use interface::{Basic, DirEntryWrapper, DomainType, FsDomain, InodeID, VfsDomain};
-use ksync::Mutex;
 use rref::{RRef, RRefVec};
 use spin::Once;
 use vfscore::{

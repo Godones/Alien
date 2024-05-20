@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use constants::AlienResult;
+use basic::AlienResult;
 use interface::TaskDomain;
 use pod::Pod;
 

@@ -1,12 +1,15 @@
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
 
-use constants::{
-    io::{Dirent64, DirentType, OpenFlags, PollEvents, SeekFrom},
-    AlienResult, LinuxErrno,
+use basic::{
+    constants::{
+        io::{Dirent64, DirentType, OpenFlags, PollEvents, SeekFrom},
+        LinuxErrno,
+    },
+    sync::Mutex,
+    AlienResult,
 };
 use downcast_rs::{impl_downcast, DowncastSync};
-use ksync::Mutex;
 use vfscore::{
     dentry::VfsDentry,
     error::VfsError,

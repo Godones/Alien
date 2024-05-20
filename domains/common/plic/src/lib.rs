@@ -16,11 +16,8 @@ use core::{
     ops::Range,
 };
 
-use basic::{arch, io::SafeIORegion, println};
-use config::CPU_NUM;
-use constants::AlienResult;
+use basic::{arch, config::CPU_NUM, io::SafeIORegion, println, sync::Mutex, AlienResult};
 use interface::{Basic, DeviceBase, PLICDomain};
-use ksync::Mutex;
 use raw_plic::{Mode, PlicIO, PLIC};
 use rref::RRefVec;
 use spin::Once;
@@ -31,12 +28,12 @@ static PLIC: Once<PLIC<CPU_NUM>> = Once::new();
 pub struct SafeIORegionWrapper(SafeIORegion);
 
 impl PlicIO for SafeIORegionWrapper {
-    fn read_at(&self, offset: usize) -> Result<u32, ()> {
-        self.0.read_at(offset).map_err(|_| ())
+    fn read_at(&self, offset: usize) -> u32 {
+        self.0.read_at(offset).unwrap()
     }
 
-    fn write_at(&self, offset: usize, value: u32) -> Result<(), ()> {
-        self.0.write_at(offset, value).map_err(|_| ())
+    fn write_at(&self, offset: usize, value: u32) {
+        self.0.write_at(offset, value).unwrap()
     }
 }
 

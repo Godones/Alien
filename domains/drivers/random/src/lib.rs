@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::fmt::Debug;
 
-use constants::AlienResult;
+use basic::AlienResult;
 use interface::{Basic, EmptyDeviceDomain};
 use rref::RRefVec;
 

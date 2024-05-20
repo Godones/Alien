@@ -5,12 +5,12 @@ use alloc::{
 };
 use core::fmt::{Debug, Formatter};
 
-use basic::config::PIPE_BUF;
-use constants::{
-    io::{OpenFlags, PollEvents, SeekFrom},
+use basic::{
+    config::PIPE_BUF,
+    constants::io::{OpenFlags, PollEvents, SeekFrom},
+    sync::Mutex,
     AlienError, AlienResult,
 };
-use ksync::Mutex;
 use log::debug;
 use vfscore::{
     dentry::VfsDentry,

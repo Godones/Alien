@@ -3,8 +3,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
 
-use basic::println;
-use constants::AlienResult;
+use basic::{println, AlienResult};
 use interface::{Basic, Level, LevelFilter, LogDomain};
 use log::{Log, Metadata, Record};
 use rref::RRefVec;

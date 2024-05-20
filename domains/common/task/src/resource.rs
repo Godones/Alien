@@ -4,24 +4,24 @@ use core::{
     ops::Range,
 };
 
-use basic::sync::Mutex;
-use config::{FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, PROCESS_HEAP_MAX, USER_STACK_SIZE};
-use constants::{
-    aux::{
-        AT_BASE, AT_EGID, AT_ENTRY, AT_EUID, AT_EXECFN, AT_GID, AT_IGNORE, AT_PAGESZ, AT_PHDR,
-        AT_PHENT, AT_PHNUM, AT_PLATFORM, AT_RANDOM, AT_SECURE, AT_UID,
+use basic::{
+    config::*,
+    constants::{
+        aux::*,
+        io::{MMapFlags, ProtFlags},
+        PrLimitResType, RLimit64,
     },
-    io::{MMapFlags, ProtFlags},
-    AlienError, AlienResult, PrLimitResType, RLimit64,
+    sync::Mutex,
+    AlienError, AlienResult,
 };
 use memory_addr::{align_up_4k, VirtAddr};
 use ptable::{VmIo, VmSpace};
 use small_index::IndexAllocator;
 use spin::Lazy;
-use util::SlotVec;
 
 use crate::{
     elf::{ELFInfo, VmmPageAllocator},
+    utils::SlotVec,
     vfs_shim::ShimFile,
 };
 

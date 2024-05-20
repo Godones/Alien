@@ -9,6 +9,6 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
-constants = { path = "../../../base/constants" }
-raw_uart16550 = { path = "../../../safe-crates/raw_uart16550" }
-spin = { workspace = true }
+
+raw_uart16550 = { git = "https://github.com/os-module/uart16550", package = "uart16550" }
+spin = "0"

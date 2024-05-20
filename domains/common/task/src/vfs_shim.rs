@@ -1,6 +1,9 @@
 use alloc::{sync::Arc, vec::Vec};
 
-use constants::{io::OpenFlags, AlienError, AlienResult, AT_FDCWD};
+use basic::{
+    constants::{io::OpenFlags, AT_FDCWD},
+    AlienError, AlienResult,
+};
 use interface::{InodeID, VfsDomain, VFS_ROOT_ID, VFS_STDIN_ID, VFS_STDOUT_ID};
 use rref::{RRef, RRefVec};
 use spin::{Lazy, Once};

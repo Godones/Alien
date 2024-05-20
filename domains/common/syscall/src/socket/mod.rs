@@ -1,8 +1,8 @@
 use alloc::sync::Arc;
 use core::net::{Ipv4Addr, SocketAddrV4};
 
-use constants::{
-    net::{
+use basic::{
+    constants::net::{
         Domain, ShutdownFlag, SocketAddrIn, SocketAddrInRaw, SocketLevel, SocketOption, SocketType,
         TcpSocketOption, SOCKET_TYPE_MASK,
     },

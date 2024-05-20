@@ -9,7 +9,7 @@ use alloc::{
 };
 use core::sync::atomic::AtomicBool;
 
-use constants::{AlienError, AlienResult};
+use basic::{AlienError, AlienResult};
 use interface::{Basic, BlkDeviceDomain, DeviceBase, DomainType, ShadowBlockDomain};
 use log::error;
 use rref::RRef;

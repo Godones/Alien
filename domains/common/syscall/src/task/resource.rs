@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use constants::{AlienError, AlienResult, PrLimitResType};
+use basic::{constants::PrLimitResType, AlienError, AlienResult};
 use interface::TaskDomain;
 
 pub fn sys_prlimit64(

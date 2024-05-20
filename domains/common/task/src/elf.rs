@@ -10,9 +10,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use basic::vm::frame::FrameTracker;
-use config::{ELF_BASE_RELOCATE, FRAME_SIZE, TRAMPOLINE, TRAP_CONTEXT_BASE, USER_STACK_SIZE};
-use constants::{AlienError, AlienResult};
+use basic::{config::*, vm::frame::FrameTracker, AlienError, AlienResult};
 use memory_addr::{PhysAddr, VirtAddr};
 use page_table::{MappingFlags, NotLeafPage, PagingIf, Rv64PTE};
 use ptable::*;

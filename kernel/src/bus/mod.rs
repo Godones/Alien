@@ -3,10 +3,12 @@ use alloc::{string::String, vec};
 use core::ops::Range;
 
 use ::fdt::Fdt;
-use constants::AlienResult;
 use mem::PhysAddr;
 
-use crate::bus::fdt::Probe;
+use crate::{
+    bus::fdt::Probe,
+    error::{AlienError, AlienResult},
+};
 
 mod fdt;
 pub mod mmio;

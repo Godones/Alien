@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use constants::DeviceId;
+use basic::constants::DeviceId;
 use interface::GpuDomain;
 use rref::RRefVec;
 use vfscore::{

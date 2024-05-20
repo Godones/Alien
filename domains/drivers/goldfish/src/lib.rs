@@ -5,12 +5,12 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::ops::Range;
 
-use basic::{io::SafeIORegion, println};
-use constants::{io::RtcTime, AlienResult};
-use goldfish_rtc::{GoldFishRtc, GoldFishRtcIo};
+use basic::{constants::io::RtcTime, io::SafeIORegion, println, AlienResult};
 use interface::{Basic, DeviceBase, RtcDomain};
 use rref::RRef;
+use rtc::{goldfish::GoldFishRtc, LowRtcDevice, RtcIORegion};
 use spin::Once;
+use timestamp::DateTime;
 
 static RTC: Once<GoldFishRtc> = Once::new();
 
@@ -20,13 +20,13 @@ struct Rtc;
 #[derive(Debug)]
 pub struct SafeIORegionWrapper(SafeIORegion);
 
-impl GoldFishRtcIo for SafeIORegionWrapper {
-    fn read_at(&self, offset: usize) -> AlienResult<u32> {
-        self.0.read_at(offset)
+impl RtcIORegion for SafeIORegionWrapper {
+    fn read_at(&self, offset: usize) -> u32 {
+        self.0.read_at(offset).unwrap()
     }
 
-    fn write_at(&self, offset: usize, value: u32) -> AlienResult<()> {
-        self.0.write_at(offset, value)
+    fn write_at(&self, offset: usize, value: u32) {
+        self.0.write_at(offset, value).unwrap()
     }
 }
 
@@ -50,7 +50,18 @@ impl RtcDomain for Rtc {
 
     fn read_time(&self, mut time: RRef<RtcTime>) -> AlienResult<RRef<RtcTime>> {
         let rtc = RTC.get().unwrap();
-        let t = rtc.read_time_fmt();
+        let time_stamp_nanos = rtc.read_time();
+        const NANOS_PER_SEC: usize = 1_000_000_000;
+        let date = DateTime::new(time_stamp_nanos as usize / NANOS_PER_SEC);
+        let t = RtcTime {
+            year: date.year as u32,
+            mon: date.month as u32,
+            mday: date.day as u32,
+            hour: date.hour as u32,
+            min: date.minutes as u32,
+            sec: date.seconds as u32,
+            ..Default::default()
+        };
         *time = t;
         Ok(time)
     }

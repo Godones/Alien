@@ -4,10 +4,8 @@ use alloc::{
     sync::Arc,
 };
 
-use basic::println;
-use constants::io::OpenFlags;
+use basic::{constants::io::OpenFlags, println, sync::Mutex};
 use interface::{DomainType, VFS_ROOT_ID, VFS_STDERR_ID, VFS_STDIN_ID, VFS_STDOUT_ID};
-use ksync::Mutex;
 use rref::RRefVec;
 use spin::{Lazy, Once};
 use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, VfsResult};

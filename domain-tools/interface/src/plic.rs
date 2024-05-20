@@ -1,10 +1,10 @@
 use core::ops::Range;
 
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::RRefVec;
 
+use super::AlienResult;
 use crate::Basic;
 #[proxy(PLICDomainProxy,Range<usize>)]
 pub trait PLICDomain: Basic + DowncastSync {

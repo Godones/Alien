@@ -1,8 +1,8 @@
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::{no_check, proxy};
 use rref::RRef;
 
+use super::AlienResult;
 use crate::{Basic, DeviceBase};
 
 #[proxy(ShadowBlockDomainProxy, String)]

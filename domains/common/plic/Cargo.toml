@@ -9,8 +9,6 @@ edition = "2021"
 interface = { path = "../../../domain-tools/interface" }
 rref = { path = "../../../domain-tools/rref" }
 basic = { path = "../../../domain-tools/basic" }
-constants = { path = "../../../base/constants" }
+
 spin = "0"
-config = { path = "../../../base/config" }
-raw_plic = { path = "../../../safe-crates/raw_plic" }
-ksync = { path = "../../../base/ksync" }
+raw_plic = { git = "https://github.com/os-module/plic", branch = "dev", package = "plic" }

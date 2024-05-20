@@ -10,8 +10,7 @@ extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc};
 
-use basic::{println, sync::Mutex};
-use constants::AlienResult;
+use basic::{println, sync::Mutex, AlienResult};
 use interface::{Basic, SchedulerDataContainer, SchedulerDomain};
 use log::debug;
 use rref::RRef;

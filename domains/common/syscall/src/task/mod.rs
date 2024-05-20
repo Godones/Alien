@@ -3,7 +3,7 @@ mod resource;
 
 use alloc::sync::Arc;
 
-use constants::AlienResult;
+use basic::AlienResult;
 use interface::{SchedulerDomain, TaskDomain};
 pub use ipc::*;
 use log::info;

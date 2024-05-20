@@ -1,6 +1,6 @@
 use core::ops::Range;
 
-use constants::{AlienError, AlienResult};
+use corelib::{AlienError, AlienResult};
 use memory_addr::{PhysAddr, VirtAddr};
 
 #[derive(Debug, Clone)]

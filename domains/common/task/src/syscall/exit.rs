@@ -1,7 +1,6 @@
 use alloc::sync::Arc;
 
-use basic::println;
-use constants::AlienResult;
+use basic::{println, AlienResult};
 use memory_addr::VirtAddr;
 use ptable::VmIo;
 use task_meta::TaskStatus;

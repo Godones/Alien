@@ -1,9 +1,9 @@
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use rref::{RRef, RRefVec};
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 
+use super::AlienResult;
 use crate::{Basic, DirEntryWrapper, InodeID};
 
 #[proxy(FsDomainProxy)]

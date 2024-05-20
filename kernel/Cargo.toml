@@ -6,24 +6,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ksync = { path = "../base/ksync" }
-constants = { path = "../base/constants" }
+ksync = { path = "../domain-tools/ksync" }
 platform = { path = "../base/platform" }
-config = { path = "../base/config" }
+config = { path = "../domain-tools/config" }
 mem = { path = "../base/mem" }
-arch = { path = "../base/arch" }
+arch = { path = "../domain-tools/arch" }
 
 riscv = "0.11"
 log = "0"
 xmas-elf = "0.9"
+pconst = { git = "https://github.com/os-module/pconst.git", features = ["special_error"] }
+spin = "0"
 
-spin = { workspace = true }
+
 rref = { path = "../domain-tools/rref" }
 interface = { path = "../domain-tools/interface" }
 corelib = { path = "../domain-tools/corelib" }
 basic = { path = "../domain-tools/basic", features = ["task"] }
 task_meta = { path = "../domain-tools/task_meta" }
-vfscore = { git = "https://github.com/os-module/rvfs.git" } #safe-crate
+
+vfscore = { git = "https://github.com/os-module/rvfs.git", features = ["linux_error"] }
 cpio_reader = { workspace = true }
 libflate = { workspace = true }
 core2 = { version = "0.4", default-features = false }

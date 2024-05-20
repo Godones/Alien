@@ -1,7 +1,7 @@
 use alloc::string::ToString;
 use core::fmt::Debug;
 
-use constants::AlienResult;
+use basic::AlienResult;
 use generic::GenericFsDomain;
 use interface::{Basic, DevFsDomain, DirEntryWrapper, DomainType, FsDomain, InodeID};
 use rref::{RRef, RRefVec};

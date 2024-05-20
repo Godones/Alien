@@ -1,7 +1,6 @@
 use alloc::{sync::Arc, vec};
 
-use basic::println;
-use constants::AlienResult;
+use basic::{println, AlienResult};
 use core2::io::Read;
 use cpio_reader::Mode;
 use vfscore::{

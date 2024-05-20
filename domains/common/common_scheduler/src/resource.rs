@@ -1,7 +1,9 @@
 use core::ops::{Deref, DerefMut};
 
-use basic::task::KStack;
-use config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE};
+use basic::{
+    config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE},
+    task::KStack,
+};
 use task_meta::TaskMeta;
 
 #[derive(Debug)]

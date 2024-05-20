@@ -1,7 +1,6 @@
 use alloc::sync::Arc;
 
-use basic::println;
-use constants::{AlienError, AlienResult};
+use basic::{println, AlienError, AlienResult};
 use interface::{DomainTypeRaw, TaskDomain, VfsDomain};
 use log::warn;
 use rref::{RRef, RRefVec};

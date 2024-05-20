@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
-use constants::{
-    signal::{SigAction, SigProcMaskHow, SignalNumber, SimpleBitSet},
+use basic::{
+    constants::signal::{SigAction, SigProcMaskHow, SignalNumber, SimpleBitSet},
     AlienResult,
 };
 use memory_addr::VirtAddr;

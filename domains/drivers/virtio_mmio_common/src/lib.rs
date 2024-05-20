@@ -4,8 +4,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 
-use basic::{io::SafeIORegion, vm::frame::FrameTracker};
-use constants::AlienError;
+use basic::{io::SafeIORegion, vm::frame::FrameTracker, AlienError};
 use virtio_drivers::{
     error::{VirtIoError, VirtIoResult},
     hal::{DevicePage, Hal, QueuePage, VirtIoDeviceIo},

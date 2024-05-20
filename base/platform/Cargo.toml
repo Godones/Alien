@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 log = "0"
-arch = { path = "../arch" }
-config = { path = "../config" }
+arch = { path = "../../domain-tools/arch" }
+config = { path = "../../domain-tools/config" }
 spin = "0"
 fdt = { git = "https://github.com/repnop/fdt" }
 

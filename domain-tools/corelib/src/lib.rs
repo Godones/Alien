@@ -1,11 +1,42 @@
 #![no_std]
 extern crate alloc;
 
-use constants::AlienResult;
 #[cfg(feature = "core_impl")]
 pub use core_impl::*;
 use interface::{DomainType, DomainTypeRaw};
+use pconst::LinuxErrno;
 use task_meta::TaskContext;
+
+pub type AlienError = LinuxErrno;
+pub type AlienResult<T> = Result<T, LinuxErrno>;
+
+pub mod constants {
+    pub use pconst::*;
+    pub const AT_FDCWD: isize = -100isize;
+    #[derive(Copy, Clone, Debug, Eq, PartialOrd, PartialEq, Hash, Ord)]
+    pub struct DeviceId {
+        major: u32,
+        minor: u32,
+    }
+
+    impl DeviceId {
+        pub fn new(major: u32, minor: u32) -> Self {
+            Self { major, minor }
+        }
+        pub fn id(&self) -> u64 {
+            ((self.major as u64) << 32) | (self.minor as u64)
+        }
+    }
+
+    impl From<u64> for DeviceId {
+        fn from(id: u64) -> Self {
+            Self {
+                major: (id >> 32) as u32,
+                minor: (id & 0xffffffff) as u32,
+            }
+        }
+    }
+}
 
 pub trait CoreFunction: Send + Sync {
     fn sys_alloc_pages(&self, domain_id: u64, n: usize) -> *mut u8;
@@ -33,7 +64,6 @@ pub trait CoreFunction: Send + Sync {
     fn sys_reload_domain(&self, domain_name: &str) -> AlienResult<()>;
     fn map_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<usize>;
     fn unmapped_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<()>;
-
     fn vaddr_to_paddr_in_kernel(&self, vaddr: usize) -> AlienResult<usize>;
 }
 
@@ -41,11 +71,11 @@ pub trait CoreFunction: Send + Sync {
 mod core_impl {
     use alloc::boxed::Box;
 
-    use constants::AlienResult;
     use interface::{DomainType, DomainTypeRaw};
     use spin::Once;
     use task_meta::TaskContext;
 
+    use super::AlienResult;
     use crate::CoreFunction;
 
     static CORE_FUNC: Once<Box<dyn CoreFunction>> = Once::new();

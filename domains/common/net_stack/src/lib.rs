@@ -17,17 +17,19 @@ use core::{
     sync::atomic::AtomicUsize,
 };
 
-use basic::println;
-use constants::{
-    io::PollEvents,
-    net::{Domain, ShutdownFlag, SocketAddrIn, SocketType},
+use basic::{
+    constants::{
+        io::PollEvents,
+        net::{Domain, ShutdownFlag, SocketAddrIn, SocketType},
+    },
+    println,
+    sync::Mutex,
     AlienError, AlienResult,
 };
 use downcast_rs::{impl_downcast, DowncastSync};
 use interface::{
     Basic, DeviceBase, DomainType, NetDeviceDomain, NetDomain, SocketArgTuple, SocketID,
 };
-use ksync::Mutex;
 use log::{debug, info};
 use lose_net_stack::{connection::NetServer, MacAddress};
 use rref::{RRef, RRefVec};

@@ -8,10 +8,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::ops::Range;
 
-use basic::{io::SafeIORegion, println};
-use constants::AlienResult;
+use basic::{io::SafeIORegion, println, sync::Mutex, AlienResult};
 use interface::{Basic, BlkDeviceDomain, DeviceBase};
-use ksync::Mutex;
 use rref::RRef;
 use spin::Once;
 use virtio_drivers::{device::block::VirtIOBlk, transport::mmio::MmioTransport};

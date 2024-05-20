@@ -1,7 +1,9 @@
 use alloc::{vec, vec::Vec};
 
-use basic::println;
-use config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE};
+use basic::{
+    config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE},
+    println,
+};
 use interface::{CpuLocalData, KStackData, SchedulerDataContainer, TaskData};
 
 use crate::{processor::current_cpu, scheduler::TASK_WAIT_QUEUE};

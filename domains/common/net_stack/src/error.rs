@@ -1,4 +1,4 @@
-use constants::AlienError;
+use basic::AlienError;
 use lose_net_stack::results::NetServerError;
 
 pub fn to_alien_error(net_server_error: NetServerError) -> AlienError {

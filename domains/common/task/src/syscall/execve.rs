@@ -3,7 +3,7 @@ use alloc::{
     vec::Vec,
 };
 
-use constants::{AlienError, AlienResult};
+use basic::{AlienError, AlienResult};
 use memory_addr::VirtAddr;
 
 use crate::processor::current_task;

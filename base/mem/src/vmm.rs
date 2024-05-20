@@ -2,7 +2,6 @@ use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use core::sync::atomic::AtomicUsize;
 
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
-use constants::AlienResult;
 use ksync::RwLock;
 use log::info;
 use page_table::MappingFlags;
@@ -10,6 +9,7 @@ use platform::{config::DEVICE_SPACE, println};
 use ptable::{PhysPage, VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
 
+use super::AlienResult;
 use crate::frame::{FrameTracker, VmmPageAllocator};
 
 pub static KERNEL_SPACE: Lazy<Arc<RwLock<VmSpace<VmmPageAllocator>>>> =

@@ -3,7 +3,6 @@ use core::sync::atomic::AtomicBool;
 
 use basic::task::TaskContext;
 use config::FRAME_BITS;
-use constants::{AlienError, AlienResult};
 use corelib::CoreFunction;
 use interface::*;
 use ksync::Mutex;
@@ -16,6 +15,7 @@ use crate::{
     domain_proxy::{
         BlkDomainProxy, LogDomainProxy, ProxyExt, SchedulerDomainProxy, ShadowBlockDomainProxy,
     },
+    error::{AlienError, AlienResult},
 };
 
 static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =

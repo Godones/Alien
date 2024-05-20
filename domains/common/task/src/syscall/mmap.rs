@@ -1,9 +1,9 @@
 use alloc::{boxed::Box, vec};
 
-use basic::vm::frame::FrameTracker;
-use config::FRAME_SIZE;
-use constants::{
-    io::{MMapFlags, MMapType, ProtFlags, MMAP_TYPE_MASK},
+use basic::{
+    config::FRAME_SIZE,
+    constants::io::{MMapFlags, MMapType, ProtFlags, MMAP_TYPE_MASK},
+    vm::frame::FrameTracker,
     AlienError, AlienResult,
 };
 use memory_addr::{align_down_4k, align_up_4k};

@@ -1,9 +1,9 @@
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::proxy;
 use pod::Pod;
 use rref::{RRef, RRefVec};
 
+use super::AlienResult;
 use crate::{vfs::InodeID, Basic};
 #[proxy(TaskDomainProxy)]
 pub trait TaskDomain: Basic + DowncastSync {

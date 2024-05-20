@@ -1,10 +1,10 @@
 use core::ops::Range;
 
-use constants::AlienResult;
 use downcast_rs::{impl_downcast, DowncastSync};
 use gproxy::{proxy, recover};
 use rref::RRef;
 
+use super::AlienResult;
 use crate::{Basic, DeviceBase};
 
 #[proxy(BlkDomainProxy,Range<usize>)]

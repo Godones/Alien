@@ -1,5 +1,5 @@
 use config::CLOCK_FREQ;
-use constants::time::TimeSpec;
+use pconst::time::TimeSpec;
 
 pub fn read_time_ms() -> u64 {
     get_time_ms()

@@ -1,12 +1,12 @@
 use alloc::sync::Arc;
 use core::fmt::Debug;
 
-use constants::{
-    io::{OpenFlags, PollEvents, SeekFrom},
-    AlienError, AlienResult, LinuxErrno,
+use basic::{
+    constants::io::{OpenFlags, PollEvents, SeekFrom},
+    sync::Mutex,
+    AlienError, AlienResult,
 };
 use interface::{NetDomain, SocketID};
-use ksync::Mutex;
 use rref::RRefVec;
 use vfscore::{
     dentry::VfsDentry,
@@ -90,7 +90,7 @@ impl File for SocketFile {
         }
         let open_flag = self.open_flag.lock();
         if !open_flag.contains(OpenFlags::O_RDONLY) && !open_flag.contains(OpenFlags::O_RDWR) {
-            return Err(LinuxErrno::EPERM);
+            return Err(AlienError::EPERM);
         }
         drop(open_flag);
         let shared_buf = RRefVec::from_slice(buf);
@@ -107,7 +107,7 @@ impl File for SocketFile {
         }
         let open_flag = self.open_flag.lock();
         if !open_flag.contains(OpenFlags::O_WRONLY) && !open_flag.contains(OpenFlags::O_RDWR) {
-            return Err(LinuxErrno::EPERM);
+            return Err(AlienError::EPERM);
         }
         let shared_buf = RRefVec::from_slice(buf);
         let write = self

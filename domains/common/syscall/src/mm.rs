@@ -1,8 +1,8 @@
 use alloc::sync::Arc;
 
-use basic::config::FRAME_SIZE;
-use constants::{
-    io::{MMapFlags, MMapType, ProtFlags, MMAP_TYPE_MASK},
+use basic::{
+    config::FRAME_SIZE,
+    constants::io::{MMapFlags, MMapType, ProtFlags, MMAP_TYPE_MASK},
     AlienError, AlienResult,
 };
 use interface::{TaskDomain, TmpHeapInfo, VfsDomain};

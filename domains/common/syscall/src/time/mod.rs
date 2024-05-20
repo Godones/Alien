@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
-use constants::{
-    time::{ClockId, TimeSpec},
+use basic::{
+    constants::time::{ClockId, TimeSpec},
     AlienError, AlienResult,
 };
 use interface::TaskDomain;

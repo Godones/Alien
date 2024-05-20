@@ -14,8 +14,7 @@ extern crate log;
 
 use alloc::{boxed::Box, format, sync::Arc};
 
-use basic::println;
-use constants::AlienResult;
+use basic::{println, AlienResult};
 use interface::*;
 use rref::RRefVec;
 
@@ -62,7 +61,7 @@ impl SysCallDomain for SysCallDomainImpl {
     }
 
     fn call(&self, syscall_id: usize, args: [usize; 6]) -> AlienResult<isize> {
-        let syscall_name = constants::syscall_name(syscall_id);
+        let syscall_name = basic::constants::syscall_name(syscall_id);
         // let pid = self.task_domain.current_pid().unwrap();
         // let tid = self.task_domain.current_tid().unwrap();
         // log::trace!("[pid:{} tid:{}] syscall: {} {:?}",0,0, syscall_name, args);

@@ -1,11 +1,13 @@
 use alloc::sync::Arc;
 
-use constants::{
-    io::{LocalModes, TeletypeCommand, Termios, WinSize},
-    DeviceId,
+use basic::{
+    constants::{
+        io::{LocalModes, TeletypeCommand, Termios, WinSize},
+        DeviceId,
+    },
+    sync::Mutex,
 };
 use interface::{BufUartDomain, TaskDomain};
-use ksync::Mutex;
 use pod::Pod;
 use vfscore::{
     error::VfsError,
@@ -15,7 +17,6 @@ use vfscore::{
     utils::{VfsFileStat, VfsNodeType, VfsPollEvents},
     VfsResult,
 };
-
 #[derive(Debug, Default)]
 pub struct IoData {
     foreground_pgid: u32,
