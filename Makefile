@@ -4,12 +4,15 @@ KERNEL := target/$(TARGET)/$(PROFILE)/kernel
 NET ?=y
 SMP ?=1
 MEMORY_SIZE := 1024M
-LOG ?=INFO
+LOG ?=
 GUI ?=n
 FS ?=fat
 IMG := build/sdcard.img
 FSMOUNT := ./diskfs
 FEATURES := smp
+name ?=
+
+
 comma:= ,
 empty:=
 space:= $(empty) $(empty)
@@ -95,6 +98,12 @@ domains:
 	cd domains && cargo domain build-all -l "$(LOG)"
 	cp domains/build/disk/* build/disk/ -r
 	cp domains/build/init/* build/init/ -r
+
+domain:
+	cd domains && cargo domain build -n $(name) -l "$(LOG)"
+	cp domains/build/disk/* build/disk/ -r
+	cp domains/build/init/* build/init/ -r
+	@make initrd
 
 initrd:
 	@make -C user/initrd

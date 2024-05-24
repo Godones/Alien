@@ -12,14 +12,13 @@ use pconst::{
 };
 use rref::{RRef, RRefVec};
 use spin::Once;
-use task_meta::TaskMeta;
+use task_meta::TaskSchedulingInfo;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 
 use crate::{
     domain_loader::loader::DomainLoader,
     error::{AlienError, AlienResult},
 };
-
 gen_for_BufInputDomain!();
 gen_for_BufUartDomain!();
 gen_for_CacheBlkDeviceDomain!();

@@ -1,7 +1,6 @@
 use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use core::sync::atomic::AtomicBool;
 
-use basic::task::TaskContext;
 use config::FRAME_BITS;
 use corelib::CoreFunction;
 use interface::*;
@@ -9,6 +8,7 @@ use ksync::Mutex;
 use log::warn;
 use platform::iprint;
 use spin::Lazy;
+use task_meta::TaskMeta;
 
 use crate::{
     domain_helper::{device::update_device_domain, SharedHeapAllocator, DOMAIN_CREATE},
@@ -124,11 +124,6 @@ impl CoreFunction for DomainSyscall {
         super::query_domain(name)
     }
 
-    fn switch_task(&self, now: *mut TaskContext, next: *const TaskContext, next_tid: usize) {
-        crate::domain_proxy::continuation::set_current_task_id(next_tid);
-        crate::task::switch(now, next)
-    }
-
     fn sys_create_domain(&self, identifier: &str) -> Option<DomainType> {
         DOMAIN_CREATE.get().unwrap().create_domain(identifier)
     }
@@ -225,15 +220,41 @@ impl CoreFunction for DomainSyscall {
             }
         }
     }
-    fn map_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<usize> {
-        mem::map_kstack_for_task(task_id, pages)
-    }
-    fn unmapped_kstack_for_task(&self, task_id: usize, pages: usize) -> AlienResult<()> {
-        mem::unmap_kstack_for_task(task_id, pages)
-    }
-
     fn vaddr_to_paddr_in_kernel(&self, vaddr: usize) -> AlienResult<usize> {
         mem::query_kernel_space(vaddr).ok_or(AlienError::EINVAL)
+    }
+
+    fn current_tid(&self) -> AlienResult<Option<usize>> {
+        Ok(crate::task::current_tid())
+    }
+
+    fn add_one_task(&self, task_meta: TaskMeta) -> AlienResult<usize> {
+        crate::task::add_one_task(task_meta)
+    }
+
+    fn wait_now(&self) -> AlienResult<()> {
+        crate::task::wait_now();
+        Ok(())
+    }
+
+    fn wake_up_wait_task(&self, tid: usize) -> AlienResult<()> {
+        crate::task::wake_up_wait_task(tid);
+        Ok(())
+    }
+
+    fn yield_now(&self) -> AlienResult<()> {
+        crate::task::yield_now();
+        Ok(())
+    }
+
+    fn exit_now(&self) -> AlienResult<()> {
+        crate::task::exit_now();
+        Ok(())
+    }
+
+    fn remove_task(&self, tid: usize) -> AlienResult<()> {
+        crate::task::remove_task(tid);
+        Ok(())
     }
 }
 

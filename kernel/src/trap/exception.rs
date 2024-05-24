@@ -1,14 +1,14 @@
 use basic::task::TrapFrame;
 use mem::PhysAddr;
 
-use crate::{scheduler_domain, syscall_domain, task_domain};
+use crate::{syscall_domain, task_domain};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {
     // enable interrupt
     // interrupt_enable();
     let task_domain = task_domain!();
-    let tid = scheduler_domain!().current_tid().unwrap();
+    let tid = crate::task::current_tid();
     let trap_frame_phy_addr = task_domain.trap_frame_phy_addr().unwrap();
     let cx = TrapFrame::from_raw_phy_ptr(PhysAddr::from(trap_frame_phy_addr));
 

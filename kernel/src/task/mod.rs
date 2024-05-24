@@ -1,9 +1,19 @@
+mod processor;
+mod resource;
+mod scheduler;
+
 use alloc::sync::Arc;
 use core::arch::global_asm;
 
 use basic::task::TaskContext;
 use interface::{SchedulerDomain, TaskDomain};
+use ksync::Mutex;
+pub use processor::current_tid;
+pub use scheduler::{exit_now, remove_task, wait_now, wake_up_wait_task, yield_now};
 use spin::Once;
+use task_meta::TaskMeta;
+
+use crate::{error::AlienResult, task::resource::TaskMetaExt};
 
 global_asm!(include_str!("switch.asm"));
 
@@ -20,8 +30,6 @@ pub fn switch(now: *mut TaskContext, next: *const TaskContext) {
 }
 
 pub static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
-pub static SCHEDULER_DOMAIN: Once<Arc<dyn SchedulerDomain>> = Once::new();
-
 #[macro_export]
 macro_rules! task_domain {
     () => {
@@ -31,17 +39,8 @@ macro_rules! task_domain {
     };
 }
 
-#[macro_export]
-macro_rules! scheduler_domain {
-    () => {
-        crate::task::SCHEDULER_DOMAIN
-            .get()
-            .expect("scheduler domain not init")
-    };
-}
-
-pub fn register_scheduler_domain(task_domain: Arc<dyn SchedulerDomain>) {
-    SCHEDULER_DOMAIN.call_once(|| task_domain);
+pub fn register_scheduler_domain(scheduler_domain: Arc<dyn SchedulerDomain>) {
+    scheduler::set_scheduler(scheduler_domain);
 }
 
 pub fn register_task_domain(task_domain: Arc<dyn TaskDomain>) {
@@ -49,5 +48,12 @@ pub fn register_task_domain(task_domain: Arc<dyn TaskDomain>) {
 }
 
 pub fn run_task() {
-    scheduler_domain!().run().unwrap()
+    processor::schedule();
+}
+
+pub fn add_one_task(task_meta: TaskMeta) -> AlienResult<usize> {
+    let task_meta_ext = TaskMetaExt::new(task_meta);
+    let kstack_top = task_meta_ext.kstack.top();
+    scheduler::add_task(Arc::new(Mutex::new(task_meta_ext)));
+    Ok(kstack_top.as_usize())
 }

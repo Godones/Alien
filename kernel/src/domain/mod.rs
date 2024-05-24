@@ -199,6 +199,15 @@ pub fn load_domains() {
     init_kernel_domain();
     domain_helper::init_domain_create(Box::new(DomainCreateImpl));
 
+    let scheduler = create_scheduler_domain("fifo_scheduler", None).unwrap();
+    scheduler.init().unwrap();
+    domain_helper::register_domain(
+        "scheduler",
+        DomainType::SchedulerDomain(scheduler.clone()),
+        true,
+    );
+    crate::task::register_scheduler_domain(scheduler);
+
     let logger = create_log_domain("logger", None).unwrap();
     logger.init().unwrap();
     domain_helper::register_domain("logger", DomainType::LogDomain(logger), true);
@@ -224,13 +233,6 @@ pub fn load_domains() {
     let vfs = create_vfs_domain("vfs", None).unwrap();
     domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs.clone()), true);
 
-    let scheduler = create_scheduler_domain("fifo_scheduler", None).unwrap();
-    domain_helper::register_domain(
-        "scheduler",
-        DomainType::SchedulerDomain(scheduler.clone()),
-        true,
-    );
-
     let task = create_task_domain("task", None).unwrap(); // ref to scheduler domain
     domain_helper::register_domain("task", DomainType::TaskDomain(task.clone()), true);
 
@@ -252,7 +254,6 @@ pub fn load_domains() {
         vfs.init(data.as_slice()).unwrap();
     }
 
-    scheduler.init().unwrap();
     task.init().unwrap();
 
     let syscall = create_syscall_domain("syscall", None).unwrap();
@@ -261,7 +262,6 @@ pub fn load_domains() {
 
     platform::println!("Load domains done");
 
-    crate::task::register_scheduler_domain(scheduler);
     crate::task::register_task_domain(task);
     crate::trap::register_syscall_domain(syscall);
     crate::trap::register_plic_domain(plic);
