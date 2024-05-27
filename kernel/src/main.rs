@@ -1,5 +1,6 @@
 #![feature(panic_info_message)]
 #![feature(naked_functions)]
+#![allow(unused_unsafe)]
 #![no_std]
 #![no_main]
 mod panic;
@@ -15,6 +16,7 @@ mod domain_helper;
 mod domain_loader;
 mod domain_proxy;
 mod error;
+mod sync;
 mod task;
 mod timer;
 mod trap;

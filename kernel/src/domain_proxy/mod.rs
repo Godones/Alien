@@ -18,6 +18,7 @@ use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, 
 use crate::{
     domain_loader::loader::DomainLoader,
     error::{AlienError, AlienResult},
+    sync::{RcuData, SRcuLock},
 };
 gen_for_BufInputDomain!();
 gen_for_BufUartDomain!();
@@ -38,7 +39,7 @@ gen_for_ShadowBlockDomain!();
 gen_for_BlkDeviceDomain!();
 
 gen_for_DevFsDomain!();
-gen_for_LogDomain!();
+// gen_for_LogDomain!();
 gen_for_NetDomain!();
 impl_for_FsDomain!(DevFsDomainProxy);
 impl Basic for DevFsDomainProxy {
@@ -90,16 +91,6 @@ impl ProxyExt for BlkDomainProxy {
     }
 }
 
-impl LogDomainProxy {
-    pub fn replace(&self, new_domain: Box<dyn LogDomain>, loader: DomainLoader) -> AlienResult<()> {
-        let mut old_domain = self.domain.write();
-        let mut old = self.old_domain.lock();
-        *self.domain_loader.lock() = loader;
-        old.push(core::mem::replace(&mut *old_domain, new_domain));
-        old_domain.init()
-    }
-}
-
 impl SchedulerDomainProxy {
     pub fn replace(
         &self,
@@ -118,5 +109,80 @@ impl SchedulerDomainProxy {
         old_domain.dump_meta_data(&mut data)?;
         println!("old domain data: {:?}", data);
         Err(AlienError::EINVAL)
+    }
+}
+
+#[derive(Debug)]
+pub struct LogDomainProxy {
+    id: AtomicU64,
+    domain: RcuData<Box<dyn LogDomain>>,
+    srcu_lock: SRcuLock,
+    old_domain: Mutex<Vec<Box<Box<dyn LogDomain>>>>,
+    domain_loader: Mutex<DomainLoader>,
+}
+impl LogDomainProxy {
+    pub fn new(id: u64, domain: Box<dyn LogDomain>, domain_loader: DomainLoader) -> Self {
+        Self {
+            id: AtomicU64::new(id),
+            domain: RcuData::new(Box::new(domain)),
+            srcu_lock: SRcuLock::new(),
+            old_domain: Mutex::new(Vec::new()),
+            domain_loader: Mutex::new(domain_loader),
+        }
+    }
+}
+impl Basic for LogDomainProxy {
+    fn is_active(&self) -> bool {
+        let idx = self.srcu_lock.read_lock();
+        let res = self.domain.get().is_active();
+        self.srcu_lock.read_unlock(idx);
+        res
+    }
+}
+impl LogDomain for LogDomainProxy {
+    fn init(&self) -> AlienResult<()> {
+        let idx = self.srcu_lock.read_lock();
+        let res = self.domain.get().init();
+        self.srcu_lock.read_unlock(idx);
+        res
+    }
+    fn log(&self, level: Level, msg: RRefVec<u8>) -> AlienResult<()> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        let idx = self.srcu_lock.read_lock();
+        let res = self.domain.get().log(level, msg);
+        self.srcu_lock.read_unlock(idx);
+        res
+    }
+    fn set_max_level(&self, level: LevelFilter) -> AlienResult<()> {
+        if !self.is_active() {
+            return Err(AlienError::DOMAINCRASH);
+        }
+        let idx = self.srcu_lock.read_lock();
+        let res = self.domain.get().set_max_level(level);
+        self.srcu_lock.read_unlock(idx);
+        res
+    }
+}
+
+impl LogDomainProxy {
+    pub fn replace(&self, new_domain: Box<dyn LogDomain>, loader: DomainLoader) -> AlienResult<()> {
+        // let mut old_domain = self.domain.write();
+        let mut old = self.old_domain.lock();
+        *self.domain_loader.lock() = loader;
+
+        let old_domain = self.domain.swap(Box::new(new_domain));
+
+        // synchronize the reader which is reading the old domain
+        self.srcu_lock.synchronize();
+
+        // recycle the old domain
+        old.push(old_domain.into());
+
+        let idx = self.srcu_lock.read_lock();
+        let res = self.domain.get().init();
+        self.srcu_lock.read_unlock(idx);
+        res
     }
 }
