@@ -1,38 +1,20 @@
-use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use core::sync::atomic::AtomicBool;
 
 use config::FRAME_BITS;
 use corelib::CoreFunction;
 use interface::*;
-use ksync::Mutex;
 use log::warn;
 use platform::iprint;
-use spin::Lazy;
-use task_meta::TaskMeta;
+use task_meta::{OperationResult, TaskOperation};
 
 use crate::{
-    domain_helper::{device::update_device_domain, SharedHeapAllocator, DOMAIN_CREATE},
-    domain_proxy::{
-        BlkDomainProxy, LogDomainProxy, ProxyExt, SchedulerDomainProxy, ShadowBlockDomainProxy,
+    domain_helper::{
+        device::update_device_domain, free_domain_resource, resource::DOMAIN_RESOURCE,
+        DOMAIN_CREATE,
     },
+    domain_proxy::*,
     error::{AlienError, AlienResult},
 };
-
-static DOMAIN_PAGE_MAP: Lazy<Mutex<BTreeMap<u64, Vec<(usize, usize)>>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
-
-static DOMAIN_SYSCALL: Lazy<Mutex<BTreeMap<u64, usize>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
-static DOMAIN_SHARE_ALLOCATOR: Lazy<Mutex<BTreeMap<u64, usize>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
-
-pub fn register_domain_syscall_resource(domain_id: u64, syscall_addr: usize) {
-    DOMAIN_SYSCALL.lock().insert(domain_id, syscall_addr);
-}
-
-pub fn register_domain_heap_resource(domain_id: u64, heap_addr: usize) {
-    DOMAIN_SHARE_ALLOCATOR.lock().insert(domain_id, heap_addr);
-}
 
 pub struct DomainSyscall;
 
@@ -47,19 +29,18 @@ impl CoreFunction for DomainSyscall {
         //     page as usize,
         //     page as usize + n * FRAME_SIZE
         // );
-        let mut binding = DOMAIN_PAGE_MAP.lock();
-        let vec = binding.entry(domain_id).or_insert(Vec::new());
-        vec.push((page as usize >> FRAME_BITS, n));
+        DOMAIN_RESOURCE
+            .lock()
+            .insert_page_map(domain_id, (page as usize >> FRAME_BITS, n));
         page
     }
 
     fn sys_free_pages(&self, domain_id: u64, p: *mut u8, n: usize) {
         let n = n.next_power_of_two();
         debug!("[Domain: {}] free pages: {}, ptr: {:p}", domain_id, n, p);
-        let mut binding = DOMAIN_PAGE_MAP.lock();
-        let vec = binding.entry(domain_id).or_insert(Vec::new());
-        let start = p as usize >> FRAME_BITS;
-        vec.retain(|(s, _)| *s != start);
+        DOMAIN_RESOURCE
+            .lock()
+            .free_page_map(domain_id, p as usize >> FRAME_BITS);
         mem::free_frames(p, n);
     }
 
@@ -69,35 +50,7 @@ impl CoreFunction for DomainSyscall {
 
     fn sys_backtrace(&self, domain_id: u64) {
         warn!("[Domain: {}] panic, resource should recycle.", domain_id);
-        let mut binding = DOMAIN_PAGE_MAP.lock();
-        if let Some(vec) = binding.remove(&domain_id) {
-            for (page_start, n) in vec {
-                let page_end = page_start + n;
-                warn!(
-                    "[Domain: {}] free pages: [{:#x}-{:#x}]",
-                    domain_id,
-                    page_start << FRAME_BITS,
-                    page_end << FRAME_BITS
-                );
-                mem::free_frames((page_start << FRAME_BITS) as *mut u8, n);
-            }
-        }
-        drop(binding); // release lock
-        {
-            let mut binding = DOMAIN_SYSCALL.lock();
-            let ptr = binding.remove(&domain_id).unwrap();
-            let _syscall_resource = unsafe { Box::from_raw(ptr as *mut DomainSyscall) };
-            drop(_syscall_resource);
-            warn!("[Domain: {}] free DomainSyscall resource", domain_id);
-        }
-        {
-            let mut binding = DOMAIN_SHARE_ALLOCATOR.lock();
-            let ptr = binding.remove(&domain_id).unwrap();
-            let _allocator = unsafe { Box::from_raw(ptr as *mut SharedHeapAllocator) };
-            drop(_allocator);
-            warn!("[Domain: {}] free SharedHeapAllocator resource", domain_id);
-        }
-
+        free_domain_resource(domain_id);
         unwind();
     }
     fn sys_trampoline_addr(&self) -> usize {
@@ -142,14 +95,14 @@ impl CoreFunction for DomainSyscall {
         let old_domain = super::query_domain(old_domain_name);
         match old_domain {
             Some(DomainType::ShadowBlockDomain(shadow_blk)) => {
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     DomainTypeRaw::ShadowBlockDomain,
                     new_domain_name,
                     None,
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
-                shadow_blk_proxy.replace(new_domain, loader)?;
+                shadow_blk_proxy.replace(new_domain, loader, id)?;
                 // todo!(release old domain's resource)
                 warn!(
                     "Try to replace domain: {} with domain: {}",
@@ -224,37 +177,35 @@ impl CoreFunction for DomainSyscall {
         mem::query_kernel_space(vaddr).ok_or(AlienError::EINVAL)
     }
 
-    fn current_tid(&self) -> AlienResult<Option<usize>> {
-        Ok(crate::task::current_tid())
-    }
-
-    fn add_one_task(&self, task_meta: TaskMeta) -> AlienResult<usize> {
-        crate::task::add_one_task(task_meta)
-    }
-
-    fn wait_now(&self) -> AlienResult<()> {
-        crate::task::wait_now();
-        Ok(())
-    }
-
-    fn wake_up_wait_task(&self, tid: usize) -> AlienResult<()> {
-        crate::task::wake_up_wait_task(tid);
-        Ok(())
-    }
-
-    fn yield_now(&self) -> AlienResult<()> {
-        crate::task::yield_now();
-        Ok(())
-    }
-
-    fn exit_now(&self) -> AlienResult<()> {
-        crate::task::exit_now();
-        Ok(())
-    }
-
-    fn remove_task(&self, tid: usize) -> AlienResult<()> {
-        crate::task::remove_task(tid);
-        Ok(())
+    fn task_op(&self, op: TaskOperation) -> corelib::AlienResult<OperationResult> {
+        match op {
+            TaskOperation::Create(task_meta) => crate::task::add_one_task(task_meta, false)
+                .map(|res| OperationResult::KstackTop(res)),
+            TaskOperation::Wait => {
+                crate::task::wait_now();
+                Ok(OperationResult::Null)
+            }
+            TaskOperation::Wakeup(tid) => {
+                crate::task::wake_up_wait_task(tid);
+                Ok(OperationResult::Null)
+            }
+            TaskOperation::Yield => {
+                crate::task::yield_now();
+                Ok(OperationResult::Null)
+            }
+            TaskOperation::Exit => {
+                crate::task::exit_now();
+                Ok(OperationResult::Null)
+            }
+            TaskOperation::Remove(tid) => {
+                crate::task::remove_task(tid);
+                Ok(OperationResult::Null)
+            }
+            TaskOperation::Current => Ok(OperationResult::Current(crate::task::current_tid())),
+            TaskOperation::ExitOver(tid) => {
+                Ok(OperationResult::ExitOver(crate::task::is_task_exit(tid)))
+            }
+        }
     }
 }
 
@@ -264,5 +215,5 @@ extern "C" {
 static BLK_CRASH: AtomicBool = AtomicBool::new(true);
 fn unwind() -> ! {
     BLK_CRASH.store(false, core::sync::atomic::Ordering::Relaxed);
-    crate::domain_proxy::continuation::unwind()
+    crate::task::continuation::unwind()
 }

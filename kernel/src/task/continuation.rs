@@ -1,10 +1,9 @@
-use alloc::{collections::BTreeMap, vec::Vec};
-use core::{arch::global_asm, sync::atomic::AtomicUsize};
+use alloc::vec::Vec;
+use core::arch::global_asm;
 
-use config::CPU_NUM;
-use ksync::Mutex;
-use log::{debug, info};
-use spin::Lazy;
+use log::debug;
+
+use crate::task::processor::{current_cpu, current_task};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
@@ -15,63 +14,73 @@ pub struct Continuation {
     pub func: usize,
 }
 
-static CTID: [AtomicUsize; CPU_NUM] = [AtomicUsize::new(0); CPU_NUM];
-
-// when tid == usize::MAX, it means we are in the idle loop
-pub fn set_current_task_id(tid: usize) {
-    let cpu_id = arch::hart_id();
-    CTID[cpu_id].store(tid, core::sync::atomic::Ordering::Relaxed);
+#[derive(Debug, Clone)]
+pub struct ContinuationManager {
+    continuation: Vec<Continuation>,
 }
 
-static TASK_CONTEXT: Lazy<Mutex<BTreeMap<usize, Vec<Continuation>>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
+impl ContinuationManager {
+    pub const fn new() -> Self {
+        Self {
+            continuation: Vec::new(),
+        }
+    }
+    pub fn register_continuation(&mut self, context: Continuation) {
+        self.continuation.push(context);
+    }
+    pub fn pop_continuation(&mut self) -> Option<Continuation> {
+        self.continuation.pop()
+    }
+    pub fn continuation_len(&self) -> usize {
+        self.continuation.len()
+    }
+}
 
 /// Register a continuation for the current thread in the current domain.
 pub fn register_continuation(context: &Continuation) {
-    let mut binding = TASK_CONTEXT.lock();
     let mut new_context = context.clone();
     new_context.regs[2] += 33 * 8; // sp += 33 * 8
 
     let cpu_id = arch::hart_id();
-    let tid = CTID[cpu_id].load(core::sync::atomic::Ordering::Relaxed);
-
-    let context_list = binding.entry(tid).or_insert(Vec::new());
-    context_list.push(new_context);
+    let task = current_task();
+    let (len, tid) = if let Some(task) = task {
+        let mut guard = task.lock();
+        guard.continuation.register_continuation(new_context);
+        (guard.continuation.continuation_len(), Some(guard.tid()))
+    } else {
+        let cpu = current_cpu();
+        cpu.continuation.register_continuation(new_context);
+        (cpu.continuation.continuation_len(), None)
+    };
     debug!(
-        "<register_continuation>: cpu:{} ,tid:{}, len:{}",
-        cpu_id,
-        tid,
-        context_list.len()
+        "<register_continuation>: cpu:{} ,tid:{:?}, len:{}",
+        cpu_id, tid, len
     );
 }
 
 pub fn pop_continuation() -> Option<Continuation> {
     let cpu_id = arch::hart_id();
-    let tid = CTID[cpu_id].load(core::sync::atomic::Ordering::Relaxed);
-    let mut binding = TASK_CONTEXT.lock();
-    let context_list = binding.get_mut(&tid).unwrap();
+    let task = current_task();
+    let (continuation, len, tid) = if let Some(task) = task {
+        let mut guard = task.lock();
+        (
+            guard.continuation.pop_continuation(),
+            guard.continuation.continuation_len(),
+            Some(guard.tid()),
+        )
+    } else {
+        let cpu = current_cpu();
+        (
+            cpu.continuation.pop_continuation(),
+            cpu.continuation.continuation_len(),
+            None,
+        )
+    };
     debug!(
-        "<pop_continuation>: cpu:{} ,tid:{}, len:{}",
-        cpu_id,
-        tid,
-        context_list.len()
+        "<pop_continuation>: cpu:{} ,tid:{:?}, len:{}",
+        cpu_id, tid, len
     );
-    context_list.pop()
-}
-
-#[allow(unused)]
-pub fn clear_continuation() {
-    let cpu_id = arch::hart_id();
-    let tid = CTID[cpu_id].load(core::sync::atomic::Ordering::Relaxed);
-    let mut binding = TASK_CONTEXT.lock();
-    let context_list = binding.get_mut(&tid).unwrap();
-    assert_eq!(context_list.len(), 0);
-    info!(
-        "<clear_continuation>: cpu:{} ,tid:{}, len:{}",
-        cpu_id,
-        tid,
-        context_list.len()
-    );
+    continuation
 }
 
 pub fn unwind() -> ! {

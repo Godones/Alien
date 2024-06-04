@@ -36,12 +36,13 @@ pub struct SRcuLock {
 
 unsafe impl Sync for SRcuLock {}
 unsafe impl Send for SRcuLock {}
+const SRCU_ARRAY: SRcuArray = SRcuArray::new();
 
 impl SRcuLock {
     pub const fn new() -> Self {
         Self {
             completed: UnsafeCell::new(0),
-            per_cpu_data: [SRcuArray::new(); CPU_NUM],
+            per_cpu_data: [SRCU_ARRAY; CPU_NUM],
             mutex: Mutex::new(()),
         }
     }
@@ -60,6 +61,7 @@ impl SRcuLock {
         let hart_id = hart_id();
         let array = &self.per_cpu_data[hart_id];
         // array.c[idx] -= 1;
+        // assert!(read_once!(array.c[idx].get()) - 1 >= 0, "{}",read_once!(array.c[idx].get()) - 1);
         write_once!(array.c[idx].get(), read_once!(array.c[idx].get()) - 1);
     }
 
@@ -72,6 +74,7 @@ impl SRcuLock {
         sum
     }
 
+    #[allow(unused)]
     fn readers_active(&self) -> u32 {
         self.readers_active_idx(0) + self.readers_active_idx(1)
     }
@@ -86,7 +89,6 @@ impl SRcuLock {
         let v = read_once!(self.completed.get());
         let idx = v & 0x1;
         write_once!(self.completed.get(), v + 1);
-
         while self.readers_active_idx(idx) != 0 {
             yield_now().unwrap(); // sleep
         }

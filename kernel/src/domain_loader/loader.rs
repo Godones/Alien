@@ -1,4 +1,10 @@
-use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    sync::Arc,
+    vec,
+    vec::Vec,
+};
 use core::{
     cmp::min,
     fmt::{Debug, Formatter},
@@ -20,23 +26,6 @@ use crate::{
     domain_helper::{DomainSyscall, SharedHeapAllocator},
     error::{AlienError, AlienResult},
 };
-
-pub struct DomainLoader {
-    entry: usize,
-    data: Arc<Vec<u8>>,
-    phy_start: usize,
-    regions: Vec<RegionMeta>,
-}
-
-impl Debug for DomainLoader {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("DomainLoader")
-            .field("entry", &self.entry)
-            .field("phy_start", &self.phy_start)
-            .field("regions", &self.regions)
-            .finish()
-    }
-}
 
 #[derive(Debug)]
 struct VmInfo {
@@ -64,15 +53,47 @@ struct RegionMeta {
     data_size: usize,
 }
 
+pub struct DomainLoader {
+    entry: usize,
+    data: Arc<Vec<u8>>,
+    phy_start: usize,
+    regions: Vec<RegionMeta>,
+    ident: String,
+}
+
+impl Debug for DomainLoader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DomainLoader")
+            .field("entry", &self.entry)
+            .field("phy_start", &self.phy_start)
+            .field("regions", &self.regions)
+            .finish()
+    }
+}
+
+impl Clone for DomainLoader {
+    fn clone(&self) -> Self {
+        Self {
+            entry: 0,
+            data: self.data.clone(),
+            phy_start: 0,
+            regions: vec![],
+            ident: self.ident.to_string(),
+        }
+    }
+}
+
 impl DomainLoader {
-    pub fn new(data: Arc<Vec<u8>>) -> Self {
+    pub fn new(data: Arc<Vec<u8>>, ident: &str) -> Self {
         Self {
             entry: 0,
             data,
             phy_start: 0,
             regions: vec![],
+            ident: ident.to_string(),
         }
     }
+
     pub fn entry(&self) -> usize {
         self.entry
     }
@@ -248,6 +269,7 @@ impl DomainLoader {
         Ok(())
     }
 
+    #[allow(unused)]
     pub fn reload(&self) -> AlienResult<()> {
         info!("reload domain");
         let elf_binary = self.data.as_slice();
@@ -260,6 +282,16 @@ impl DomainLoader {
         self.relocate_dyn(&elf)?;
         info!("reload domain done");
         Ok(())
+    }
+}
+
+impl Drop for DomainLoader {
+    fn drop(&mut self) {
+        println!("drop domain loader [{}]", self.ident);
+        for meta in &self.regions {
+            let vaddr = meta.vm.range().start;
+            mem::unmap_region_from_kernel(vaddr).unwrap();
+        }
     }
 }
 

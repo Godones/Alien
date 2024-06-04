@@ -51,7 +51,7 @@ fn main(hart_id: usize) {
         mem::init_memory_system(0, false);
         arch::allow_access_user_memory();
         trap::init_trap_subsystem();
-        println!("hart {} start", arch::hart_id());
+        println!("hart {} start...", arch::hart_id());
     }
     timer::set_next_trigger();
     println!("Begin run task...");

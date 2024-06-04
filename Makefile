@@ -1,8 +1,8 @@
 TARGET := riscv64gc-unknown-none-elf
 PROFILE := release
 KERNEL := target/$(TARGET)/$(PROFILE)/kernel
-NET ?=y
-SMP ?=1
+NET ?= y
+SMP ?= 4
 MEMORY_SIZE := 1024M
 LOG ?=
 GUI ?=n
@@ -98,6 +98,7 @@ domains:
 	cd domains && cargo domain build-all -l "$(LOG)"
 	cp domains/build/disk/* build/disk/ -r
 	cp domains/build/init/* build/init/ -r
+	@make initrd
 
 domain:
 	cd domains && cargo domain build -n $(name) -l "$(LOG)"

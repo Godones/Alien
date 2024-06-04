@@ -265,5 +265,5 @@ pub fn load_domains() {
     crate::task::register_task_domain(task);
     crate::trap::register_syscall_domain(syscall);
     crate::trap::register_plic_domain(plic);
-    platform::println!("Register task domain and syscall domain to trap system done");
+    platform::println!("Register task domain and syscall domain to trap system");
 }

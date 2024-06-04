@@ -240,7 +240,7 @@ pub fn create_domain<T: ?Sized>(
         return None;
     }
     info!("Load {:?} domain, size: {}KB", ty, data.data.len() / 1024);
-    let mut domain_loader = DomainLoader::new(data.data);
+    let mut domain_loader = DomainLoader::new(data.data, ident);
     domain_loader.load().unwrap();
     let id = alloc_domain_id();
     let domain = domain_loader.call(id);

@@ -1,3 +1,4 @@
+pub mod continuation;
 mod processor;
 mod resource;
 mod scheduler;
@@ -11,13 +12,13 @@ use config::CPU_NUM;
 use interface::{SchedulerDomain, TaskDomain};
 use ksync::Mutex;
 pub use processor::current_tid;
-pub use scheduler::{exit_now, remove_task, wait_now, wake_up_wait_task, yield_now};
+pub use scheduler::{exit_now, is_task_exit, remove_task, wait_now, wake_up_wait_task, yield_now};
 use spin::Once;
-use task_meta::TaskMeta;
+use task_meta::{TaskMeta, TaskStatus};
 
 use crate::{
     error::AlienResult,
-    task::{processor::current_task, resource::TaskMetaExt},
+    task::{processor::current_task, resource::TaskMetaExt, scheduler::TASK_WAIT_QUEUE},
 };
 
 global_asm!(include_str!("switch.asm"));
@@ -26,7 +27,6 @@ extern "C" {
     fn __switch(now: *mut TaskContext, next: *const TaskContext);
 }
 
-/// 交换前后两个线程的上下文，调用 `switch.asm` 中的 `__switch`
 #[inline(always)]
 pub fn switch(now: *mut TaskContext, next: *const TaskContext) {
     unsafe {
@@ -53,33 +53,44 @@ pub fn register_task_domain(task_domain: Arc<dyn TaskDomain>) {
 }
 
 pub fn run_task() {
-    processor::schedule();
+    processor::cpu_loop();
 }
 
-pub fn add_one_task(task_meta: TaskMeta) -> AlienResult<usize> {
-    let task_meta_ext = TaskMetaExt::new(task_meta);
+pub fn add_one_task(task_meta: TaskMeta, is_kthread: bool) -> AlienResult<usize> {
+    let mut task_meta_ext = TaskMetaExt::new(task_meta, is_kthread);
     let kstack_top = task_meta_ext.kstack.top();
-    scheduler::add_task(Arc::new(Mutex::new(task_meta_ext)));
+
+    task_meta_ext.set_status(TaskStatus::Waiting);
+    let tid = task_meta_ext.tid();
+    let task = Arc::new(Mutex::new(task_meta_ext));
+    TASK_WAIT_QUEUE.lock().insert(tid, task);
+
     Ok(kstack_top.as_usize())
 }
 
 pub fn synchronize_rcu() {
-    let task = current_task().expect("no current task");
+    let task = current_task();
+    if task.is_none() {
+        return;
+    }
+    let task = task.expect("no current task");
     let mut guard = task.lock();
     let old_cpus_allowed = guard.scheduling_info.as_ref().unwrap().cpus_allowed;
     guard.scheduling_info.as_mut().unwrap().cpus_allowed = (1 << CPU_NUM) - 1;
+    log::warn!("set cpus_allowed to {}", (1 << CPU_NUM) - 1);
     drop(guard);
     loop {
-        let task = current_task().expect("no current task");
         let mut guard = task.lock();
         let cpu_id = hart_id();
         let mut cpus_allowed = guard.scheduling_info.as_ref().unwrap().cpus_allowed;
         cpus_allowed &= !(1 << cpu_id);
         if cpus_allowed == 0 {
-            println!("synchronize_rcu done");
+            log::warn!("synchronize_rcu done");
             guard.scheduling_info.as_mut().unwrap().cpus_allowed = old_cpus_allowed;
             break;
         }
+        guard.scheduling_info.as_mut().unwrap().cpus_allowed = cpus_allowed;
+        log::warn!("synchronize_rcu cpus_allowed: {}", cpus_allowed);
         drop(guard);
         yield_now();
     }

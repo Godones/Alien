@@ -1,4 +1,5 @@
 pub mod device;
+mod resource;
 mod sheap;
 mod syscall;
 
@@ -14,9 +15,10 @@ use core::sync::atomic::AtomicU64;
 
 pub use interface::DomainType;
 use ksync::Mutex;
+pub use resource::*;
 pub use sheap::SharedHeapAllocator;
 use spin::{Lazy, Once};
-pub use syscall::{register_domain_heap_resource, register_domain_syscall_resource, DomainSyscall};
+pub use syscall::DomainSyscall;
 
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);
 

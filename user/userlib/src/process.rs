@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use pconst::task::WaitOptions;
 
 use crate::syscall::{sys_execve, sys_exit, sys_fork, sys_getpid, sys_waitpid};
 
@@ -23,12 +24,12 @@ pub fn exec(cmd: &str, args: &[*const u8], env: &[*const u8]) -> isize {
     )
 }
 
-pub fn wait(exit_code: &mut i32) -> isize {
-    sys_waitpid(-1, exit_code as *mut _)
+pub fn wait(exit_code: &mut i32, option: WaitOptions) -> isize {
+    sys_waitpid(-1, exit_code as *mut _, option.bits())
 }
 
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
-    sys_waitpid(pid as isize, exit_code as *mut _)
+    sys_waitpid(pid as isize, exit_code as *mut _, 0)
 }
 
 bitflags! {

@@ -23,7 +23,7 @@ pub fn set_scheduler(scheduler: Arc<dyn SchedulerDomain>) {
 }
 
 pub fn add_task(task_meta: Arc<Mutex<TaskMetaExt>>) {
-    // log::info!("<add_task>: {:?}", task_meta.lock().tid());
+    log::error!("<add_task>: {:?}", task_meta.lock().tid());
     let scheduling_info = task_meta.lock().take_scheduling_info();
     TASK_MAP.lock().insert(scheduling_info.tid, task_meta);
     global_scheduler!().add_task(scheduling_info).unwrap();
@@ -63,17 +63,33 @@ pub fn wake_up_wait_task(tid: Tid) {
 pub fn yield_now() {
     let task = current_task().unwrap();
     task.lock().set_status(TaskStatus::Ready);
+    let tid = task.lock().tid();
+    log::error!("yield_now: {:?}", tid);
     schedule();
 }
 
 pub fn exit_now() {
     let task = current_task().unwrap();
     let tid = task.lock().tid();
-    task.lock().set_status(TaskStatus::Terminated);
+    task.lock().set_status(TaskStatus::Zombie);
     TASK_EXIT_QUEUE.lock().insert(tid, task);
     schedule();
 }
 
 pub fn remove_task(tid: Tid) {
-    TASK_EXIT_QUEUE.lock().remove(&tid);
+    let task = TASK_EXIT_QUEUE.lock().remove(&tid).unwrap();
+    let status = task.lock().status();
+    assert_eq!(status, TaskStatus::Terminated);
+    assert_eq!(Arc::strong_count(&task), 1);
+}
+
+pub fn is_task_exit(tid: Tid) -> bool {
+    let guard = TASK_EXIT_QUEUE.lock();
+    let task = guard.get(&tid);
+    if let Some(task) = task {
+        let status = task.lock().status();
+        let ref_count = Arc::strong_count(&task);
+        return status == TaskStatus::Terminated && ref_count == 1;
+    }
+    false
 }

@@ -3,6 +3,7 @@ mod exception;
 use alloc::sync::Arc;
 use core::arch::{asm, global_asm};
 
+use arch::hart_id;
 use config::TRAMPOLINE;
 use interface::{PLICDomain, SysCallDomain};
 use log::debug;
@@ -186,7 +187,7 @@ impl TrapHandler for Trap {
                 crate::task::yield_now();
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
-                trace!("<do_user_handle> external interrupt");
+                trace!("[{}] <do_user_handle> external interrupt", hart_id());
                 plic_domain!().handle_irq().expect("handle_irq failed");
             }
             _ => {

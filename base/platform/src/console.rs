@@ -1,7 +1,6 @@
-use core::{
-    fmt::{Arguments, Result, Write},
-    sync::atomic::AtomicBool,
-};
+use core::fmt::{Arguments, Result, Write};
+
+use spin::Mutex;
 
 #[macro_export]
 macro_rules! print {
@@ -28,8 +27,6 @@ macro_rules! iprint {
 
 pub struct Stdout;
 
-pub static UART_FLAG: AtomicBool = AtomicBool::new(false);
-
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
         s.as_bytes().iter().for_each(|x| {
@@ -39,6 +36,8 @@ impl Write for Stdout {
     }
 }
 
+static K_STDOUT: Mutex<Stdout> = Mutex::new(Stdout);
+
 pub fn __print(args: Arguments) {
-    Stdout.write_fmt(args).unwrap();
+    K_STDOUT.lock().write_fmt(args).unwrap();
 }

@@ -1,9 +1,11 @@
 use core::ops::{Deref, DerefMut};
 
-use config::{FRAME_SIZE, USER_KERNEL_STACK_SIZE};
+use config::{FRAME_SIZE, KTHREAD_STACK_SIZE, USER_KERNEL_STACK_SIZE};
 use mem::VirtAddr;
 use rref::RRef;
 use task_meta::{TaskBasicInfo, TaskMeta, TaskSchedulingInfo};
+
+use crate::task::continuation::ContinuationManager;
 
 #[derive(Debug)]
 pub struct KStack {
@@ -38,21 +40,27 @@ pub struct TaskMetaExt {
     pub kstack: KStack,
     pub basic_info: TaskBasicInfo,
     pub scheduling_info: Option<RRef<TaskSchedulingInfo>>,
+    pub continuation: ContinuationManager,
 }
 
 impl TaskMetaExt {
-    pub fn new(meta: TaskMeta) -> Self {
+    pub fn new(meta: TaskMeta, is_kthread: bool) -> Self {
         let mut basic_info = meta.task_basic_info;
         let scheduling_info = meta.scheduling_info;
-        let kstack = KStack::new(basic_info.tid, USER_KERNEL_STACK_SIZE / FRAME_SIZE);
+        let size = if is_kthread {
+            KTHREAD_STACK_SIZE
+        } else {
+            USER_KERNEL_STACK_SIZE
+        };
+        let kstack = KStack::new(basic_info.tid, size / FRAME_SIZE);
         basic_info.context.set_sp(kstack.top().as_usize());
         Self {
             kstack,
             basic_info,
             scheduling_info: Some(RRef::new(scheduling_info)),
+            continuation: ContinuationManager::new(),
         }
     }
-
     pub fn take_scheduling_info(&mut self) -> RRef<TaskSchedulingInfo> {
         self.scheduling_info
             .take()
