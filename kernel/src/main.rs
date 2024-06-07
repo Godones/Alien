@@ -42,7 +42,7 @@ fn main(hart_id: usize) {
         trap::init_trap_subsystem();
         arch::allow_access_user_memory();
         bus::init_with_dtb().unwrap();
-        domain::load_domains();
+        domain::load_domains().unwrap();
         STARTED.store(false, Ordering::Relaxed);
     } else {
         while STARTED.load(Ordering::Relaxed) {

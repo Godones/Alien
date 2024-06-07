@@ -21,6 +21,11 @@ use crate::{
     task::continuation,
 };
 
+pub trait ProxyBuilder {
+    type T;
+    fn build(id: u64, domain: Self::T, domain_loader: DomainLoader) -> Self;
+}
+
 gen_for_BufInputDomain!();
 gen_for_BufUartDomain!();
 gen_for_CacheBlkDeviceDomain!();

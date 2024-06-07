@@ -2,8 +2,8 @@ use basic::bus::mmio::VirtioMmioDeviceType;
 use interface::{DomainType, DomainTypeRaw, GpuDomain};
 
 use crate::{
-    domain_helper,
-    domain_loader::creator::create_gpu_domain,
+    create_domain, domain_helper,
+    domain_proxy::GpuDomainProxy,
     error::{AlienError, AlienResult},
     mmio_bus,
 };
@@ -20,7 +20,8 @@ pub fn update_device_domain(ty: DomainTypeRaw, identifier: &str) -> AlienResult<
                 .unwrap();
             let address = gpu.address().as_usize();
             let size = gpu.io_region().size();
-            let gpu_driver = create_gpu_domain(identifier, None).unwrap();
+            let gpu_driver =
+                create_domain!(GpuDomainProxy, DomainTypeRaw::GpuDomain, identifier).unwrap();
             println!(
                 "update gpu domain: {} at address: {:#x} size: {:#x}",
                 identifier, address, size

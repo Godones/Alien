@@ -7,7 +7,7 @@ use alloc::{
 };
 
 use interface::*;
-use ksync::Mutex;
+use ksync::RwLock;
 use spin::Lazy;
 
 use crate::{
@@ -15,10 +15,11 @@ use crate::{
     domain_helper::{alloc_domain_id, DomainCreate},
     domain_loader::loader::DomainLoader,
     domain_proxy::*,
+    error::{AlienError, AlienResult},
 };
 
-static DOMAIN_ELF: Lazy<Mutex<BTreeMap<String, DomainData>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
+static DOMAIN_ELF: Lazy<RwLock<BTreeMap<String, DomainData>>> =
+    Lazy::new(|| RwLock::new(BTreeMap::new()));
 
 #[derive(Clone)]
 struct DomainData {
@@ -27,7 +28,7 @@ struct DomainData {
 }
 
 pub fn register_domain_elf(identifier: &str, elf: Vec<u8>, ty: DomainTypeRaw) {
-    let mut binding = DOMAIN_ELF.lock();
+    let mut binding = DOMAIN_ELF.write();
     platform::println!("<register domain>: {}", identifier);
     binding.insert(
         identifier.to_string(),
@@ -39,8 +40,32 @@ pub fn register_domain_elf(identifier: &str, elf: Vec<u8>, ty: DomainTypeRaw) {
 }
 
 pub fn unregister_domain_elf(identifier: &str) {
-    let mut binding = DOMAIN_ELF.lock();
+    let mut binding = DOMAIN_ELF.write();
     binding.remove(identifier);
+}
+
+#[macro_export]
+macro_rules! create_domain {
+    ($proxy_name:ident,$ty:expr, $ident:expr, $data:expr) => {
+        crate::domain_loader::creator::create_domain_special::<$proxy_name, _>($ty, $ident, $data)
+    };
+    ($proxy_name:ident,$ty:expr, $ident:expr) => {
+        crate::domain_loader::creator::create_domain_special::<$proxy_name, _>($ty, $ident, None)
+    };
+}
+
+pub fn create_domain_special<P, T>(
+    ty: DomainTypeRaw,
+    ident: &str,
+    data: Option<Vec<u8>>,
+) -> AlienResult<Arc<P>>
+where
+    P: ProxyBuilder<T = Box<T>>,
+    T: ?Sized,
+{
+    create_domain(ty, ident, data)
+        .map(|(id, domain, loader)| Arc::new(P::build(id, domain, loader)))
+        .ok_or(AlienError::EINVAL)
 }
 
 pub struct DomainCreateImpl;
@@ -48,180 +73,28 @@ impl DomainCreate for DomainCreateImpl {
     fn create_domain(&self, identifier: &str) -> Option<DomainType> {
         match identifier {
             "fatfs" => {
-                let fatfs = create_fs_domain("fatfs", None)?;
+                let fatfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "fatfs").ok()?;
                 fatfs.init().unwrap();
-                domain_helper::register_domain("fatfs", DomainType::FsDomain(fatfs.clone()), false);
+                domain_helper::register_domain(
+                    identifier,
+                    DomainType::FsDomain(fatfs.clone()),
+                    false,
+                );
                 Some(DomainType::FsDomain(fatfs))
             }
             "ramfs" => {
-                let ramfs = create_fs_domain("ramfs", None)?;
+                let ramfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "ramfs").ok()?;
                 ramfs.init().unwrap();
-                domain_helper::register_domain("ramfs", DomainType::FsDomain(ramfs.clone()), false);
+                domain_helper::register_domain(
+                    identifier,
+                    DomainType::FsDomain(ramfs.clone()),
+                    false,
+                );
                 Some(DomainType::FsDomain(ramfs))
-            }
-            "virtio-mmio-gpu" => {
-                let virtio_mmio_gpu = create_gpu_domain("virtio-mmio-gpu", None)?;
-                domain_helper::register_domain(
-                    "virtio-mmio-gpu",
-                    DomainType::GpuDomain(virtio_mmio_gpu.clone()),
-                    false,
-                );
-                Some(DomainType::GpuDomain(virtio_mmio_gpu))
-            }
-            "virtio-mmio-net" => {
-                let virtio_mmio_net = create_net_device_domain("virtio-mmio-net", None)?;
-                domain_helper::register_domain(
-                    "virtio-mmio-net",
-                    DomainType::NetDeviceDomain(virtio_mmio_net.clone()),
-                    false,
-                );
-                Some(DomainType::NetDeviceDomain(virtio_mmio_net))
-            }
-            "virtio-mmio-block" => {
-                let virtio_mmio_block = create_blk_device_domain("virtio-mmio-block", None)?;
-                domain_helper::register_domain(
-                    "virtio-mmio-block",
-                    DomainType::BlkDeviceDomain(virtio_mmio_block.clone()),
-                    false,
-                );
-                Some(DomainType::BlkDeviceDomain(virtio_mmio_block))
-            }
-            "virtio-mmio-input" => {
-                let virtio_mmio_input = create_input_domain("virtio-mmio-input", None)?;
-                domain_helper::register_domain(
-                    "virtio-mmio-input",
-                    DomainType::InputDomain(virtio_mmio_input.clone()),
-                    false,
-                );
-                Some(DomainType::InputDomain(virtio_mmio_input))
             }
             _ => None,
         }
     }
-}
-
-pub fn create_fs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<FsDomainProxy>> {
-    create_domain(DomainTypeRaw::FsDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(FsDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_blk_device_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<BlkDomainProxy>> {
-    create_domain(DomainTypeRaw::BlkDeviceDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(BlkDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_cache_blk_device_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<CacheBlkDomainProxy>> {
-    create_domain(DomainTypeRaw::CacheBlkDeviceDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(CacheBlkDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_rtc_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<RtcDomainProxy>> {
-    create_domain(DomainTypeRaw::RtcDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(RtcDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_gpu_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<GpuDomainProxy>> {
-    create_domain(DomainTypeRaw::GpuDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(GpuDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_input_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<InputDomainProxy>> {
-    create_domain(DomainTypeRaw::InputDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(InputDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_uart_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<UartDomainProxy>> {
-    create_domain(DomainTypeRaw::UartDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(UartDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_plic_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<PLICDomainProxy>> {
-    create_domain(DomainTypeRaw::PLICDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(PLICDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_task_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<TaskDomainProxy>> {
-    create_domain(DomainTypeRaw::TaskDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(TaskDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_syscall_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<SysCallDomainProxy>> {
-    create_domain(DomainTypeRaw::SysCallDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(SysCallDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_shadow_block_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<ShadowBlockDomainProxy>> {
-    create_domain(DomainTypeRaw::ShadowBlockDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(ShadowBlockDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_buf_uart_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<BufUartDomainProxy>> {
-    create_domain(DomainTypeRaw::BufUartDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(BufUartDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_net_device_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<NetDeviceDomainProxy>> {
-    create_domain(DomainTypeRaw::NetDeviceDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(NetDeviceDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_buf_input_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<BufInputDomainProxy>> {
-    create_domain(DomainTypeRaw::BufInputDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(BufInputDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_empty_device_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<EmptyDeviceDomainProxy>> {
-    create_domain(DomainTypeRaw::EmptyDeviceDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(EmptyDeviceDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_vfs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<VfsDomainProxy>> {
-    create_domain(DomainTypeRaw::VfsDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(VfsDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_devfs_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<DevFsDomainProxy>> {
-    create_domain(DomainTypeRaw::DevFsDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(DevFsDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_scheduler_domain(
-    ident: &str,
-    data: Option<Vec<u8>>,
-) -> Option<Arc<SchedulerDomainProxy>> {
-    create_domain(DomainTypeRaw::SchedulerDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(SchedulerDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_log_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<LogDomainProxy>> {
-    create_domain(DomainTypeRaw::LogDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(LogDomainProxy::new(id, domain, loader)))
-}
-
-pub fn create_net_stack_domain(ident: &str, data: Option<Vec<u8>>) -> Option<Arc<NetDomainProxy>> {
-    create_domain(DomainTypeRaw::NetDomain, ident, data)
-        .map(|(id, domain, loader)| Arc::new(NetDomainProxy::new(id, domain, loader)))
 }
 
 pub fn create_domain<T: ?Sized>(
@@ -235,7 +108,7 @@ pub fn create_domain<T: ?Sized>(
         }
         None => {}
     }
-    let data = DOMAIN_ELF.lock().get(ident)?.clone();
+    let data = DOMAIN_ELF.read().get(ident)?.clone();
     if data.ty != ty {
         return None;
     }

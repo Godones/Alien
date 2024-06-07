@@ -60,6 +60,5 @@ pub fn init_domains() {
     for (identifier, domain) in INIT_DOMAIN_LIST {
         register(identifier, *domain);
     }
-
     // initrd.take(); // release the initrd data
 }
