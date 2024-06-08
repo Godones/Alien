@@ -64,7 +64,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 let buf_uart =
                     create_domain!(BufUartDomainProxy, DomainTypeRaw::BufUartDomain, "buf_uart")?;
                 buf_uart.init("uart")?;
-                buf_uart.putc('U' as u8)?;
+                buf_uart.putc('U' as u8).unwrap();
                 buf_uart.putc('A' as u8)?;
                 buf_uart.putc('R' as u8)?;
                 buf_uart.putc('T' as u8)?;
@@ -199,7 +199,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 domain_helper::register_domain(
                     "virtio_mmio_gpu",
                     DomainType::GpuDomain(gpu_driver),
-                    false,
+                    true,
                 );
             }
             _ => {

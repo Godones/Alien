@@ -8,10 +8,7 @@ use platform::iprint;
 use task_meta::{OperationResult, TaskOperation};
 
 use crate::{
-    domain_helper::{
-        device::update_device_domain, free_domain_resource, resource::DOMAIN_RESOURCE,
-        DOMAIN_CREATE,
-    },
+    domain_helper::{resource::DOMAIN_RESOURCE, DOMAIN_CREATE},
     domain_proxy::*,
     error::{AlienError, AlienResult},
 };
@@ -50,7 +47,6 @@ impl CoreFunction for DomainSyscall {
 
     fn sys_backtrace(&self, domain_id: u64) {
         warn!("[Domain: {}] panic, resource should recycle.", domain_id);
-        free_domain_resource(domain_id);
         unwind();
     }
     fn sys_trampoline_addr(&self) -> usize {
@@ -90,10 +86,26 @@ impl CoreFunction for DomainSyscall {
         &self,
         old_domain_name: &str,
         new_domain_name: &str,
-        ty: DomainTypeRaw,
+        _ty: DomainTypeRaw,
     ) -> AlienResult<()> {
         let old_domain = super::query_domain(old_domain_name);
         match old_domain {
+            Some(DomainType::GpuDomain(gpu)) => {
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    DomainTypeRaw::GpuDomain,
+                    new_domain_name,
+                    None,
+                )
+                .ok_or(AlienError::EINVAL)?;
+                let gpu_proxy = gpu.downcast_arc::<GpuDomainProxy>().unwrap();
+                gpu_proxy.replace(new_domain, loader, id)?;
+                // todo!(release old domain's resource)
+                println!(
+                    "Try to replace domain: {} with domain: {} ok",
+                    old_domain_name, new_domain_name
+                );
+                Ok(())
+            }
             Some(DomainType::ShadowBlockDomain(shadow_blk)) => {
                 let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     DomainTypeRaw::ShadowBlockDomain,
@@ -105,7 +117,7 @@ impl CoreFunction for DomainSyscall {
                 shadow_blk_proxy.replace(new_domain, loader, id)?;
                 // todo!(release old domain's resource)
                 warn!(
-                    "Try to replace domain: {} with domain: {}",
+                    "Try to replace domain: {} with domain: {} ok",
                     old_domain_name, new_domain_name
                 );
                 Ok(())
@@ -118,7 +130,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 println!(
-                    "Try to replace scheduler domain {} with {}",
+                    "Try to replace scheduler domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
                 let scheduler_proxy = scheduler.downcast_arc::<SchedulerDomainProxy>().unwrap();
@@ -126,18 +138,18 @@ impl CoreFunction for DomainSyscall {
                 Err(AlienError::EINVAL)
             }
             Some(DomainType::LogDomain(logger)) => {
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     DomainTypeRaw::LogDomain,
                     new_domain_name,
                     None,
                 )
                 .ok_or(AlienError::EINVAL)?;
                 println!(
-                    "Try to replace logger domain {} with {}",
+                    "Try to replace logger domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
                 let logger_proxy = logger.downcast_arc::<LogDomainProxy>().unwrap();
-                logger_proxy.replace(new_domain, loader)?;
+                logger_proxy.replace(new_domain, loader, id)?;
                 Ok(())
             }
 
@@ -146,14 +158,7 @@ impl CoreFunction for DomainSyscall {
                     "<sys_update_domain> old domain {:?} not found",
                     old_domain_name
                 );
-                match ty {
-                    DomainTypeRaw::GpuDomain => {
-                        println!("update gpu domain: {}", new_domain_name);
-                        update_device_domain(ty, new_domain_name)?;
-                        Ok(())
-                    }
-                    _ => Err(AlienError::EINVAL),
-                }
+                Err(AlienError::EINVAL)
             }
             _ => {
                 panic!("replace domain not support");

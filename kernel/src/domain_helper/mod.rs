@@ -1,4 +1,3 @@
-pub mod device;
 mod resource;
 mod sheap;
 mod syscall;

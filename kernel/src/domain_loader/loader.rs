@@ -94,6 +94,10 @@ impl DomainLoader {
         }
     }
 
+    pub fn empty() -> Self {
+        Self::new(Arc::new(vec![]), "empty_loader")
+    }
+
     pub fn entry(&self) -> usize {
         self.entry
     }

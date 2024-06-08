@@ -70,14 +70,18 @@ pub fn free_domain_resource(domain_id: u64) {
     }
 
     // free Box<DomainSyscall>
-    let ptr = binding.syscall.remove(&domain_id).unwrap();
-    let _syscall_resource = unsafe { Box::from_raw(ptr as *mut DomainSyscall) };
-    drop(_syscall_resource);
-    warn!("[Domain: {}] free DomainSyscall resource", domain_id);
+    let ptr = binding.syscall.remove(&domain_id);
+    if let Some(ptr) = ptr {
+        let _syscall_resource = unsafe { Box::from_raw(ptr as *mut DomainSyscall) };
+        drop(_syscall_resource);
+        warn!("[Domain: {}] free DomainSyscall resource", domain_id);
+    }
 
     // free Box<SharedHeapAllocator>
-    let ptr = binding.allocator.remove(&domain_id).unwrap();
-    let _allocator = unsafe { Box::from_raw(ptr as *mut SharedHeapAllocator) };
-    drop(_allocator);
-    warn!("[Domain: {}] free SharedHeapAllocator resource", domain_id);
+    let ptr = binding.allocator.remove(&domain_id);
+    if let Some(ptr) = ptr {
+        let _allocator = unsafe { Box::from_raw(ptr as *mut SharedHeapAllocator) };
+        drop(_allocator);
+        warn!("[Domain: {}] free SharedHeapAllocator resource", domain_id);
+    }
 }

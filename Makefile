@@ -21,7 +21,6 @@ QEMU_ARGS :=
 
 ifeq ($(GUI),y)
 	QEMU_ARGS += -device virtio-gpu-device
-	FEATURES += gui
 else
 	QEMU_ARGS += -nographic
 endif

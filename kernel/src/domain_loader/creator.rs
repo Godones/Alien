@@ -15,7 +15,7 @@ use crate::{
     domain_helper::{alloc_domain_id, DomainCreate},
     domain_loader::loader::DomainLoader,
     domain_proxy::*,
-    error::{AlienError, AlienResult},
+    error::AlienResult,
 };
 
 static DOMAIN_ELF: Lazy<RwLock<BTreeMap<String, DomainData>>> =
@@ -63,9 +63,16 @@ where
     P: ProxyBuilder<T = Box<T>>,
     T: ?Sized,
 {
-    create_domain(ty, ident, data)
+    let res = create_domain(ty, ident, data)
         .map(|(id, domain, loader)| Arc::new(P::build(id, domain, loader)))
-        .ok_or(AlienError::EINVAL)
+        .unwrap_or_else(|| {
+            println!("Create empty domain: {}", ident);
+            let id = alloc_domain_id();
+            let loader = DomainLoader::empty();
+            let res = Arc::new(P::build_empty(id, loader));
+            res
+        });
+    Ok(res)
 }
 
 pub struct DomainCreateImpl;

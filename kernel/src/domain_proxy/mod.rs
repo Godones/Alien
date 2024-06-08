@@ -1,5 +1,5 @@
 use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
-use core::{net::SocketAddrV4, ops::Range, sync::atomic::AtomicU64};
+use core::{fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range, sync::atomic::AtomicU64};
 
 use downcast_rs::{impl_downcast, DowncastSync};
 use interface::*;
@@ -24,6 +24,7 @@ use crate::{
 pub trait ProxyBuilder {
     type T;
     fn build(id: u64, domain: Self::T, domain_loader: DomainLoader) -> Self;
+    fn build_empty(id: u64, domain_loader: DomainLoader) -> Self;
 }
 
 gen_for_BufInputDomain!();
@@ -48,6 +49,13 @@ gen_for_DevFsDomain!();
 gen_for_LogDomain!();
 gen_for_NetDomain!();
 impl_for_FsDomain!(DevFsDomainProxy);
+
+impl_empty_for_FsDomain!(DevFsDomainEmptyImpl);
+impl Basic for DevFsDomainEmptyImpl {
+    fn is_active(&self) -> bool {
+        false
+    }
+}
 impl Basic for DevFsDomainProxy {
     fn is_active(&self) -> bool {
         let idx = self.srcu_lock.read_lock();
@@ -69,8 +77,8 @@ impl ShadowBlockDomainProxy {
         loader: DomainLoader,
         new_id: u64,
     ) -> AlienResult<()> {
-        let mut old = self.old_domain.lock();
-        *self.domain_loader.lock() = loader;
+        let mut loader_guard = self.domain_loader.lock();
+
         let old_id = self.domain_id();
         self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
         let old_domain = self.domain.swap(Box::new(new_domain));
@@ -78,32 +86,46 @@ impl ShadowBlockDomainProxy {
         // println!("srcu synchronize");
         self.srcu_lock.synchronize();
         // println!("srcu synchronize end");
-        // recycle the old domain
-        old.push(old_domain);
+
+        // forget the old domain
+        // it will be dropped by the `free_domain_resource`
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
 
         free_domain_resource(old_id);
 
         let resource = self.resource.get().unwrap();
-        self.domain.get().init(resource.as_str())
+        self.domain.get().init(resource.as_str()).unwrap();
+
+        *loader_guard = loader;
+        Ok(())
     }
 }
 
 impl ProxyExt for BlkDomainProxy {
     fn reload(&self) -> AlienResult<()> {
-        let mut old = self.old_domain.lock();
-        let mut loader = self.domain_loader.lock().clone();
+        let mut loader_guard = self.domain_loader.lock();
+        let mut loader = loader_guard.clone();
         loader.load().unwrap();
         let id = self.domain_id();
         // todo!(recycle old loader)?
         let new_domain = loader.call(id);
-        *self.domain_loader.lock() = loader;
-        let old_domain = self.domain.swap(Box::new(new_domain));
+
+        let new_domain = Box::new(new_domain);
+        let old_domain = self.domain.swap(new_domain);
         // synchronize the reader which is reading the old domain
         self.srcu_lock.synchronize();
-        // recycle the old domain
-        old.push(old_domain);
+
+        // forget the old domain
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
+
+        free_domain_resource(id);
+
         let device_info = self.resource.get().unwrap();
         self.domain.get().init(device_info.clone()).unwrap();
+
+        *loader_guard = loader;
         Ok(())
     }
 }
@@ -129,15 +151,57 @@ impl SchedulerDomainProxy {
     }
 }
 impl LogDomainProxy {
-    pub fn replace(&self, new_domain: Box<dyn LogDomain>, loader: DomainLoader) -> AlienResult<()> {
-        // let mut old_domain = self.domain.write();
-        let mut old = self.old_domain.lock();
-        *self.domain_loader.lock() = loader;
+    pub fn replace(
+        &self,
+        new_domain: Box<dyn LogDomain>,
+        loader: DomainLoader,
+        new_id: u64,
+    ) -> AlienResult<()> {
+        let mut loader_guard = self.domain_loader.lock();
+        let old_id = self.domain_id();
+        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
         let old_domain = self.domain.swap(Box::new(new_domain));
         // synchronize the reader which is reading the old domain
         self.srcu_lock.synchronize();
-        // recycle the old domain
-        old.push(old_domain);
-        self.domain.get().init()
+
+        // forget the old domain
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
+
+        // free the old domain resource
+        free_domain_resource(old_id);
+
+        self.domain.get().init().unwrap();
+        *loader_guard = loader;
+        Ok(())
+    }
+}
+
+impl GpuDomainProxy {
+    pub fn replace(
+        &self,
+        new_domain: Box<dyn GpuDomain>,
+        loader: DomainLoader,
+        new_id: u64,
+    ) -> AlienResult<()> {
+        let mut loader_guard = self.domain_loader.lock();
+        let old_id = self.domain_id();
+        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
+        let old_domain = self.domain.swap(Box::new(new_domain));
+        // synchronize the reader which is reading the old domain
+        self.srcu_lock.synchronize();
+
+        // forget the old domain
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
+
+        // free the old domain resource
+        free_domain_resource(old_id);
+
+        let device_info = self.resource.get().unwrap();
+        self.domain.get().init(device_info.clone()).unwrap();
+
+        *loader_guard = loader;
+        Ok(())
     }
 }

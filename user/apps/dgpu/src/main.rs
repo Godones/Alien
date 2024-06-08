@@ -15,14 +15,22 @@ fn main() -> isize {
         return -1;
     } else {
         println!("Opened /tests/gvirtio_mmio_gpu, fd: {}", mmio_gpu_fd);
-        let res = register_domain(mmio_gpu_fd as _, DomainTypeRaw::GpuDomain, "virio_mmio_gpu");
+        let res = register_domain(
+            mmio_gpu_fd as _,
+            DomainTypeRaw::GpuDomain,
+            "virio_mmio_gpu_new",
+        );
         println!("load_domain res: {}", res);
 
         if res != 0 {
             println!("Failed to register domain virio_mmio_gpu");
             return -1;
         }
-        let res = update_domain("", "virio_mmio_gpu", DomainTypeRaw::GpuDomain);
+        let res = update_domain(
+            "virtio_mmio_gpu",
+            "virio_mmio_gpu_new",
+            DomainTypeRaw::GpuDomain,
+        );
         println!("replace_domain res: {}", res);
         if res != 0 {
             println!("Failed to update domain virio_mmio_gpu");
