@@ -1,7 +1,7 @@
 mod init;
 
 extern crate alloc;
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{boxed::Box, string::ToString, sync::Arc};
 use core::sync::atomic::AtomicUsize;
 
 use basic::bus::mmio::VirtioMmioDeviceType;
@@ -19,9 +19,9 @@ use crate::{
     domain_proxy::{
         BlkDomainProxy, BufInputDomainProxy, BufUartDomainProxy, CacheBlkDomainProxy,
         DevFsDomainProxy, EmptyDeviceDomainProxy, FsDomainProxy, GpuDomainProxy, InputDomainProxy,
-        LogDomainProxy, NetDeviceDomainProxy, NetDomainProxy, PLICDomainProxy, RtcDomainProxy,
-        SchedulerDomainProxy, ShadowBlockDomainProxy, SysCallDomainProxy, TaskDomainProxy,
-        UartDomainProxy, VfsDomainProxy,
+        LogDomainProxy, NetDeviceDomainProxy, NetDomainProxy, PLICDomainProxy, ProxyBuilder,
+        RtcDomainProxy, SchedulerDomainProxy, ShadowBlockDomainProxy, SysCallDomainProxy,
+        TaskDomainProxy, UartDomainProxy, VfsDomainProxy,
     },
     mmio_bus, platform_bus,
 };
@@ -43,7 +43,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
     let plic = create_domain!(PLICDomainProxy, DomainTypeRaw::PLICDomain, "plic")?;
     let plic_address = plic_device.address().as_usize();
     let plic_size = plic_device.io_region().size();
-    plic.init(plic_address..plic_address + plic_size)?;
+    plic.init_by_box(Box::new(plic_address..plic_address + plic_size))?;
     domain_helper::register_domain("plic", DomainType::PLICDomain(plic.clone()), true);
 
     for device in platform_bus.common_devices().iter() {
@@ -53,17 +53,17 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         match device.name() {
             "rtc" => {
                 let rtc = create_domain!(RtcDomainProxy, DomainTypeRaw::RtcDomain, "goldfish")?;
-                rtc.init(address..address + size)?;
+                rtc.init_by_box(Box::new(address..address + size))?;
                 domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc.clone()), true);
                 plic.register_irq(irq.unwrap() as _, &RRefVec::from_slice("rtc".as_bytes()))?;
             }
             "uart" => {
                 let uart = create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart16550")?;
-                uart.init(address..address + size)?;
+                uart.init_by_box(Box::new(address..address + size))?;
                 domain_helper::register_domain("uart", DomainType::UartDomain(uart.clone()), true);
                 let buf_uart =
                     create_domain!(BufUartDomainProxy, DomainTypeRaw::BufUartDomain, "buf_uart")?;
-                buf_uart.init("uart")?;
+                buf_uart.init_by_box(Box::new("uart".to_string()))?;
                 buf_uart.putc('U' as u8).unwrap();
                 buf_uart.putc('A' as u8)?;
                 buf_uart.putc('R' as u8)?;
@@ -102,7 +102,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainTypeRaw::NetDeviceDomain,
                     "virtio_mmio_net"
                 )?;
-                net_driver.init(address..address + size)?;
+                net_driver.init_by_box(Box::new(address..address + size))?;
                 domain_helper::register_domain(
                     "virtio_mmio_net",
                     DomainType::NetDeviceDomain(net_driver.clone()),
@@ -112,7 +112,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
 
                 let net_stack =
                     create_domain!(NetDomainProxy, DomainTypeRaw::NetDomain, "net_stack")?;
-                net_stack.init("virtio_mmio_net-1")?;
+                net_stack.init_by_box(Box::new("virtio_mmio_net-1".to_string()))?;
                 domain_helper::register_domain("net_stack", DomainType::NetDomain(net_stack), true);
 
                 // register irq
@@ -127,7 +127,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainTypeRaw::BlkDeviceDomain,
                     "virtio_mmio_block"
                 )?;
-                blk_driver.init(address..address + size)?;
+                blk_driver.init_by_box(Box::new(address..address + size))?;
                 info!(
                     "dev capacity: {:?}MB",
                     blk_driver.get_capacity()? / 1024 / 1024
@@ -143,7 +143,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainTypeRaw::ShadowBlockDomain,
                     "shadow_blk"
                 )?;
-                shadow_blk.init("virtio_mmio_block-1")?;
+                shadow_blk.init_by_box(Box::new("virtio_mmio_block-1".to_string()))?;
                 domain_helper::register_domain(
                     "shadow_blk",
                     DomainType::ShadowBlockDomain(shadow_blk),
@@ -154,7 +154,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainTypeRaw::CacheBlkDeviceDomain,
                     "cache_blk"
                 )?;
-                cache_blk.init("shadow_blk-1")?;
+                cache_blk.init_by_box(Box::new("shadow_blk-1".to_string()))?;
                 domain_helper::register_domain(
                     "cache_blk",
                     DomainType::CacheBlkDeviceDomain(cache_blk),
@@ -168,7 +168,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainTypeRaw::InputDomain,
                     "virtio_mmio_input"
                 )?;
-                input_driver.init(address..address + size)?;
+                input_driver.init_by_box(Box::new(address..address + size))?;
                 domain_helper::register_domain(
                     "virtio_mmio_input",
                     DomainType::InputDomain(input_driver),
@@ -179,7 +179,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainTypeRaw::BufInputDomain,
                     "buf_input"
                 )?;
-                buf_input.init("virtio_mmio_input")?;
+                buf_input.init_by_box(Box::new("virtio_mmio_input".to_string()))?;
                 domain_helper::register_domain(
                     "buf_input",
                     DomainType::BufInputDomain(buf_input),
@@ -195,7 +195,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             VirtioMmioDeviceType::GPU => {
                 let gpu_driver =
                     create_domain!(GpuDomainProxy, DomainTypeRaw::GpuDomain, "virtio_mmio_gpu")?;
-                gpu_driver.init(address..address + size)?;
+                gpu_driver.init_by_box(Box::new(address..address + size))?;
                 domain_helper::register_domain(
                     "virtio_mmio_gpu",
                     DomainType::GpuDomain(gpu_driver),
@@ -213,14 +213,14 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             DomainTypeRaw::EmptyDeviceDomain,
             "null"
         )?;
-        null_device.init()?;
+        null_device.init_by_box(Box::new(()))?;
         domain_helper::register_domain("null", DomainType::EmptyDeviceDomain(null_device), true);
         let random_device = create_domain!(
             EmptyDeviceDomainProxy,
             DomainTypeRaw::EmptyDeviceDomain,
             "random"
         )?;
-        random_device.init()?;
+        random_device.init_by_box(Box::new(()))?;
         domain_helper::register_domain(
             "random",
             DomainType::EmptyDeviceDomain(random_device),
@@ -240,7 +240,7 @@ pub fn load_domains() -> AlienResult<()> {
         DomainTypeRaw::SchedulerDomain,
         "fifo_scheduler"
     )?;
-    scheduler.init()?;
+    scheduler.init_by_box(Box::new(()))?;
     domain_helper::register_domain(
         "scheduler",
         DomainType::SchedulerDomain(scheduler.clone()),
@@ -249,7 +249,7 @@ pub fn load_domains() -> AlienResult<()> {
     crate::task::register_scheduler_domain(scheduler);
 
     let logger = create_domain!(LogDomainProxy, DomainTypeRaw::LogDomain, "logger")?;
-    logger.init()?;
+    logger.init_by_box(Box::new(()))?;
     domain_helper::register_domain("logger", DomainType::LogDomain(logger), true);
 
     let fatfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "fatfs")?;
@@ -280,24 +280,24 @@ pub fn load_domains() -> AlienResult<()> {
     // device init function
     let plic = init_device()?;
 
-    devfs.init()?;
-    fatfs.init()?;
-    ramfs.init()?;
-    procfs.init()?;
-    sysfs.init()?;
+    devfs.init_by_box(Box::new(()))?;
+    fatfs.init_by_box(Box::new(()))?;
+    ramfs.init_by_box(Box::new(()))?;
+    procfs.init_by_box(Box::new(()))?;
+    sysfs.init_by_box(Box::new(()))?;
 
     // The vfs domain may use the device domain, so we need to init vfs domain after init device domain,
     // also it may use the task domain.
     {
         let initrd = mem::INITRD_DATA.lock();
         let data = initrd.as_ref().unwrap();
-        vfs.init(data.as_slice())?;
+        vfs.init_by_box(Box::new(data.as_slice().to_vec()))?;
     }
 
-    task.init()?;
+    task.init_by_box(Box::new(()))?;
 
     let syscall = create_domain!(SysCallDomainProxy, DomainTypeRaw::SysCallDomain, "syscall")?;
-    syscall.init()?;
+    syscall.init_by_box(Box::new(()))?;
     domain_helper::register_domain("syscall", DomainType::SysCallDomain(syscall.clone()), true);
 
     platform::println!("Load domains done");

@@ -81,7 +81,7 @@ impl DomainCreate for DomainCreateImpl {
         match identifier {
             "fatfs" => {
                 let fatfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "fatfs").ok()?;
-                fatfs.init().unwrap();
+                fatfs.init_by_box(Box::new(())).unwrap();
                 domain_helper::register_domain(
                     identifier,
                     DomainType::FsDomain(fatfs.clone()),
@@ -91,7 +91,7 @@ impl DomainCreate for DomainCreateImpl {
             }
             "ramfs" => {
                 let ramfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "ramfs").ok()?;
-                ramfs.init().unwrap();
+                ramfs.init_by_box(Box::new(())).unwrap();
                 domain_helper::register_domain(
                     identifier,
                     DomainType::FsDomain(ramfs.clone()),

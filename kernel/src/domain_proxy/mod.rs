@@ -1,5 +1,7 @@
-use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
-use core::{fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range, sync::atomic::AtomicU64};
+use alloc::{boxed::Box, string::String, vec::Vec};
+use core::{
+    any::Any, fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range, sync::atomic::AtomicU64,
+};
 
 use downcast_rs::{impl_downcast, DowncastSync};
 use interface::*;
@@ -25,6 +27,7 @@ pub trait ProxyBuilder {
     type T;
     fn build(id: u64, domain: Self::T, domain_loader: DomainLoader) -> Self;
     fn build_empty(id: u64, domain_loader: DomainLoader) -> Self;
+    fn init_by_box(&self, argv: Box<dyn Any + Send + Sync>) -> AlienResult<()>;
 }
 
 gen_for_BufInputDomain!();
@@ -95,7 +98,8 @@ impl ShadowBlockDomainProxy {
         free_domain_resource(old_id);
 
         let resource = self.resource.get().unwrap();
-        self.domain.get().init(resource.as_str()).unwrap();
+        let info = resource.as_ref().downcast_ref::<String>().unwrap();
+        self.domain.get().init(info).unwrap();
 
         *loader_guard = loader;
         Ok(())
@@ -123,7 +127,8 @@ impl ProxyExt for BlkDomainProxy {
         free_domain_resource(id);
 
         let device_info = self.resource.get().unwrap();
-        self.domain.get().init(device_info.clone()).unwrap();
+        let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
+        self.domain.get().init(info).unwrap();
 
         *loader_guard = loader;
         Ok(())
@@ -199,7 +204,8 @@ impl GpuDomainProxy {
         free_domain_resource(old_id);
 
         let device_info = self.resource.get().unwrap();
-        self.domain.get().init(device_info.clone()).unwrap();
+        let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
+        self.domain.get().init(info).unwrap();
 
         *loader_guard = loader;
         Ok(())
