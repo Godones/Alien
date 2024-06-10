@@ -46,3 +46,9 @@ pub(super) fn relocate_removable_data() {
         *guard = Some(data);
     }
 }
+
+impl Drop for InitrdData {
+    fn drop(&mut self) {
+        println!("Drop initrd data");
+    }
+}

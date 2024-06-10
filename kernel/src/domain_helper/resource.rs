@@ -3,7 +3,7 @@ use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use config::FRAME_BITS;
 use ksync::Mutex;
 
-use crate::domain_helper::{DomainSyscall, SharedHeapAllocator};
+use crate::domain_helper::{sheap::free_domain_shared_data, DomainSyscall, SharedHeapAllocator};
 
 pub(super) static DOMAIN_RESOURCE: Mutex<DomainResource> = Mutex::new(DomainResource::new());
 pub struct DomainResource {
@@ -54,6 +54,10 @@ pub fn register_domain_heap_resource(domain_id: u64, heap_addr: usize) {
 
 pub fn free_domain_resource(domain_id: u64) {
     println!("free_domain_resource for domain_id: {}", domain_id);
+
+    // free shared data
+    free_domain_shared_data(domain_id);
+
     let mut binding = DOMAIN_RESOURCE.lock();
     // free pages
     if let Some(vec) = binding.page_map.remove(&domain_id) {

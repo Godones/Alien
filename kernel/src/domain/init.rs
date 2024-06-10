@@ -28,8 +28,7 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("virtio_mmio_net", DomainTypeRaw::NetDeviceDomain),
     ("virtio_mmio_block", DomainTypeRaw::BlkDeviceDomain),
     ("net_stack", DomainTypeRaw::NetDomain),
-    ("logger", DomainTypeRaw::LogDomain), // ("virtio_mmio_gpu", DomainTypeRaw::GpuDomain),
-                                          // ("virtio_mmio_input", DomainTypeRaw::InputDomain),
+    ("logger", DomainTypeRaw::LogDomain),
 ];
 
 pub fn init_domains() {
@@ -60,5 +59,4 @@ pub fn init_domains() {
     for (identifier, domain) in INIT_DOMAIN_LIST {
         register(identifier, *domain);
     }
-    // initrd.take(); // release the initrd data
 }

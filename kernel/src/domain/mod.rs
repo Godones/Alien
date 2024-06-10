@@ -289,9 +289,10 @@ pub fn load_domains() -> AlienResult<()> {
     // The vfs domain may use the device domain, so we need to init vfs domain after init device domain,
     // also it may use the task domain.
     {
-        let initrd = mem::INITRD_DATA.lock();
+        let mut initrd = mem::INITRD_DATA.lock();
         let data = initrd.as_ref().unwrap();
         vfs.init_by_box(Box::new(data.as_slice().to_vec()))?;
+        initrd.take(); // release the initrd data
     }
 
     task.init_by_box(Box::new(()))?;
