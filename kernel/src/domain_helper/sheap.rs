@@ -7,7 +7,6 @@ use alloc::{
 use core::{alloc::Layout, any::TypeId};
 
 use ksync::Mutex;
-use log::trace;
 use rref::{SharedHeapAlloc, SharedHeapAllocation};
 use spin::Lazy;
 
@@ -22,11 +21,15 @@ impl SharedHeapAlloc for SharedHeapAllocator {
         type_id: TypeId,
         drop_fn: fn(TypeId, *mut u8),
     ) -> Option<SharedHeapAllocation> {
-        trace!("[SharedHeap] alloc: {:?}, type_id: {:?}", layout, type_id);
         let ptr = alloc(layout);
         if ptr.is_null() {
             return None;
         }
+        log::trace!(
+            "<SharedHeap> alloc size: {}, ptr: {:#x}",
+            layout.size(),
+            ptr as usize
+        );
         let domain_id_pointer = Box::into_raw(Box::new(0));
         let borrow_count_pointer = Box::into_raw(Box::new(0));
         let res = SharedHeapAllocation {
@@ -45,7 +48,7 @@ impl SharedHeapAlloc for SharedHeapAllocator {
         let mut heap = SHARED_HEAP.lock();
         let allocation = heap.remove(&(ptr as usize));
         if let Some(allocation) = allocation {
-            trace!("<SharedHeap> dealloc: {:p}", ptr);
+            log::trace!("<SharedHeap> dealloc: {:p}", ptr);
             assert_eq!(allocation.value_pointer, ptr);
             dealloc(allocation.value_pointer, allocation.layout);
             dealloc(
@@ -57,7 +60,10 @@ impl SharedHeapAlloc for SharedHeapAllocator {
                 Layout::new::<u64>(),
             );
         } else {
-            panic!("The data has been dropped");
+            panic!(
+                "<SharedHeap> dealloc: {:#x}, but the data has been dropped",
+                ptr as usize
+            );
         }
     }
 }

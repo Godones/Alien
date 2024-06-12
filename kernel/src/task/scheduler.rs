@@ -2,8 +2,9 @@ use alloc::{collections::BTreeMap, sync::Arc};
 
 use basic::sync::Mutex;
 use interface::SchedulerDomain;
+use rref::RRef;
 use spin::Once;
-use task_meta::TaskStatus;
+use task_meta::{TaskSchedulingInfo, TaskStatus};
 
 use super::{processor::schedule, resource::TaskMetaExt};
 use crate::task::processor::current_task;
@@ -30,8 +31,9 @@ pub fn add_task(task_meta: Arc<Mutex<TaskMetaExt>>) {
 }
 
 pub fn fetch_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
-    let scheduling_info = global_scheduler!().fetch_task().unwrap();
-    if let Some(scheduling_info) = scheduling_info {
+    let info = RRef::new(TaskSchedulingInfo::default());
+    let scheduling_info = global_scheduler!().fetch_task(info).unwrap();
+    if scheduling_info.tid != usize::MAX {
         let task = TASK_MAP.lock().remove(&scheduling_info.tid).unwrap();
         task.lock().set_sched_info(scheduling_info);
         return Some(task);
