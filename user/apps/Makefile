@@ -25,6 +25,8 @@ BUILD_CRATES := \
 	dlog \
 	ping \
 	client \
+	slint \
+	memory-game \
 #	run_test \
 	tests \
 	sleep \

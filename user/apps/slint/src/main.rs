@@ -4,12 +4,11 @@
 extern crate Mstd;
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 use slint::platform::WindowEvent;
-use virt2slint::Converter;
-
 use slint_helper::{MyPlatform, SwapBuffer};
+use virt2slint::Converter;
 use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
 
 slint::include_modules!();
@@ -28,7 +27,7 @@ fn create_slint_app() -> AppWindow {
 #[no_mangle]
 fn main() {
     let window = slint::platform::software_renderer::MinimalSoftwareWindow::new(Default::default());
-    slint::platform::set_platform(alloc::boxed::Box::new(MyPlatform::new(window.clone()))).unwrap();
+    slint::platform::set_platform(Box::new(MyPlatform::new(window.clone()))).unwrap();
     let _ui = create_slint_app();
     window.set_size(slint::PhysicalSize::new(
         VIRTGPU_XRES as u32,

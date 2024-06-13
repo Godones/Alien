@@ -37,7 +37,7 @@ impl DomainContainer {
     }
 }
 impl DomainContainer {
-    fn insert(&mut self, identifier: String, domain: DomainType, unique: bool) {
+    fn insert(&mut self, identifier: String, domain: DomainType, unique: bool) -> String {
         if unique {
             if self.domains.contains_key(&identifier) {
                 panic!(
@@ -50,13 +50,15 @@ impl DomainContainer {
                 identifier,
                 identifier
             );
-            self.domains.insert(identifier, domain);
+            self.domains.insert(identifier.clone(), domain);
+            identifier
         } else {
             let counter = self.ty_counter.entry(identifier.clone()).or_insert(0);
             *counter += 1;
             let name = format!("{}-{}", identifier, counter);
             platform::println!("<attach domain>: {}, it's name is {}", identifier, name);
-            self.domains.insert(name, domain);
+            self.domains.insert(name.clone(), domain);
+            name
         }
     }
     fn get(&self, name: &str) -> Option<DomainType> {
@@ -73,10 +75,10 @@ pub fn alloc_domain_id() -> u64 {
     DOMAIN_IDS.fetch_add(1, core::sync::atomic::Ordering::SeqCst)
 }
 
-pub fn register_domain(identifier: &str, domain: DomainType, unique: bool) {
+pub fn register_domain(identifier: &str, domain: DomainType, unique: bool) -> String {
     DOMAIN_CONTAINER
         .lock()
-        .insert(identifier.to_string(), domain, unique);
+        .insert(identifier.to_string(), domain, unique)
 }
 
 /// Initialize the domain creation function

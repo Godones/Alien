@@ -169,27 +169,29 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     "virtio_mmio_input"
                 )?;
                 input_driver.init_by_box(Box::new(address..address + size))?;
-                domain_helper::register_domain(
+                let input_name = domain_helper::register_domain(
                     "virtio_mmio_input",
                     DomainType::InputDomain(input_driver),
-                    true,
+                    false,
                 );
                 let buf_input = create_domain!(
                     BufInputDomainProxy,
                     DomainTypeRaw::BufInputDomain,
                     "buf_input"
                 )?;
-                buf_input.init_by_box(Box::new("virtio_mmio_input".to_string()))?;
-                domain_helper::register_domain(
+                assert!(input_name.starts_with("virtio_mmio_input-"));
+                buf_input.init_by_box(Box::new(input_name))?;
+                let buf_input_name = domain_helper::register_domain(
                     "buf_input",
                     DomainType::BufInputDomain(buf_input),
-                    true,
+                    false,
                 );
+                assert!(buf_input_name.starts_with("buf_input-"));
                 // register irq
                 let irq = device.irq();
                 plic.register_irq(
                     irq.unwrap() as _,
-                    &RRefVec::from_slice("buf_input".as_bytes()),
+                    &RRefVec::from_slice(buf_input_name.as_bytes()),
                 )?
             }
             VirtioMmioDeviceType::GPU => {

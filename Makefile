@@ -20,7 +20,9 @@ space:= $(empty) $(empty)
 QEMU_ARGS :=
 
 ifeq ($(GUI),y)
-	QEMU_ARGS += -device virtio-gpu-device
+	QEMU_ARGS += -device virtio-gpu-device \
+				 -device virtio-tablet-device \
+				 -device virtio-keyboard-device
 else
 	QEMU_ARGS += -nographic
 endif

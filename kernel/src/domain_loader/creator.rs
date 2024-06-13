@@ -45,6 +45,9 @@ pub fn unregister_domain_elf(identifier: &str) {
 }
 
 #[macro_export]
+/// Create a domain with the given proxy name, type, identifier, and optional data.
+///
+/// It will expand to `create_domain_special::<$proxy_name, _>($ty, $ident, $data)`.
 macro_rules! create_domain {
     ($proxy_name:ident,$ty:expr, $ident:expr, $data:expr) => {
         crate::domain_loader::creator::create_domain_special::<$proxy_name, _>($ty, $ident, $data)

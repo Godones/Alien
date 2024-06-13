@@ -5,18 +5,20 @@ extern crate Mstd;
 extern crate alloc;
 extern crate libm;
 
-use alloc::rc::Rc;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::time::Duration;
 
-use rand::prelude::{SliceRandom, SmallRng};
-use rand::SeedableRng;
-use slint::platform::WindowEvent;
-use slint::{Model, VecModel};
+use rand::{
+    prelude::{SliceRandom, SmallRng},
+    SeedableRng,
+};
+use slint::{platform::WindowEvent, Model, VecModel};
 use slint_helper::{MyPlatform, SwapBuffer};
 use virt2slint::Converter;
-use Mstd::io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES};
-use Mstd::time::get_time_ms;
+use Mstd::{
+    io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES},
+    time::get_time_ms,
+};
 
 slint::include_modules!();
 
@@ -72,7 +74,7 @@ fn create_slint_app() -> MainWindow {
 #[no_mangle]
 fn main() {
     let window = slint::platform::software_renderer::MinimalSoftwareWindow::new(Default::default());
-    slint::platform::set_platform(alloc::boxed::Box::new(MyPlatform::new(window.clone()))).unwrap();
+    slint::platform::set_platform(Box::new(MyPlatform::new(window.clone()))).unwrap();
     let _ui = create_slint_app();
     window.set_size(slint::PhysicalSize::new(
         VIRTGPU_XRES as u32,
