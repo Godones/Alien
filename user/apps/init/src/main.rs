@@ -3,9 +3,7 @@
 
 extern crate alloc;
 
-use core::arch::asm;
-
-use pconst::task::WaitOptions;
+use pconst::{task::WaitOptions, LinuxErrno::ECHILD};
 use Mstd::{
     println,
     process::{exec, exit, fork, wait, waitpid},
@@ -22,38 +20,18 @@ fn main() -> isize {
         // exec("/bin/bash\0", &[bash.as_ptr(),0 as *const u8], BASH_ENV);
         // exec("/tests/shell\0", &[0 as *const u8], BASH_ENV);
     } else {
-        if fork() == 0 {
-            if fork() == 0 {
-                loop {
-                    for _ in 0..1000_000 {
-                        unsafe {
-                            asm!("nop");
-                        }
-                    }
-                    m_yield();
-                }
-            }
-            loop {
-                for _ in 0..1000_000 {
-                    unsafe {
-                        asm!("nop");
-                    }
-                }
+        loop {
+            let mut exit_code: i32 = 0;
+            let tid = wait(&mut exit_code, WaitOptions::WNOHANG);
+            if tid == -1 || tid == 0 || tid == isize::from(ECHILD) {
                 m_yield();
+                continue;
             }
-        } else {
-            loop {
-                let mut exit_code: i32 = 0;
-                let tid = wait(&mut exit_code, WaitOptions::WNOHANG);
-                if tid == -1 || tid == 0 {
-                    m_yield();
-                    continue;
-                }
-                println!(
-                    "[Init] Released a task, tid={}, exit_code={}",
-                    tid, exit_code,
-                );
-            }
+            assert!(tid > 0, "wait return invalid tid: {}", tid);
+            println!(
+                "[Init] Released a task, tid={}, exit_code={}",
+                tid, exit_code,
+            );
         }
     }
     0

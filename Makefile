@@ -132,7 +132,8 @@ gdb-client:
 	@riscv64-unknown-elf-gdb -ex 'file $(KERNEL)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
 clean:
-	rm build/g*
+	rm build/disk/g*
+	rm build/init/g*
 	cargo clean
 
 kernel_asm:

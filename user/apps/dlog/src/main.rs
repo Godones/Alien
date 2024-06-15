@@ -43,7 +43,7 @@ fn main(_: usize, argv: Vec<String>) -> isize {
             } else {
                 println!("Opened /tests/domains/gxlogger, fd: {}", xlogger_fd);
                 let res = register_domain(xlogger_fd as _, DomainTypeRaw::LogDomain, "xlogger");
-                println!("load_domain res: {}", res);
+                println!("register_domain res: {}", res);
 
                 if res != 0 {
                     println!("Failed to register domain xlogger");

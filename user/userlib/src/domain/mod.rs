@@ -1,4 +1,4 @@
-use crate::syscall::{sys_register_domain, sys_update_domain};
+use crate::syscall::{sys_out_mask, sys_register_domain, sys_update_domain};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DomainTypeRaw {
@@ -21,6 +21,7 @@ pub enum DomainTypeRaw {
     DevFsDomain = 17,
     SchedulerDomain = 18,
     LogDomain = 19,
+    NetDomain = 20,
 }
 pub fn register_domain(fd: usize, ty: DomainTypeRaw, name: &str) -> isize {
     sys_register_domain(fd, ty as u8, name.as_ptr(), name.len())
@@ -34,4 +35,8 @@ pub fn update_domain(old_name: &str, new_name: &str, ty: DomainTypeRaw) -> isize
         new_name.len(),
         ty as u8,
     )
+}
+
+pub fn out_mask() -> isize {
+    sys_out_mask()
 }

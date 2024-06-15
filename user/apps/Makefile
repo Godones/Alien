@@ -1,9 +1,9 @@
+GUI ?=n
 APPS := $(shell ls -d */)
 compile := cargo build --release
 mode := release
 target := ../../target/riscv64gc-unknown-none-elf/$(mode)/
 APPS_NAME := $(shell ls -d */ | cut -d '/' -f 1)
-GUI ?=n
 FSMOUNT := ../../diskfs
 
 all:build
@@ -23,10 +23,11 @@ BUILD_CRATES := \
 	dgpu \
 	dtask \
 	dlog \
+	dinput \
+	dnet \
 	ping \
 	client \
-	slint \
-	memory-game \
+	out \
 #	run_test \
 	tests \
 	sleep \
@@ -37,11 +38,7 @@ BUILD_CRATES := \
 	mkdir \
 	print \
 
-#ifeq ($(GUI),y)
-#	BUILD_CRATES += egui \
-#					sysinfo \
-#					todo \
-#					slint \
-#					memory-game \
-#					printdemo
-#endif
+ifeq ($(GUI),y)
+	BUILD_CRATES += slint \
+					memory-game
+endif

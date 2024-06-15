@@ -25,9 +25,7 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("task", DomainTypeRaw::TaskDomain),
     ("vfs", DomainTypeRaw::VfsDomain),
     ("uart16550", DomainTypeRaw::UartDomain),
-    ("virtio_mmio_net", DomainTypeRaw::NetDeviceDomain),
     ("virtio_mmio_block", DomainTypeRaw::BlkDeviceDomain),
-    ("virtio_mmio_input", DomainTypeRaw::InputDomain),
     ("net_stack", DomainTypeRaw::NetDomain),
     ("logger", DomainTypeRaw::LogDomain),
 ];

@@ -1,2 +1,9 @@
 [alias]
 server = "run -p domain-server --"
+
+
+[profile.release]
+panic = "abort"
+lto = true
+strip = true
+opt-level = "z"  # Optimize for size.

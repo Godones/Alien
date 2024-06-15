@@ -363,3 +363,5 @@ syscall!(
     usize,
     u8
 );
+
+syscall!(sys_out_mask, 2003);

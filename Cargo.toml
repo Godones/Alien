@@ -15,7 +15,8 @@ members = [
     "user/apps/ping",
     "user/apps/client",
     "user/apps/slint*",
-    "user/apps/memory-game"
+    "user/apps/memory-game",
+    "user/apps/out"
 ]
 resolver = "2"
 

@@ -2,7 +2,6 @@ mod init;
 
 extern crate alloc;
 use alloc::{boxed::Box, string::ToString, sync::Arc};
-use core::sync::atomic::AtomicUsize;
 
 use basic::bus::mmio::VirtioMmioDeviceType;
 use corelib::AlienResult;
@@ -64,11 +63,6 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 let buf_uart =
                     create_domain!(BufUartDomainProxy, DomainTypeRaw::BufUartDomain, "buf_uart")?;
                 buf_uart.init_by_box(Box::new("uart".to_string()))?;
-                buf_uart.putc('U' as u8).unwrap();
-                buf_uart.putc('A' as u8)?;
-                buf_uart.putc('R' as u8)?;
-                buf_uart.putc('T' as u8)?;
-                buf_uart.putc('\n' as u8)?;
                 domain_helper::register_domain(
                     "buf_uart",
                     DomainType::BufUartDomain(buf_uart),
@@ -90,13 +84,6 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         let size = device.io_region().size();
         match device.device_type() {
             VirtioMmioDeviceType::Network => {
-                static NET_COUNT: AtomicUsize = AtomicUsize::new(0);
-                NET_COUNT.fetch_add(1, core::sync::atomic::Ordering::SeqCst);
-                if NET_COUNT.load(core::sync::atomic::Ordering::SeqCst) > 1 {
-                    warn!("only support one network device");
-                    continue;
-                }
-
                 let net_driver = create_domain!(
                     NetDeviceDomainProxy,
                     DomainTypeRaw::NetDeviceDomain,
@@ -114,7 +101,6 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     create_domain!(NetDomainProxy, DomainTypeRaw::NetDomain, "net_stack")?;
                 net_stack.init_by_box(Box::new("virtio_mmio_net-1".to_string()))?;
                 domain_helper::register_domain("net_stack", DomainType::NetDomain(net_stack), true);
-
                 // register irq
                 plic.register_irq(
                     irq.unwrap() as _,

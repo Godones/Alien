@@ -211,3 +211,63 @@ impl GpuDomainProxy {
         Ok(())
     }
 }
+
+impl InputDomainProxy {
+    pub fn replace(
+        &self,
+        new_domain: Box<dyn InputDomain>,
+        loader: DomainLoader,
+        new_id: u64,
+    ) -> AlienResult<()> {
+        let mut loader_guard = self.domain_loader.lock();
+        let old_id = self.domain_id();
+        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
+        let old_domain = self.domain.swap(Box::new(new_domain));
+        // synchronize the reader which is reading the old domain
+        self.srcu_lock.synchronize();
+
+        // forget the old domain
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
+
+        // free the old domain resource
+        free_domain_resource(old_id);
+
+        let device_info = self.resource.get().unwrap();
+        let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
+        self.domain.get().init(info).unwrap();
+
+        *loader_guard = loader;
+        Ok(())
+    }
+}
+
+impl NetDeviceDomainProxy {
+    pub fn replace(
+        &self,
+        new_domain: Box<dyn NetDeviceDomain>,
+        loader: DomainLoader,
+        new_id: u64,
+    ) -> AlienResult<()> {
+        let mut loader_guard = self.domain_loader.lock();
+        let old_id = self.domain_id();
+        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
+        let old_domain = self.domain.swap(Box::new(new_domain));
+        // synchronize the reader which is reading the old domain
+        self.srcu_lock.synchronize();
+
+        // forget the old domain
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
+
+        // free the old domain resource
+        free_domain_resource(old_id);
+
+        let device_info = self.resource.get().unwrap();
+        let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
+        self.domain.get().init(info).unwrap();
+
+        *loader_guard = loader;
+        Ok(())
+    }
+}
