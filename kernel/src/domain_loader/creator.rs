@@ -67,12 +67,12 @@ where
     T: ?Sized,
 {
     let res = create_domain(ty, ident, data)
-        .map(|(id, domain, loader)| Arc::new(P::build(id, domain, loader)))
+        .map(|(_id, domain, loader)| Arc::new(P::build(domain, loader)))
         .unwrap_or_else(|| {
             println!("Create empty domain: {}", ident);
-            let id = alloc_domain_id();
+            // let id = alloc_domain_id();
             let loader = DomainLoader::empty();
-            let res = Arc::new(P::build_empty(id, loader));
+            let res = Arc::new(P::build_empty(loader));
             res
         });
     Ok(res)

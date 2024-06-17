@@ -23,7 +23,7 @@ fn main() -> isize {
             DomainTypeRaw::SchedulerDomain,
             "random_scheduler",
         );
-        println!("load_domain res: {}", res);
+        println!("register domain res: {}", res);
 
         if res != 0 {
             println!("Failed to register domain random_scheduler");
@@ -34,7 +34,7 @@ fn main() -> isize {
             "random_scheduler",
             DomainTypeRaw::SchedulerDomain,
         );
-        println!("replace_domain res: {}", res);
+        println!("update domain res: {}", res);
         if res != 0 {
             println!("Failed to update domain random_scheduler");
             return -1;

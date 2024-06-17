@@ -1,7 +1,6 @@
+mod scheduler;
 use alloc::{boxed::Box, string::String, vec::Vec};
-use core::{
-    any::Any, fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range, sync::atomic::AtomicU64,
-};
+use core::{any::Any, fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range};
 
 use downcast_rs::{impl_downcast, DowncastSync};
 use interface::*;
@@ -11,12 +10,12 @@ use pconst::{
     net::*,
 };
 use rref::{RRef, RRefVec, SharedData};
+pub use scheduler::SchedulerDomainProxy;
 use spin::Once;
-use task_meta::TaskSchedulingInfo;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 
 use crate::{
-    domain_helper::free_domain_resource,
+    domain_helper::{alloc_domain_id, free_domain_resource},
     domain_loader::loader::DomainLoader,
     error::{AlienError, AlienResult},
     sync::{RcuData, SRcuLock},
@@ -25,8 +24,8 @@ use crate::{
 
 pub trait ProxyBuilder {
     type T;
-    fn build(id: u64, domain: Self::T, domain_loader: DomainLoader) -> Self;
-    fn build_empty(id: u64, domain_loader: DomainLoader) -> Self;
+    fn build(domain: Self::T, domain_loader: DomainLoader) -> Self;
+    fn build_empty(domain_loader: DomainLoader) -> Self;
     fn init_by_box(&self, argv: Box<dyn Any + Send + Sync>) -> AlienResult<()>;
 }
 
@@ -44,7 +43,7 @@ gen_for_TaskDomain!();
 gen_for_UartDomain!();
 gen_for_VfsDomain!();
 gen_for_PLICDomain!();
-gen_for_SchedulerDomain!();
+// gen_for_SchedulerDomain!();
 gen_for_ShadowBlockDomain!();
 gen_for_BlkDeviceDomain!();
 
@@ -55,11 +54,20 @@ impl_for_FsDomain!(DevFsDomainProxy);
 
 impl_empty_for_FsDomain!(DevFsDomainEmptyImpl);
 impl Basic for DevFsDomainEmptyImpl {
+    fn domain_id(&self) -> u64 {
+        u64::MAX
+    }
     fn is_active(&self) -> bool {
         false
     }
 }
 impl Basic for DevFsDomainProxy {
+    fn domain_id(&self) -> u64 {
+        let idx = self.srcu_lock.read_lock();
+        let res = self.domain.get().domain_id();
+        self.srcu_lock.read_unlock(idx);
+        res
+    }
     fn is_active(&self) -> bool {
         let idx = self.srcu_lock.read_lock();
         let res = self.domain.get().is_active();
@@ -78,12 +86,9 @@ impl ShadowBlockDomainProxy {
         &self,
         new_domain: Box<dyn ShadowBlockDomain>,
         loader: DomainLoader,
-        new_id: u64,
     ) -> AlienResult<()> {
         let mut loader_guard = self.domain_loader.lock();
-
         let old_id = self.domain_id();
-        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
         let old_domain = self.domain.swap(Box::new(new_domain));
         // synchronize the reader which is reading the old domain
         // println!("srcu synchronize");
@@ -111,12 +116,11 @@ impl ProxyExt for BlkDomainProxy {
         let mut loader_guard = self.domain_loader.lock();
         let mut loader = loader_guard.clone();
         loader.load().unwrap();
-        let id = self.domain_id();
-        // todo!(recycle old loader)?
-        let new_domain = loader.call(id);
+        let old_id = self.domain_id();
+        let new_id = alloc_domain_id();
 
-        let new_domain = Box::new(new_domain);
-        let old_domain = self.domain.swap(new_domain);
+        let new_domain = loader.call(new_id);
+        let old_domain = self.domain.swap(Box::new(new_domain));
         // synchronize the reader which is reading the old domain
         self.srcu_lock.synchronize();
 
@@ -124,7 +128,7 @@ impl ProxyExt for BlkDomainProxy {
         let real_domain = Box::into_inner(old_domain);
         forget(real_domain);
 
-        free_domain_resource(id);
+        free_domain_resource(old_id);
 
         let device_info = self.resource.get().unwrap();
         let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
@@ -135,36 +139,10 @@ impl ProxyExt for BlkDomainProxy {
     }
 }
 
-impl SchedulerDomainProxy {
-    pub fn replace(
-        &self,
-        _new_domain: Box<dyn SchedulerDomain>,
-        _loader: DomainLoader,
-    ) -> AlienResult<()> {
-        // let old_domain = self.domain.write();
-        // // let mut old = self.old_domain.lock();
-        // // *self.domain_loader.lock() = loader;
-        // // // swap the old domain with the new one
-        // // // and push the old domain to the old domain list( we will fix it)
-        // // old.push(core::mem::replace(&mut *old_domain, new_domain));
-        // // old_domain.init()
-        // println!("Try dump old domain data");
-        // let mut data = SchedulerDataContainer::default();
-        // old_domain.dump_meta_data(&mut data)?;
-        // println!("old domain data: {:?}", data);
-        Err(AlienError::EINVAL)
-    }
-}
 impl LogDomainProxy {
-    pub fn replace(
-        &self,
-        new_domain: Box<dyn LogDomain>,
-        loader: DomainLoader,
-        new_id: u64,
-    ) -> AlienResult<()> {
+    pub fn replace(&self, new_domain: Box<dyn LogDomain>, loader: DomainLoader) -> AlienResult<()> {
         let mut loader_guard = self.domain_loader.lock();
         let old_id = self.domain_id();
-        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
         let old_domain = self.domain.swap(Box::new(new_domain));
         // synchronize the reader which is reading the old domain
         self.srcu_lock.synchronize();
@@ -183,15 +161,9 @@ impl LogDomainProxy {
 }
 
 impl GpuDomainProxy {
-    pub fn replace(
-        &self,
-        new_domain: Box<dyn GpuDomain>,
-        loader: DomainLoader,
-        new_id: u64,
-    ) -> AlienResult<()> {
+    pub fn replace(&self, new_domain: Box<dyn GpuDomain>, loader: DomainLoader) -> AlienResult<()> {
         let mut loader_guard = self.domain_loader.lock();
         let old_id = self.domain_id();
-        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
         let old_domain = self.domain.swap(Box::new(new_domain));
         // synchronize the reader which is reading the old domain
         self.srcu_lock.synchronize();
@@ -217,11 +189,9 @@ impl InputDomainProxy {
         &self,
         new_domain: Box<dyn InputDomain>,
         loader: DomainLoader,
-        new_id: u64,
     ) -> AlienResult<()> {
         let mut loader_guard = self.domain_loader.lock();
         let old_id = self.domain_id();
-        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
         let old_domain = self.domain.swap(Box::new(new_domain));
         // synchronize the reader which is reading the old domain
         self.srcu_lock.synchronize();
@@ -247,11 +217,9 @@ impl NetDeviceDomainProxy {
         &self,
         new_domain: Box<dyn NetDeviceDomain>,
         loader: DomainLoader,
-        new_id: u64,
     ) -> AlienResult<()> {
         let mut loader_guard = self.domain_loader.lock();
         let old_id = self.domain_id();
-        self.id.store(new_id, core::sync::atomic::Ordering::SeqCst);
         let old_domain = self.domain.swap(Box::new(new_domain));
         // synchronize the reader which is reading the old domain
         self.srcu_lock.synchronize();
