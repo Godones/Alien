@@ -1,6 +1,7 @@
 #![feature(panic_info_message)]
 #![feature(naked_functions)]
 #![feature(box_into_inner)]
+#![feature(trait_upcasting)]
 #![allow(unused_unsafe)]
 #![no_std]
 #![no_main]
