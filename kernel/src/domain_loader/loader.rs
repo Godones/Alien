@@ -14,6 +14,7 @@ use core::{
 use config::FRAME_SIZE;
 use log::{debug, info, trace};
 use mem::{MappingFlags, PhysPage, VirtAddr, VmArea};
+use storage::StorageArg;
 use xmas_elf::{
     program::Type,
     sections::{Rela, SectionData},
@@ -23,7 +24,7 @@ use xmas_elf::{
 
 use crate::{
     domain_helper,
-    domain_helper::{DomainSyscall, SharedHeapAllocator},
+    domain_helper::{DomainDataHeap, DomainSyscall, SharedHeapAllocator, DATA_BASE},
     error::{AlienError, AlienResult},
 };
 
@@ -103,18 +104,44 @@ impl DomainLoader {
     }
 
     pub fn call<T: ?Sized>(&self, id: u64) -> Box<T> {
-        type F<T> =
-            fn(Box<dyn corelib::CoreFunction>, u64, Box<dyn rref::SharedHeapAlloc>) -> Box<T>;
+        type F<T> = fn(
+            Box<dyn corelib::CoreFunction>,
+            u64,
+            Box<dyn rref::SharedHeapAlloc>,
+            StorageArg,
+        ) -> Box<T>;
         let main = unsafe { core::mem::transmute::<*const (), F<T>>(self.entry() as *const ()) };
         let syscall = Box::new(DomainSyscall);
         let heap = Box::new(SharedHeapAllocator);
 
+        let data_heap = Box::new(DomainDataHeap);
+        let data_map = DATA_BASE.clone();
+
         let syscall_ptr = Box::into_raw(syscall);
         let heap_ptr = Box::into_raw(heap);
+        let data_heap_ptr = Box::into_raw(data_heap);
+        let data_map_ptr = Box::into_raw(data_map);
 
-        domain_helper::register_domain_syscall_resource(id, syscall_ptr as usize);
-        domain_helper::register_domain_heap_resource(id, heap_ptr as usize);
-        unsafe { main(Box::from_raw(syscall_ptr), id, Box::from_raw(heap_ptr)) }
+        domain_helper::register_domain_resource(
+            id,
+            (
+                syscall_ptr as usize,
+                heap_ptr as usize,
+                data_heap_ptr as usize,
+                data_map_ptr as usize,
+            ),
+        );
+        let storage_arg =
+            unsafe { StorageArg::new(Box::from_raw(data_heap_ptr), Box::from_raw(data_map_ptr)) };
+
+        unsafe {
+            main(
+                Box::from_raw(syscall_ptr),
+                id,
+                Box::from_raw(heap_ptr),
+                storage_arg,
+            )
+        }
     }
 
     fn load_program(&mut self, elf: &ElfFile) -> AlienResult<()> {

@@ -3,21 +3,23 @@ use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 use config::FRAME_BITS;
 use ksync::Mutex;
 
-use crate::domain_helper::{sheap::free_domain_shared_data, DomainSyscall, SharedHeapAllocator};
+use crate::domain_helper::{
+    sheap::{free_domain_shared_data, FreeShared},
+    storage_heap::{DomainDataHeap, DomainDataMap},
+    DomainSyscall, SharedHeapAllocator,
+};
 
 pub(super) static DOMAIN_RESOURCE: Mutex<DomainResource> = Mutex::new(DomainResource::new());
 pub struct DomainResource {
     page_map: BTreeMap<u64, Vec<(usize, usize)>>,
-    syscall: BTreeMap<u64, usize>,
-    allocator: BTreeMap<u64, usize>,
+    box_data: BTreeMap<u64, (usize, usize, usize, usize)>,
 }
 
 impl DomainResource {
     pub const fn new() -> Self {
         Self {
             page_map: BTreeMap::new(),
-            syscall: BTreeMap::new(),
-            allocator: BTreeMap::new(),
+            box_data: BTreeMap::new(),
         }
     }
 
@@ -31,32 +33,20 @@ impl DomainResource {
         vec.retain(|(s, _)| *s != page);
     }
 
-    pub fn insert_syscall(&mut self, domain_id: u64, syscall_addr: usize) {
-        self.syscall.insert(domain_id, syscall_addr);
-    }
-
-    pub fn insert_allocator(&mut self, domain_id: u64, allocator_addr: usize) {
-        self.allocator.insert(domain_id, allocator_addr);
+    pub fn insert_box_data(&mut self, domain_id: u64, data: (usize, usize, usize, usize)) {
+        self.box_data.insert(domain_id, data);
     }
 }
 
-pub fn register_domain_syscall_resource(domain_id: u64, syscall_addr: usize) {
-    DOMAIN_RESOURCE
-        .lock()
-        .insert_syscall(domain_id, syscall_addr);
+pub fn register_domain_resource(domain_id: u64, box_ptr: (usize, usize, usize, usize)) {
+    DOMAIN_RESOURCE.lock().insert_box_data(domain_id, box_ptr);
 }
 
-pub fn register_domain_heap_resource(domain_id: u64, heap_addr: usize) {
-    DOMAIN_RESOURCE
-        .lock()
-        .insert_allocator(domain_id, heap_addr);
-}
-
-pub fn free_domain_resource(domain_id: u64) {
+pub fn free_domain_resource(domain_id: u64, free_shared: FreeShared) {
     println!("free_domain_resource for domain_id: {}", domain_id);
 
     // free shared data
-    free_domain_shared_data(domain_id);
+    free_domain_shared_data(domain_id, free_shared);
 
     let mut binding = DOMAIN_RESOURCE.lock();
     // free pages
@@ -74,18 +64,26 @@ pub fn free_domain_resource(domain_id: u64) {
     }
 
     // free Box<DomainSyscall>
-    let ptr = binding.syscall.remove(&domain_id);
-    if let Some(ptr) = ptr {
-        let _syscall_resource = unsafe { Box::from_raw(ptr as *mut DomainSyscall) };
-        drop(_syscall_resource);
-        warn!("[Domain: {}] free DomainSyscall resource", domain_id);
-    }
-
     // free Box<SharedHeapAllocator>
-    let ptr = binding.allocator.remove(&domain_id);
-    if let Some(ptr) = ptr {
-        let _allocator = unsafe { Box::from_raw(ptr as *mut SharedHeapAllocator) };
-        drop(_allocator);
-        warn!("[Domain: {}] free SharedHeapAllocator resource", domain_id);
+    // free Box<DomainDataHeap>
+    // free Box<DomainDataMap>
+    let ptr = binding.box_data.remove(&domain_id);
+    if let Some((syscall_addr, heap_addr, data_allocator_addr, data_map_addr)) = ptr {
+        let syscall_resource = unsafe { Box::from_raw(syscall_addr as *mut DomainSyscall) };
+        drop(syscall_resource);
+        println_color!(31, "[Domain: {}] free DomainSyscall resource", domain_id);
+        let allocator = unsafe { Box::from_raw(heap_addr as *mut SharedHeapAllocator) };
+        drop(allocator);
+        println_color!(
+            31,
+            "[Domain: {}] free SharedHeapAllocator resource",
+            domain_id
+        );
+        let data_allocator = unsafe { Box::from_raw(data_allocator_addr as *mut DomainDataHeap) };
+        drop(data_allocator);
+        println_color!(31, "[Domain: {}] free DomainDataHeap resource", domain_id);
+        let data_map = unsafe { Box::from_raw(data_map_addr as *mut DomainDataMap) };
+        drop(data_map);
+        println_color!(31, "[Domain: {}] free DomainDataMap resource", domain_id);
     }
 }

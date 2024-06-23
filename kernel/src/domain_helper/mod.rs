@@ -1,5 +1,6 @@
 mod resource;
 mod sheap;
+mod storage_heap;
 mod syscall;
 
 extern crate alloc;
@@ -15,8 +16,9 @@ use core::sync::atomic::AtomicU64;
 pub use interface::DomainType;
 use ksync::Mutex;
 pub use resource::*;
-pub use sheap::SharedHeapAllocator;
+pub use sheap::{FreeShared, SharedHeapAllocator};
 use spin::{Lazy, Once};
+pub use storage_heap::*;
 pub use syscall::DomainSyscall;
 
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);

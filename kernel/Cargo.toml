@@ -22,6 +22,7 @@ interface = { path = "../domain-lib/interface" }
 corelib = { path = "../domain-lib/corelib" }
 basic = { path = "../domain-lib/basic", features = ["task"] }
 task_meta = { path = "../domain-lib/task_meta" }
+storage = { path = "../domain-lib/storage" }
 
 vfscore = { git = "https://github.com/os-module/rvfs.git", features = ["linux_error"] }
 cpio_reader = { workspace = true }

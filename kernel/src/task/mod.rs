@@ -77,7 +77,7 @@ pub fn synchronize_rcu() {
     let mut guard = task.lock();
     let old_cpus_allowed = guard.scheduling_info.as_ref().unwrap().cpus_allowed;
     guard.scheduling_info.as_mut().unwrap().cpus_allowed = (1 << CPU_NUM) - 1;
-    log::warn!("set cpus_allowed to {}", (1 << CPU_NUM) - 1);
+    println!("set cpus_allowed to {}", (1 << CPU_NUM) - 1);
     drop(guard);
     loop {
         let mut guard = task.lock();
@@ -85,12 +85,12 @@ pub fn synchronize_rcu() {
         let mut cpus_allowed = guard.scheduling_info.as_ref().unwrap().cpus_allowed;
         cpus_allowed &= !(1 << cpu_id);
         if cpus_allowed == 0 {
-            log::warn!("synchronize_rcu done");
+            println!("synchronize_rcu done");
             guard.scheduling_info.as_mut().unwrap().cpus_allowed = old_cpus_allowed;
             break;
         }
         guard.scheduling_info.as_mut().unwrap().cpus_allowed = cpus_allowed;
-        log::warn!("synchronize_rcu cpus_allowed: {}", cpus_allowed);
+        println!("synchronize_rcu cpus_allowed: {}", cpus_allowed);
         drop(guard);
         yield_now();
     }

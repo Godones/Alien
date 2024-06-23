@@ -113,7 +113,8 @@ initrd:
 	@cp ./build/init/g* ./initrd
 	@cp ./user/initrd/initramfs/* ./initrd -r
 	@-cp ./user/bin/* ./initrd/bin -r
-	@cd ./initrd && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..
+	@#cd ./initrd && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..
+	@cd ./initrd && find . | cpio -o -H newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..
 	@rm -rf ./initrd
 
 

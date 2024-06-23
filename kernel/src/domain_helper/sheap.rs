@@ -68,7 +68,12 @@ impl SharedHeapAlloc for SharedHeapAllocator {
     }
 }
 
-pub fn free_domain_shared_data(id: u64) {
+pub enum FreeShared {
+    Free,
+    NotFree(u64),
+}
+
+pub fn free_domain_shared_data(id: u64, free_shared: FreeShared) {
     let mut data = vec![];
     let heap = SHARED_HEAP.lock();
     heap.iter().for_each(|(_, v)| {
@@ -77,10 +82,21 @@ pub fn free_domain_shared_data(id: u64) {
         }
     });
     drop(heap);
-    println!("<free_domain_shared_data> for domain_id: {}", id);
-    println!("domain has {} data", data.len());
-    data.into_iter().for_each(|v| unsafe {
-        v.drop_fn();
-        SharedHeapAllocator.dealloc(v.value_pointer);
-    });
+    println_color!(34, "<free_domain_shared_data> for domain_id: {}", id);
+    println_color!(34, "domain has {} data", data.len());
+
+    match free_shared {
+        FreeShared::Free => {
+            println_color!(34, "free_shared is Free, free data");
+            data.into_iter().for_each(|v| unsafe {
+                v.drop_fn();
+                SharedHeapAllocator.dealloc(v.value_pointer);
+            });
+        }
+        FreeShared::NotFree(domain_id) => {
+            println_color!(34, "free_shared is NotFree, do not free data");
+            data.into_iter()
+                .for_each(|v| unsafe { v.set_domain_id(domain_id) });
+        }
+    }
 }

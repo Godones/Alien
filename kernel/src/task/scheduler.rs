@@ -32,7 +32,9 @@ pub fn add_task(task_meta: Arc<Mutex<TaskMetaExt>>) {
 
 pub fn fetch_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
     let info = RRef::new(TaskSchedulingInfo::default());
+    assert_eq!(info.domain_id(), 0);
     let scheduling_info = global_scheduler!().fetch_task(info).unwrap();
+    assert_eq!(scheduling_info.domain_id(), 0);
     if scheduling_info.tid != usize::MAX {
         let task = TASK_MAP.lock().remove(&scheduling_info.tid).unwrap();
         task.lock().set_sched_info(scheduling_info);

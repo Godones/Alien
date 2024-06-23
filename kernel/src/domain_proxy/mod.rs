@@ -1,28 +1,33 @@
+mod scheduler;
+
 use alloc::{boxed::Box, string::String, vec::Vec};
 use core::{
-    any::Any, fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range, sync::atomic::AtomicBool,
+    any::Any, cell::UnsafeCell, fmt::Debug, mem::forget, net::SocketAddrV4, ops::Range,
+    sync::atomic::AtomicBool,
 };
 
 use arch::hart_id;
 use config::CPU_NUM;
 use downcast_rs::{impl_downcast, DowncastSync};
 use interface::*;
-use ksync::{Mutex, RwLock, SafeRefCell};
+use ksync::{Mutex, RwLock};
 use pconst::{
     io::{PollEvents, RtcTime, SeekFrom},
     net::*,
 };
 use rref::{RRef, RRefVec, SharedData};
+pub use scheduler::SchedulerDomainProxy;
 use spin::Once;
-use task_meta::TaskSchedulingInfo;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 
 use crate::{
-    domain_helper::{alloc_domain_id, free_domain_resource},
+    domain_helper::{alloc_domain_id, free_domain_resource, FreeShared},
     domain_loader::loader::DomainLoader,
     error::{AlienError, AlienResult},
-    sync::{RcuData, SRcuLock, SleepMutex},
+    read_once,
+    sync::{synchronize_sched, RcuData, SRcuLock, SleepMutex},
     task::{continuation, yield_now},
+    write_once,
 };
 
 pub trait ProxyBuilder {
@@ -34,24 +39,31 @@ pub trait ProxyBuilder {
 
 #[derive(Debug)]
 pub struct PerCpuCounter {
-    counter: [SafeRefCell<usize>; CPU_NUM],
+    counter: [UnsafeCell<usize>; CPU_NUM],
 }
+unsafe impl Sync for PerCpuCounter {}
 
 impl PerCpuCounter {
     pub const fn new() -> Self {
-        const PER_CPU_VALUE: SafeRefCell<usize> = SafeRefCell::new(0);
+        const PER_CPU_VALUE: UnsafeCell<usize> = UnsafeCell::new(0);
         Self {
             counter: [PER_CPU_VALUE; CPU_NUM],
         }
     }
     pub fn inc(&self) {
-        self.counter[hart_id()].replace_with(|x| *x + 1);
+        let v = read_once!(self.counter[hart_id()].get());
+        write_once!(self.counter[hart_id()].get(), v + 1);
     }
     pub fn dec(&self) {
-        self.counter[hart_id()].replace_with(|x| *x - 1);
+        let v = read_once!(self.counter[hart_id()].get());
+        write_once!(self.counter[hart_id()].get(), v - 1);
     }
     pub fn all(&self) -> usize {
-        self.counter.iter().map(|x| *x.borrow()).sum()
+        let mut sum = 0;
+        for i in 0..CPU_NUM {
+            sum += read_once!(self.counter[i].get());
+        }
+        sum
     }
 }
 
@@ -69,7 +81,7 @@ gen_for_TaskDomain!();
 gen_for_UartDomain!();
 gen_for_VfsDomain!();
 gen_for_PLICDomain!();
-gen_for_SchedulerDomain!();
+// gen_for_SchedulerDomain!();
 gen_for_ShadowBlockDomain!();
 gen_for_BlkDeviceDomain!();
 
@@ -126,7 +138,7 @@ impl ShadowBlockDomainProxy {
         let real_domain = Box::into_inner(old_domain);
         forget(real_domain);
 
-        free_domain_resource(old_id);
+        free_domain_resource(old_id, FreeShared::Free);
         *loader_guard = loader;
         Ok(())
     }
@@ -149,7 +161,7 @@ impl LogDomainProxy {
         forget(real_domain);
 
         // free the old domain resource
-        free_domain_resource(old_id);
+        free_domain_resource(old_id, FreeShared::Free);
 
         *loader_guard = loader;
         Ok(())
@@ -161,6 +173,9 @@ impl ProxyExt for BlkDomainProxy {
         let mut loader_guard = self.domain_loader.lock();
         self.in_updating
             .store(true, core::sync::atomic::Ordering::Relaxed);
+
+        // why we need to synchronize_sched here?
+        synchronize_sched();
 
         // stage2: get the write lock and wait for all readers to finish
         let w_lock = self.lock.write();
@@ -192,7 +207,7 @@ impl ProxyExt for BlkDomainProxy {
         // stage5: recycle all resources
         let real_domain = Box::into_inner(old_domain);
         forget(real_domain);
-        free_domain_resource(old_id);
+        free_domain_resource(old_id, FreeShared::Free);
 
         // stage6: release all locks
         *loader_guard = loader;
@@ -209,6 +224,9 @@ impl GpuDomainProxy {
         self.in_updating
             .store(true, core::sync::atomic::Ordering::Relaxed);
 
+        // why we need to synchronize_sched here?
+        synchronize_sched();
+
         // stage2: get the write lock and wait for all readers to finish
         let w_lock = self.lock.write();
         // wait if there are readers which are reading the old domain but no read lock
@@ -219,6 +237,7 @@ impl GpuDomainProxy {
         let old_id = self.domain_id();
 
         // stage3: init the new domain before swap
+        let new_domain_id = new_domain.domain_id();
         let device_info = self.resource.get().unwrap();
         let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
         new_domain.init(info).unwrap();
@@ -233,7 +252,7 @@ impl GpuDomainProxy {
         // forget the old domain
         let real_domain = Box::into_inner(old_domain);
         forget(real_domain);
-        free_domain_resource(old_id);
+        free_domain_resource(old_id, FreeShared::NotFree(new_domain_id));
 
         // stage6: release all locks
         *loader_guard = loader;
@@ -255,6 +274,9 @@ impl InputDomainProxy {
         self.in_updating
             .store(true, core::sync::atomic::Ordering::Relaxed);
 
+        // why we need to synchronize_sched here?
+        synchronize_sched();
+
         // stage2: get the write lock and wait for all readers to finish
         let w_lock = self.lock.write();
         // wait if there are readers which are reading the old domain but no read lock
@@ -265,6 +287,7 @@ impl InputDomainProxy {
         let old_id = self.domain_id();
 
         // stage3: init the new domain before swap
+        let new_domain_id = new_domain.domain_id();
         let device_info = self.resource.get().unwrap();
         let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
         new_domain.init(info).unwrap();
@@ -279,7 +302,7 @@ impl InputDomainProxy {
         // stage5: recycle all resources
         let real_domain = Box::into_inner(old_domain);
         forget(real_domain);
-        free_domain_resource(old_id);
+        free_domain_resource(old_id, FreeShared::NotFree(new_domain_id));
 
         // stage6: release all locks
         *loader_guard = loader;
@@ -301,6 +324,9 @@ impl NetDeviceDomainProxy {
         self.in_updating
             .store(true, core::sync::atomic::Ordering::Relaxed);
 
+        // why we need to synchronize_sched here?
+        synchronize_sched();
+
         // stage2: get the write lock and wait for all readers to finish
         let w_lock = self.lock.write();
         // wait if there are readers which are reading the old domain but no read lock
@@ -311,6 +337,7 @@ impl NetDeviceDomainProxy {
         let old_id = self.domain_id();
 
         // stage3: init the new domain before swap
+        let new_domain_id = new_domain.domain_id();
         let device_info = self.resource.get().unwrap();
         let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();
         new_domain.init(info).unwrap();
@@ -325,60 +352,7 @@ impl NetDeviceDomainProxy {
         // stage5: recycle all resources
         let real_domain = Box::into_inner(old_domain);
         forget(real_domain);
-        free_domain_resource(old_id);
-
-        // stage6: release all locks
-        *loader_guard = loader;
-        drop(w_lock);
-        drop(loader_guard);
-        Ok(())
-    }
-}
-
-impl SchedulerDomainProxy {
-    pub fn replace(
-        &self,
-        new_domain: Box<dyn SchedulerDomain>,
-        loader: DomainLoader,
-    ) -> AlienResult<()> {
-        // stage1: get the sleep lock and change to updating state
-        let mut loader_guard = self.domain_loader.lock();
-        self.in_updating
-            .store(true, core::sync::atomic::Ordering::Relaxed);
-
-        // stage2: get the write lock and wait for all readers to finish
-        let w_lock = self.lock.write();
-        // wait if there are readers which are reading the old domain but no read lock
-        while self.all_counter() > 0 {
-            println!("Wait for all reader to finish");
-            yield_now();
-        }
-
-        // stage3: init the new domain before swap
-        println!("Try dump old domain data");
-        let domain = self.domain.get();
-        let old_id = domain.domain_id();
-
-        let mut task_list = domain.dump_meta_data().unwrap();
-        println!("old domain data: {:?}", task_list);
-        new_domain.init().unwrap();
-        println!("Try rebuild from meta data");
-        new_domain.rebuild_from_meta_data(&mut task_list).unwrap();
-
-        // stage4: swap the domain and change to normal state
-        let old_domain = self.domain.swap(Box::new(new_domain));
-
-        // change to normal state
-        self.in_updating
-            .store(false, core::sync::atomic::Ordering::Relaxed);
-
-        // stage5: recycle all resources
-        let real_domain = Box::into_inner(old_domain);
-        // forget the old domain, it will be dropped by the `free_domain_resource`
-        forget(real_domain);
-        // it also will be dropped by the `free_domain_resource`
-        forget(task_list);
-        free_domain_resource(old_id);
+        free_domain_resource(old_id, FreeShared::NotFree(new_domain_id));
 
         // stage6: release all locks
         *loader_guard = loader;

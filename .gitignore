@@ -23,3 +23,4 @@ rust-project.json
 
 build
 user/initrd/
+domain-lib/target/
