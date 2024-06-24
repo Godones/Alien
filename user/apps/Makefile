@@ -13,6 +13,7 @@ all:build
 
 build:
 	@echo "Building apps"
+	@echo $(BUILD_CRATES)
 	@$(foreach dir, $(BUILD_CRATES), (cd $(dir) && $(compile) && cd ..);)
 
 
@@ -28,6 +29,7 @@ BUILD_CRATES := \
 	ping \
 	client \
 	out \
+	nice \
 #	run_test \
 	tests \
 	sleep \

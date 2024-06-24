@@ -12,7 +12,10 @@ use config::CPU_NUM;
 use interface::{SchedulerDomain, TaskDomain};
 use ksync::Mutex;
 pub use processor::current_tid;
-pub use scheduler::{exit_now, is_task_exit, remove_task, wait_now, wake_up_wait_task, yield_now};
+pub use scheduler::{
+    exit_now, get_task_priority, is_task_exit, remove_task, set_task_priority, wait_now,
+    wake_up_wait_task, yield_now,
+};
 use spin::Once;
 use task_meta::{TaskMeta, TaskStatus};
 

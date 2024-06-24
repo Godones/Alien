@@ -97,3 +97,16 @@ pub fn is_task_exit(tid: Tid) -> bool {
     }
     false
 }
+
+pub fn set_task_priority(nice: i8) {
+    let task = current_task().unwrap();
+    let tid = task.lock().tid();
+    task.lock().scheduling_info.as_mut().unwrap().set_nice(nice);
+    println_color!(32, "tid: {}, set_task_priority: {:?}", tid, nice);
+}
+
+pub fn get_task_priority() -> i8 {
+    let task = current_task().unwrap();
+    let guard = task.lock();
+    guard.scheduling_info.as_ref().unwrap().nice()
+}

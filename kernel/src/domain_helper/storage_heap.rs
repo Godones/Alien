@@ -14,6 +14,34 @@ use core::{
 use spin::{Lazy, Mutex};
 use storage::{DataStorageHeap, DomainDataStorage, SendAllocator};
 
+#[allow(dead_code)]
+pub struct DomainDataMapManager {
+    map_per_domain: BTreeMap<String, DomainDataMap>,
+}
+
+#[allow(dead_code)]
+impl DomainDataMapManager {
+    pub fn new() -> Self {
+        Self {
+            map_per_domain: BTreeMap::new(),
+        }
+    }
+
+    pub fn create(&mut self, domain_identifier: &str) -> Option<DomainDataMap> {
+        let map = DomainDataMap::new();
+        self.map_per_domain
+            .insert(domain_identifier.to_string(), map)
+    }
+
+    pub fn get(&self, domain_identifier: &str) -> Option<&DomainDataMap> {
+        self.map_per_domain.get(domain_identifier)
+    }
+
+    pub fn remove(&mut self, domain_identifier: &str) -> Option<DomainDataMap> {
+        self.map_per_domain.remove(domain_identifier)
+    }
+}
+
 #[derive(Debug)]
 pub struct DomainDataMap {
     data: Arc<
@@ -47,10 +75,15 @@ impl DomainDataStorage for DomainDataMap {
     ) -> Option<Box<Arc<dyn Any + Send + Sync, DataStorageHeap>, DataStorageHeap>> {
         self.data.lock().insert(key.to_string(), value)
     }
-
     fn get(&self, key: &str) -> Option<Arc<dyn Any + Send + Sync, DataStorageHeap>> {
         let data = self.data.lock();
         let v = data.get(key);
+        let res = v.map(|v| v.deref().clone());
+        res
+    }
+    fn remove(&self, key: &str) -> Option<Arc<dyn Any + Send + Sync, DataStorageHeap>> {
+        let mut data = self.data.lock();
+        let v = data.remove(key);
         let res = v.map(|v| v.deref().clone());
         res
     }

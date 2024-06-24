@@ -221,6 +221,14 @@ impl CoreFunction for DomainSyscall {
             TaskOperation::ExitOver(tid) => {
                 Ok(OperationResult::ExitOver(crate::task::is_task_exit(tid)))
             }
+            TaskOperation::SetPriority(nice) => {
+                crate::task::set_task_priority(nice);
+                Ok(OperationResult::Null)
+            }
+            TaskOperation::GetPriority => {
+                let nice = crate::task::get_task_priority();
+                Ok(OperationResult::Priority(nice))
+            }
         }
     }
 }

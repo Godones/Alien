@@ -346,6 +346,8 @@ syscall!(
     usize
 );
 syscall!(sys_munmap, SYSCALL_MUNMAP, usize, usize);
+syscall!(sys_setpriority, 140, i32, u32, i32);
+syscall!(sys_getpriority, 141, i32, u32);
 
 // gui
 syscall!(sys_framebuffer, SYSCALL_FRAME_BUFFER);

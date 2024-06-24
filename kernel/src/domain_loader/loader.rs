@@ -11,6 +11,7 @@ use core::{
     ops::Range,
 };
 
+use arch::sfence_vma_all;
 use config::FRAME_SIZE;
 use log::{debug, info, trace};
 use mem::{MappingFlags, PhysPage, VirtAddr, VmArea};
@@ -323,6 +324,8 @@ impl Drop for DomainLoader {
             let vaddr = meta.vm.range().start;
             mem::unmap_region_from_kernel(vaddr).unwrap();
         }
+        // flush tlb
+        sfence_vma_all();
     }
 }
 
