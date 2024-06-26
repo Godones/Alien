@@ -192,7 +192,7 @@ impl ProxyExt for BlkDomainProxy {
         let mut loader = loader_guard.clone();
         loader.load().unwrap();
         let new_id = alloc_domain_id();
-        let new_domain = loader.call::<dyn BlkDeviceDomain>(new_id);
+        let new_domain = loader.call::<dyn BlkDeviceDomain>(new_id, Some(old_id));
         // 2. init the new domain
         let device_info = self.resource.get().unwrap();
         let info = device_info.as_ref().downcast_ref::<Range<usize>>().unwrap();

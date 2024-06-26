@@ -11,42 +11,50 @@ use core::{
     ptr::NonNull,
 };
 
-use spin::{Lazy, Mutex};
+use ksync::Mutex;
 use storage::{DataStorageHeap, DomainDataStorage, SendAllocator};
 
-#[allow(dead_code)]
 pub struct DomainDataMapManager {
-    map_per_domain: BTreeMap<String, DomainDataMap>,
+    map_per_domain: BTreeMap<u64, DomainDataMap>,
 }
 
-#[allow(dead_code)]
 impl DomainDataMapManager {
-    pub fn new() -> Self {
+    const fn new() -> Self {
         Self {
             map_per_domain: BTreeMap::new(),
         }
     }
 
-    pub fn create(&mut self, domain_identifier: &str) -> Option<DomainDataMap> {
+    /// Create a new domain data map with the given domain id.
+    fn create(&mut self, domain_id: u64) -> Option<DomainDataMap> {
         let map = DomainDataMap::new();
-        self.map_per_domain
-            .insert(domain_identifier.to_string(), map)
+        self.map_per_domain.insert(domain_id, map)
     }
 
-    pub fn get(&self, domain_identifier: &str) -> Option<&DomainDataMap> {
-        self.map_per_domain.get(domain_identifier)
+    /// Get the domain data map with the given domain id.
+    fn get(&self, domain_id: u64) -> Option<&DomainDataMap> {
+        self.map_per_domain.get(&domain_id)
     }
 
-    pub fn remove(&mut self, domain_identifier: &str) -> Option<DomainDataMap> {
-        self.map_per_domain.remove(domain_identifier)
+    /// Remove the domain data map with the given domain id.
+    fn remove(&mut self, domain_id: u64) -> Option<DomainDataMap> {
+        self.map_per_domain.remove(&domain_id)
+    }
+
+    /// Move the domain data map from the source domain to the target domain.
+    fn move_domain(&mut self, from: u64, to: u64) {
+        if let Some(data) = self.remove(from) {
+            self.map_per_domain.insert(to, data);
+        }
     }
 }
 
+type ArcValueType = Arc<dyn Any + Send + Sync, DataStorageHeap>;
+type ValueType = Box<ArcValueType, DataStorageHeap>;
+
 #[derive(Debug)]
 pub struct DomainDataMap {
-    data: Arc<
-        Mutex<BTreeMap<String, Box<Arc<dyn Any + Send + Sync, DataStorageHeap>, DataStorageHeap>>>,
-    >,
+    data: Arc<Mutex<BTreeMap<String, ValueType>>>,
 }
 
 impl Clone for DomainDataMap {
@@ -68,20 +76,27 @@ impl DomainDataMap {
     }
 }
 impl DomainDataStorage for DomainDataMap {
-    fn insert(
-        &self,
-        key: &str,
-        value: Box<Arc<dyn Any + Send + Sync, DataStorageHeap>, DataStorageHeap>,
-    ) -> Option<Box<Arc<dyn Any + Send + Sync, DataStorageHeap>, DataStorageHeap>> {
+    /// Insert a new key-value pair into the data map.
+    ///
+    /// If the key already exists, the value will be replaced and returned.
+    /// Otherwise, `None` will be returned.
+    fn insert(&self, key: &str, value: ValueType) -> Option<ValueType> {
         self.data.lock().insert(key.to_string(), value)
     }
-    fn get(&self, key: &str) -> Option<Arc<dyn Any + Send + Sync, DataStorageHeap>> {
+
+    /// Get the value with the given key.
+    fn get(&self, key: &str) -> Option<ArcValueType> {
         let data = self.data.lock();
         let v = data.get(key);
         let res = v.map(|v| v.deref().clone());
         res
     }
-    fn remove(&self, key: &str) -> Option<Arc<dyn Any + Send + Sync, DataStorageHeap>> {
+
+    /// Remove the value with the given key.
+    ///
+    /// If the key exists, the value will be removed and returned.
+    /// Otherwise, `None` will be returned.
+    fn remove(&self, key: &str) -> Option<ArcValueType> {
         let mut data = self.data.lock();
         let v = data.remove(key);
         let res = v.map(|v| v.deref().clone());
@@ -148,4 +163,34 @@ unsafe impl Allocator for DomainDataHeap {
 
 impl SendAllocator for DomainDataHeap {}
 
-pub static DATA_BASE: Lazy<Box<DomainDataMap>> = Lazy::new(|| Box::new(DomainDataMap::new()));
+static DATA_BASE_MANAGER: Mutex<DomainDataMapManager> = Mutex::new(DomainDataMapManager::new());
+
+/// Create a new domain data map with the given domain id.
+pub fn create_domain_database(domain_id: u64) {
+    let mut manager = DATA_BASE_MANAGER.lock();
+    manager.create(domain_id);
+    println_color!(32, "create domain database for domain_id: {}", domain_id);
+}
+
+/// Get the domain data map with the given domain id.
+pub fn get_domain_database(domain_id: u64) -> Option<Box<DomainDataMap>> {
+    let manager = DATA_BASE_MANAGER.lock();
+    let res = manager.get(domain_id).map(|v| Box::new(v.clone()));
+    res
+}
+
+/// Remove the domain data map with the given domain id.
+#[allow(unused)]
+pub fn remove_domain_database(domain_id: u64) -> Option<Box<DomainDataMap>> {
+    let mut manager = DATA_BASE_MANAGER.lock();
+    let res = manager.remove(domain_id).map(|v| Box::new(v));
+    println_color!(31, "remove domain database for domain_id: {}", domain_id);
+    res
+}
+
+/// Move the domain data map from the source domain to the target domain.
+pub fn move_domain_database(from: u64, to: u64) {
+    let mut manager = DATA_BASE_MANAGER.lock();
+    manager.move_domain(from, to);
+    println_color!(32, "move domain database from {} to {}", from, to);
+}

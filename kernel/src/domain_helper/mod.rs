@@ -17,7 +17,7 @@ pub use interface::DomainType;
 use ksync::Mutex;
 pub use resource::*;
 pub use sheap::{FreeShared, SharedHeapAllocator};
-use spin::{Lazy, Once};
+use spin::Once;
 pub use storage_heap::*;
 pub use syscall::DomainSyscall;
 
@@ -31,7 +31,7 @@ struct DomainContainer {
 unsafe impl Send for DomainContainer {}
 
 impl DomainContainer {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             domains: BTreeMap::new(),
             ty_counter: BTreeMap::new(),
@@ -67,20 +67,14 @@ impl DomainContainer {
         self.domains.get(name).map(|d| d.clone())
     }
 }
-// TODO! domain container
-static DOMAIN_CONTAINER: Lazy<Mutex<DomainContainer>> =
-    Lazy::new(|| Mutex::new(DomainContainer::new()));
+
+static DOMAIN_CONTAINER: Mutex<DomainContainer> = Mutex::new(DomainContainer::new());
 
 static DOMAIN_CREATE: Once<Box<dyn DomainCreate>> = Once::new();
 
+/// Allocate a domain id
 pub fn alloc_domain_id() -> u64 {
     DOMAIN_IDS.fetch_add(1, core::sync::atomic::Ordering::SeqCst)
-}
-
-pub fn register_domain(identifier: &str, domain: DomainType, unique: bool) -> String {
-    DOMAIN_CONTAINER
-        .lock()
-        .insert(identifier.to_string(), domain, unique)
 }
 
 /// Initialize the domain creation function
@@ -88,11 +82,19 @@ pub fn init_domain_create(domain_create: Box<dyn DomainCreate>) {
     DOMAIN_CREATE.call_once(|| domain_create);
 }
 
-pub fn query_domain(name: &str) -> Option<DomainType> {
-    match DOMAIN_CONTAINER.lock().get(&name) {
+/// find the domain which name is `domain_identifier`
+pub fn query_domain(domain_identifier: &str) -> Option<DomainType> {
+    match DOMAIN_CONTAINER.lock().get(&domain_identifier) {
         Some(domain) => Some(domain),
         None => None,
     }
+}
+
+/// Register a domain with a  identifier which may be unique
+pub fn register_domain(identifier: &str, domain: DomainType, unique: bool) -> String {
+    DOMAIN_CONTAINER
+        .lock()
+        .insert(identifier.to_string(), domain, unique)
 }
 
 pub trait DomainCreate: Send + Sync {

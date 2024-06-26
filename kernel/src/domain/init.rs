@@ -51,11 +51,15 @@ pub fn init_domains() {
         }
     }
 
-    let mut register = |identifier: &str, domain: DomainTypeRaw| {
-        register_domain_elf(identifier, map.remove(identifier).unwrap(), domain);
+    let mut register = |domain_file_name: &str, domain: DomainTypeRaw| {
+        register_domain_elf(
+            domain_file_name,
+            map.remove(domain_file_name).unwrap(),
+            domain,
+        );
     };
 
-    for (identifier, domain) in INIT_DOMAIN_LIST {
-        register(identifier, *domain);
+    for (domain_file_name, domain) in INIT_DOMAIN_LIST {
+        register(domain_file_name, *domain);
     }
 }

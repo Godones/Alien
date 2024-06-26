@@ -25,7 +25,7 @@ use xmas_elf::{
 
 use crate::{
     domain_helper,
-    domain_helper::{DomainDataHeap, DomainSyscall, SharedHeapAllocator, DATA_BASE},
+    domain_helper::{DomainDataHeap, DomainSyscall, SharedHeapAllocator},
     error::{AlienError, AlienResult},
 };
 
@@ -104,7 +104,7 @@ impl DomainLoader {
         self.entry
     }
 
-    pub fn call<T: ?Sized>(&self, id: u64) -> Box<T> {
+    pub fn call<T: ?Sized>(&self, id: u64, use_old_id: Option<u64>) -> Box<T> {
         type F<T> = fn(
             Box<dyn corelib::CoreFunction>,
             u64,
@@ -116,7 +116,14 @@ impl DomainLoader {
         let heap = Box::new(SharedHeapAllocator);
 
         let data_heap = Box::new(DomainDataHeap);
-        let data_map = DATA_BASE.clone();
+
+        let data_map = match use_old_id {
+            Some(old_domain_id) => domain_helper::get_domain_database(old_domain_id).unwrap(),
+            None => {
+                domain_helper::create_domain_database(id);
+                domain_helper::get_domain_database(id).unwrap()
+            }
+        };
 
         let syscall_ptr = Box::into_raw(syscall);
         let heap_ptr = Box::into_raw(heap);

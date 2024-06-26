@@ -91,9 +91,14 @@ impl CoreFunction for DomainSyscall {
         let old_domain = super::query_domain(old_domain_name);
         match old_domain {
             Some(DomainType::GpuDomain(gpu)) => {
-                let (_id, new_domain, loader) =
-                    crate::domain_loader::creator::create_domain(ty, new_domain_name, None)
-                        .ok_or(AlienError::EINVAL)?;
+                let old_domain_id = gpu.domain_id();
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    ty,
+                    new_domain_name,
+                    None,
+                    Some(old_domain_id),
+                )
+                .ok_or(AlienError::EINVAL)?;
                 let gpu_proxy = gpu.downcast_arc::<GpuDomainProxy>().unwrap();
                 gpu_proxy.replace(new_domain, loader)?;
                 println!(
@@ -103,9 +108,14 @@ impl CoreFunction for DomainSyscall {
                 Ok(())
             }
             Some(DomainType::ShadowBlockDomain(shadow_blk)) => {
-                let (_id, new_domain, loader) =
-                    crate::domain_loader::creator::create_domain(ty, new_domain_name, None)
-                        .ok_or(AlienError::EINVAL)?;
+                let old_domain_id = shadow_blk.domain_id();
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    ty,
+                    new_domain_name,
+                    None,
+                    Some(old_domain_id),
+                )
+                .ok_or(AlienError::EINVAL)?;
                 let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
                 shadow_blk_proxy.replace(new_domain, loader)?;
                 warn!(
@@ -115,9 +125,14 @@ impl CoreFunction for DomainSyscall {
                 Ok(())
             }
             Some(DomainType::SchedulerDomain(scheduler)) => {
-                let (_id, new_domain, loader) =
-                    crate::domain_loader::creator::create_domain(ty, new_domain_name, None)
-                        .ok_or(AlienError::EINVAL)?;
+                let old_domain_id = scheduler.domain_id();
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    ty,
+                    new_domain_name,
+                    None,
+                    Some(old_domain_id),
+                )
+                .ok_or(AlienError::EINVAL)?;
                 let scheduler_proxy = scheduler.downcast_arc::<SchedulerDomainProxy>().unwrap();
                 scheduler_proxy.replace(new_domain, loader)?;
                 println!(
@@ -127,9 +142,14 @@ impl CoreFunction for DomainSyscall {
                 Ok(())
             }
             Some(DomainType::LogDomain(logger)) => {
-                let (_id, new_domain, loader) =
-                    crate::domain_loader::creator::create_domain(ty, new_domain_name, None)
-                        .ok_or(AlienError::EINVAL)?;
+                let old_domain_id = logger.domain_id();
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    ty,
+                    new_domain_name,
+                    None,
+                    Some(old_domain_id),
+                )
+                .ok_or(AlienError::EINVAL)?;
                 println!(
                     "Try to replace logger domain {} with {} ok",
                     old_domain_name, new_domain_name
@@ -140,9 +160,14 @@ impl CoreFunction for DomainSyscall {
             }
 
             Some(DomainType::InputDomain(input)) => {
-                let (_id, new_domain, loader) =
-                    crate::domain_loader::creator::create_domain(ty, new_domain_name, None)
-                        .ok_or(AlienError::EINVAL)?;
+                let old_domain_id = input.domain_id();
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    ty,
+                    new_domain_name,
+                    None,
+                    Some(old_domain_id),
+                )
+                .ok_or(AlienError::EINVAL)?;
                 println!(
                     "Try to replace input domain {} with {} ok",
                     old_domain_name, new_domain_name
@@ -153,9 +178,14 @@ impl CoreFunction for DomainSyscall {
             }
 
             Some(DomainType::NetDeviceDomain(nic)) => {
-                let (_id, new_domain, loader) =
-                    crate::domain_loader::creator::create_domain(ty, new_domain_name, None)
-                        .ok_or(AlienError::EINVAL)?;
+                let old_domain_id = nic.domain_id();
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    ty,
+                    new_domain_name,
+                    None,
+                    Some(old_domain_id),
+                )
+                .ok_or(AlienError::EINVAL)?;
                 println!(
                     "Try to replace net device domain {} with {} ok",
                     old_domain_name, new_domain_name
