@@ -14,7 +14,7 @@ use crate::{
     domain_helper::{alloc_domain_id, DomainCreate},
     domain_loader::loader::DomainLoader,
     domain_proxy::*,
-    error::AlienResult,
+    error::{AlienError, AlienResult},
 };
 
 static DOMAIN_ELF: RwLock<BTreeMap<String, DomainData>> = RwLock::new(BTreeMap::new());
@@ -93,29 +93,25 @@ where
 
 pub struct DomainCreateImpl;
 impl DomainCreate for DomainCreateImpl {
-    fn create_domain(&self, domain_file_name: &str) -> Option<DomainType> {
+    fn create_domain(
+        &self,
+        domain_file_name: &str,
+        identifier: &mut [u8],
+    ) -> AlienResult<DomainType> {
         match domain_file_name {
-            "fatfs" => {
-                let fatfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "fatfs").ok()?;
-                fatfs.init_by_box(Box::new(())).unwrap();
-                domain_helper::register_domain(
+            "fatfs" | "ramfs" => {
+                let fs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, domain_file_name)?;
+                fs.init_by_box(Box::new(())).unwrap();
+                let identifier_res = domain_helper::register_domain(
                     domain_file_name,
-                    DomainType::FsDomain(fatfs.clone()),
+                    DomainType::FsDomain(fs.clone()),
                     false,
                 );
-                Some(DomainType::FsDomain(fatfs))
+                let min_len = identifier.len().min(identifier_res.len());
+                identifier[..min_len].copy_from_slice(&identifier_res.as_bytes()[..min_len]);
+                Ok(DomainType::FsDomain(fs))
             }
-            "ramfs" => {
-                let ramfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "ramfs").ok()?;
-                ramfs.init_by_box(Box::new(())).unwrap();
-                domain_helper::register_domain(
-                    domain_file_name,
-                    DomainType::FsDomain(ramfs.clone()),
-                    false,
-                );
-                Some(DomainType::FsDomain(ramfs))
-            }
-            _ => None,
+            _ => Err(AlienError::ENOSYS),
         }
     }
 }
@@ -141,8 +137,6 @@ pub fn create_domain<T: ?Sized>(
     domain_loader.load().unwrap();
     let id = alloc_domain_id();
     let domain = domain_loader.call(id, use_old_id);
-    if let Some(use_old_id) = use_old_id {
-        domain_helper::move_domain_database(use_old_id, id);
-    }
+
     Some((id, domain, domain_loader))
 }

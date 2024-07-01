@@ -95,7 +95,7 @@ pub fn cpu_loop() {
         if let Some(next_task) = fetch_task() {
             next_task.lock().set_status(TaskStatus::Running);
             let next_task_ctx_ptr = next_task.lock().get_context_raw_mut_ptr();
-            log::error!(
+            log::warn!(
                 "[tid: {:?}] switch to task {:?}",
                 tid,
                 next_task.lock().tid()

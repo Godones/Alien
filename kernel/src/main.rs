@@ -5,6 +5,8 @@
 #![feature(allocator_api)]
 #![feature(alloc_layout_extra)]
 #![allow(unused_unsafe)]
+#![feature(ptr_metadata)]
+#![feature(let_chains)]
 #![no_std]
 #![no_main]
 mod panic;

@@ -3,7 +3,7 @@
 
 use Mstd::{
     domain::{register_domain, update_domain, DomainTypeRaw},
-    fs::{open, OpenFlags},
+    fs::{close, open, OpenFlags},
     println,
 };
 
@@ -40,6 +40,7 @@ fn main() -> isize {
             return -1;
         }
     }
+    close(random_scheduler_fd as _);
     println!("Test register and update scheduler domain");
     0
 }

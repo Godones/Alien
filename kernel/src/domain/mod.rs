@@ -5,7 +5,7 @@ use alloc::{boxed::Box, string::ToString, sync::Arc};
 
 use basic::bus::mmio::VirtioMmioDeviceType;
 use corelib::AlienResult;
-use domain_helper::{alloc_domain_id, SharedHeapAllocator};
+use domain_helper::alloc_domain_id;
 use interface::*;
 use log::{info, warn};
 use rref::RRefVec;
@@ -14,20 +14,16 @@ use crate::{
     create_domain,
     domain::init::init_domains,
     domain_helper,
+    domain_helper::{DOMAIN_DATA_ALLOCATOR, SHARED_HEAP_ALLOCATOR},
     domain_loader::creator::*,
-    domain_proxy::{
-        BlkDomainProxy, BufInputDomainProxy, BufUartDomainProxy, CacheBlkDomainProxy,
-        DevFsDomainProxy, EmptyDeviceDomainProxy, FsDomainProxy, GpuDomainProxy, InputDomainProxy,
-        LogDomainProxy, NetDeviceDomainProxy, NetDomainProxy, PLICDomainProxy, ProxyBuilder,
-        RtcDomainProxy, SchedulerDomainProxy, ShadowBlockDomainProxy, SysCallDomainProxy,
-        TaskDomainProxy, UartDomainProxy, VfsDomainProxy,
-    },
+    domain_proxy::*,
     mmio_bus, platform_bus,
 };
 
 /// set the kernel to the specific domain
 fn init_kernel_domain() {
-    rref::init(Box::new(SharedHeapAllocator), alloc_domain_id());
+    rref::init(SHARED_HEAP_ALLOCATOR, alloc_domain_id());
+    storage::init_data_allocator(DOMAIN_DATA_ALLOCATOR);
 }
 
 fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {

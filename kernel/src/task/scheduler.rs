@@ -24,7 +24,7 @@ pub fn set_scheduler(scheduler: Arc<dyn SchedulerDomain>) {
 }
 
 pub fn add_task(task_meta: Arc<Mutex<TaskMetaExt>>) {
-    log::error!("<add_task>: {:?}", task_meta.lock().tid());
+    log::warn!("<add_task>: {:?}", task_meta.lock().tid());
     let scheduling_info = task_meta.lock().take_scheduling_info();
     TASK_MAP.lock().insert(scheduling_info.tid, task_meta);
     global_scheduler!().add_task(scheduling_info).unwrap();
@@ -68,7 +68,7 @@ pub fn yield_now() {
     let task = current_task().unwrap();
     task.lock().set_status(TaskStatus::Ready);
     let tid = task.lock().tid();
-    log::error!("yield_now: {:?}", tid);
+    log::warn!("yield_now: {:?}", tid);
     schedule();
 }
 

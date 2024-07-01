@@ -26,6 +26,7 @@ BUILD_CRATES := \
 	dlog \
 	dinput \
 	dnet \
+	dvfs \
 	ping \
 	client \
 	out \

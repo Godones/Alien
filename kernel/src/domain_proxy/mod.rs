@@ -361,3 +361,49 @@ impl NetDeviceDomainProxy {
         Ok(())
     }
 }
+
+impl VfsDomainProxy {
+    pub fn replace(&self, new_domain: Box<dyn VfsDomain>, loader: DomainLoader) -> AlienResult<()> {
+        // stage1: get the sleep lock and change to updating state
+        let mut loader_guard = self.domain_loader.lock();
+        // change to updating state
+        self.in_updating
+            .store(true, core::sync::atomic::Ordering::Relaxed);
+
+        // why we need to synchronize_sched here?
+        synchronize_sched();
+
+        // stage2: get the write lock and wait for all readers to finish
+        let w_lock = self.lock.write();
+        // wait if there are readers which are reading the old domain but no read lock
+        while self.all_counter() > 0 {
+            println!("Wait for all reader to finish");
+            yield_now();
+        }
+        let old_id = self.domain_id();
+
+        // stage3: init the new domain before swap
+        let new_domain_id = new_domain.domain_id();
+        let device_info = self.resource.get().unwrap();
+        let info = device_info.as_ref().downcast_ref::<Vec<u8>>().unwrap();
+        new_domain.init(info).unwrap();
+
+        // stage4: swap the domain and change to normal state
+        let old_domain = self.domain.swap(Box::new(new_domain));
+
+        // change to normal state
+        self.in_updating
+            .store(false, core::sync::atomic::Ordering::Relaxed);
+
+        // stage5: recycle all resources
+        let real_domain = Box::into_inner(old_domain);
+        forget(real_domain);
+        free_domain_resource(old_id, FreeShared::NotFree(new_domain_id));
+
+        // stage6: release all locks
+        *loader_guard = loader;
+        drop(w_lock);
+        drop(loader_guard);
+        Ok(())
+    }
+}

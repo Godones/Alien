@@ -187,9 +187,9 @@ pub fn get_or_insert_with_data<T: Any + Send + Sync, F: FnOnce() -> T>(
 
 ```rust
 fn main(
-    sys: Box<dyn CoreFunction>,
+    sys: &'static dyn CoreFunction,
     domain_id: u64,
-    shared_heap: Box<dyn SharedHeapAlloc>,
+    shared_heap: &'static dyn SharedHeapAlloc,
     storage_arg: StorageArg,
 ) -> Box<dyn BufUartDomain> {
     ....
@@ -199,6 +199,8 @@ fn main(
     storage::init_data_allocator(allocator);
 }
 ```
+
+### 调度域
 
 以调度器为例，我们看域如何保存和恢复这些需要同步的更新数据：
 
@@ -243,7 +245,117 @@ impl RandomScheduler {
 
 
 
-### 资源回收的修改
+### vfs域实现
+
+vfs域会负责初始化其它文件系统域，比如devfs/procfs/fatfs等，在初始化的时候，这些域会返回其根文件的`InodeID`, 在vfs域内，会根据这个`InodeID`创建一系列对象，因为域的划分，每个域内部的对象无法直接传递。这些对象会去实现对应的`trait` , 相当于在vfs域内部创建一个和文件系统域内对象对应的一个虚拟对象，后续这个虚拟对象会直接使用其拥有的`InodeID` 与文件系统域交互。
+
+vfs还会保存打开的文件，vfs内部也是用`InodeID`来维护这个信息，这里的`InodeID` 和上面的不能混淆。
+
+综上，如果想要在vfs域做更新，其保存的状态信息应该设计如下：
+
+#### vfs保存的打开的文件
+
+```rust
+static VFS_MAP: RwLock<BTreeMap<InodeID, Arc<dyn File>>> = RwLock::new(BTreeMap::new());
+static INODE_ID: AtomicU64 = AtomicU64::new(4);
+```
+
+vfs_map存储`InodeID` 到 `Arc<dyn File>` 的映射，`InodeID`保存了一个计数器，用来分配`InodeID`。
+
+在更新vfs域后，我们应该仍然需要这两个信息，但是`Arc<dyn File>`  不能直接放在自定义堆上，因为我们对接口的相关定义是没有将参数放在自定义堆上的。因此这里我们应该存储一个 `Arc<dyn File>` 内部对应其它文件系统的标识符`InodeID`以及其它元数据信息。
+
+```rust
+struct FsShimInode {
+    ino: InodeID,
+    fs_domain: Arc<dyn FsDomain>,
+    sb: Mutex<Option<Weak<dyn VfsSuperBlock>>>,
+}
+```
+
+可以直接从这里找到`Arc<dyn File>`内部真正的`InodeID`, 从这个信息中我们可以直接重建`FsShimInode` , 进而重建`Arc<dyn File>`。 除了这个`InodeID`信息外，还需要一些其它信息:
+
+```rust
+pub struct KernelFile {
+    pos: Mutex<u64>,
+    open_flag: Mutex<OpenFlags>,
+    dentry: Arc<dyn VfsDentry>,
+}
+```
+
+这里的`pos`  和 `open_flag`是我们需要的。
+
+对上面的分析，我们可以将vfs保存这些信息的方法进行修改，使得这些我们需要的信息被保存在自定义堆上:
+
+```rust
+type DeviceIdManagerType = Arc<Mutex<DeviceIdManager>,DataStorageHeap>;
+static DEVICE_ID_MANAGER: Lazy<DeviceIdManagerType> = Lazy::new(||{
+    let res = storage::get_or_insert_with_data("device_id_manager", || {
+        Mutex::new(DeviceIdManager::new())
+    });
+    res
+});
+```
+
+
+
+```rust
+pub type KMeta = Arc<Mutex<KernelFileMeta>, DataStorageHeap>;
+#[derive(Debug)]
+pub struct KernelFileMeta {
+    pos: u64,
+    open_flag: OpenFlags,
+    real_inode_id: u64,
+}
+```
+
+
+
+```rust
+static INODE_ID: Lazy<Arc<AtomicU64, DataStorageHeap>> = Lazy::new(|| {
+    let id = storage::get_or_insert_with_data("inode_id", || AtomicU64::new(4));
+    id
+});
+
+static VFS_INIT: Lazy<Arc<AtomicBool, DataStorageHeap>> = Lazy::new(|| {
+    let res = storage::get_or_insert_with_data("vfs_init", || AtomicBool::new(false));
+    res
+});
+```
+
+
+
+```rust
+type DataType = Arc<Mutex<BTreeMap<InodeID, (), DataStorageHeap>>, DataStorageHeap>;
+static VFS_MAP_SHADOW: Lazy<DataType> = Lazy::new(|| {
+    let res = storage::get_or_insert_with_data("inode2inode", || {
+        Mutex::new(BTreeMap::new_in(DataStorageHeap))
+    });
+    res
+});
+```
+
+
+
+### 注意
+
+#### HACK
+
+rust的 `dyn Any` 类型的转换会导致当旧域的代码和数据被删除时在新的域中进行转换时造成错误，似乎是因为编译器会将类型的信息保存在一个位置，然后在判断类型是否相等时去查找这个信息。因为信息已经被删除，这会触发`LoadPageFault`。
+
+解决方法：
+
+1. 手工保存对应key的类型信息，在转换时对比： 这带来了存储的开销，即使其类型信息原本就存在了
+   1. 直接强制转换，由调用者确保类型的正确性
+2. https://crates.io/crates/dyn-dyn 
+
+
+
+- 保证需要更新的数据结构在新的域中具有相同的定义，否则rust编译器会将其当作两个不同的数据对待，这会导致类型转换错误：将数据的定义放在共用的lib中
+- 
+
+
+
+## 资源回收的修改
 
 在有状态域发生更新时，如果直接回收其内部分配的资源可能造成问题。因为自定义堆上可能保存了指向共享堆的数据。更新堆上的数据通常由域在发生域间通信时创建，并可能被域保存，即使这些共享数据最终会被回收。
 

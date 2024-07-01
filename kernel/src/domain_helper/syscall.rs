@@ -13,6 +13,8 @@ use crate::{
     error::{AlienError, AlienResult},
 };
 
+pub static DOMAIN_SYS: &'static dyn CoreFunction = &DomainSyscall;
+
 pub struct DomainSyscall;
 
 impl CoreFunction for DomainSyscall {
@@ -73,8 +75,15 @@ impl CoreFunction for DomainSyscall {
         super::query_domain(name)
     }
 
-    fn sys_create_domain(&self, identifier: &str) -> Option<DomainType> {
-        DOMAIN_CREATE.get().unwrap().create_domain(identifier)
+    fn sys_create_domain(
+        &self,
+        domain_file_name: &str,
+        identifier: &mut [u8],
+    ) -> AlienResult<DomainType> {
+        DOMAIN_CREATE
+            .get()
+            .unwrap()
+            .create_domain(domain_file_name, identifier)
     }
 
     fn sys_register_domain(&self, ident: &str, ty: DomainTypeRaw, data: &[u8]) -> AlienResult<()> {
@@ -118,7 +127,7 @@ impl CoreFunction for DomainSyscall {
                 .ok_or(AlienError::EINVAL)?;
                 let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
                 shadow_blk_proxy.replace(new_domain, loader)?;
-                warn!(
+                println!(
                     "Try to replace domain: {} with domain: {} ok",
                     old_domain_name, new_domain_name
                 );
@@ -150,12 +159,12 @@ impl CoreFunction for DomainSyscall {
                     Some(old_domain_id),
                 )
                 .ok_or(AlienError::EINVAL)?;
+                let logger_proxy = logger.downcast_arc::<LogDomainProxy>().unwrap();
+                logger_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace logger domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                let logger_proxy = logger.downcast_arc::<LogDomainProxy>().unwrap();
-                logger_proxy.replace(new_domain, loader)?;
                 Ok(())
             }
 
@@ -168,12 +177,12 @@ impl CoreFunction for DomainSyscall {
                     Some(old_domain_id),
                 )
                 .ok_or(AlienError::EINVAL)?;
+                let input_proxy = input.downcast_arc::<InputDomainProxy>().unwrap();
+                input_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace input domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                let input_proxy = input.downcast_arc::<InputDomainProxy>().unwrap();
-                input_proxy.replace(new_domain, loader)?;
                 Ok(())
             }
 
@@ -186,12 +195,30 @@ impl CoreFunction for DomainSyscall {
                     Some(old_domain_id),
                 )
                 .ok_or(AlienError::EINVAL)?;
+                let nic_proxy = nic.downcast_arc::<NetDeviceDomainProxy>().unwrap();
+                nic_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace net device domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                let nic_proxy = nic.downcast_arc::<NetDeviceDomainProxy>().unwrap();
-                nic_proxy.replace(new_domain, loader)?;
+                Ok(())
+            }
+
+            Some(DomainType::VfsDomain(vfs)) => {
+                let old_domain_id = vfs.domain_id();
+                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                    ty,
+                    new_domain_name,
+                    None,
+                    Some(old_domain_id),
+                )
+                .ok_or(AlienError::EINVAL)?;
+                let vfs_proxy = vfs.downcast_arc::<VfsDomainProxy>().unwrap();
+                vfs_proxy.replace(new_domain, loader)?;
+                println!(
+                    "Try to replace vfs domain {} with {} ok",
+                    old_domain_name, new_domain_name
+                );
                 Ok(())
             }
             None => {
@@ -260,6 +287,10 @@ impl CoreFunction for DomainSyscall {
                 Ok(OperationResult::Priority(nice))
             }
         }
+    }
+    fn checkout_shared_data(&self) -> AlienResult<()> {
+        crate::domain_helper::checkout_shared_data();
+        Ok(())
     }
 }
 

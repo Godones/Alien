@@ -5,8 +5,6 @@ use crate::{syscall_domain, task_domain};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {
-    // enable interrupt
-    // interrupt_enable();
     let task_domain = task_domain!();
     let tid = crate::task::current_tid();
     let trap_frame_phy_addr = task_domain.trap_frame_phy_addr().unwrap();
@@ -16,10 +14,24 @@ pub fn syscall_exception_handler() {
     let parameters = cx.parameters();
     let _syscall_name = pconst::syscall_name(parameters[0]);
 
-    if parameters[0] != 72 && parameters[0] != 124 {
-        debug!(
-            "[{:?}] syscall {:?} parameters: {:?}",
-            tid, _syscall_name, parameters[0]
+    // let forbid_call = [72, 124, 260, 73, 63, 66];
+
+    let allow_call = [17, 49];
+
+    // if !forbid_call.contains(&parameters[0] ){
+    //     log::error!(
+    //         "[{:?}] syscall {:?} parameters: {:x?}",
+    //         tid,
+    //         _syscall_name,
+    //         &parameters[1..7]
+    //     );
+    // }
+    if allow_call.contains(&parameters[0]) {
+        log::error!(
+            "[{:?}] syscall {:?} parameters: {:x?}",
+            tid,
+            _syscall_name,
+            &parameters[1..7]
         );
     }
 

@@ -13,13 +13,14 @@ use alloc::{
 };
 use core::sync::atomic::AtomicU64;
 
+use corelib::AlienResult;
 pub use interface::DomainType;
 use ksync::Mutex;
 pub use resource::*;
-pub use sheap::{FreeShared, SharedHeapAllocator};
+pub use sheap::{checkout_shared_data, FreeShared, SHARED_HEAP_ALLOCATOR};
 use spin::Once;
 pub use storage_heap::*;
-pub use syscall::DomainSyscall;
+pub use syscall::DOMAIN_SYS;
 
 static DOMAIN_IDS: AtomicU64 = AtomicU64::new(0);
 
@@ -98,5 +99,9 @@ pub fn register_domain(identifier: &str, domain: DomainType, unique: bool) -> St
 }
 
 pub trait DomainCreate: Send + Sync {
-    fn create_domain(&self, identifier: &str) -> Option<DomainType>;
+    fn create_domain(
+        &self,
+        domain_file_name: &str,
+        identifier: &mut [u8],
+    ) -> AlienResult<DomainType>;
 }

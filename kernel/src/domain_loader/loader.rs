@@ -25,7 +25,7 @@ use xmas_elf::{
 
 use crate::{
     domain_helper,
-    domain_helper::{DomainDataHeap, DomainSyscall, SharedHeapAllocator},
+    domain_helper::{DOMAIN_DATA_ALLOCATOR, DOMAIN_SYS, SHARED_HEAP_ALLOCATOR},
     error::{AlienError, AlienResult},
 };
 
@@ -106,50 +106,33 @@ impl DomainLoader {
 
     pub fn call<T: ?Sized>(&self, id: u64, use_old_id: Option<u64>) -> Box<T> {
         type F<T> = fn(
-            Box<dyn corelib::CoreFunction>,
+            &'static dyn corelib::CoreFunction,
             u64,
-            Box<dyn rref::SharedHeapAlloc>,
+            &'static dyn rref::SharedHeapAlloc,
             StorageArg,
         ) -> Box<T>;
         let main = unsafe { core::mem::transmute::<*const (), F<T>>(self.entry() as *const ()) };
-        let syscall = Box::new(DomainSyscall);
-        let heap = Box::new(SharedHeapAllocator);
 
-        let data_heap = Box::new(DomainDataHeap);
+        let syscall = DOMAIN_SYS;
+        let heap = SHARED_HEAP_ALLOCATOR;
 
-        let data_map = match use_old_id {
-            Some(old_domain_id) => domain_helper::get_domain_database(old_domain_id).unwrap(),
-            None => {
-                domain_helper::create_domain_database(id);
-                domain_helper::get_domain_database(id).unwrap()
-            }
+        let data_map = if let Some(old_id) = use_old_id
+            && old_id != u64::MAX
+        {
+            let database = domain_helper::get_domain_database(old_id).unwrap();
+            domain_helper::move_domain_database(old_id, id);
+            database
+        } else {
+            domain_helper::create_domain_database(id);
+            domain_helper::get_domain_database(id).unwrap()
         };
 
-        let syscall_ptr = Box::into_raw(syscall);
-        let heap_ptr = Box::into_raw(heap);
-        let data_heap_ptr = Box::into_raw(data_heap);
         let data_map_ptr = Box::into_raw(data_map);
-
-        domain_helper::register_domain_resource(
-            id,
-            (
-                syscall_ptr as usize,
-                heap_ptr as usize,
-                data_heap_ptr as usize,
-                data_map_ptr as usize,
-            ),
-        );
+        domain_helper::register_domain_resource(id, data_map_ptr as usize);
         let storage_arg =
-            unsafe { StorageArg::new(Box::from_raw(data_heap_ptr), Box::from_raw(data_map_ptr)) };
+            unsafe { StorageArg::new(DOMAIN_DATA_ALLOCATOR, Box::from_raw(data_map_ptr)) };
 
-        unsafe {
-            main(
-                Box::from_raw(syscall_ptr),
-                id,
-                Box::from_raw(heap_ptr),
-                storage_arg,
-            )
-        }
+        unsafe { main(syscall, id, heap, storage_arg) }
     }
 
     fn load_program(&mut self, elf: &ElfFile) -> AlienResult<()> {

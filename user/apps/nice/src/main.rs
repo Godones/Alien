@@ -7,12 +7,11 @@ use Mstd::{
     thread::m_yield,
     time::get_time_ms,
 };
-const MAX_COUNT: i32 = 5;
+const MAX_COUNT: i32 = 8;
 
 #[no_mangle]
 fn main() -> isize {
-    set_priority(0, 0, -20);
-    let prio = 0;
+    let prio = -2;
     for i in 0..MAX_COUNT {
         let pid = fork();
         if pid == 0 {

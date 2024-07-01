@@ -7,7 +7,6 @@ use alloc::{
 use core::{
     alloc::{AllocError, Allocator, GlobalAlloc, Layout},
     any::Any,
-    ops::Deref,
     ptr::NonNull,
 };
 
@@ -44,17 +43,17 @@ impl DomainDataMapManager {
     /// Move the domain data map from the source domain to the target domain.
     fn move_domain(&mut self, from: u64, to: u64) {
         if let Some(data) = self.remove(from) {
+            println_color!(32, "move domain database, it's length: {}", data.len());
             self.map_per_domain.insert(to, data);
         }
     }
 }
 
 type ArcValueType = Arc<dyn Any + Send + Sync, DataStorageHeap>;
-type ValueType = Box<ArcValueType, DataStorageHeap>;
 
 #[derive(Debug)]
 pub struct DomainDataMap {
-    data: Arc<Mutex<BTreeMap<String, ValueType>>>,
+    data: Arc<Mutex<BTreeMap<String, ArcValueType>>>,
 }
 
 impl Clone for DomainDataMap {
@@ -74,13 +73,18 @@ impl DomainDataMap {
             data: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
+
+    pub fn len(&self) -> usize {
+        self.data.lock().len()
+    }
 }
 impl DomainDataStorage for DomainDataMap {
     /// Insert a new key-value pair into the data map.
     ///
     /// If the key already exists, the value will be replaced and returned.
     /// Otherwise, `None` will be returned.
-    fn insert(&self, key: &str, value: ValueType) -> Option<ValueType> {
+    fn insert(&self, key: &str, value: ArcValueType) -> Option<ArcValueType> {
+        // println_color!(32, "insert key: {}", key);
         self.data.lock().insert(key.to_string(), value)
     }
 
@@ -88,7 +92,8 @@ impl DomainDataStorage for DomainDataMap {
     fn get(&self, key: &str) -> Option<ArcValueType> {
         let data = self.data.lock();
         let v = data.get(key);
-        let res = v.map(|v| v.deref().clone());
+        // println_color!(32, "get key: {}, value: {:?}", key, v.is_some());
+        let res = v.map(|v| v.clone());
         res
     }
 
@@ -99,8 +104,8 @@ impl DomainDataStorage for DomainDataMap {
     fn remove(&self, key: &str) -> Option<ArcValueType> {
         let mut data = self.data.lock();
         let v = data.remove(key);
-        let res = v.map(|v| v.deref().clone());
-        res
+        // println_color!(31, "remove key: {}", key);
+        v
     }
 }
 
@@ -139,20 +144,20 @@ impl DomainDataHeap {
 unsafe impl Allocator for DomainDataHeap {
     #[inline]
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        println_color!(
-            34,
-            "<DomainDataHeap> allocate from DataStorageHeap, size: {}",
-            layout.size()
-        );
+        // println_color!(
+        //     34,
+        //     "<DomainDataHeap> allocate from DataStorageHeap, size: {}",
+        //     layout.size()
+        // );
         self.alloc_impl(layout, false)
     }
     #[inline]
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
-        println_color!(
-            34,
-            "<DomainDataHeap> deallocate from DataStorageHeap, size: {}",
-            layout.size()
-        );
+        // println_color!(
+        //     34,
+        //     "<DomainDataHeap> deallocate from DataStorageHeap, size: {}",
+        //     layout.size()
+        // );
         if layout.size() != 0 {
             // SAFETY: `layout` is non-zero in size,
             // other conditions must be upheld by the caller
@@ -163,6 +168,7 @@ unsafe impl Allocator for DomainDataHeap {
 
 impl SendAllocator for DomainDataHeap {}
 
+pub static DOMAIN_DATA_ALLOCATOR: &'static dyn SendAllocator = &DomainDataHeap;
 static DATA_BASE_MANAGER: Mutex<DomainDataMapManager> = Mutex::new(DomainDataMapManager::new());
 
 /// Create a new domain data map with the given domain id.

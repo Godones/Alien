@@ -8,10 +8,10 @@ use core::{alloc::Layout, any::TypeId};
 
 use ksync::Mutex;
 use rref::{SharedHeapAlloc, SharedHeapAllocation};
-use spin::Lazy;
 
-static SHARED_HEAP: Lazy<Mutex<BTreeMap<usize, SharedHeapAllocation>>> =
-    Lazy::new(|| Mutex::new(BTreeMap::new()));
+static SHARED_HEAP: Mutex<BTreeMap<usize, SharedHeapAllocation>> = Mutex::new(BTreeMap::new());
+
+pub static SHARED_HEAP_ALLOCATOR: &'static dyn SharedHeapAlloc = &SharedHeapAllocator;
 
 pub struct SharedHeapAllocator;
 impl SharedHeapAlloc for SharedHeapAllocator {
@@ -25,7 +25,7 @@ impl SharedHeapAlloc for SharedHeapAllocator {
         if ptr.is_null() {
             return None;
         }
-        log::trace!(
+        log::error!(
             "<SharedHeap> alloc size: {}, ptr: {:#x}",
             layout.size(),
             ptr as usize
@@ -48,17 +48,11 @@ impl SharedHeapAlloc for SharedHeapAllocator {
         let mut heap = SHARED_HEAP.lock();
         let allocation = heap.remove(&(ptr as usize));
         if let Some(allocation) = allocation {
-            log::trace!("<SharedHeap> dealloc: {:p}", ptr);
+            log::error!("<SharedHeap> dealloc: {:p}", ptr);
             assert_eq!(allocation.value_pointer, ptr);
             dealloc(allocation.value_pointer, allocation.layout);
-            dealloc(
-                allocation.domain_id_pointer as *mut u8,
-                Layout::new::<u64>(),
-            );
-            dealloc(
-                allocation.borrow_count_pointer as *mut u8,
-                Layout::new::<u64>(),
-            );
+            let _ = Box::from_raw(allocation.domain_id_pointer);
+            let _ = Box::from_raw(allocation.borrow_count_pointer);
         } else {
             panic!(
                 "<SharedHeap> dealloc: {:#x}, but the data has been dropped",
@@ -68,14 +62,38 @@ impl SharedHeapAlloc for SharedHeapAllocator {
     }
 }
 
+pub fn checkout_shared_data() {
+    let heap = SHARED_HEAP.lock();
+    let mut map = BTreeMap::new();
+    heap.iter().for_each(|(_, v)| {
+        let id = v.domain_id();
+        let count = map.get(&id).unwrap_or(&0) + 1;
+        map.insert(id, count);
+    });
+    for (id, count) in map {
+        println_color!(34, "domain_id: {}, count: {}", id, count);
+    }
+    println_color!(
+        34,
+        "<checkout_shared_data> shared heap size: {}",
+        heap.len()
+    );
+}
+
 pub enum FreeShared {
     Free,
     NotFree(u64),
 }
 
 pub fn free_domain_shared_data(id: u64, free_shared: FreeShared) {
+    checkout_shared_data();
     let mut data = vec![];
     let heap = SHARED_HEAP.lock();
+    println_color!(
+        34,
+        "<free_domain_shared_data> shared heap size: {}",
+        heap.len()
+    );
     heap.iter().for_each(|(_, v)| {
         if v.domain_id() == id {
             data.push(*v);
