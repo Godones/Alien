@@ -1,49 +1,22 @@
 #![no_std]
 #![no_main]
-use Mstd::{
-    domain::{register_domain, update_domain, DomainTypeRaw},
-    fs::{open, OpenFlags},
-    println,
-};
+
+use domain_helper::DomainHelperBuilder;
+use Mstd::{domain::DomainTypeRaw, println};
 
 #[no_mangle]
 fn main() -> isize {
-    let mmio_input_fd = open("/tests/gvirtio_mmio_input\0", OpenFlags::O_RDONLY);
-    if mmio_input_fd < 0 {
-        println!("Failed to open /tests/gvirtio_mmio_input");
-        return -1;
-    } else {
-        println!("Opened /tests/gvirtio_mmio_input, fd: {}", mmio_input_fd);
-        let res = register_domain(
-            mmio_input_fd as _,
-            DomainTypeRaw::InputDomain,
-            "virtio_mmio_input_new",
-        );
-        println!("register_domain res: {}", res);
-
-        if res != 0 {
-            println!("Failed to register domain virtio_mmio_input");
-            return -1;
-        }
-        let res = update_domain(
-            "virtio_mmio_input-1",
-            "virtio_mmio_input_new",
-            DomainTypeRaw::InputDomain,
-        );
-        if res != 0 {
-            println!("Failed to update domain virtio_mmio_input");
-            return -1;
-        }
-        let res = update_domain(
-            "virtio_mmio_input-2",
-            "virtio_mmio_input_new",
-            DomainTypeRaw::InputDomain,
-        );
-        if res != 0 {
-            println!("Failed to update domain virtio_mmio_input");
-            return -1;
-        }
-        println!("update_domain virtio_mmio_input ok");
-    }
+    let builder = DomainHelperBuilder::new()
+        .ty(DomainTypeRaw::InputDomain)
+        .domain_file_path("/tests/gvirtio_mmio_input\0")
+        .domain_file_name("virtio_mmio_input_new")
+        .domain_name("virtio_mmio_input-1");
+    builder.clone().register_domain_file().unwrap();
+    builder.clone().update_domain().unwrap();
+    builder
+        .domain_name("virtio_mmio_input-2")
+        .update_domain()
+        .unwrap();
+    println!("Test register and update input domain success");
     0
 }

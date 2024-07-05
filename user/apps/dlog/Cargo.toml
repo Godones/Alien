@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 Mstd = { path = "../../userlib" }
-spin = "0.9.2"
 downloader = { path = "../downloader" }
+domain-helper = { path = "../domain-helper" }

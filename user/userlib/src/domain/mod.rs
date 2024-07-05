@@ -23,16 +23,21 @@ pub enum DomainTypeRaw {
     LogDomain = 19,
     NetDomain = 20,
 }
-pub fn register_domain(fd: usize, ty: DomainTypeRaw, name: &str) -> isize {
-    sys_register_domain(fd, ty as u8, name.as_ptr(), name.len())
+pub fn register_domain(fd: usize, ty: DomainTypeRaw, domain_file_name: &str) -> isize {
+    sys_register_domain(
+        fd,
+        ty as u8,
+        domain_file_name.as_ptr(),
+        domain_file_name.len(),
+    )
 }
 
-pub fn update_domain(old_name: &str, new_name: &str, ty: DomainTypeRaw) -> isize {
+pub fn update_domain(domain_name: &str, domain_new_file_name: &str, ty: DomainTypeRaw) -> isize {
     sys_update_domain(
-        old_name.as_ptr(),
-        old_name.len(),
-        new_name.as_ptr(),
-        new_name.len(),
+        domain_name.as_ptr(),
+        domain_name.len(),
+        domain_new_file_name.as_ptr(),
+        domain_new_file_name.len(),
         ty as u8,
     )
 }

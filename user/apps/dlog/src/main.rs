@@ -4,12 +4,13 @@
 extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
-
+use domain_helper::DomainHelperBuilder;
 use Mstd::{
-    domain::{register_domain, update_domain, DomainTypeRaw},
+    domain::{DomainTypeRaw},
     fs::{open, OpenFlags},
     println,
 };
+use Mstd::fs::close;
 
 #[no_mangle]
 fn main(_: usize, argv: Vec<String>) -> isize {
@@ -17,13 +18,12 @@ fn main(_: usize, argv: Vec<String>) -> isize {
         println!("Usage: dlog [new]/[old]");
         return -1;
     }
-
     let option = argv[1].as_str();
     match option {
         "new" => {
             println!("Register and attach xlogger domain");
-            let is_exist = open("/tests/domains/gxlogger\0", OpenFlags::O_RDONLY);
-            if is_exist < 0 {
+            let xlogger_fd = open("/tests/domains/gxlogger\0", OpenFlags::O_RDONLY);
+            if xlogger_fd < 0 {
                 println!("Failed to open /tests/domains/gxlogger");
                 let res = downloader::download_domain("gxlogger", "/tests/domains");
                 match res {
@@ -35,41 +35,34 @@ fn main(_: usize, argv: Vec<String>) -> isize {
                         println!("Download domain gxlogger successfully");
                     }
                 }
+            }else {
+                close(xlogger_fd as _);
             }
-            let xlogger_fd = open("/tests/domains/gxlogger\0", OpenFlags::O_RDONLY);
-            if xlogger_fd < 0 {
-                println!("Failed to open /tests/gxlogger");
-                return -1;
-            } else {
-                println!("Opened /tests/domains/gxlogger, fd: {}", xlogger_fd);
-                let res = register_domain(xlogger_fd as _, DomainTypeRaw::LogDomain, "xlogger");
-                println!("register_domain res: {}", res);
-
-                if res != 0 {
-                    println!("Failed to register domain xlogger");
-                    return -1;
-                }
-                let res = update_domain("logger", "xlogger", DomainTypeRaw::LogDomain);
-                println!("replace_domain res: {}", res);
-                if res != 0 {
-                    println!("Failed to update domain xlogger");
-                    return -1;
-                }
-            }
+            let builder = DomainHelperBuilder::new()
+                .ty(DomainTypeRaw::LogDomain)
+                .domain_name("logger")
+                .domain_file_name("xlogger")
+                .domain_file_path("/tests/domains/gxlogger\0");
+            builder
+                .clone()
+                .register_domain_file()
+                .unwrap();
+            builder.clone().update_domain().unwrap();
+            println!("Register and update logger domain to new version successfully");
         }
         "old" => {
-            let res = update_domain("logger", "logger", DomainTypeRaw::LogDomain);
-            println!("replace_domain res: {}", res);
-            if res != 0 {
-                println!("Failed to update domain logger");
-                return -1;
-            }
+            DomainHelperBuilder::new()
+                .ty(DomainTypeRaw::LogDomain)
+                .domain_name("logger")
+                .domain_file_name("logger")
+                .update_domain()
+                .unwrap();
+            println!("Update logger domain to old version successfully");
         }
         _ => {
             println!("Usage: dlog [new]/[old]");
             return -1;
         }
     }
-    println!("Test register and update log domain");
     0
 }

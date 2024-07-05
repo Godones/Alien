@@ -20,7 +20,6 @@ build:
 BUILD_CRATES := \
 	init \
 	dtest \
-	domain \
 	dgpu \
 	dtask \
 	dlog \

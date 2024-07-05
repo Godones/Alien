@@ -1,40 +1,20 @@
 #![no_std]
 #![no_main]
-use Mstd::{
-    domain::{register_domain, update_domain, DomainTypeRaw},
-    fs::{open, OpenFlags},
-    println,
-};
+
+use domain_helper::DomainHelperBuilder;
+use Mstd::{domain::DomainTypeRaw, println};
 
 #[no_mangle]
 fn main() -> isize {
-    let mmio_input_fd = open("/tests/gvirtio_mmio_net\0", OpenFlags::O_RDONLY);
-    if mmio_input_fd < 0 {
-        println!("Failed to open /tests/gvirtio_mmio_net");
-        return -1;
-    } else {
-        println!("Opened /tests/gvirtio_mmio_net, fd: {}", mmio_input_fd);
-        let res = register_domain(
-            mmio_input_fd as _,
-            DomainTypeRaw::NetDeviceDomain,
-            "virtio_mmio_net_new",
-        );
-        println!("register_domain res: {}", res);
+    let builder = DomainHelperBuilder::new()
+        .ty(DomainTypeRaw::NetDeviceDomain)
+        .domain_file_path("/tests/gvirtio_mmio_net\0")
+        .domain_file_name("virtio_mmio_net_new")
+        .domain_name("virtio_mmio_net-1");
 
-        if res != 0 {
-            println!("Failed to register domain virtio_mmio_net");
-            return -1;
-        }
-        let res = update_domain(
-            "virtio_mmio_net-1",
-            "virtio_mmio_net_new",
-            DomainTypeRaw::NetDeviceDomain,
-        );
-        if res != 0 {
-            println!("Failed to update domain virtio_mmio_net");
-            return -1;
-        }
-        println!("update_domain virtio_mmio_net ok");
-    }
+    builder.clone().register_domain_file().unwrap();
+    builder.update_domain().unwrap();
+
+    println!("Test register and update net domain success");
     0
 }

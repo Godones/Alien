@@ -1,46 +1,43 @@
 #![no_std]
 #![no_main]
+extern crate alloc;
 
-use Mstd::{
-    domain::{register_domain, update_domain, DomainTypeRaw},
-    fs::{close, open, OpenFlags},
-    println,
-};
+
+use alloc::string::String;
+use alloc::vec::Vec;
+use domain_helper::DomainHelperBuilder;
+use Mstd::{domain::DomainTypeRaw, println};
 
 #[no_mangle]
-fn main() -> isize {
-    let random_scheduler_fd = open("/tests/grandom_scheduler\0", OpenFlags::O_RDONLY);
-    if random_scheduler_fd < 0 {
-        println!("Failed to open /tests/grandom_scheduler");
+fn main(_: usize, argv: Vec<String>) -> isize {
+    if argv.len() != 2 {
+        println!("Usage: dtask [new]/[old]");
         return -1;
-    } else {
-        println!(
-            "Opened /tests/grandom_scheduler, fd: {}",
-            random_scheduler_fd
-        );
-        let res = register_domain(
-            random_scheduler_fd as _,
-            DomainTypeRaw::SchedulerDomain,
-            "random_scheduler",
-        );
-        println!("register domain res: {}", res);
-
-        if res != 0 {
-            println!("Failed to register domain random_scheduler");
-            return -1;
+    }
+    let option = argv[1].as_str();
+    match option {
+        "old" => {
+            let builder = DomainHelperBuilder::new()
+                .domain_name("scheduler")
+                .ty(DomainTypeRaw::SchedulerDomain)
+                .domain_file_name("fifo_scheduler");
+            builder.update_domain().unwrap();
+            println!("Update scheduler domain to old version success");
         }
-        let res = update_domain(
-            "scheduler",
-            "random_scheduler",
-            DomainTypeRaw::SchedulerDomain,
-        );
-        println!("update domain res: {}", res);
-        if res != 0 {
-            println!("Failed to update domain random_scheduler");
+        "new" => {
+            let builder = DomainHelperBuilder::new()
+                .domain_name("scheduler")
+                .ty(DomainTypeRaw::SchedulerDomain)
+                .domain_file_path("/tests/grandom_scheduler\0")
+                .domain_file_name("prio_scheduler");
+            builder.clone().register_domain_file().unwrap();
+            builder.update_domain().unwrap();
+           println!("Update scheduler domain to new version success");
+        }
+        _ => {
+            println!("Usage: dtask [new]/[old]");
             return -1;
         }
     }
-    close(random_scheduler_fd as _);
-    println!("Test register and update scheduler domain");
     0
 }
