@@ -28,6 +28,7 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("virtio_mmio_block", DomainTypeRaw::BlkDeviceDomain),
     ("net_stack", DomainTypeRaw::NetDomain),
     ("logger", DomainTypeRaw::LogDomain),
+    ("domainfs", DomainTypeRaw::FsDomain),
 ];
 
 pub fn init_domains() {

@@ -17,7 +17,7 @@ use crate::{
     domain_helper::{DOMAIN_DATA_ALLOCATOR, SHARED_HEAP_ALLOCATOR},
     domain_loader::creator::*,
     domain_proxy::*,
-    mmio_bus, platform_bus,
+    mmio_bus, platform_bus, register_domain,
 };
 
 /// set the kernel to the specific domain
@@ -35,11 +35,17 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         .find(|device| device.name() == "plic")
         .expect("plic device not found");
 
-    let plic = create_domain!(PLICDomainProxy, DomainTypeRaw::PLICDomain, "plic")?;
+    let (plic, domain_file_info) =
+        create_domain!(PLICDomainProxy, DomainTypeRaw::PLICDomain, "plic")?;
     let plic_address = plic_device.address().as_usize();
     let plic_size = plic_device.io_region().size();
     plic.init_by_box(Box::new(plic_address..plic_address + plic_size))?;
-    domain_helper::register_domain("plic", DomainType::PLICDomain(plic.clone()), true);
+    register_domain!(
+        "plic",
+        domain_file_info,
+        DomainType::PLICDomain(plic.clone()),
+        true
+    );
 
     for device in platform_bus.common_devices().iter() {
         let address = device.address().as_usize();
@@ -47,22 +53,35 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         let irq = device.irq();
         match device.name() {
             "rtc" => {
-                let rtc = create_domain!(RtcDomainProxy, DomainTypeRaw::RtcDomain, "goldfish")?;
+                let (rtc, domain_file_info) =
+                    create_domain!(RtcDomainProxy, DomainTypeRaw::RtcDomain, "goldfish")?;
                 rtc.init_by_box(Box::new(address..address + size))?;
-                domain_helper::register_domain("rtc", DomainType::RtcDomain(rtc.clone()), true);
+                register_domain!(
+                    "rtc",
+                    domain_file_info,
+                    DomainType::RtcDomain(rtc.clone()),
+                    true
+                );
                 plic.register_irq(irq.unwrap() as _, &RRefVec::from_slice("rtc".as_bytes()))?;
             }
             "uart" => {
-                let uart = create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart16550")?;
+                let (uart, domain_file_info) =
+                    create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart16550")?;
                 uart.init_by_box(Box::new(address..address + size))?;
-                domain_helper::register_domain("uart", DomainType::UartDomain(uart.clone()), true);
-                let buf_uart =
+                register_domain!(
+                    "uart",
+                    domain_file_info,
+                    DomainType::UartDomain(uart.clone()),
+                    true
+                );
+                let (buf_uart, domain_file_info) =
                     create_domain!(BufUartDomainProxy, DomainTypeRaw::BufUartDomain, "buf_uart")?;
                 buf_uart.init_by_box(Box::new("uart".to_string()))?;
-                domain_helper::register_domain(
+                register_domain!(
                     "buf_uart",
+                    domain_file_info,
                     DomainType::BufUartDomain(buf_uart),
-                    true,
+                    true
                 );
                 plic.register_irq(
                     irq.unwrap() as _,
@@ -80,23 +99,29 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         let size = device.io_region().size();
         match device.device_type() {
             VirtioMmioDeviceType::Network => {
-                let net_driver = create_domain!(
+                let (net_driver, domain_file_info) = create_domain!(
                     NetDeviceDomainProxy,
                     DomainTypeRaw::NetDeviceDomain,
                     "virtio_mmio_net"
                 )?;
                 net_driver.init_by_box(Box::new(address..address + size))?;
-                domain_helper::register_domain(
+                register_domain!(
                     "virtio_mmio_net",
+                    domain_file_info,
                     DomainType::NetDeviceDomain(net_driver.clone()),
-                    false,
+                    false
                 );
                 let irq = device.irq();
 
-                let net_stack =
+                let (net_stack, domain_file_info) =
                     create_domain!(NetDomainProxy, DomainTypeRaw::NetDomain, "net_stack")?;
                 net_stack.init_by_box(Box::new("virtio_mmio_net-1".to_string()))?;
-                domain_helper::register_domain("net_stack", DomainType::NetDomain(net_stack), true);
+                register_domain!(
+                    "net_stack",
+                    domain_file_info,
+                    DomainType::NetDomain(net_stack),
+                    true
+                );
                 // register irq
                 plic.register_irq(
                     irq.unwrap() as _,
@@ -104,7 +129,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 )?
             }
             VirtioMmioDeviceType::Block => {
-                let blk_driver = create_domain!(
+                let (blk_driver, domain_file_info) = create_domain!(
                     BlkDomainProxy,
                     DomainTypeRaw::BlkDeviceDomain,
                     "virtio_mmio_block"
@@ -114,59 +139,64 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     "dev capacity: {:?}MB",
                     blk_driver.get_capacity()? / 1024 / 1024
                 );
-                domain_helper::register_domain(
+                register_domain!(
                     "virtio_mmio_block",
+                    domain_file_info,
                     DomainType::BlkDeviceDomain(blk_driver.clone()),
-                    false,
+                    false
                 );
 
-                let shadow_blk = create_domain!(
+                let (shadow_blk, domain_file_info) = create_domain!(
                     ShadowBlockDomainProxy,
                     DomainTypeRaw::ShadowBlockDomain,
                     "shadow_blk"
                 )?;
                 shadow_blk.init_by_box(Box::new("virtio_mmio_block-1".to_string()))?;
-                domain_helper::register_domain(
+                register_domain!(
                     "shadow_blk",
+                    domain_file_info,
                     DomainType::ShadowBlockDomain(shadow_blk),
-                    false,
+                    false
                 );
-                let cache_blk = create_domain!(
+                let (cache_blk, domain_file_info) = create_domain!(
                     CacheBlkDomainProxy,
                     DomainTypeRaw::CacheBlkDeviceDomain,
                     "cache_blk"
                 )?;
                 cache_blk.init_by_box(Box::new("shadow_blk-1".to_string()))?;
-                domain_helper::register_domain(
+                register_domain!(
                     "cache_blk",
+                    domain_file_info,
                     DomainType::CacheBlkDeviceDomain(cache_blk),
-                    false,
+                    false
                 );
                 // register irq
             }
             VirtioMmioDeviceType::Input => {
-                let input_driver = create_domain!(
+                let (input_driver, domain_file_info) = create_domain!(
                     InputDomainProxy,
                     DomainTypeRaw::InputDomain,
                     "virtio_mmio_input"
                 )?;
                 input_driver.init_by_box(Box::new(address..address + size))?;
-                let input_name = domain_helper::register_domain(
+                let input_name = register_domain!(
                     "virtio_mmio_input",
+                    domain_file_info,
                     DomainType::InputDomain(input_driver),
-                    false,
+                    false
                 );
-                let buf_input = create_domain!(
+                let (buf_input, domain_file_info) = create_domain!(
                     BufInputDomainProxy,
                     DomainTypeRaw::BufInputDomain,
                     "buf_input"
                 )?;
                 assert!(input_name.starts_with("virtio_mmio_input-"));
                 buf_input.init_by_box(Box::new(input_name))?;
-                let buf_input_name = domain_helper::register_domain(
+                let buf_input_name = register_domain!(
                     "buf_input",
+                    domain_file_info,
                     DomainType::BufInputDomain(buf_input),
-                    false,
+                    false
                 );
                 assert!(buf_input_name.starts_with("buf_input-"));
                 // register irq
@@ -177,13 +207,14 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 )?
             }
             VirtioMmioDeviceType::GPU => {
-                let gpu_driver =
+                let (gpu_driver, domain_file_info) =
                     create_domain!(GpuDomainProxy, DomainTypeRaw::GpuDomain, "virtio_mmio_gpu")?;
                 gpu_driver.init_by_box(Box::new(address..address + size))?;
-                domain_helper::register_domain(
+                register_domain!(
                     "virtio_mmio_gpu",
+                    domain_file_info,
                     DomainType::GpuDomain(gpu_driver),
-                    true,
+                    true
                 );
             }
             _ => {
@@ -192,23 +223,29 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         }
     }
     {
-        let null_device = create_domain!(
+        let (null_device, domain_file_info) = create_domain!(
             EmptyDeviceDomainProxy,
             DomainTypeRaw::EmptyDeviceDomain,
             "null"
         )?;
         null_device.init_by_box(Box::new(()))?;
-        domain_helper::register_domain("null", DomainType::EmptyDeviceDomain(null_device), true);
-        let random_device = create_domain!(
+        register_domain!(
+            "null",
+            domain_file_info,
+            DomainType::EmptyDeviceDomain(null_device),
+            true
+        );
+        let (random_device, domain_file_info) = create_domain!(
             EmptyDeviceDomainProxy,
             DomainTypeRaw::EmptyDeviceDomain,
             "random"
         )?;
         random_device.init_by_box(Box::new(()))?;
-        domain_helper::register_domain(
+        register_domain!(
             "random",
+            domain_file_info,
             DomainType::EmptyDeviceDomain(random_device),
-            true,
+            true
         );
     }
     Ok(plic)
@@ -219,46 +256,109 @@ pub fn load_domains() -> AlienResult<()> {
     init_kernel_domain();
     domain_helper::init_domain_create(Box::new(DomainCreateImpl));
 
-    let scheduler = create_domain!(
+    let (scheduler, domain_file_info) = create_domain!(
         SchedulerDomainProxy,
         DomainTypeRaw::SchedulerDomain,
         "fifo_scheduler"
     )?;
     scheduler.init_by_box(Box::new(()))?;
-    domain_helper::register_domain(
+    register_domain!(
         "scheduler",
+        domain_file_info,
         DomainType::SchedulerDomain(scheduler.clone()),
-        true,
+        true
     );
     crate::task::register_scheduler_domain(scheduler);
 
-    let logger = create_domain!(LogDomainProxy, DomainTypeRaw::LogDomain, "logger")?;
+    let (logger, domain_file_info) =
+        create_domain!(LogDomainProxy, DomainTypeRaw::LogDomain, "logger")?;
     logger.init_by_box(Box::new(()))?;
-    domain_helper::register_domain("logger", DomainType::LogDomain(logger), true);
+    register_domain!(
+        "logger",
+        domain_file_info,
+        DomainType::LogDomain(logger),
+        true
+    );
 
-    let fatfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "fatfs")?;
-    domain_helper::register_domain("fatfs", DomainType::FsDomain(fatfs.clone()), false);
+    let (fatfs, domain_file_info) =
+        create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "fatfs")?;
+    register_domain!(
+        "fatfs",
+        domain_file_info,
+        DomainType::FsDomain(fatfs.clone()),
+        false
+    );
 
-    let ramfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "ramfs")?;
-    domain_helper::register_domain("ramfs", DomainType::FsDomain(ramfs.clone()), false);
+    let (ramfs, domain_file_info) =
+        create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "ramfs")?;
+    register_domain!(
+        "ramfs",
+        domain_file_info,
+        DomainType::FsDomain(ramfs.clone()),
+        false
+    );
 
-    let devfs = create_domain!(DevFsDomainProxy, DomainTypeRaw::DevFsDomain, "devfs")?;
-    domain_helper::register_domain("devfs", DomainType::DevFsDomain(devfs.clone()), true);
+    let (devfs, domain_file_info) =
+        create_domain!(DevFsDomainProxy, DomainTypeRaw::DevFsDomain, "devfs")?;
+    register_domain!(
+        "devfs",
+        domain_file_info,
+        DomainType::DevFsDomain(devfs.clone()),
+        true
+    );
 
-    let procfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "procfs")?;
-    domain_helper::register_domain("procfs", DomainType::FsDomain(procfs.clone()), true);
+    let (procfs, domain_file_info) =
+        create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "procfs")?;
+    register_domain!(
+        "procfs",
+        domain_file_info,
+        DomainType::FsDomain(procfs.clone()),
+        true
+    );
 
-    let sysfs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "sysfs")?;
-    domain_helper::register_domain("sysfs", DomainType::FsDomain(sysfs.clone()), true);
+    let (sysfs, domain_file_info) =
+        create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "sysfs")?;
+    register_domain!(
+        "sysfs",
+        domain_file_info,
+        DomainType::FsDomain(sysfs.clone()),
+        true
+    );
 
-    let pipefs = create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "pipefs")?;
-    domain_helper::register_domain("pipefs", DomainType::FsDomain(pipefs.clone()), true);
+    let (pipefs, domain_file_info) =
+        create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "pipefs")?;
+    register_domain!(
+        "pipefs",
+        domain_file_info,
+        DomainType::FsDomain(pipefs.clone()),
+        true
+    );
 
-    let vfs = create_domain!(VfsDomainProxy, DomainTypeRaw::VfsDomain, "vfs")?;
-    domain_helper::register_domain("vfs", DomainType::VfsDomain(vfs.clone()), true);
+    let (domainfs, domain_file_info) =
+        create_domain!(FsDomainProxy, DomainTypeRaw::FsDomain, "domainfs")?;
+    register_domain!(
+        "domainfs",
+        domain_file_info,
+        DomainType::FsDomain(domainfs.clone()),
+        true
+    );
 
-    let task = create_domain!(TaskDomainProxy, DomainTypeRaw::TaskDomain, "task")?; // ref to scheduler domain
-    domain_helper::register_domain("task", DomainType::TaskDomain(task.clone()), true);
+    let (vfs, domain_file_info) = create_domain!(VfsDomainProxy, DomainTypeRaw::VfsDomain, "vfs")?;
+    register_domain!(
+        "vfs",
+        domain_file_info,
+        DomainType::VfsDomain(vfs.clone()),
+        true
+    );
+
+    let (task, domain_file_info) =
+        create_domain!(TaskDomainProxy, DomainTypeRaw::TaskDomain, "task")?; // ref to scheduler domain
+    register_domain!(
+        "task",
+        domain_file_info,
+        DomainType::TaskDomain(task.clone()),
+        true
+    );
 
     // we need to register vfs and task domain before init device, because we need to use vfs and task domain in some
     // device init function
@@ -269,6 +369,7 @@ pub fn load_domains() -> AlienResult<()> {
     ramfs.init_by_box(Box::new(()))?;
     procfs.init_by_box(Box::new(()))?;
     sysfs.init_by_box(Box::new(()))?;
+    domainfs.init_by_box(Box::new(()))?;
 
     // The vfs domain may use the device domain, so we need to init vfs domain after init device domain,
     // also it may use the task domain.
@@ -281,9 +382,15 @@ pub fn load_domains() -> AlienResult<()> {
 
     task.init_by_box(Box::new(()))?;
 
-    let syscall = create_domain!(SysCallDomainProxy, DomainTypeRaw::SysCallDomain, "syscall")?;
+    let (syscall, domain_file_info) =
+        create_domain!(SysCallDomainProxy, DomainTypeRaw::SysCallDomain, "syscall")?;
     syscall.init_by_box(Box::new(()))?;
-    domain_helper::register_domain("syscall", DomainType::SysCallDomain(syscall.clone()), true);
+    register_domain!(
+        "syscall",
+        domain_file_info,
+        DomainType::SysCallDomain(syscall.clone()),
+        true
+    );
 
     platform::println!("Load domains done");
 

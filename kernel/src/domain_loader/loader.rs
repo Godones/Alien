@@ -13,6 +13,7 @@ use core::{
 
 use arch::sfence_vma_all;
 use config::FRAME_SIZE;
+use corelib::domain_info::DomainFileInfo;
 use log::{debug, info, trace};
 use mem::{MappingFlags, PhysPage, VirtAddr, VmArea};
 use storage::StorageArg;
@@ -69,6 +70,7 @@ impl Debug for DomainLoader {
             .field("entry", &self.entry)
             .field("phy_start", &self.phy_start)
             .field("regions", &self.regions)
+            .field("ident", &self.ident)
             .finish()
     }
 }
@@ -93,6 +95,13 @@ impl DomainLoader {
             phy_start: 0,
             regions: vec![],
             ident: ident.to_string(),
+        }
+    }
+
+    pub fn domain_file_info(&self) -> DomainFileInfo {
+        DomainFileInfo {
+            name: self.ident.clone(),
+            size: self.data.len(),
         }
     }
 

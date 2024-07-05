@@ -85,7 +85,7 @@ pub fn pop_continuation() -> Option<Continuation> {
 
 pub fn unwind() -> ! {
     let continuation = pop_continuation().unwrap();
-    platform::println!("unwind, continuation: {:#x?}", &continuation);
+    platform::println!("unwind continuation");
     unsafe { __unwind(&continuation) }
 }
 

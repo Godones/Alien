@@ -1,4 +1,5 @@
-use core::sync::atomic::AtomicBool;
+use alloc::sync::Arc;
+use core::{any::Any, sync::atomic::AtomicBool};
 
 use config::FRAME_BITS;
 use corelib::CoreFunction;
@@ -8,7 +9,7 @@ use platform::iprint;
 use task_meta::{OperationResult, TaskOperation};
 
 use crate::{
-    domain_helper::{resource::DOMAIN_RESOURCE, DOMAIN_CREATE},
+    domain_helper::{resource::DOMAIN_RESOURCE, DOMAIN_CREATE, DOMAIN_INFO},
     domain_proxy::*,
     error::{AlienError, AlienResult},
 };
@@ -291,6 +292,11 @@ impl CoreFunction for DomainSyscall {
     fn checkout_shared_data(&self) -> AlienResult<()> {
         crate::domain_helper::checkout_shared_data();
         Ok(())
+    }
+
+    fn domain_info(&self) -> AlienResult<Arc<dyn Any + Send + Sync>> {
+        let info = DOMAIN_INFO.clone();
+        Ok(info)
     }
 }
 
