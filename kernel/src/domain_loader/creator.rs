@@ -31,9 +31,11 @@ pub fn register_domain_elf(domain_file_name: &str, elf: Vec<u8>, ty: DomainTypeR
     let elf_len = elf.len();
     let mut binding = DOMAIN_ELF.write();
 
-    if binding.iter().find(|(k, f)| {
-        k == &domain_file_name && elf.len() == f.data.len()
-    }).is_some(){
+    if binding
+        .iter()
+        .find(|(k, f)| k == &domain_file_name && elf.len() == f.data.len())
+        .is_some()
+    {
         println!("Domain {} already registered", domain_file_name);
         return;
     }

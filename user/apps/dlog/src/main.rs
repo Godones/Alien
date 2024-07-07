@@ -4,13 +4,13 @@
 extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
+
 use domain_helper::DomainHelperBuilder;
 use Mstd::{
-    domain::{DomainTypeRaw},
-    fs::{open, OpenFlags},
+    domain::DomainTypeRaw,
+    fs::{close, open, OpenFlags},
     println,
 };
-use Mstd::fs::close;
 
 #[no_mangle]
 fn main(_: usize, argv: Vec<String>) -> isize {
@@ -35,7 +35,7 @@ fn main(_: usize, argv: Vec<String>) -> isize {
                         println!("Download domain gxlogger successfully");
                     }
                 }
-            }else {
+            } else {
                 close(xlogger_fd as _);
             }
             let builder = DomainHelperBuilder::new()
@@ -43,10 +43,7 @@ fn main(_: usize, argv: Vec<String>) -> isize {
                 .domain_name("logger")
                 .domain_file_name("xlogger")
                 .domain_file_path("/tests/domains/gxlogger\0");
-            builder
-                .clone()
-                .register_domain_file()
-                .unwrap();
+            builder.clone().register_domain_file().unwrap();
             builder.clone().update_domain().unwrap();
             println!("Register and update logger domain to new version successfully");
         }

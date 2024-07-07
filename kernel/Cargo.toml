@@ -30,6 +30,7 @@ libflate = { workspace = true }
 core2 = { version = "0.4", default-features = false }
 fdt = { git = "https://github.com/repnop/fdt" }
 downcast-rs = { workspace = true }
+hashbrown = "0.14.5"
 
 
 [features]

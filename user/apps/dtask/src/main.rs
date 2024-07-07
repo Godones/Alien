@@ -2,9 +2,8 @@
 #![no_main]
 extern crate alloc;
 
+use alloc::{string::String, vec::Vec};
 
-use alloc::string::String;
-use alloc::vec::Vec;
 use domain_helper::DomainHelperBuilder;
 use Mstd::{domain::DomainTypeRaw, println};
 
@@ -32,7 +31,7 @@ fn main(_: usize, argv: Vec<String>) -> isize {
                 .domain_file_name("prio_scheduler");
             builder.clone().register_domain_file().unwrap();
             builder.update_domain().unwrap();
-           println!("Update scheduler domain to new version success");
+            println!("Update scheduler domain to new version success");
         }
         _ => {
             println!("Usage: dtask [new]/[old]");

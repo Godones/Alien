@@ -17,7 +17,8 @@ members = [
     "user/apps/slint*",
     "user/apps/memory-game",
     "user/apps/out",
-    "user/apps/nice"
+    "user/apps/nice",
+    "user/apps/ftest"
 ]
 resolver = "2"
 
