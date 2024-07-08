@@ -2,6 +2,7 @@ use core::fmt::{Arguments, Result, Write};
 
 use spin::Mutex;
 
+use crate::console_putchar;
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
@@ -57,7 +58,7 @@ pub struct Stdout;
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> Result {
         s.as_bytes().iter().for_each(|x| {
-            crate::console_putchar(*x);
+            console_putchar(*x);
         });
         Ok(())
     }

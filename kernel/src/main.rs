@@ -62,5 +62,5 @@ fn main(hart_id: usize) {
     timer::set_next_trigger();
     println!("Begin run task...");
     task::run_task();
-    platform::system_shutdown();
+    loop {}
 }

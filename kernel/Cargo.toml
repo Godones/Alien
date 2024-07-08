@@ -34,5 +34,4 @@ hashbrown = "0.14.5"
 
 
 [features]
-default = ["smp"]
-smp = ["platform/smp"]
+default = []

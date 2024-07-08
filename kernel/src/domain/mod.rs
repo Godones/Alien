@@ -7,7 +7,7 @@ use basic::bus::mmio::VirtioMmioDeviceType;
 use corelib::AlienResult;
 use domain_helper::alloc_domain_id;
 use interface::*;
-use log::{info, warn};
+use log::warn;
 use rref::RRefVec;
 
 use crate::{
@@ -37,9 +37,15 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
 
     let (plic, domain_file_info) =
         create_domain!(PLICDomainProxy, DomainTypeRaw::PLICDomain, "plic")?;
-    let plic_address = plic_device.address().as_usize();
-    let plic_size = plic_device.io_region().size();
-    plic.init_by_box(Box::new(plic_address..plic_address + plic_size))?;
+    let plic_address = plic_device.address_range();
+    let plic_info = PlicInfo {
+        device_info: plic_address.start.as_usize()..plic_address.end.as_usize(),
+        #[cfg(qemu_riscv)]
+        ty: PlicType::Qemu,
+        #[cfg(vf2)]
+        ty: PlicType::SiFive,
+    };
+    plic.init_by_box(Box::new(plic_info))?;
     register_domain!(
         "plic",
         domain_file_info,
@@ -53,27 +59,34 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         let irq = device.irq();
         match device.name() {
             "rtc" => {
+                if let Some(compatible) = device.compatible() {
+                    if compatible != "google,goldfish-rtc" {
+                        println_color!(31, "unknown rtc device: {}", compatible);
+                        continue;
+                    }
+                }
                 let (rtc, domain_file_info) =
                     create_domain!(RtcDomainProxy, DomainTypeRaw::RtcDomain, "goldfish")?;
                 rtc.init_by_box(Box::new(address..address + size))?;
-                register_domain!(
-                    "rtc",
-                    domain_file_info,
-                    DomainType::RtcDomain(rtc.clone()),
-                    true
-                );
+                register_domain!("rtc", domain_file_info, DomainType::RtcDomain(rtc), true);
                 plic.register_irq(irq.unwrap() as _, &RRefVec::from_slice("rtc".as_bytes()))?;
             }
             "uart" => {
-                let (uart, domain_file_info) =
-                    create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart16550")?;
+                let compatible = device
+                    .compatible()
+                    .expect("uart device must have compatible property");
+                let (uart, domain_file_info) = match compatible {
+                    "ns16550a" => {
+                        create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart16550")?
+                    }
+                    "snps,dw-apb-uart" => {
+                        create_domain!(UartDomainProxy, DomainTypeRaw::UartDomain, "uart8250")?
+                    }
+                    _ => panic!("unknown uart device: {}", compatible),
+                };
+
                 uart.init_by_box(Box::new(address..address + size))?;
-                register_domain!(
-                    "uart",
-                    domain_file_info,
-                    DomainType::UartDomain(uart.clone()),
-                    true
-                );
+                register_domain!("uart", domain_file_info, DomainType::UartDomain(uart), true);
                 let (buf_uart, domain_file_info) =
                     create_domain!(BufUartDomainProxy, DomainTypeRaw::BufUartDomain, "buf_uart")?;
                 buf_uart.init_by_box(Box::new("uart".to_string()))?;
@@ -87,6 +100,17 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     irq.unwrap() as _,
                     &RRefVec::from_slice("buf_uart".as_bytes()),
                 )?;
+            }
+            "ramdisk" => {
+                let (ramdisk, domain_file_info) =
+                    create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "ramdisk")?;
+                ramdisk.init_by_box(Box::new(address..address + size))?;
+                register_domain!(
+                    "block",
+                    domain_file_info,
+                    DomainType::BlkDeviceDomain(ramdisk),
+                    false
+                );
             }
             _ => {
                 warn!("unknown device: {}", device.name());
@@ -108,11 +132,10 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 register_domain!(
                     "virtio_mmio_net",
                     domain_file_info,
-                    DomainType::NetDeviceDomain(net_driver.clone()),
+                    DomainType::NetDeviceDomain(net_driver),
                     false
                 );
                 let irq = device.irq();
-
                 let (net_stack, domain_file_info) =
                     create_domain!(NetDomainProxy, DomainTypeRaw::NetDomain, "net_stack")?;
                 net_stack.init_by_box(Box::new("virtio_mmio_net-1".to_string()))?;
@@ -135,39 +158,14 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     "virtio_mmio_block"
                 )?;
                 blk_driver.init_by_box(Box::new(address..address + size))?;
-                info!(
+                println!(
                     "dev capacity: {:?}MB",
                     blk_driver.get_capacity()? / 1024 / 1024
                 );
                 register_domain!(
-                    "virtio_mmio_block",
+                    "block",
                     domain_file_info,
-                    DomainType::BlkDeviceDomain(blk_driver.clone()),
-                    false
-                );
-
-                let (shadow_blk, domain_file_info) = create_domain!(
-                    ShadowBlockDomainProxy,
-                    DomainTypeRaw::ShadowBlockDomain,
-                    "shadow_blk"
-                )?;
-                shadow_blk.init_by_box(Box::new("virtio_mmio_block-1".to_string()))?;
-                register_domain!(
-                    "shadow_blk",
-                    domain_file_info,
-                    DomainType::ShadowBlockDomain(shadow_blk),
-                    false
-                );
-                let (cache_blk, domain_file_info) = create_domain!(
-                    CacheBlkDomainProxy,
-                    DomainTypeRaw::CacheBlkDeviceDomain,
-                    "cache_blk"
-                )?;
-                cache_blk.init_by_box(Box::new("shadow_blk-1".to_string()))?;
-                register_domain!(
-                    "cache_blk",
-                    domain_file_info,
-                    DomainType::CacheBlkDeviceDomain(cache_blk),
+                    DomainType::BlkDeviceDomain(blk_driver),
                     false
                 );
                 // register irq
@@ -222,6 +220,36 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             }
         }
     }
+
+    // create shadow block and cache block device
+    {
+        let (shadow_blk, domain_file_info) = create_domain!(
+            ShadowBlockDomainProxy,
+            DomainTypeRaw::ShadowBlockDomain,
+            "shadow_blk"
+        )?;
+        shadow_blk.init_by_box(Box::new("block-1".to_string()))?;
+        register_domain!(
+            "shadow_blk",
+            domain_file_info,
+            DomainType::ShadowBlockDomain(shadow_blk),
+            false
+        );
+        let (cache_blk, domain_file_info) = create_domain!(
+            CacheBlkDomainProxy,
+            DomainTypeRaw::CacheBlkDeviceDomain,
+            "cache_blk"
+        )?;
+        cache_blk.init_by_box(Box::new("shadow_blk-1".to_string()))?;
+        register_domain!(
+            "cache_blk",
+            domain_file_info,
+            DomainType::CacheBlkDeviceDomain(cache_blk),
+            false
+        );
+    }
+
+    // create random and null device
     {
         let (null_device, domain_file_info) = create_domain!(
             EmptyDeviceDomainProxy,

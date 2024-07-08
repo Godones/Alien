@@ -69,7 +69,7 @@ pub fn unregister_domain_elf(identifier: &str) {
 ///
 /// It will expand to `create_domain_special::<$proxy_name, _>($ty, $ident, $data)`.
 macro_rules! create_domain {
-    ($proxy_name:ident,$ty:expr, $domain_file_name:expr, $data:expr) => {
+    ($proxy_name:ident, $ty:expr, $domain_file_name:expr, $data:expr) => {
         crate::domain_loader::creator::create_domain_special::<$proxy_name, _>(
             $ty,
             $domain_file_name,

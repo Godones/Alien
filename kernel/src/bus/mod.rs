@@ -5,10 +5,7 @@ use core::ops::Range;
 use ::fdt::Fdt;
 use mem::PhysAddr;
 
-use crate::{
-    bus::fdt::Probe,
-    error::{AlienError, AlienResult},
-};
+use crate::{bus::fdt::Probe, error::AlienResult};
 
 mod fdt;
 pub mod mmio;
@@ -28,6 +25,7 @@ pub enum CommonDeviceType {
     Rtc(CommonDeviceInfo),
     VirtIo(CommonDeviceInfo),
     Pci(CommonDeviceInfo),
+    Ramdisk(CommonDeviceInfo),
 }
 
 pub fn init_with_dtb() -> AlienResult<()> {
@@ -53,12 +51,29 @@ pub fn init_with_dtb() -> AlienResult<()> {
             devices.push(ty);
         }
     }
+
+    #[cfg(vf2)]
+    {
+        let ramdisk_start = RAMDISK.as_ptr() as usize;
+        let len = RAMDISK.len();
+        let info = CommonDeviceInfo {
+            address_range: PhysAddr::from(ramdisk_start)..PhysAddr::from(ramdisk_start + len),
+            irq: None,
+            compatible: None,
+        };
+        devices.push(CommonDeviceType::Ramdisk(info));
+    }
+
     devices.into_iter().for_each(|ty| match ty {
         CommonDeviceType::PLIC(info) => platform::register_platform_device(info, "plic"),
         CommonDeviceType::Uart(info) => platform::register_platform_device(info, "uart"),
         CommonDeviceType::Rtc(info) => platform::register_platform_device(info, "rtc"),
         CommonDeviceType::VirtIo(info) => mmio::register_mmio_device(info),
         CommonDeviceType::Pci(info) => pci::pci_init(info),
+        CommonDeviceType::Ramdisk(info) => platform::register_platform_device(info, "ramdisk"),
     });
     Ok(())
 }
+
+#[cfg(vf2)]
+static RAMDISK: &'static [u8] = include_bytes!("../../../build/sdcard.img");

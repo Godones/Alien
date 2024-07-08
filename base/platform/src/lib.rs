@@ -3,17 +3,26 @@
 #![feature(asm_const)]
 #[macro_use]
 pub mod console;
-mod basic;
 mod common_riscv;
 mod logger;
+#[cfg(qemu_riscv)]
 mod qemu_riscv;
 
-pub use basic::MachineInfo as PlatformInfo;
-use qemu_riscv::console_putchar;
+#[cfg(vf2)]
+mod starfive2_riscv;
+
+pub use common_riscv::basic::MachineInfo as PlatformInfo;
+#[cfg(qemu_riscv)]
+use qemu_riscv::*;
+#[cfg(qemu_riscv)]
 pub use qemu_riscv::{config, set_timer, system_shutdown};
 use spin::Once;
+#[cfg(vf2)]
+pub use starfive2_riscv::{config, set_timer, system_shutdown};
 
 use crate::common_riscv::sbi::hart_start;
+#[cfg(vf2)]
+use crate::starfive2_riscv::*;
 
 extern "C" {
     fn sbss();
@@ -31,17 +40,16 @@ fn clear_bss() {
 pub fn platform_init(hart_id: usize, dtb: usize) {
     clear_bss();
     println!("{}", ::config::ALIEN_FLAG);
-    qemu_riscv::init_dtb(Some(dtb));
-    let machine_info = basic::machine_info_from_dtb(platform_dtb_ptr());
+    init_dtb(Some(dtb));
+    let machine_info = basic_machine_info();
     MACHINE_INFO.call_once(|| machine_info);
     logger::init_logger();
-    #[cfg(feature = "smp")]
     init_other_hart(hart_id);
     unsafe { main(hart_id) }
 }
 
 fn init_other_hart(hart_id: usize) {
-    let start_hart = 0;
+    let start_hart = if cfg!(vf2) { 1 } else { 0 };
     for i in start_hart..::config::CPU_NUM {
         if i != hart_id {
             let res = hart_start(i, _start_secondary as usize, 0);
@@ -56,6 +64,9 @@ extern "C" {
 }
 
 pub fn platform_dtb_ptr() -> usize {
+    #[cfg(vf2)]
+    return *starfive2_riscv::DTB.get().unwrap();
+    #[cfg(qemu_riscv)]
     return *qemu_riscv::DTB.get().unwrap();
 }
 

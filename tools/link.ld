@@ -41,7 +41,6 @@ SECTIONS
     }
 
     .bss :  ALIGN(4096){
-        . = ALIGN(4K);
         *(.bss.stack)
         . = ALIGN(4K);
         sbss = .;

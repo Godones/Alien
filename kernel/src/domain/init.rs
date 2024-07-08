@@ -24,11 +24,17 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("fifo_scheduler", DomainTypeRaw::SchedulerDomain),
     ("task", DomainTypeRaw::TaskDomain),
     ("vfs", DomainTypeRaw::VfsDomain),
+    #[cfg(qemu_riscv)]
     ("uart16550", DomainTypeRaw::UartDomain),
+    #[cfg(qemu_riscv)]
     ("virtio_mmio_block", DomainTypeRaw::BlkDeviceDomain),
     ("net_stack", DomainTypeRaw::NetDomain),
     ("logger", DomainTypeRaw::LogDomain),
     ("domainfs", DomainTypeRaw::FsDomain),
+    #[cfg(vf2)]
+    ("mem_block", DomainTypeRaw::BlkDeviceDomain),
+    #[cfg(vf2)]
+    ("uart8250", DomainTypeRaw::UartDomain),
 ];
 
 pub fn init_domains() {

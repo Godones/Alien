@@ -6,6 +6,23 @@ fn main() {
     let mut script = File::create(&link_script).unwrap();
     let ld_path = Path::new("../tools/link.ld");
     let ld = fs::read_to_string(ld_path).unwrap();
-    script.write_all(ld.as_bytes()).unwrap();
+
+    let platform = option_env!("PLATFORM").unwrap_or("qemu_riscv");
+    let mut base_addr = 0x80200000usize;
+    if platform == "vf2" {
+        base_addr = 0x40200000;
+    }
+    let base_addr = format!("BASE_ADDRESS = {};", base_addr);
+    let mut new_config = String::new();
+    for line in ld.lines() {
+        if line.starts_with("BASE_ADDRESS = ") {
+            new_config.push_str(base_addr.as_str());
+        } else {
+            new_config.push_str(line);
+            new_config.push_str("\n");
+        }
+    }
+    script.write_all(new_config.as_bytes()).unwrap();
     println!("cargo:rustc-link-arg=-T{}", &link_script.display());
+    println!("cargo::rustc-cfg={}", platform);
 }

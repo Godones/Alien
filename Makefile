@@ -9,9 +9,11 @@ GUI ?=n
 FS ?=fat
 IMG := build/sdcard.img
 FSMOUNT := ./diskfs
-FEATURES := smp
+FEATURES := default
 name ?=
-
+VF2 ?= n
+TFTPBOOT := /home/godones/projects/tftpboot/
+PLATFORM := qemu_riscv
 
 comma:= ,
 empty:=
@@ -36,11 +38,23 @@ QEMU_ARGS += -initrd ./build/initramfs.cpio.gz
 QEMU_ARGS += -append "rdinit=/init"
 
 FEATURES := $(subst $(space),$(comma),$(FEATURES))
+
+export SMP
+export PLATFORM
+
 all:run
 
 build:
 	@echo "Building..."
-	@ LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
+	@echo "PLATFORM: $(PLATFORM)"
+	LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
+
+vf2: build
+	rust-objcopy --strip-all $(KERNEL) -O binary ./testos.bin
+	cp ./testos.bin  $(TFTPBOOT)
+	rm ./testos.bin
+
+
 
 run: domains sdcard initrd build
 	qemu-system-riscv64 \

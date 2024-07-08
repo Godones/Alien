@@ -1,4 +1,5 @@
 use alloc::{collections::VecDeque, string::String};
+use core::ops::Range;
 
 use basic::io::SafeIORegion;
 use mem::PhysAddr;
@@ -53,6 +54,10 @@ impl PlatformCommonDevice {
         self.io_region.phys_addr()
     }
 
+    pub fn address_range(&self) -> Range<PhysAddr> {
+        self.io_region.phys_addr_range()
+    }
+
     pub fn io_region(&self) -> &SafeIORegion {
         &self.io_region
     }
@@ -63,5 +68,9 @@ impl PlatformCommonDevice {
 
     pub fn irq(&self) -> Option<u32> {
         self.info.irq
+    }
+
+    pub fn compatible(&self) -> Option<&str> {
+        self.info.compatible.as_deref()
     }
 }
