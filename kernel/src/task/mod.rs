@@ -87,7 +87,7 @@ pub fn synchronize_rcu() {
         let cpu_id = hart_id();
         let mut cpus_allowed = guard.scheduling_info.as_ref().unwrap().cpus_allowed;
         cpus_allowed &= !(1 << cpu_id);
-        if cpus_allowed == 0 {
+        if cpus_allowed == CPU_OK {
             println!("synchronize_rcu done");
             guard.scheduling_info.as_mut().unwrap().cpus_allowed = old_cpus_allowed;
             break;
@@ -98,3 +98,9 @@ pub fn synchronize_rcu() {
         yield_now();
     }
 }
+
+#[cfg(vf2)]
+const CPU_OK: usize = 1;
+
+#[cfg(not(vf2))]
+const CPU_OK: usize = 0;

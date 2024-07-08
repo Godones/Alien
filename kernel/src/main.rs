@@ -45,10 +45,10 @@ fn main(hart_id: usize) {
         let machine_info = platform::platform_machine_info();
         println!("{:#?}", machine_info);
         mem::init_memory_system(machine_info.memory.end, true);
-        trap::init_trap_subsystem();
         arch::allow_access_user_memory();
         bus::init_with_dtb().unwrap();
         domain::load_domains().unwrap();
+        trap::init_trap_subsystem();
         STARTED.store(false, Ordering::Relaxed);
     } else {
         while STARTED.load(Ordering::Relaxed) {

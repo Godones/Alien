@@ -10,7 +10,7 @@ fn main() -> isize {
         .ty(DomainTypeRaw::NetDeviceDomain)
         .domain_file_path("/tests/gvirtio_mmio_net\0")
         .domain_file_name("virtio_mmio_net_new")
-        .domain_name("virtio_mmio_net-1");
+        .domain_name("nic-1");
 
     builder.clone().register_domain_file().unwrap();
     builder.update_domain().unwrap();

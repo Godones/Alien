@@ -26,6 +26,7 @@ pub enum CommonDeviceType {
     VirtIo(CommonDeviceInfo),
     Pci(CommonDeviceInfo),
     Ramdisk(CommonDeviceInfo),
+    LoopBack(CommonDeviceInfo),
 }
 
 pub fn init_with_dtb() -> AlienResult<()> {
@@ -62,6 +63,13 @@ pub fn init_with_dtb() -> AlienResult<()> {
             compatible: None,
         };
         devices.push(CommonDeviceType::Ramdisk(info));
+
+        let fake_nic = CommonDeviceInfo {
+            address_range: PhysAddr::from(0)..PhysAddr::from(0 + 0),
+            irq: Some(0),
+            compatible: None,
+        };
+        devices.push(CommonDeviceType::LoopBack(fake_nic));
     }
 
     devices.into_iter().for_each(|ty| match ty {
@@ -71,6 +79,7 @@ pub fn init_with_dtb() -> AlienResult<()> {
         CommonDeviceType::VirtIo(info) => mmio::register_mmio_device(info),
         CommonDeviceType::Pci(info) => pci::pci_init(info),
         CommonDeviceType::Ramdisk(info) => platform::register_platform_device(info, "ramdisk"),
+        CommonDeviceType::LoopBack(info) => platform::register_platform_device(info, "loopback"),
     });
     Ok(())
 }

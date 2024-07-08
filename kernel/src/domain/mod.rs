@@ -53,6 +53,8 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
         true
     );
 
+    let mut nic_irq = 0;
+
     for device in platform_bus.common_devices().iter() {
         let address = device.address().as_usize();
         let size = device.io_region().size();
@@ -103,7 +105,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             }
             "ramdisk" => {
                 let (ramdisk, domain_file_info) =
-                    create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "ramdisk")?;
+                    create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "mem_block")?;
                 ramdisk.init_by_box(Box::new(address..address + size))?;
                 register_domain!(
                     "block",
@@ -111,6 +113,22 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainType::BlkDeviceDomain(ramdisk),
                     false
                 );
+            }
+            "loopback" => {
+                let (net_driver, domain_file_info) = create_domain!(
+                    NetDeviceDomainProxy,
+                    DomainTypeRaw::NetDeviceDomain,
+                    "loopback"
+                )?;
+                net_driver.init_by_box(Box::new(address..address + size))?;
+                register_domain!(
+                    "nic",
+                    domain_file_info,
+                    DomainType::NetDeviceDomain(net_driver),
+                    false
+                );
+                let irq = device.irq();
+                nic_irq = irq.unwrap();
             }
             _ => {
                 warn!("unknown device: {}", device.name());
@@ -130,26 +148,13 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 )?;
                 net_driver.init_by_box(Box::new(address..address + size))?;
                 register_domain!(
-                    "virtio_mmio_net",
+                    "nic",
                     domain_file_info,
                     DomainType::NetDeviceDomain(net_driver),
                     false
                 );
                 let irq = device.irq();
-                let (net_stack, domain_file_info) =
-                    create_domain!(NetDomainProxy, DomainTypeRaw::NetDomain, "net_stack")?;
-                net_stack.init_by_box(Box::new("virtio_mmio_net-1".to_string()))?;
-                register_domain!(
-                    "net_stack",
-                    domain_file_info,
-                    DomainType::NetDomain(net_stack),
-                    true
-                );
-                // register irq
-                plic.register_irq(
-                    irq.unwrap() as _,
-                    &RRefVec::from_slice("net_stack".as_bytes()),
-                )?
+                nic_irq = irq.unwrap();
             }
             VirtioMmioDeviceType::Block => {
                 let (blk_driver, domain_file_info) = create_domain!(
@@ -220,7 +225,19 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             }
         }
     }
-
+    {
+        let (net_stack, domain_file_info) =
+            create_domain!(NetDomainProxy, DomainTypeRaw::NetDomain, "net_stack")?;
+        net_stack.init_by_box(Box::new("nic-1".to_string()))?;
+        register_domain!(
+            "net_stack",
+            domain_file_info,
+            DomainType::NetDomain(net_stack),
+            true
+        );
+        // register irq
+        plic.register_irq(nic_irq as _, &RRefVec::from_slice("net_stack".as_bytes()))?
+    }
     // create shadow block and cache block device
     {
         let (shadow_blk, domain_file_info) = create_domain!(
