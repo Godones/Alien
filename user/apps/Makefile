@@ -23,9 +23,7 @@ BUILD_CRATES := \
 	sleep \
 	socket_test \
 	final_test \
-	ls \
-	cat \
-	mkdir \
+	ftest \
 #	shell \
 	print \
 

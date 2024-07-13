@@ -147,7 +147,7 @@ pub fn utimensat(
             TimeSpec::now().into(),
         )?;
         dt.inode()?.update_time(
-            VfsTime::AccessTime(TimeSpec::now().into()),
+            VfsTime::ModifiedTime(TimeSpec::now().into()),
             TimeSpec::now().into(),
         )?;
     } else {
@@ -184,7 +184,6 @@ pub fn utimensat(
                 .update_time(VfsTime::ModifiedTime(mtime.into()), TimeSpec::now().into())?;
         };
     };
-
     Ok(0)
 }
 

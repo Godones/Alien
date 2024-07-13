@@ -212,16 +212,8 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
             // starfive2
             #[cfg(not(feature = "ramdisk"))]
             {
-                use arch::read_timer;
-                use platform::config::CLOCK_FREQ;
-                pub fn sleep(ms: usize) {
-                    let start = read_timer();
-                    while read_timer() - start < ms * (CLOCK_FREQ / 1000) {
-                        core::hint::spin_loop();
-                    }
-                }
-                use drivers::block_device::{VF2SDDriver, Vf2SdDriver};
-                let block_device = VF2SDDriver::new(Vf2SdDriver::new(sleep));
+                use drivers::block_device::VF2SDDriver;
+                let block_device = VF2SDDriver::new();
                 let size = block_device.capacity();
                 println!("Block device size is {}MB", size * 512 / 1024 / 1024);
                 let block_device = Arc::new(GenericBlockDevice::new(Box::new(block_device)));

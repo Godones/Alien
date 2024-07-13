@@ -13,13 +13,15 @@ use device_interface::{BlockDevice, DeviceBase, LowBlockDevice};
 use ksync::{Mutex, RwLock};
 use lru::LruCache;
 use mem::{alloc_frames, free_frames};
-use platform::config::BLOCK_CACHE_FRAMES;
+use platform::config::{BLOCK_CACHE_FRAMES, CLOCK_FREQ};
 use shim::KTask;
+use timer::read_timer;
 use virtio_drivers::{
     device::blk::VirtIOBlk,
     transport::mmio::{MmioTransport, VirtIOHeader},
 };
 pub use visionfive2_sd::Vf2SdDriver;
+use visionfive2_sd::{SDIo, SleepOps};
 
 use crate::hal::HalImpl;
 const PAGE_CACHE_SIZE: usize = FRAME_SIZE;
@@ -367,28 +369,28 @@ impl MemoryFat32Img {
 }
 
 pub struct VF2SDDriver {
-    driver: Vf2SdDriver,
+    driver: Mutex<Vf2SdDriver<SdIoImpl, SleepOpsImpl>>,
 }
 
 impl VF2SDDriver {
-    pub fn new(vf2sd_driver: Vf2SdDriver) -> Self {
+    pub fn new() -> Self {
         Self {
-            driver: vf2sd_driver,
+            driver: Mutex::new(Vf2SdDriver::new(SdIoImpl)),
         }
     }
-    pub fn init(&self) {
-        self.driver.init();
+    pub fn init(&mut self) {
+        self.driver.lock().init();
     }
 }
 
 impl LowBlockDevice for VF2SDDriver {
     fn read_block(&self, block_id: usize, buf: &mut [u8]) -> AlienResult<()> {
-        self.driver.read_block(block_id, buf);
+        self.driver.lock().read_block(block_id, buf);
         Ok(())
     }
 
     fn write_block(&self, block_id: usize, buf: &[u8]) -> AlienResult<()> {
-        self.driver.write_block(block_id, buf);
+        self.driver.lock().write_block(block_id, buf);
         Ok(())
     }
     fn capacity(&self) -> usize {
@@ -405,5 +407,55 @@ impl LowBlockDevice for VF2SDDriver {
     }
     fn handle_irq(&self) {
         unimplemented!()
+    }
+}
+
+pub struct SdIoImpl;
+pub const SDIO_BASE: usize = 0x16020000;
+
+impl SDIo for SdIoImpl {
+    fn read_reg_at(&self, offset: usize) -> u32 {
+        let addr = (SDIO_BASE + offset) as *mut u32;
+        unsafe { addr.read_volatile() }
+    }
+    fn write_reg_at(&mut self, offset: usize, val: u32) {
+        let addr = (SDIO_BASE + offset) as *mut u32;
+        unsafe { addr.write_volatile(val) }
+    }
+    fn read_data_at(&self, offset: usize) -> u64 {
+        let addr = (SDIO_BASE + offset) as *mut u64;
+        unsafe { addr.read_volatile() }
+    }
+    fn write_data_at(&mut self, offset: usize, val: u64) {
+        let addr = (SDIO_BASE + offset) as *mut u64;
+        unsafe { addr.write_volatile(val) }
+    }
+}
+
+pub struct SleepOpsImpl;
+
+impl SleepOps for SleepOpsImpl {
+    fn sleep_ms(ms: usize) {
+        sleep_ms(ms)
+    }
+    fn sleep_ms_until(ms: usize, f: impl FnMut() -> bool) {
+        sleep_ms_until(ms, f)
+    }
+}
+
+fn sleep_ms(ms: usize) {
+    let start = read_timer();
+    while read_timer() - start < ms * CLOCK_FREQ / 1000 {
+        core::hint::spin_loop();
+    }
+}
+
+fn sleep_ms_until(ms: usize, mut f: impl FnMut() -> bool) {
+    let start = read_timer();
+    while read_timer() - start < ms * CLOCK_FREQ / 1000 {
+        if f() {
+            return;
+        }
+        core::hint::spin_loop();
     }
 }
