@@ -14,6 +14,7 @@ name ?=
 VF2 ?= n
 TFTPBOOT := /home/godones/projects/tftpboot/
 PLATFORM := qemu_riscv
+VF2_SD ?= n
 
 comma:= ,
 empty:=
@@ -41,12 +42,15 @@ FEATURES := $(subst $(space),$(comma),$(FEATURES))
 
 export SMP
 export PLATFORM
+export VF2_SD
 
 all:run
 
 build:
 	@echo "Building..."
 	@echo "PLATFORM: $(PLATFORM)"
+	@echo "SM: $(SMP)"
+	@echo "VF2_SD: $(VF2_SD)"
 	LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
 
 vf2: build

@@ -130,6 +130,17 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 let irq = device.irq();
                 nic_irq = irq.unwrap();
             }
+            "sdcard" => {
+                let (sdcard, domain_file_info) =
+                    create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "vf2_sd")?;
+                sdcard.init_by_box(Box::new(address..address + size))?;
+                register_domain!(
+                    "block",
+                    domain_file_info,
+                    DomainType::BlkDeviceDomain(sdcard),
+                    false
+                );
+            }
             _ => {
                 warn!("unknown device: {}", device.name());
             }

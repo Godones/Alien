@@ -4,5 +4,6 @@ pub const CLOCK_FREQ: usize = 400_0000;
 pub const DEVICE_SPACE: &[(&str, usize, usize)] = &[
     ("rtc", 0x17040000, 0x10000),
     ("plic", 0xc000000, 0x4000000),
-    ("virtio-mmio", 0x00_1000_0000, 0x10000),
+    ("UART", 0x10000000, 0x10000),
+    ("sdio1", 0x16020000, 0x10000),
 ];

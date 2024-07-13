@@ -20,9 +20,15 @@ fn main() {
             }
         }
         script.write_all(new_config.as_bytes()).unwrap();
-    }else {
+    } else {
         script.write_all(ld.as_bytes()).unwrap();
     }
+
+    let vf2_sd = option_env!("VF2_SD").unwrap_or("n");
+    if vf2_sd == "y" {
+        println!("cargo:rustc-cfg=vf2_sd");
+    }
+
     println!("cargo:rustc-link-arg=-T{}", &link_script.display());
     println!("cargo::rustc-cfg={}", platform);
 }

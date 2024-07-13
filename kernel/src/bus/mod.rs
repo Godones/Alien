@@ -27,6 +27,7 @@ pub enum CommonDeviceType {
     Pci(CommonDeviceInfo),
     Ramdisk(CommonDeviceInfo),
     LoopBack(CommonDeviceInfo),
+    SdCard(CommonDeviceInfo),
 }
 
 pub fn init_with_dtb() -> AlienResult<()> {
@@ -55,14 +56,17 @@ pub fn init_with_dtb() -> AlienResult<()> {
 
     #[cfg(vf2)]
     {
-        let ramdisk_start = RAMDISK.as_ptr() as usize;
-        let len = RAMDISK.len();
-        let info = CommonDeviceInfo {
-            address_range: PhysAddr::from(ramdisk_start)..PhysAddr::from(ramdisk_start + len),
-            irq: None,
-            compatible: None,
-        };
-        devices.push(CommonDeviceType::Ramdisk(info));
+        #[cfg(not(vf2_sd))]
+        {
+            let ramdisk_start = RAMDISK.as_ptr() as usize;
+            let len = RAMDISK.len();
+            let info = CommonDeviceInfo {
+                address_range: PhysAddr::from(ramdisk_start)..PhysAddr::from(ramdisk_start + len),
+                irq: None,
+                compatible: None,
+            };
+            devices.push(CommonDeviceType::Ramdisk(info));
+        }
 
         let fake_nic = CommonDeviceInfo {
             address_range: PhysAddr::from(0)..PhysAddr::from(0 + 0),
@@ -71,6 +75,10 @@ pub fn init_with_dtb() -> AlienResult<()> {
         };
         devices.push(CommonDeviceType::LoopBack(fake_nic));
     }
+    #[cfg(all(vf2, vf2_sd))]
+    dtb.probe_sd().map(|ty| {
+        devices.push(ty);
+    });
 
     devices.into_iter().for_each(|ty| match ty {
         CommonDeviceType::PLIC(info) => platform::register_platform_device(info, "plic"),
@@ -80,9 +88,10 @@ pub fn init_with_dtb() -> AlienResult<()> {
         CommonDeviceType::Pci(info) => pci::pci_init(info),
         CommonDeviceType::Ramdisk(info) => platform::register_platform_device(info, "ramdisk"),
         CommonDeviceType::LoopBack(info) => platform::register_platform_device(info, "loopback"),
+        CommonDeviceType::SdCard(info) => platform::register_platform_device(info, "sdcard"),
     });
     Ok(())
 }
 
-#[cfg(vf2)]
+#[cfg(all(vf2, not(vf2_sd)))]
 static RAMDISK: &'static [u8] = include_bytes!("../../../build/sdcard.img");

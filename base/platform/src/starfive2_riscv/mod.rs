@@ -36,8 +36,3 @@ pub fn system_shutdown() -> ! {
 pub fn console_putchar(ch: u8) {
     crate::common_riscv::sbi::console_putchar(ch);
 }
-
-#[allow(unused)]
-pub fn console_getchar() -> char {
-    crate::common_riscv::sbi::console_getchar()
-}

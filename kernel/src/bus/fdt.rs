@@ -16,6 +16,8 @@ pub trait Probe {
     fn probe_virtio(&self) -> Option<Vec<CommonDeviceType>>;
     fn probe_common(&self, device_name: &str, has_irq: bool) -> Option<CommonDeviceInfo>;
     fn probe_pci(&self) -> Option<CommonDeviceType>;
+    #[cfg(all(vf2, vf2_sd))]
+    fn probe_sd(&self) -> Option<CommonDeviceType>;
 }
 
 impl Probe for Fdt<'_> {
@@ -96,6 +98,14 @@ impl Probe for Fdt<'_> {
     fn probe_pci(&self) -> Option<CommonDeviceType> {
         match self.probe_common("pci", false) {
             Some(device_info) => Some(CommonDeviceType::Pci(device_info)),
+            None => None,
+        }
+    }
+
+    #[cfg(all(vf2, vf2_sd))]
+    fn probe_sd(&self) -> Option<CommonDeviceType> {
+        match self.probe_common("sdio1", true) {
+            Some(device_info) => Some(CommonDeviceType::SdCard(device_info)),
             None => None,
         }
     }

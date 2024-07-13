@@ -31,10 +31,12 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("net_stack", DomainTypeRaw::NetDomain),
     ("logger", DomainTypeRaw::LogDomain),
     ("domainfs", DomainTypeRaw::FsDomain),
-    #[cfg(vf2)]
+    #[cfg(all(vf2, not(vf2_sd)))]
     ("mem_block", DomainTypeRaw::BlkDeviceDomain),
     #[cfg(vf2)]
     ("uart8250", DomainTypeRaw::UartDomain),
+    #[cfg(all(vf2, vf2_sd))]
+    ("vf2_sd", DomainTypeRaw::BlkDeviceDomain),
 ];
 
 pub fn init_domains() {
