@@ -1,8 +1,8 @@
-use alloc::sync::Arc;
+use alloc::{string::ToString, sync::Arc};
 use core::{any::Any, sync::atomic::AtomicBool};
 
 use config::FRAME_BITS;
-use corelib::CoreFunction;
+use corelib::{domain_info::DomainDataInfo, CoreFunction};
 use interface::*;
 use log::warn;
 use platform::iprint;
@@ -99,7 +99,7 @@ impl CoreFunction for DomainSyscall {
         ty: DomainTypeRaw,
     ) -> AlienResult<()> {
         let old_domain = super::query_domain(old_domain_name);
-        match old_domain {
+        let domain_info = match old_domain {
             Some(DomainType::GpuDomain(gpu)) => {
                 let old_domain_id = gpu.domain_id();
                 let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
@@ -110,12 +110,13 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let gpu_proxy = gpu.downcast_arc::<GpuDomainProxy>().unwrap();
+                let domain_info = loader.domain_file_info();
                 gpu_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace domain: {} with domain: {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(())
+                Ok(domain_info)
             }
             Some(DomainType::ShadowBlockDomain(shadow_blk)) => {
                 let old_domain_id = shadow_blk.domain_id();
@@ -127,12 +128,13 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
+                let domain_info = loader.domain_file_info();
                 shadow_blk_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace domain: {} with domain: {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(())
+                Ok(domain_info)
             }
             Some(DomainType::SchedulerDomain(scheduler)) => {
                 let old_domain_id = scheduler.domain_id();
@@ -144,12 +146,13 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let scheduler_proxy = scheduler.downcast_arc::<SchedulerDomainProxy>().unwrap();
+                let domain_info = loader.domain_file_info();
                 scheduler_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace {:?} [{}] with [{}] ok",
                     ty, old_domain_name, new_domain_name
                 );
-                Ok(())
+                Ok(domain_info)
             }
             Some(DomainType::LogDomain(logger)) => {
                 let old_domain_id = logger.domain_id();
@@ -161,12 +164,13 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let logger_proxy = logger.downcast_arc::<LogDomainProxy>().unwrap();
+                let domain_info = loader.domain_file_info();
                 logger_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace logger domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(())
+                Ok(domain_info)
             }
 
             Some(DomainType::InputDomain(input)) => {
@@ -179,12 +183,13 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let input_proxy = input.downcast_arc::<InputDomainProxy>().unwrap();
+                let domain_info = loader.domain_file_info();
                 input_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace input domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(())
+                Ok(domain_info)
             }
 
             Some(DomainType::NetDeviceDomain(nic)) => {
@@ -197,12 +202,13 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let nic_proxy = nic.downcast_arc::<NetDeviceDomainProxy>().unwrap();
+                let domain_info = loader.domain_file_info();
                 nic_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace net device domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(())
+                Ok(domain_info)
             }
 
             Some(DomainType::VfsDomain(vfs)) => {
@@ -215,12 +221,13 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let vfs_proxy = vfs.downcast_arc::<VfsDomainProxy>().unwrap();
+                let domain_info = loader.domain_file_info();
                 vfs_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace vfs domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(())
+                Ok(domain_info)
             }
             None => {
                 println!(
@@ -232,7 +239,16 @@ impl CoreFunction for DomainSyscall {
             _ => {
                 panic!("replace domain not support");
             }
-        }
+        }?;
+        let domain_data = DomainDataInfo {
+            ty,
+            file_info: domain_info,
+        };
+        DOMAIN_INFO
+            .lock()
+            .domain_list
+            .insert(old_domain_name.to_string(), domain_data);
+        Ok(())
     }
     fn sys_reload_domain(&self, domain_name: &str) -> AlienResult<()> {
         let domain = super::query_domain(domain_name).ok_or(AlienError::EINVAL)?;

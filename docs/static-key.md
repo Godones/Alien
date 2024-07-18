@@ -58,6 +58,8 @@ rust种对应的特性为`#[feature(asm_goto)]`。
 
 直接模仿Linux的实现不可行，可以试试其它途径。
 
+
+
 ## Naked Function
 
 motivation： 
@@ -93,6 +95,7 @@ https://rust-lang.github.io/rfcs/2972-constrained-naked.html
 有了这种函数，我们可以实现下面的函数:
 
 ```rust
+static DEFAULT_TRUE = true;
 #[naked_function::naked]
 pub unsafe extern "C" fn is_true() -> bool {
     asm!("li a0, 1", "ret",)
@@ -109,8 +112,6 @@ pub fn is_true()->bool{
 
 两者的功能是一致的，但是下面这种函数会被编译器优化掉，而上面的函数不会。这给了我们机会通过修改第一条指令的立即数，就可以更改这个函数的行为。
 
-
-
 这种实现相比Linux中的实现，是存在一些缺陷的：
 
 1. 首先这种方法不能减少指令数量，gcc可以判断函数默认返回值并做代码优化，这会减少不必要的测试跳转指令，但rust的这种方法并不能减少测试跳转指令
@@ -126,8 +127,6 @@ pub fn is_true()->bool{
 我们在riscv的开发板进行测试，评估读取原子变量进行判断和使用裸函数进行判断的性能数据。
 
 单纯地评估两种实现的差异并没有意义，我们模拟了缓存大量数据填充的影响。
-
-
 
 
 
