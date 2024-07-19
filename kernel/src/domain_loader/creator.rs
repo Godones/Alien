@@ -171,3 +171,13 @@ pub fn create_domain<T: ?Sized>(
 
     Some((id, domain, domain_loader))
 }
+
+pub fn create_domain_with_loader<T: ?Sized>(
+    mut domain_loader: DomainLoader,
+    use_old_id: Option<u64>,
+) -> Option<(u64, Box<T>, DomainLoader)> {
+    domain_loader.load().unwrap();
+    let id = alloc_domain_id();
+    let domain = domain_loader.call(id, use_old_id);
+    Some((id, domain, domain_loader))
+}

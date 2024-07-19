@@ -66,7 +66,7 @@ pub fn build_kernel_address_space(memory_end: usize) {
     let mut kernel_space = KERNEL_SPACE.write();
     let text_area = VmAreaEqual::new(
         stext as _..srodata as _,
-        MappingFlags::READ | MappingFlags::EXECUTE,
+        MappingFlags::READ | MappingFlags::EXECUTE | MappingFlags::WRITE,
     );
     let rodata_area = VmAreaEqual::new(srodata as _..sdata as _, MappingFlags::READ);
     let sdata_area = VmAreaEqual::new(

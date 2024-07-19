@@ -11,7 +11,7 @@ mod qemu_riscv;
 #[cfg(vf2)]
 mod starfive2_riscv;
 
-pub use common_riscv::basic::MachineInfo as PlatformInfo;
+pub use common_riscv::{basic::MachineInfo as PlatformInfo, sbi::remote_fence_i};
 #[cfg(qemu_riscv)]
 use qemu_riscv::*;
 #[cfg(qemu_riscv)]

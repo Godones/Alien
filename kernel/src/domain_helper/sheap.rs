@@ -201,7 +201,7 @@ pub fn free_domain_shared_data(id: u64, free_shared: FreeShared) {
 
     match free_shared {
         FreeShared::Free => {
-            println_color!(34, "free_shared is Free, free data");
+            println_color!(34, "free_shared is Free, free {} data", data.len());
             data.into_iter().for_each(|v| unsafe {
                 v.drop_fn();
                 SharedHeapAllocator.dealloc(v.value_pointer);

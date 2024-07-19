@@ -254,8 +254,18 @@ impl CoreFunction for DomainSyscall {
         let domain = super::query_domain(domain_name).ok_or(AlienError::EINVAL)?;
         match domain {
             DomainType::BlkDeviceDomain(blk) => {
+                let old_domain_id = blk.domain_id();
                 let blk_proxy = blk.downcast_arc::<BlkDomainProxy>().unwrap();
-                blk_proxy.reload()
+                let domain_loader = blk_proxy.domain_loader();
+                let (_id, new_domain, loader) =
+                    crate::domain_loader::creator::create_domain_with_loader(
+                        domain_loader,
+                        Some(old_domain_id),
+                    )
+                    .ok_or(AlienError::EINVAL)?;
+                blk_proxy.reload(new_domain, loader)?;
+                println!("Try to reload blk device domain ok");
+                Ok(())
             }
             // todo!(release old domain's resource)
             ty => {

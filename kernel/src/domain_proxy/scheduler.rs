@@ -1,8 +1,10 @@
 use alloc::boxed::Box;
-use core::{any::Any, fmt::Debug, mem::forget, sync::atomic::AtomicBool};
+use core::{any::Any, fmt::Debug, mem::forget};
 
 use interface::*;
+use jtable::*;
 use ksync::RwLock;
+use paste::paste;
 use rref::{RRef, SharedData};
 use task_meta::TaskSchedulingInfo;
 
@@ -11,13 +13,14 @@ use crate::{
     domain_loader::loader::DomainLoader,
     domain_proxy::{PerCpuCounter, ProxyBuilder},
     error::{AlienError, AlienResult},
+    k_static_branch_disable, k_static_branch_enable,
     sync::{synchronize_sched, RcuData, SleepMutex},
     task::yield_now,
 };
 
+define_static_key_false!(SCHEDULER_DOMAIN_PROXY_KEY);
 #[derive(Debug)]
 pub struct SchedulerDomainProxy {
-    in_updating: AtomicBool,
     domain: RcuData<Box<dyn SchedulerDomain>>,
     lock: RwLock<()>,
     domain_loader: SleepMutex<DomainLoader>,
@@ -26,15 +29,11 @@ pub struct SchedulerDomainProxy {
 impl SchedulerDomainProxy {
     pub fn new(domain: Box<dyn SchedulerDomain>, domain_loader: DomainLoader) -> Self {
         Self {
-            in_updating: AtomicBool::new(false),
             domain: RcuData::new(Box::new(domain)),
             lock: RwLock::new(()),
             domain_loader: SleepMutex::new(domain_loader),
             counter: PerCpuCounter::new(),
         }
-    }
-    pub fn is_updating(&self) -> bool {
-        self.in_updating.load(core::sync::atomic::Ordering::Relaxed)
     }
     pub fn all_counter(&self) -> usize {
         self.counter.all()
@@ -68,13 +67,13 @@ impl SchedulerDomain for SchedulerDomainProxy {
         self.domain.get().init()
     }
     fn add_task(&self, scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
-        if self.is_updating() {
+        if static_branch_likely!(SCHEDULER_DOMAIN_PROXY_KEY) {
             return self.__add_task_with_lock(scheduling_info);
         }
         self.__add_task_no_lock(scheduling_info)
     }
     fn fetch_task(&self, info: RRef<TaskSchedulingInfo>) -> AlienResult<RRef<TaskSchedulingInfo>> {
-        if self.is_updating() {
+        if static_branch_likely!(SCHEDULER_DOMAIN_PROXY_KEY) {
             return self.__fetch_task_with_lock(info);
         }
         self.__fetch_task_no_lock(info)
@@ -181,8 +180,7 @@ impl SchedulerDomainProxy {
         // stage1: get the sleep lock and change to updating state
         let mut loader_guard = self.domain_loader.lock();
 
-        self.in_updating
-            .store(true, core::sync::atomic::Ordering::Relaxed);
+        k_static_branch_enable!(SCHEDULER_DOMAIN_PROXY_KEY);
 
         // why we need to synchronize_sched here?
         synchronize_sched();
@@ -205,8 +203,7 @@ impl SchedulerDomainProxy {
         let old_domain = self.domain.swap(Box::new(new_domain));
 
         // change to normal state
-        self.in_updating
-            .store(false, core::sync::atomic::Ordering::Relaxed);
+        k_static_branch_disable!(SCHEDULER_DOMAIN_PROXY_KEY);
 
         // stage5: recycle all resources
         let real_domain = Box::into_inner(old_domain);
