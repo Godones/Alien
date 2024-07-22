@@ -7,3 +7,4 @@ panic = "abort"
 #lto = true
 strip = true
 opt-level = "z"  # Optimize for size.
+incremental = true
