@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, format, sync::Arc, vec, vec::Vec};
+use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use core::sync::atomic::AtomicUsize;
 
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
@@ -191,7 +191,7 @@ pub fn unmap_kstack_for_task(task_id: usize, pages: usize) -> AlienResult<()> {
     let mut kernel_space = KERNEL_SPACE.write();
     kernel_space
         .unmap(kstack_lower)
-        .expect(&format!("unmap kstack failed, task_id:{}", task_id));
+        .unwrap_or_else(|_| panic!("unmap kstack failed, task_id:{}", task_id));
     info!(
         "unmap task {} kstack: {:#x?}-{:#x?}",
         task_id, kstack_lower, kstack_upper

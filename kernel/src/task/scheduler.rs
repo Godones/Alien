@@ -92,7 +92,7 @@ pub fn is_task_exit(tid: Tid) -> bool {
     let task = guard.get(&tid);
     if let Some(task) = task {
         let status = task.lock().status();
-        let ref_count = Arc::strong_count(&task);
+        let ref_count = Arc::strong_count(task);
         return status == TaskStatus::Terminated && ref_count == 1;
     }
     false

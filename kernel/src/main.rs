@@ -4,9 +4,9 @@
 #![feature(trait_upcasting)]
 #![feature(allocator_api)]
 #![feature(alloc_layout_extra)]
-#![allow(unused_unsafe)]
 #![feature(ptr_metadata)]
 #![feature(let_chains)]
+#![allow(clippy::declare_interior_mutable_const)]
 #![no_std]
 #![no_main]
 mod panic;
@@ -62,5 +62,4 @@ fn main(hart_id: usize) {
     timer::set_next_trigger();
     println!("Begin run task...");
     task::run_task();
-    loop {}
 }

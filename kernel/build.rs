@@ -16,7 +16,7 @@ fn main() {
                 new_config.push_str(base_addr.as_str());
             } else {
                 new_config.push_str(line);
-                new_config.push_str("\n");
+                new_config.push('\n');
             }
         }
         script.write_all(new_config.as_bytes()).unwrap();

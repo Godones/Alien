@@ -70,7 +70,7 @@ impl DomainContainer {
         }
     }
     fn get(&self, name: &str) -> Option<DomainType> {
-        self.domains.get(name).map(|d| d.clone())
+        self.domains.get(name).cloned()
     }
 }
 
@@ -90,10 +90,7 @@ pub fn init_domain_create(domain_create: Box<dyn DomainCreate>) {
 
 /// find the domain which name is `domain_identifier`
 pub fn query_domain(domain_identifier: &str) -> Option<DomainType> {
-    match DOMAIN_CONTAINER.lock().get(&domain_identifier) {
-        Some(domain) => Some(domain),
-        None => None,
-    }
+    DOMAIN_CONTAINER.lock().get(domain_identifier)
 }
 
 /// Register a domain with a  identifier which may be unique
@@ -121,7 +118,7 @@ pub fn register_domain(
 #[macro_export]
 macro_rules! register_domain {
     ($ident:expr,$domain_file:expr,$domain:expr,$unique:expr) => {
-        crate::domain_helper::register_domain($ident, $domain_file, $domain, $unique)
+        $crate::domain_helper::register_domain($ident, $domain_file, $domain, $unique)
     };
 }
 

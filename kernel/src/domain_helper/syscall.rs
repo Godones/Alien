@@ -279,8 +279,9 @@ impl CoreFunction for DomainSyscall {
 
     fn task_op(&self, op: TaskOperation) -> corelib::AlienResult<OperationResult> {
         match op {
-            TaskOperation::Create(task_meta) => crate::task::add_one_task(task_meta, false)
-                .map(|res| OperationResult::KstackTop(res)),
+            TaskOperation::Create(task_meta) => {
+                crate::task::add_one_task(task_meta, false).map(OperationResult::KstackTop)
+            }
             TaskOperation::Wait => {
                 crate::task::wait_now();
                 Ok(OperationResult::Null)

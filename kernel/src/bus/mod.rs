@@ -20,7 +20,7 @@ pub struct CommonDeviceInfo {
 }
 #[derive(Debug, Clone)]
 pub enum CommonDeviceType {
-    PLIC(CommonDeviceInfo),
+    Plic(CommonDeviceInfo),
     Uart(CommonDeviceInfo),
     Rtc(CommonDeviceInfo),
     VirtIo(CommonDeviceInfo),
@@ -35,18 +35,18 @@ pub fn init_with_dtb() -> AlienResult<()> {
     let dtb = unsafe { Fdt::from_ptr(ptr as *const u8) }.unwrap();
 
     let mut devices = vec![];
-    dtb.probe_rtc().map(|ty| {
+    if let Some(ty) = dtb.probe_rtc() {
         devices.push(ty);
-    });
-    dtb.probe_uart().map(|ty| {
+    }
+    if let Some(ty) = dtb.probe_uart() {
         devices.push(ty);
-    });
-    dtb.probe_plic().map(|ty| {
+    }
+    if let Some(ty) = dtb.probe_plic() {
         devices.push(ty);
-    });
-    dtb.probe_pci().map(|ty| {
+    }
+    if let Some(ty) = dtb.probe_pci() {
         devices.push(ty);
-    });
+    }
     let virtio = dtb.probe_virtio();
     if let Some(virtio) = virtio {
         for ty in virtio {
@@ -81,7 +81,7 @@ pub fn init_with_dtb() -> AlienResult<()> {
     });
 
     devices.into_iter().for_each(|ty| match ty {
-        CommonDeviceType::PLIC(info) => platform::register_platform_device(info, "plic"),
+        CommonDeviceType::Plic(info) => platform::register_platform_device(info, "plic"),
         CommonDeviceType::Uart(info) => platform::register_platform_device(info, "uart"),
         CommonDeviceType::Rtc(info) => platform::register_platform_device(info, "rtc"),
         CommonDeviceType::VirtIo(info) => mmio::register_mmio_device(info),

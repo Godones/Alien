@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, format};
+use alloc::boxed::Box;
 use core::ops::{Deref, DerefMut};
 
 use config::{FRAME_BITS, FRAME_SIZE};
@@ -35,7 +35,7 @@ pub fn alloc_frames(num: usize) -> *mut u8 {
     let start_page = FRAME_ALLOCATOR
         .lock()
         .alloc_pages(num, FRAME_SIZE)
-        .expect(format!("alloc {} frame failed", num).as_str());
+        .unwrap_or_else(|_| panic!("alloc {} frame failed", num));
     let start_addr = start_page << FRAME_BITS;
     start_addr as *mut u8
 }
@@ -47,7 +47,7 @@ pub fn free_frames(addr: *mut u8, num: usize) {
     FRAME_ALLOCATOR
         .lock()
         .free_pages(start, num)
-        .expect(format!("free frame start:{:#x},num:{} failed", start, num).as_str());
+        .unwrap_or_else(|_| panic!("free frame start:{:#x},num:{} failed", start, num))
 }
 
 #[derive(Debug)]
@@ -105,13 +105,12 @@ impl Drop for FrameTracker {
             FRAME_ALLOCATOR
                 .lock()
                 .free_pages(self.start_page, self.page_count)
-                .expect(
-                    format!(
+                .unwrap_or_else(|_| {
+                    panic!(
                         "free frame start:{:#x},num:{} failed",
                         self.start_page, self.page_count
                     )
-                    .as_str(),
-                );
+                });
         }
     }
 }
@@ -137,7 +136,7 @@ pub fn alloc_frame_trackers(count: usize) -> FrameTracker {
     let frame = FRAME_ALLOCATOR
         .lock()
         .alloc_pages(count, FRAME_SIZE)
-        .expect(format!("alloc {} frame failed", count).as_str());
+        .unwrap_or_else(|_| panic!("alloc {} frame failed", count));
     trace!("alloc frame [{}] start page: {:#x}", count, frame);
     FrameTracker::new(frame, count, true)
 }

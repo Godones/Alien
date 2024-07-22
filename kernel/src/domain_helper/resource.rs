@@ -23,7 +23,7 @@ impl DomainResource {
     }
 
     pub fn insert_page_map(&mut self, domain_id: u64, page: (usize, usize)) {
-        let vec = self.page_map.entry(domain_id).or_insert(Vec::new());
+        let vec = self.page_map.entry(domain_id).or_default();
         vec.push(page);
     }
 

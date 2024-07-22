@@ -53,7 +53,7 @@ pub fn init_domains() {
     for entry in cpio_reader::iter_files(&buf) {
         let _mode = entry.mode();
         let name = entry.name();
-        if name.starts_with("g") {
+        if name.starts_with('g') {
             let data = entry.file();
             let domain_name = name.split_once('g').unwrap().1;
             map.insert(domain_name.to_string(), data.to_vec());

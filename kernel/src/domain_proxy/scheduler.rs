@@ -87,11 +87,11 @@ impl SchedulerDomainProxy {
         }
         let id = r_domain.domain_id();
         let old_id = scheduling_info.move_to(id);
-        let res = r_domain.add_task(scheduling_info).map(|r| {
+
+        r_domain.add_task(scheduling_info).map(|r| {
             r.move_to(old_id);
             r
-        });
-        res
+        })
     }
     fn __add_task_no_lock(&self, scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
         self.counter.inc();
@@ -116,11 +116,11 @@ impl SchedulerDomainProxy {
         }
         let id = r_domain.domain_id();
         let old_id = info.move_to(id);
-        let res = r_domain.fetch_task(info).map(|r| {
+
+        r_domain.fetch_task(info).map(|r| {
             r.move_to(old_id);
             r
-        });
-        res
+        })
     }
     fn __fetch_task_no_lock(
         &self,

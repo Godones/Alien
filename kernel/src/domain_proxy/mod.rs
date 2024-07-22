@@ -38,11 +38,12 @@ pub trait ProxyBuilder {
 pub struct PerCpuCounter {
     counter: [UnsafeCell<isize>; CPU_NUM],
 }
+
 unsafe impl Sync for PerCpuCounter {}
 
+const PER_CPU_VALUE: UnsafeCell<isize> = UnsafeCell::new(0);
 impl PerCpuCounter {
     pub const fn new() -> Self {
-        const PER_CPU_VALUE: UnsafeCell<isize> = UnsafeCell::new(0);
         Self {
             counter: [PER_CPU_VALUE; CPU_NUM],
         }
@@ -79,6 +80,7 @@ gen_for_TaskDomain!();
 gen_for_UartDomain!();
 gen_for_VfsDomain!();
 gen_for_PLICDomain!();
+// show how to use the macro
 // gen_for_SchedulerDomain!();
 gen_for_ShadowBlockDomain!();
 gen_for_BlkDeviceDomain!();

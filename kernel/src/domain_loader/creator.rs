@@ -33,8 +33,7 @@ pub fn register_domain_elf(domain_file_name: &str, elf: Vec<u8>, ty: DomainTypeR
 
     if binding
         .iter()
-        .find(|(k, f)| k == &domain_file_name && elf.len() == f.data.len())
-        .is_some()
+        .any(|(k, f)| k == domain_file_name && elf.len() == f.data.len())
     {
         println!("Domain {} already registered", domain_file_name);
         return;
@@ -53,7 +52,7 @@ pub fn register_domain_elf(domain_file_name: &str, elf: Vec<u8>, ty: DomainTypeR
     domain_info_lock
         .ty_list
         .entry(ty)
-        .or_insert_with(Vec::new)
+        .or_default()
         .push(file_info);
 }
 
@@ -70,7 +69,7 @@ pub fn unregister_domain_elf(identifier: &str) {
 /// It will expand to `create_domain_special::<$proxy_name, _>($ty, $ident, $data)`.
 macro_rules! create_domain {
     ($proxy_name:ident, $ty:expr, $domain_file_name:expr, $data:expr) => {
-        crate::domain_loader::creator::create_domain_special::<$proxy_name, _>(
+        $crate::domain_loader::creator::create_domain_special::<$proxy_name, _>(
             $ty,
             $domain_file_name,
             $data,
@@ -78,7 +77,7 @@ macro_rules! create_domain {
         )
     };
     ($proxy_name:ident,$ty:expr, $domain_file_name:expr) => {
-        crate::domain_loader::creator::create_domain_special::<$proxy_name, _>(
+        $crate::domain_loader::creator::create_domain_special::<$proxy_name, _>(
             $ty,
             $domain_file_name,
             None,
@@ -86,7 +85,7 @@ macro_rules! create_domain {
         )
     };
     ($proxy_name:ident,$ty:expr, $domain_file_name:expr, $data:expr, $use_old_id:expr) => {
-        crate::domain_loader::creator::create_domain_special::<$proxy_name, _>(
+        $crate::domain_loader::creator::create_domain_special::<$proxy_name, _>(
             $ty,
             $domain_file_name,
             $data,
@@ -153,11 +152,8 @@ pub fn create_domain<T: ?Sized>(
     elf: Option<Vec<u8>>,
     use_old_id: Option<u64>,
 ) -> Option<(u64, Box<T>, DomainLoader)> {
-    match elf {
-        Some(data) => {
-            register_domain_elf(domain_file_name, data, ty);
-        }
-        None => {}
+    if let Some(data) = elf {
+        register_domain_elf(domain_file_name, data, ty);
     }
     let data = DOMAIN_ELF.read().get(domain_file_name)?.clone();
     if data.ty != ty {

@@ -141,7 +141,7 @@ impl DomainLoader {
         let storage_arg =
             unsafe { StorageArg::new(DOMAIN_DATA_ALLOCATOR, Box::from_raw(data_map_ptr)) };
 
-        unsafe { main(syscall, id, heap, storage_arg) }
+        main(syscall, id, heap, storage_arg)
     }
 
     fn load_program(&mut self, elf: &ElfFile) -> AlienResult<()> {
@@ -246,7 +246,7 @@ impl DomainLoader {
     }
 
     fn relocate_dyn(&self, elf: &ElfFile) -> AlienResult<()> {
-        if let Ok(res) = relocate_dyn(&elf, self.phy_start) {
+        if let Ok(res) = relocate_dyn(elf, self.phy_start) {
             trace!("Relocate_dyn {} entries", res.len());
             res.into_iter().for_each(|kv| {
                 trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
@@ -255,7 +255,7 @@ impl DomainLoader {
             });
             trace!("Relocate_dyn done");
         }
-        if let Ok(res) = relocate_plt(&elf, self.phy_start) {
+        if let Ok(res) = relocate_plt(elf, self.phy_start) {
             trace!("Relocate_plt");
             res.into_iter().for_each(|kv| {
                 trace!("relocate: {:#x} -> {:#x}", kv.0, kv.1);
@@ -341,7 +341,7 @@ fn relocate(
                 trace!("dynsym: {:?}", dynsym);
                 let dynsym = &dynsym[entry.get_symbol_table_index() as usize];
                 let symval = if dynsym.shndx() == 0 {
-                    let name = dynsym.get_name(&elf)?;
+                    let name = dynsym.get_name(elf)?;
                     panic!("symbol not found: {:?}", name);
                 } else {
                     dynsym.value() as usize
@@ -364,7 +364,7 @@ fn relocate(
 fn relocate_dyn(elf: &ElfFile, region_start: usize) -> Result<Vec<(usize, usize)>, &'static str> {
     let data = elf
         .find_section_by_name(".rela.dyn")
-        .map(|h| h.get_data(&elf).unwrap())
+        .map(|h| h.get_data(elf).unwrap())
         .ok_or("corrupted .rela.dyn")?;
     let entries = match data {
         SectionData::Rela64(entries) => entries,
@@ -373,7 +373,7 @@ fn relocate_dyn(elf: &ElfFile, region_start: usize) -> Result<Vec<(usize, usize)
     let dynsym = match elf
         .find_section_by_name(".dynsym")
         .ok_or(".dynsym not found")?
-        .get_data(&elf)
+        .get_data(elf)
         .map_err(|_| "corrupted .dynsym")?
     {
         SectionData::DynSymbolTable64(dsym) => Ok(dsym),
@@ -387,7 +387,7 @@ fn relocate_plt(elf: &ElfFile, region_start: usize) -> Result<Vec<(usize, usize)
     let data = elf
         .find_section_by_name(".rela.plt")
         .ok_or(".rela.plt not found")?
-        .get_data(&elf)
+        .get_data(elf)
         .map_err(|_| "corrupted .rela.plt")?;
     let entries = match data {
         SectionData::Rela64(entries) => entries,
@@ -396,7 +396,7 @@ fn relocate_plt(elf: &ElfFile, region_start: usize) -> Result<Vec<(usize, usize)
     let dynsym = match elf
         .find_section_by_name(".dynsym")
         .ok_or(".dynsym not found")?
-        .get_data(&elf)
+        .get_data(elf)
         .map_err(|_| "corrupted .dynsym")?
     {
         SectionData::DynSymbolTable64(dsym) => Ok(dsym),

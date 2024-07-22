@@ -160,5 +160,8 @@ kernel_asm:
 	@vim kernel.asm
 	@rm kernel.asm
 
+check:
+	@cargo fmt
+	@cargo clippy -p kernel --target $(TARGET)  -- -D warnings
 
-.PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS) fix initrd
+.PHONY:build domains gdb-client gdb-server img sdcard user mount $(FS) fix initrd check

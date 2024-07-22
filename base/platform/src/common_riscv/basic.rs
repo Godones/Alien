@@ -31,32 +31,27 @@ impl Debug for MachineInfo {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let index = self.model.iter().position(|&x| x == 0).unwrap_or(32);
         let model = core::str::from_utf8(&self.model[..index]).unwrap();
-        write!(
+        writeln!(
             f,
-            "This is a device tree representation of a {} machine\n",
+            "This is a device tree representation of a {} machine",
             model
         )
         .unwrap();
-        write!(f, "SMP:    {}\n", self.smp).unwrap();
-        write!(
+        writeln!(f, "SMP:    {}", self.smp).unwrap();
+        writeln!(
             f,
-            "Memory: {:#x}..{:#x}\n",
+            "Memory: {:#x}..{:#x}",
             self.memory.start, self.memory.end
         )
         .unwrap();
-        write!(f, "PLIC:   {:#x}..{:#x}\n", self.plic.start, self.plic.end).unwrap();
-        write!(
-            f,
-            "CLINT:  {:#x}..{:#x}\n",
-            self.clint.start, self.clint.end
-        )
-        .unwrap();
-        write!(f, "Initrd: {:#x?}\n", self.initrd).unwrap();
+        writeln!(f, "PLIC:   {:#x}..{:#x}", self.plic.start, self.plic.end).unwrap();
+        writeln!(f, "CLINT:  {:#x}..{:#x}", self.clint.start, self.clint.end).unwrap();
+        writeln!(f, "Initrd: {:#x?}", self.initrd).unwrap();
         let bootargs = self
             .bootargs
             .as_ref()
             .map(|x| core::str::from_utf8(&x[..self.bootargs_len]).unwrap());
-        write!(f, "Bootargs: {:?}", bootargs).unwrap();
+        writeln!(f, "Bootargs: {:?}", bootargs).unwrap();
         Ok(())
     }
 }

@@ -33,7 +33,7 @@ impl SharedHeapCache {
         }
     }
     fn get(&self, layout: &Layout) -> Option<SharedHeapAllocationPart> {
-        let vec = self.cache.lock().get(layout).map(|x| x.clone());
+        let vec = self.cache.lock().get(layout).cloned();
         if let Some(vec) = vec {
             let mut vec = vec.lock();
             if let Some(part) = vec.pop() {
@@ -54,7 +54,7 @@ impl SharedHeapCache {
     }
 }
 
-static SHARED_HEAP_CACHE: Lazy<SharedHeapCache> = Lazy::new(|| SharedHeapCache::new());
+static SHARED_HEAP_CACHE: Lazy<SharedHeapCache> = Lazy::new(SharedHeapCache::new);
 pub struct SharedHeapAllocator;
 
 impl SharedHeapAllocator {
@@ -63,7 +63,7 @@ impl SharedHeapAllocator {
         type_id: TypeId,
         drop_fn: fn(TypeId, *mut u8),
     ) -> Option<(*mut u8, SharedHeapAllocation)> {
-        let part = SHARED_HEAP_CACHE.get(&layout);
+        let part = SHARED_HEAP_CACHE.get(layout);
         if let Some(part) = part {
             let ptr = part.value_pointer;
             let domain_id_pointer = part.domain_id_pointer;
@@ -115,7 +115,7 @@ impl SharedHeapAlloc for SharedHeapAllocator {
         if layout.size() > FRAME_SIZE {
             let (ptr, res) = SharedHeapAllocator::alloc_from_heap(layout, type_id, drop_fn)?;
             let mut shared_heap = SHARED_HEAP.lock();
-            shared_heap.insert(ptr as usize, res.clone());
+            shared_heap.insert(ptr as usize, res);
             return Some(res);
         }
         let res = SharedHeapAllocator::alloc_from_cache(&layout, type_id, drop_fn);
@@ -125,7 +125,7 @@ impl SharedHeapAlloc for SharedHeapAllocator {
             SharedHeapAllocator::alloc_from_heap(layout, type_id, drop_fn)?
         };
         let mut shared_heap = SHARED_HEAP.lock();
-        shared_heap.insert(ptr as usize, res.clone());
+        shared_heap.insert(ptr as usize, res);
         Some(res)
     }
 
@@ -209,8 +209,7 @@ pub fn free_domain_shared_data(id: u64, free_shared: FreeShared) {
         }
         FreeShared::NotFree(domain_id) => {
             println_color!(34, "free_shared is NotFree, do not free data");
-            data.into_iter()
-                .for_each(|v| unsafe { v.set_domain_id(domain_id) });
+            data.into_iter().for_each(|v| v.set_domain_id(domain_id));
         }
     }
 }

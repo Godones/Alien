@@ -41,7 +41,7 @@ pub static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
 #[macro_export]
 macro_rules! task_domain {
     () => {
-        crate::task::TASK_DOMAIN
+        $crate::task::TASK_DOMAIN
             .get()
             .expect("task domain not init")
     };

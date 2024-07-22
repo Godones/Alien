@@ -15,13 +15,13 @@ use crate::task::{
 };
 
 #[derive(Debug, Clone)]
-pub struct CPU {
+pub struct Cpu {
     pub(crate) task: Option<Arc<Mutex<TaskMetaExt>>>,
     pub(crate) context: TaskContext,
     pub(crate) continuation: ContinuationManager,
 }
 
-impl CPU {
+impl Cpu {
     const fn empty() -> Self {
         Self {
             task: None,
@@ -43,10 +43,10 @@ impl CPU {
     }
 }
 
-const CPU_ONE: CpuLocal<CPU> = CpuLocal::new(CPU::empty());
-static CPUS: [CpuLocal<CPU>; CPU_NUM] = [CPU_ONE; CPU_NUM];
+const CPU_ONE: CpuLocal<Cpu> = CpuLocal::new(Cpu::empty());
+static CPUS: [CpuLocal<Cpu>; CPU_NUM] = [CPU_ONE; CPU_NUM];
 
-pub fn current_cpu() -> &'static mut CPU {
+pub fn current_cpu() -> &'static mut Cpu {
     CPUS[hart_id()].as_mut()
 }
 

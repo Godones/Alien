@@ -93,8 +93,8 @@ impl DomainDataStorage for DomainDataMap {
         let data = self.data.lock();
         let v = data.get(key);
         // println_color!(32, "get key: {}, value: {:?}", key, v.is_some());
-        let res = v.map(|v| v.clone());
-        res
+
+        v.cloned()
     }
 
     /// Remove the value with the given key.
@@ -103,9 +103,9 @@ impl DomainDataStorage for DomainDataMap {
     /// Otherwise, `None` will be returned.
     fn remove(&self, key: &str) -> Option<ArcValueType> {
         let mut data = self.data.lock();
-        let v = data.remove(key);
+
         // println_color!(31, "remove key: {}", key);
-        v
+        data.remove(key)
     }
 }
 
@@ -189,7 +189,7 @@ pub fn get_domain_database(domain_id: u64) -> Option<Box<DomainDataMap>> {
 #[allow(unused)]
 pub fn remove_domain_database(domain_id: u64) -> Option<Box<DomainDataMap>> {
     let mut manager = DATA_BASE_MANAGER.lock();
-    let res = manager.remove(domain_id).map(|v| Box::new(v));
+    let res = manager.remove(domain_id).map(Box::new);
     println_color!(31, "remove domain database for domain_id: {}", domain_id);
     res
 }

@@ -24,25 +24,18 @@ impl Probe for Fdt<'_> {
     fn probe_uart(&self) -> Option<CommonDeviceType> {
         match self.probe_common("uart", true) {
             Some(device_info) => Some(CommonDeviceType::Uart(device_info)),
-            None => match self.probe_common("serial", true) {
-                Some(device_info) => Some(CommonDeviceType::Uart(device_info)),
-                None => None,
-            },
+            None => self
+                .probe_common("serial", true)
+                .map(CommonDeviceType::Uart),
         }
     }
 
     fn probe_rtc(&self) -> Option<CommonDeviceType> {
-        match self.probe_common("rtc", true) {
-            Some(device_info) => Some(CommonDeviceType::Rtc(device_info)),
-            None => None,
-        }
+        self.probe_common("rtc", true).map(CommonDeviceType::Rtc)
     }
 
     fn probe_plic(&self) -> Option<CommonDeviceType> {
-        match self.probe_common("plic", false) {
-            Some(device_info) => Some(CommonDeviceType::PLIC(device_info)),
-            None => None,
-        }
+        self.probe_common("plic", false).map(CommonDeviceType::Plic)
     }
 
     fn probe_virtio(&self) -> Option<Vec<CommonDeviceType>> {
@@ -96,10 +89,7 @@ impl Probe for Fdt<'_> {
     }
 
     fn probe_pci(&self) -> Option<CommonDeviceType> {
-        match self.probe_common("pci", false) {
-            Some(device_info) => Some(CommonDeviceType::Pci(device_info)),
-            None => None,
-        }
+        self.probe_common("pci", false).map(CommonDeviceType::Pci)
     }
 
     #[cfg(all(vf2, vf2_sd))]

@@ -24,6 +24,6 @@ pub fn register_platform_driver() {
 #[macro_export]
 macro_rules! platform_bus {
     () => {
-        crate::bus::platform::PLATFORM_BUS.lock()
+        $crate::bus::platform::PLATFORM_BUS.lock()
     };
 }

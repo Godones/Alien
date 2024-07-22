@@ -51,7 +51,8 @@ impl SRcuLock {
         barrier();
         let hart_id = hart_id();
         let array = &self.per_cpu_data[hart_id];
-        write_once!(array.c[idx].get(), read_once!(array.c[idx].get()) + 1);
+        let v = read_once!(array.c[idx].get()) + 1;
+        write_once!(array.c[idx].get(), v);
         srcu_barrier();
         idx
     }
@@ -62,7 +63,8 @@ impl SRcuLock {
         let array = &self.per_cpu_data[hart_id];
         // array.c[idx] -= 1;
         // assert!(read_once!(array.c[idx].get()) - 1 >= 0, "{}",read_once!(array.c[idx].get()) - 1);
-        write_once!(array.c[idx].get(), read_once!(array.c[idx].get()) - 1);
+        let val = read_once!(array.c[idx].get()) - 1;
+        write_once!(array.c[idx].get(), val);
     }
 
     fn readers_active_idx(&self, idx: usize) -> u32 {

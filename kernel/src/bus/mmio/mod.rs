@@ -29,6 +29,6 @@ pub fn register_mmio_driver() {
 #[macro_export]
 macro_rules! mmio_bus {
     () => {
-        crate::bus::mmio::MMIO_BUS
+        $crate::bus::mmio::MMIO_BUS
     };
 }
