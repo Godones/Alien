@@ -43,16 +43,11 @@ pub struct ELFInfo {
 }
 
 pub trait ELFReader {
-    fn build_elf(&mut self) -> Result<ELFInfo, ELFError>;
     fn relocate_dyn(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>;
     fn relocate_plt(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError>;
 }
 
 impl ELFReader for ElfFile<'_> {
-    fn build_elf(&mut self) -> Result<ELFInfo, ELFError> {
-        Err(ELFError::NotSupported)
-    }
-
     fn relocate_dyn(&self, bias: usize) -> Result<Vec<(usize, usize)>, ELFError> {
         let mut res = vec![];
         let data = self

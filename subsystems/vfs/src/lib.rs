@@ -21,6 +21,7 @@ use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, utils::VfsTim
 
 use crate::dev::DevFsProviderImpl;
 pub mod dev;
+pub mod eventfd;
 #[cfg(feature = "ext")]
 mod extffi;
 mod initrd;
