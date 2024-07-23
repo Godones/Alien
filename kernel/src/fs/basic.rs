@@ -11,7 +11,7 @@ use constants::{
 use gmanager::ManagerError;
 use log::{info, warn};
 use syscall_table::syscall_func;
-use vfs::{kfile::KernelFile, system_root_fs};
+use vfs::{eventfd::eventfd, kfile::KernelFile, system_root_fs};
 use vfscore::{
     path::VfsPath,
     utils::{VfsFileStat, VfsFsStat, VfsNodeType, VfsRenameFlag},
@@ -712,4 +712,14 @@ pub fn copy_file_range(
     };
     info!("sys_copy_file_range: write {} bytes to out_file", w);
     Ok(w as _)
+}
+
+#[syscall_func(19)]
+pub fn sys_eventfd2(init_val: u32, flags: u32) -> AlienResult<isize> {
+    let eventfd_file = eventfd(init_val, flags)?;
+    let task = current_task().unwrap();
+    let fd = task
+        .add_file(eventfd_file)
+        .map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(fd as isize)
 }

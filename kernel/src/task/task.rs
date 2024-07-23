@@ -111,6 +111,7 @@ pub struct TaskInner {
     pub signal_handlers: Arc<Mutex<SignalHandlers>>,
     /// 接收信号的结构。每个线程中一定是独特的，而上面的 handler 可能是共享的
     pub signal_receivers: Arc<Mutex<SignalReceivers>>,
+    #[allow(unused)]
     /// 子线程初始化时，存放 tid 的地址。当且仅当创建时包含 CLONE_CHILD_SETTID 才非0
     pub set_child_tid: usize,
     /// 子线程初始化时，将这个地址清空；子线程退出时，触发这里的 futex。

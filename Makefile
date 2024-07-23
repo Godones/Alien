@@ -119,6 +119,7 @@ initramfs:
 user:
 	@echo "Building user apps"
 	@make all -C ./user/apps
+	@make all -C ./user/c_apps ARCH=riscv64
 	@echo "Building user apps done"
 
 sdcard:$(FS) mount testelf user initramfs
