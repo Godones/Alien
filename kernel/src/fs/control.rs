@@ -1,10 +1,11 @@
 use constants::{
     io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, OpenFlags, TeletypeCommand},
+    time::TimeSpec,
     AlienResult, LinuxErrno, AT_FDCWD,
 };
 use log::{info, warn};
 use syscall_table::syscall_func;
-use timer::TimeSpec;
+use timer::{TimeNow, ToVfsTimeSpec};
 use vfscore::utils::*;
 
 use crate::{fs::user_path_at, task::current_task};
@@ -143,12 +144,12 @@ pub fn utimensat(
             TimeSpec::now()
         );
         dt.inode()?.update_time(
-            VfsTime::AccessTime(TimeSpec::now().into()),
-            TimeSpec::now().into(),
+            VfsTime::AccessTime(TimeSpec::now().into_vfs()),
+            TimeSpec::now().into_vfs(),
         )?;
         dt.inode()?.update_time(
-            VfsTime::ModifiedTime(TimeSpec::now().into()),
-            TimeSpec::now().into(),
+            VfsTime::ModifiedTime(TimeSpec::now().into_vfs()),
+            TimeSpec::now().into_vfs(),
         )?;
     } else {
         let mut atime = TimeSpec::new(0, 0);
@@ -163,25 +164,29 @@ pub fn utimensat(
         );
         if atime.tv_nsec == UTIME_NOW {
             dt.inode()?.update_time(
-                VfsTime::AccessTime(TimeSpec::now().into()),
-                TimeSpec::now().into(),
+                VfsTime::AccessTime(TimeSpec::now().into_vfs()),
+                TimeSpec::now().into_vfs(),
             )?;
         } else if atime.tv_nsec == UTIME_OMIT {
             // do nothing
         } else {
-            dt.inode()?
-                .update_time(VfsTime::AccessTime(atime.into()), TimeSpec::now().into())?;
+            dt.inode()?.update_time(
+                VfsTime::AccessTime(atime.into_vfs()),
+                TimeSpec::now().into_vfs(),
+            )?;
         };
         if mtime.tv_nsec == UTIME_NOW {
             dt.inode()?.update_time(
-                VfsTime::ModifiedTime(TimeSpec::now().into()),
-                TimeSpec::now().into(),
+                VfsTime::ModifiedTime(TimeSpec::now().into_vfs()),
+                TimeSpec::now().into_vfs(),
             )?;
         } else if mtime.tv_nsec == UTIME_OMIT {
             // do nothing
         } else {
-            dt.inode()?
-                .update_time(VfsTime::ModifiedTime(mtime.into()), TimeSpec::now().into())?;
+            dt.inode()?.update_time(
+                VfsTime::ModifiedTime(mtime.into_vfs()),
+                TimeSpec::now().into_vfs(),
+            )?;
         };
     };
     Ok(0)

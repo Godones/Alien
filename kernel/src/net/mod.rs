@@ -452,15 +452,35 @@ pub fn shutdown(socketfd: usize, how: usize) -> AlienResult<()> {
 ///
 /// 如果创建成功则返回0，否则返回错误信息。
 #[syscall_func(199)]
-pub fn socket_pair(domain: usize, c_type: usize, proto: usize, sv: usize) -> AlienResult<isize> {
+pub fn socket_pair(domain: usize, s_type: usize, protocol: usize, sv: usize) -> AlienResult<isize> {
     let domain = Domain::try_from(domain).map_err(|_| LinuxErrno::EINVAL)?;
-    let c_type = SocketType::try_from(c_type).map_err(|_| LinuxErrno::EINVAL)?;
-    info!(
-        "socketpair: {:?}, {:?}, {:?}, {:?}",
-        domain, c_type, proto, sv
-    );
-    // panic!("socketpair");
-    Err(LinuxErrno::EAFNOSUPPORT.into())
+    let socket_type = SocketType::try_from(s_type).map_err(|_| LinuxErrno::EINVAL)?;
+    if domain != Domain::AF_UNIX {
+        return Err(LinuxErrno::EAFNOSUPPORT);
+    }
+    // println_color!(32,
+    //     "socketpair: {:?}, {:?}, {:?}, {:?}",
+    //     domain, s_type, protocol, sv
+    // );
+    let file1 = SocketData::new(domain, socket_type, protocol)?;
+    let file2 = file1.clone();
+    info!("socket domain: {:?}, type: {:?}", domain, socket_type);
+    if s_type & SocketType::SOCK_NONBLOCK as usize != 0 {
+        let socket = file1.get_socketdata()?;
+        file1.set_open_flag(file1.get_open_flag() | OpenFlags::O_NONBLOCK);
+        socket.set_socket_nonblock(true);
+        info!("socket with nonblock");
+    }
+    if s_type & SocketType::SOCK_CLOEXEC as usize != 0 {
+        file1.set_close_on_exec();
+        info!("socket with cloexec");
+    }
+    let task = current_task().unwrap();
+    let fd1 = task.add_file(file1).map_err(|_| LinuxErrno::EMFILE)?;
+    let fd2 = task.add_file(file2).map_err(|_| LinuxErrno::EMFILE)?;
+    task.access_inner()
+        .copy_to_user_buffer([fd1 as u32, fd2 as u32].as_ptr(), sv as _, 2);
+    Ok(0)
 }
 
 /// 通过socket文件描述符fd获取对应的文件

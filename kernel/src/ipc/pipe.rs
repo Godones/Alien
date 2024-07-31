@@ -138,8 +138,8 @@ impl File for PipeFile {
     fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
         let inode = self.dentry.inode()?;
         let res = inode
-            .poll(VfsPollEvents::from_bits_truncate(_event.bits()))
-            .map(|e| PollEvents::from_bits_truncate(e.bits()));
+            .poll(VfsPollEvents::from_bits_truncate(_event.bits() as u16))
+            .map(|e| PollEvents::from_bits_truncate(e.bits() as u32));
         res.map_err(Into::into)
     }
 }

@@ -1,4 +1,6 @@
 //! uname系统调用实现
+
+use alloc::vec;
 use core::cmp::min;
 
 use constants::{
@@ -218,9 +220,26 @@ pub fn getrusage(who: isize, usage: usize) -> AlienResult<isize> {
     Ok(0)
 }
 
+#[syscall_func(278)]
+pub fn get_random(buf: *mut u8, len: usize, flags: u32) -> AlienResult<isize> {
+    info!(
+        "get_random: buf: {:x?}, len: {}, flags: {}",
+        buf, len, flags
+    );
+    let task = current_task().unwrap();
+    let mut rand_buf = vec![0; len];
+    for v in rand_buf.iter_mut() {
+        let time_ms = get_time_ms();
+        *v = (time_ms & 0xff) as u8;
+    }
+    task.access_inner()
+        .copy_to_user_buffer(rand_buf.as_ptr(), buf, len);
+    Ok(len as isize)
+}
+
 /// 一个系统调用，通过调用 SBI_SHUTDOWN 来关闭操作系统（直接退出 QEMU）
 #[syscall_func(2003)]
 pub fn system_shutdown() -> AlienResult<isize> {
     println!("shutdown...");
-    platform::system_shutdown();
+    platform::system_shutdown()
 }

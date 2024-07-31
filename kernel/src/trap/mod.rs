@@ -143,7 +143,7 @@ impl TrapHandler for Trap {
                         // println!("thread need wait");
                         do_suspend();
                     } else if err == AlienError::EPERM {
-                        do_exit(-1);
+                        do_exit(-1, 0);
                     } else {
                         send_signal(tid as usize, SignalNumber::SIGSEGV as usize)
                     }
@@ -256,6 +256,7 @@ pub fn user_trap_vector() {
     }
     task.access_inner().update_timer();
     check_task_timer_expired();
+    crate::task::check_exit_group();
     trap_return();
 }
 

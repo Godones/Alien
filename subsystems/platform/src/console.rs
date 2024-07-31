@@ -20,6 +20,33 @@ macro_rules! println {
         concat!($fmt, "\n"), $($arg)*));
 }
 
+/// Print with color
+///
+/// The first argument is the color, which should be one of the following:
+/// - 30: Black
+/// - 31: Red
+/// - 32: Green
+/// - 33: Yellow
+/// - 34: Blue
+/// - 35: Magenta
+/// - 36: Cyan
+/// - 37: White
+///
+/// # Examples
+/// ```rust
+/// use platform::println_color;
+/// println_color!(31, "This is red");
+/// ```
+#[macro_export]
+macro_rules! println_color {
+    ($color:expr, $fmt:expr) => {
+        $crate::print!(concat!("\x1b[", $color, "m", $fmt, "\x1b[0m\n"));
+    };
+    ($color:expr, $fmt:expr, $($arg:tt)*) => {
+        $crate::print!(concat!("\x1b[", $color, "m", $fmt, "\x1b[0m\n"), $($arg)*);
+    };
+}
+
 pub struct Stdout;
 
 /// 对`Stdout`实现输出的Trait

@@ -5,6 +5,8 @@ members = [
     "user/userlib",
     "subsystems/*",
     "user/apps/*",
+    "user/musl/hello",
+    "user/musl/async_test",
 ]
 
 

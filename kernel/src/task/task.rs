@@ -18,15 +18,7 @@ use core::{
 
 use bit_field::BitField;
 use config::*;
-use constants::{
-    aux::*,
-    io::MMapFlags,
-    ipc::RobustList,
-    signal::{SignalHandlers, SignalNumber, SignalReceivers, SignalUserContext},
-    task::CloneFlags,
-    time::{TimeVal, TimerType},
-    AlienError, AlienResult, LinuxErrno, PrLimitResType, RLimit64,
-};
+use constants::{aux::*, io::MMapFlags, ipc::RobustList, signal::*, task::CloneFlags, time::*, *};
 use gmanager::MinimalManager;
 use ksync::{Mutex, MutexGuard};
 use mem::{kernel_satp, VmmPageAllocator, FRAME_REF_MANAGER};
@@ -35,7 +27,7 @@ use page_table::{
     pte::MappingFlags,
     table::Sv39PageTable,
 };
-use timer::{read_timer, ITimerVal, TimeNow, ToClock};
+use timer::{read_timer, TimeNow, ToClock};
 use vfs::kfile::File;
 use vfscore::dentry::VfsDentry;
 
@@ -136,6 +128,13 @@ pub struct TaskInner {
     pub stack: Range<usize>,
     /// 是否需要等待
     pub need_wait: u8,
+    /// 用于异常处理的栈信息
+    ///
+    /// - SS_ONSTACK = 1
+    /// - SS_DISABLE = 2
+    pub ss_stack: SignalStack,
+
+    pub exit_group: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -264,6 +263,10 @@ pub enum TaskState {
 }
 
 impl Task {
+    pub fn set_exit_group(&self) {
+        self.access_inner().exit_group = true;
+    }
+
     /// 终止进程，回收内核栈等资源，同时将该任务的状态修改为 `Terminated`
     pub fn terminate(self: Arc<Self>) {
         // recycle kernel stack
@@ -538,6 +541,10 @@ impl TaskInner {
     /// 获取进程的文件系统信息
     pub fn cwd(&self) -> FsContext {
         self.fs_info.clone()
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 
     /// 获取进程的计时器
@@ -1431,6 +1438,12 @@ impl Task {
                 unmask: 0o022,
                 stack: stack_info,
                 need_wait: 0,
+                ss_stack: SignalStack {
+                    ss_sp: 0,
+                    ss_flags: 0x2,
+                    ss_size: 0,
+                },
+                exit_group: false,
             }),
             send_sigchld_when_exit: false,
         };
@@ -1629,6 +1642,12 @@ impl Task {
                 unmask: 0o022,
                 stack: inner.stack.clone(),
                 need_wait: 0,
+                ss_stack: SignalStack {
+                    ss_sp: 0,
+                    ss_flags: 0x2,
+                    ss_size: 0,
+                },
+                exit_group: false,
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };
