@@ -124,7 +124,7 @@ pub fn current_trap_frame() -> &'static mut TrapFrame {
 ///
 /// 当调用该函数的进程为`pid==0`的init进程时，将直接调用`system_shutdown`使得内核终止。
 #[syscall_func(93)]
-pub fn do_exit(exit_code: i32) -> isize {
+pub fn do_exit(exit_code: i32, exit_group: u8) -> isize {
     let task = current_task().unwrap();
     let exit_code = (exit_code & 0xff) << 8;
     if task.get_pid() == 1 {
@@ -134,6 +134,9 @@ pub fn do_exit(exit_code: i32) -> isize {
     {
         let init = INIT_PROCESS.clone();
         task.take_children().into_iter().for_each(|child| {
+            if exit_group != 0 {
+                child.set_exit_group();
+            }
             child.update_parent(init.clone());
             init.insert_child(child);
         });
@@ -163,7 +166,14 @@ pub fn do_exit(exit_code: i32) -> isize {
 /// 目前该系统调用直接调用[`do_exit`]，有关进程组的相关功能有待实现。
 #[syscall_func(94)]
 pub fn exit_group(exit_code: i32) -> isize {
-    do_exit(exit_code)
+    do_exit(exit_code, 1)
+}
+
+pub fn check_exit_group() {
+    let task = current_task().unwrap();
+    if task.access_inner().exit_group {
+        do_exit(0, 1);
+    }
 }
 
 /// 一个系统调用，用于使当前正在运行的进程让渡CPU。

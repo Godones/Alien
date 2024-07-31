@@ -131,14 +131,14 @@ impl File for SocketFile {
         let mut res = PollEvents::empty();
         netcore::poll_interfaces();
         let socket = self.get_socketdata().unwrap();
-        if _event.contains(PollEvents::IN) {
+        if _event.contains(PollEvents::EPOLLIN) {
             if socket.ready_read() {
-                res |= PollEvents::IN;
+                res |= PollEvents::EPOLLIN;
             }
         }
-        if _event.contains(PollEvents::OUT) {
+        if _event.contains(PollEvents::EPOLLOUT) {
             if socket.ready_write() {
-                res |= PollEvents::OUT;
+                res |= PollEvents::EPOLLOUT;
             }
         }
         Ok(res)
@@ -247,6 +247,7 @@ impl SocketData {
             Socket::Udp(udp) => {
                 udp.set_nonblocking(blocking);
             }
+            Socket::Unix(_) => {}
             _ => {
                 panic!("set_socket_nonblock is not supported")
             }

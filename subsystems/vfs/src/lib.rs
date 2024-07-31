@@ -21,6 +21,7 @@ use vfscore::{dentry::VfsDentry, fstype::VfsFsType, path::VfsPath, utils::VfsTim
 
 use crate::dev::DevFsProviderImpl;
 pub mod dev;
+pub mod epoll;
 pub mod eventfd;
 #[cfg(feature = "ext")]
 mod extffi;
@@ -30,6 +31,7 @@ pub mod pipefs;
 pub mod proc;
 pub mod ram;
 pub mod sys;
+pub mod timerfd;
 
 pub static FS: Lazy<Mutex<BTreeMap<String, Arc<dyn VfsFsType>>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
@@ -145,9 +147,7 @@ pub fn init_filesystem() -> AlienResult<()> {
         .expect("open /dev/sda failed")
         .inode()?;
 
-    println!("mount fs success XXXXX");
     let diskfs_root = diskfs.i_mount(0, "/tests", Some(blk_inode), &[])?;
-    println!("mount fs success XXXXX");
     path.join("tests")?.mount(diskfs_root, 0)?;
     println!("mount fs success");
 

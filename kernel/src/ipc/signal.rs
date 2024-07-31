@@ -5,16 +5,10 @@
 use alloc::{collections::BTreeMap, sync::Arc, vec::Vec};
 use core::mem::size_of;
 
-use constants::{
-    signal::{
-        SigAction, SigActionDefault, SigActionFlags, SigInfo, SigProcMaskHow, SignalNumber,
-        SignalReceivers, SignalUserContext, SimpleBitSet,
-    },
-    LinuxErrno,
-};
+use constants::{signal::*, time::TimeSpec, AlienResult, LinuxErrno};
 use ksync::Mutex;
 use syscall_table::syscall_func;
-use timer::{read_timer, TimeSpec};
+use timer::{read_timer, ToClock};
 
 use crate::task::{current_task, do_exit, do_suspend};
 
@@ -80,12 +74,13 @@ pub fn sigaction(sig: usize, action: usize, old_action: usize) -> isize {
     if !old_action.is_null() {
         let mut tmp = SigAction::empty();
         signal_handler.get_action(sig, &mut tmp);
+        warn!("get sig {:?} old action is {:?}", signum, tmp);
         task_inner.copy_to_user(&tmp, old_action);
     }
     if !action.is_null() {
         let mut tmp_action = SigAction::empty();
         task_inner.copy_from_user(action, &mut tmp_action);
-        warn!("sig {:?} action is {:?}", signum, tmp_action);
+        warn!("set sig {:?} action is {:?}", signum, tmp_action);
         signal_handler.set_action(sig, &tmp_action);
     }
     0
@@ -310,7 +305,7 @@ pub fn signal_handler() {
                 drop(handler);
                 drop(receiver);
                 warn!("task {:?} exit by signal {:?}", task.tid, sig);
-                do_exit(-1);
+                do_exit(-1, 0);
             }
             _ => {
                 if let Some(action) = handler.get_action_ref(signum) {
@@ -385,7 +380,7 @@ pub fn signal_handler() {
                             drop(task_inner);
                             drop(handler);
                             drop(receiver);
-                            do_exit(-1);
+                            do_exit(-1, 0);
                         }
                         SigActionDefault::Ignore => {
                             // 忽略信号时，要将已保存的上下文删除
@@ -411,4 +406,24 @@ pub fn sigsuspend() -> isize {
             return LinuxErrno::EINTR.into();
         }
     }
+}
+
+#[syscall_func(132)]
+/// See https://man7.org/linux/man-pages/man2/sigaltstack.2.html
+pub fn sigaltstack(uss: usize, uoss: usize) -> AlienResult<isize> {
+    //println_color!(32, "sigaltstack: uss: {:x}, uoss: {:x}", uss, uoss);
+    let task = current_task().unwrap();
+    if uoss != 0 {
+        let old_ss_stack = task.access_inner().ss_stack;
+        // println_color!(32, "get old sigaltstack: {:x?}", old_ss_stack);
+        task.access_inner()
+            .copy_to_user(&old_ss_stack, uoss as *mut SignalStack);
+    }
+    if uss != 0 {
+        let mut ss_stack = SignalStack::default();
+        task.access_inner().copy_from_user(uss as _, &mut ss_stack);
+        // println_color!(32, "set sigaltstack: {:x?}", ss_stack);
+        task.access_inner().ss_stack = ss_stack;
+    }
+    Ok(0)
 }

@@ -6,11 +6,12 @@ use config::MAX_FD_NUM;
 use constants::{
     io::PollEvents,
     signal::{SignalNumber, SimpleBitSet},
+    time::TimeSpec,
     AlienResult, LinuxErrno,
 };
 use log::{info, trace};
 use syscall_table::syscall_func;
-use timer::TimeSpec;
+use timer::{TimeNow, ToClock};
 
 use crate::task::{current_task, do_suspend};
 
@@ -120,8 +121,8 @@ pub fn pselect6(
             for i in 0..nfds {
                 if ori_readfds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
-                        let event = fd.poll(PollEvents::IN).expect("poll error");
-                        if event.contains(PollEvents::IN) {
+                        let event = fd.poll(PollEvents::EPOLLIN).expect("poll error");
+                        if event.contains(PollEvents::EPOLLIN) {
                             info!("pselect6: fd {} ready to read", i);
                             readfds.set_bit(i, true);
                             set += 1;
@@ -145,8 +146,8 @@ pub fn pselect6(
             for i in 0..nfds {
                 if ori_writefds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
-                        let event = fd.poll(PollEvents::OUT).expect("poll error");
-                        if event.contains(PollEvents::OUT) {
+                        let event = fd.poll(PollEvents::EPOLLOUT).expect("poll error");
+                        if event.contains(PollEvents::EPOLLOUT) {
                             info!("pselect6: fd {} ready to write", i);
                             writefds.set_bit(i, true);
                             set += 1;
@@ -170,8 +171,8 @@ pub fn pselect6(
             for i in 0..nfds {
                 if ori_exceptfds.get_bit(i) {
                     if let Some(fd) = task.get_file(i) {
-                        let event = fd.poll(PollEvents::ERR).expect("poll error");
-                        if event.contains(PollEvents::ERR) {
+                        let event = fd.poll(PollEvents::EPOLLERR).expect("poll error");
+                        if event.contains(PollEvents::EPOLLERR) {
                             info!("pselect6: fd {} in exceptional conditions", i);
                             exceptfds.set_bit(i, true);
                             set += 1;

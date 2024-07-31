@@ -4,8 +4,8 @@ use bit_field::BitField;
 use config::{CPU_NUM, FRAME_SIZE, MAX_FD_NUM, MAX_THREAD_NUM, USER_KERNEL_STACK_SIZE};
 use constants::{
     ipc::RobustList,
-    signal::{SignalHandlers, SignalReceivers},
-    AlienError, AlienResult,
+    signal::{SignalStack, *},
+    *,
 };
 use gmanager::MinimalManager;
 use ksync::Mutex;
@@ -78,6 +78,12 @@ pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
             // user mode stack info
             stack: 0..0,
             need_wait: 0,
+            ss_stack: SignalStack {
+                ss_sp: 0,
+                ss_flags: 0x2,
+                ss_size: 0,
+            },
+            exit_group: false,
         }),
         send_sigchld_when_exit: false,
     };

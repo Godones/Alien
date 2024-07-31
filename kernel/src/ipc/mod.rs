@@ -10,6 +10,7 @@ use core::sync::atomic::{AtomicI32, Ordering};
 
 use constants::{
     ipc::{FutexOp, RobustList},
+    time::TimeSpec,
     AlienResult, LinuxErrno,
 };
 use ksync::Mutex;
@@ -17,7 +18,7 @@ pub use pipe::*;
 pub use shm::*;
 pub use signal::*;
 use spin::Lazy;
-use timer::TimeSpec;
+use timer::{TimeNow, ToClock};
 
 use crate::{
     fs::basic::sys_close,

@@ -1,8 +1,9 @@
 use core::ptr::NonNull;
 
+use constants::time::TimeSpec;
 pub use loopback::LoopbackDev;
 use netcore::{KernelNetFunc, NetInstant};
-use timer::TimeSpec;
+use timer::TimeNow;
 use virtio_drivers::transport::mmio::{MmioTransport, VirtIOHeader};
 use virtio_net::VirtIONetDeviceWrapper;
 

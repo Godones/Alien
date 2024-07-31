@@ -716,7 +716,7 @@ pub fn copy_file_range(
 
 #[syscall_func(19)]
 pub fn sys_eventfd2(init_val: u32, flags: u32) -> AlienResult<isize> {
-    let eventfd_file = eventfd(init_val, flags)?;
+    let eventfd_file = eventfd(init_val, flags).unwrap();
     let task = current_task().unwrap();
     let fd = task
         .add_file(eventfd_file)

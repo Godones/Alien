@@ -1,8 +1,11 @@
 use alloc::{collections::VecDeque, sync::Arc};
 use core::{fmt::Debug, sync::atomic::AtomicU32};
 
-use bitflags::bitflags;
-use constants::{io::SeekFrom, AlienError, AlienResult};
+use constants::{
+    epoll::EventFdFlags,
+    io::{PollEvents, SeekFrom},
+    AlienError, AlienResult,
+};
 use ksync::Mutex;
 use shim::KTask;
 use vfscore::{dentry::VfsDentry, inode::VfsInode, utils::VfsFileStat};
@@ -10,14 +13,6 @@ use vfscore::{dentry::VfsDentry, inode::VfsInode, utils::VfsFileStat};
 use crate::kfile::File;
 
 static EVENTFD_ID: AtomicU32 = AtomicU32::new(0);
-
-bitflags! {
-    pub struct EventFdFlags: u32{
-        const EFD_SEMAPHORE = 1;
-        const EFD_CLOEXEC = 2;
-        const EFD_NONBLOCK = 4;
-    }
-}
 
 #[derive(Debug)]
 pub struct EventFd {
@@ -157,10 +152,22 @@ impl File for EventFdInode {
     fn is_append(&self) -> bool {
         true
     }
+
+    fn poll(&self, event: PollEvents) -> AlienResult<PollEvents> {
+        let mut events = PollEvents::empty();
+        if self.eventfd.lock().count != 0 && event.contains(PollEvents::EPOLLIN) {
+            events |= PollEvents::EPOLLIN;
+        }
+        if self.eventfd.lock().count != u64::MAX && event.contains(PollEvents::EPOLLOUT) {
+            events |= PollEvents::EPOLLOUT
+        }
+        return Ok(events);
+    }
 }
 
 pub fn eventfd(init_val: u32, flags: u32) -> AlienResult<Arc<dyn File>> {
-    let flags = EventFdFlags::from_bits(flags).ok_or(AlienError::EINVAL)?;
+    let flags = EventFdFlags::from_bits_truncate(flags);
+    // println_color!(32, "eventfd: init_val: {}, flags: {:?}", init_val, flags);
     let id = EVENTFD_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
     let eventfd = EventFd::new(init_val as u64, flags, id);
     let inode = Arc::new(EventFdInode::new(eventfd));

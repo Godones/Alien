@@ -19,6 +19,7 @@ pub use crate::task::task::FsContext;
 use crate::{fs::read_all, task::schedule::schedule_now};
 
 mod context;
+mod control;
 mod cpu;
 mod kthread;
 mod resource;

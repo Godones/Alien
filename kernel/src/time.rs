@@ -10,14 +10,19 @@
 //! 在任务控制块中记录相应数据的字段为 `timer`(结构为 `TaskTimer` )。
 //!
 //! 对于时间片 (每次引发时钟中断的时间间隔) 大小的设计：目前 Alien 中用户态和内核态下采用相同的时间片间隔，1s 内触发 10 次时钟中断。
+
+use alloc::sync::Arc;
+
 use constants::{
-    time::{ClockId, TimeVal, TimerType},
-    FromUsize, LinuxErrno,
+    io::OpenFlags,
+    time::{ClockId, ITimeSpec, ITimerVal, TimeSpec, TimeVal, TimerFdFlags, TimerType},
+    AlienResult, FromUsize, LinuxErrno,
 };
 use log::{info, warn};
 use platform::{config::CLOCK_FREQ, set_timer};
 use syscall_table::syscall_func;
-use timer::{read_timer, ITimerVal, TimeNow, TimeSpec, Times};
+use timer::{read_timer, TimeNow, Times, ToClock};
+use vfs::timerfd::TimerFile;
 
 use crate::task::{current_task, do_suspend, StatisticalData};
 
@@ -257,4 +262,81 @@ pub fn clock_nanosleep(clock_id: usize, flags: usize, req: usize, remain: usize)
         }
     }
     0
+}
+
+#[syscall_func(85)]
+/// See https://man7.org/linux/man-pages/man2/timerfd_create.2.html
+///
+/// See https://blog.csdn.net/lihuan680680/article/details/120850344
+pub fn timerfd_create(clock_id: usize, flags: u32) -> AlienResult<isize> {
+    let id = ClockId::try_from(clock_id).unwrap();
+    let flags = OpenFlags::from_bits_truncate(flags as usize);
+    let task = current_task().unwrap();
+    // println_color!(32, "timerfd_create: Id: {:?} ,flags: {:?}", id, flags);
+    let timer_file = TimerFile::new(flags, ITimeSpec::default(), id);
+    let fd = task
+        .add_file(Arc::new(timer_file))
+        .map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(fd as isize)
+}
+
+#[syscall_func(87)]
+pub fn timerfd_gettime(fd: usize, current_val: usize) -> AlienResult<isize> {
+    // println_color!(
+    //     32,
+    //     "timerfd_gettime: fd {:?} ,current_val {:#x}",
+    //     fd,
+    //     current_val
+    // );
+    let task = current_task().unwrap();
+    let file = task.get_file(fd).ok_or(LinuxErrno::EBADF)?;
+    let timer_file = file
+        .as_any()
+        .downcast_ref::<TimerFile>()
+        .ok_or(LinuxErrno::EINVAL)?;
+    let itimer = ITimeSpec {
+        it_interval: timer_file.get_interval(),
+        it_value: timer_file.get_it_value(),
+    };
+    task.access_inner()
+        .copy_to_user(&itimer, current_val as *mut ITimeSpec);
+    Ok(0)
+}
+
+#[syscall_func(86)]
+pub fn timerfd_settime(
+    fd: usize,
+    flags: u32,
+    new_value: usize,
+    old_value: usize,
+) -> AlienResult<isize> {
+    let _flags = TimerFdFlags::from_bits_truncate(flags);
+    let task = current_task().unwrap();
+    let mut itimer = ITimeSpec::default();
+    task.access_inner()
+        .copy_from_user(new_value as *const ITimeSpec, &mut itimer);
+    // println_color!(
+    //     32,
+    //     "timerfd_settime: fd {:?} ,flags {:?}, new_value {:#x}, old_value {:#x}",
+    //     fd,
+    //     flags,
+    //     new_value,
+    //     old_value
+    // );
+    // println_color!(32, "timerfd_settime: new_timer: {:#x?}", itimer);
+    let file = task.get_file(fd).ok_or(LinuxErrno::EBADF)?;
+    let timer_file = file
+        .downcast_arc::<TimerFile>()
+        .map_err(|_| LinuxErrno::EINVAL)?;
+
+    if old_value != 0 {
+        let old_timer = ITimeSpec {
+            it_interval: timer_file.get_interval(),
+            it_value: timer_file.get_it_value(),
+        };
+        task.access_inner()
+            .copy_to_user(&old_timer, old_value as *mut ITimeSpec);
+    }
+    timer_file.set_timer(itimer);
+    Ok(0)
 }

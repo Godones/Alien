@@ -1,12 +1,15 @@
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
 
 use constants::{
-    io::{PollEvents, PollFd},
+    epoll::{EpollCtlOp, EpollEvent},
+    io::{OpenFlags, PollEvents, PollFd},
+    time::TimeSpec,
     AlienResult, LinuxErrno,
 };
 use log::{info, warn};
 use syscall_table::syscall_func;
-use timer::TimeSpec;
+use timer::{get_time_ms, TimeNow, ToClock};
+use vfs::epoll::EpollFile;
 
 use crate::task::{current_task, do_suspend};
 
@@ -65,7 +68,7 @@ pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, _mask: usize) -> AlienRes
                 pfd.revents = event;
             } else {
                 // todo: error
-                pfd.events = PollEvents::INVAL;
+                pfd.events = PollEvents::EPOLLERR;
             }
         }
 
@@ -94,4 +97,98 @@ pub fn ppoll(fds_ptr: usize, nfds: usize, time: usize, _mask: usize) -> AlienRes
             return Err(LinuxErrno::EINTR.into());
         }
     }
+}
+
+#[syscall_func(20)]
+/// See https://man7.org/linux/man-pages/man2/epoll_create1.2.html
+pub fn poll_createl(flags: usize) -> AlienResult<isize> {
+    let flags = OpenFlags::from_bits_truncate(flags);
+    // println_color!(32, "poll_createl: flags: {:?}", flags);
+    let epoll_file = Arc::new(EpollFile::new(flags));
+    let task = current_task().unwrap();
+    let fd = task.add_file(epoll_file).map_err(|_| LinuxErrno::EMFILE)?;
+    Ok(fd as isize)
+}
+
+#[syscall_func(21)]
+/// See https://man7.org/linux/man-pages/man2/epoll_ctl.2.html
+pub fn epoll_ctl(epfd: usize, op: u32, fd: usize, event_ptr: usize) -> AlienResult<isize> {
+    let op = EpollCtlOp::try_from(op).unwrap();
+    let task = current_task().unwrap();
+    let mut event = EpollEvent::default();
+    task.access_inner()
+        .copy_from_user(event_ptr as _, &mut event);
+    // println_color!(
+    //     32,
+    //     "epoll_ctl: epfd: {}, op: {:?}, fd: {}, event: {:?}",
+    //     epfd,
+    //     op,
+    //     fd,
+    //     event
+    // );
+    let epoll_file = task.get_file(epfd).ok_or(LinuxErrno::EBADF)?;
+    let epoll_file = epoll_file
+        .downcast_arc::<EpollFile>()
+        .map_err(|_| LinuxErrno::EINVAL)?;
+    epoll_file.ctl(op, fd, event)?;
+    Ok(0)
+}
+
+#[syscall_func(22)]
+/// See https://man7.org/linux/man-pages/man2/epoll_pwait.2.html
+pub fn epoll_pwait(
+    epfd: usize,
+    events_ptr: usize,
+    maxevents: usize,
+    timeout_ms: usize,
+    _sigmask: usize,
+) -> AlienResult<isize> {
+    // println_color!(
+    //     32,
+    //     "epoll_pwait: epfd: {}, maxevents: {}, timeout: {:#x}",
+    //     epfd,
+    //     maxevents,
+    //     timeout_ms
+    // );
+    let now_ms = get_time_ms() as usize;
+    let res = loop {
+        let task = current_task().unwrap();
+        let epoll_file = task.get_file(epfd).ok_or(LinuxErrno::EBADF)?;
+        let epoll_file = epoll_file
+            .downcast_arc::<EpollFile>()
+            .map_err(|_| LinuxErrno::EINVAL)?;
+
+        let interset = epoll_file.interest();
+        let mut res = Vec::with_capacity(interset.len());
+        for (fd, event) in interset.iter() {
+            let file = task.get_file(*fd);
+            if let Some(file) = file {
+                let event_res = file.poll(event.events).unwrap();
+                if !event_res.is_empty() {
+                    res.push(EpollEvent {
+                        events: event_res,
+                        data: event.data,
+                    });
+                }
+            }
+        }
+        if !res.is_empty() {
+            break res;
+        }
+        let now = get_time_ms() as usize;
+        if now - now_ms >= timeout_ms {
+            break Vec::new();
+        }
+    };
+    if res.len() > maxevents {
+        panic!("epoll_pwait: res.len() > maxevents");
+    }
+    // println_color!(32, "epoll_pwait: res: {:?}", res);
+    if res.is_empty() {
+        return Ok(0);
+    }
+    let task = current_task().unwrap();
+    task.access_inner()
+        .copy_to_user_buffer(res.as_ptr(), events_ptr as *mut EpollEvent, res.len());
+    Ok(res.len() as isize)
 }

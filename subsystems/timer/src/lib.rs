@@ -1,6 +1,6 @@
 #![no_std]
 
-use constants::time::TimeVal;
+use constants::time::{TimeSpec, TimeVal};
 use platform::config::CLOCK_FREQ;
 use vfscore::utils::VfsTimeSpec;
 /// 每秒包含的毫秒数
@@ -69,52 +69,48 @@ impl TimeFromFreq for TimeVal {
     }
 }
 
-/// 更精细的时间，秒(s)+纳秒(ns)
-#[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct TimeSpec {
-    pub tv_sec: usize,
-    pub tv_nsec: usize, //0~999999999
-}
+// /// 更精细的时间，秒(s)+纳秒(ns)
+// #[repr(C)]
+// #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+// pub struct TimeSpec {
+//     pub tv_sec: usize,
+//     pub tv_nsec: usize, //0~999999999
+// }
+//
 
-impl TimeSpec {
-    /// 创建一个新的 [`TimeSpec`] 时钟
-    pub fn new(sec: usize, ns: usize) -> Self {
-        Self {
-            tv_sec: sec,
-            tv_nsec: ns,
-        }
-    }
-
-    /// 获取一个可以表示当前 cpu 时间的一个 [`TimeSpec`] 时钟
-    pub fn now() -> Self {
-        let time = arch::read_timer();
+impl TimeNow for TimeSpec {
+    fn now() -> Self {
+        let time = read_timer();
         Self {
             tv_sec: time / CLOCK_FREQ,
             tv_nsec: (time % CLOCK_FREQ) * 1000_000_000 / CLOCK_FREQ,
         }
     }
+}
 
-    /// 将本时钟所表示的时间间隔转化为 cpu 上时钟的跳变数
-    pub fn to_clock(&self) -> usize {
+impl TimeFromFreq for TimeSpec {
+    fn from_freq(freq: usize) -> Self {
+        Self {
+            tv_sec: freq / CLOCK_FREQ,
+            tv_nsec: (freq % CLOCK_FREQ) * 1000_000_000 / CLOCK_FREQ,
+        }
+    }
+}
+
+impl ToClock for TimeSpec {
+    fn to_clock(&self) -> usize {
         self.tv_sec * CLOCK_FREQ + self.tv_nsec * CLOCK_FREQ / 1000_000_000
     }
 }
 
-impl Into<VfsTimeSpec> for TimeSpec {
-    fn into(self) -> VfsTimeSpec {
-        VfsTimeSpec::new(self.tv_sec as u64, self.tv_nsec as u64)
-    }
+pub trait ToVfsTimeSpec {
+    fn into_vfs(self) -> VfsTimeSpec;
 }
 
-/// [`getitimer`] / [`setitimer`] 指定的类型，用户执行系统调用时获取和输入的计时器
-#[repr(C)]
-#[derive(Debug, Copy, Clone, Default)]
-pub struct ITimerVal {
-    /// 计时器超时间隔
-    pub it_interval: TimeVal,
-    /// 计时器当前所剩时间
-    pub it_value: TimeVal,
+impl ToVfsTimeSpec for TimeSpec {
+    fn into_vfs(self) -> VfsTimeSpec {
+        VfsTimeSpec::new(self.tv_sec as u64, self.tv_nsec as u64)
+    }
 }
 
 /// 获取当前计时器的值

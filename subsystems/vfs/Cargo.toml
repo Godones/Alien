@@ -15,6 +15,7 @@ interrupt = { path = "../interrupt" }
 platform = { path = "../platform" }
 mem = { path = "../mem" }
 shim  = { path = "../shim" }
+timer = { path = "../timer" }
 
 bitflags = "1.3"
 downcast-rs = { version = "1.2.0", default-features = false }

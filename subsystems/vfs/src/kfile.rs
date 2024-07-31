@@ -85,7 +85,7 @@ pub trait File: DowncastSync + Debug {
     fn is_writable(&self) -> bool;
     fn is_append(&self) -> bool;
     fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
-        Err(LinuxErrno::ENOSYS)
+        panic!("poll is not implemented for :{:?}", self)
     }
 }
 
@@ -260,8 +260,8 @@ impl File for KernelFile {
     fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
         let inode = self.dentry.inode()?;
         let res = inode
-            .poll(VfsPollEvents::from_bits_truncate(_event.bits()))
-            .map(|e| PollEvents::from_bits_truncate(e.bits()));
+            .poll(VfsPollEvents::from_bits_truncate(_event.bits() as u16))
+            .map(|e| PollEvents::from_bits_truncate(e.bits() as u32));
         res.map_err(Into::into)
     }
 }

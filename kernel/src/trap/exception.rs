@@ -21,6 +21,8 @@ pub fn syscall_exception_handler() {
     cx.update_sepc();
     // get system call return value
     let parameters = cx.parameters();
+
+    // See https://gpages.juszkiewicz.com.pl/syscalls-table/syscalls.html
     let syscall_name = constants::syscall_name(parameters[0]);
 
     let task = current_task().unwrap();
