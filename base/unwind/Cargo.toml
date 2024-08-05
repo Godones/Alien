@@ -1,0 +1,21 @@
+[package]
+name = "unwind"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fallible-iterator = { version = "0", default-features = false }
+log = "0"
+addr2line = { version = "0.20.0", default-features = false, features = [
+    "rustc-demangle",
+    "object",
+    "endian-reader",
+], git = "https://github.com/hky1999/addr2line" }
+spin = "0"
+preprint = "0"
+
+
+[dependencies.gimli]
+version = "0.19.0"
+default-features = false
+features = ["read", "alloc"]

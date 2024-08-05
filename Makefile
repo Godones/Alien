@@ -1,6 +1,9 @@
 TARGET := riscv64gc-unknown-none-elf
+TARGET_CONFIG := ./tools/riscv64.json
+TARGET2 := riscv64
 PROFILE := release
-KERNEL := target/$(TARGET)/$(PROFILE)/kernel
+KERNEL := target/$(TARGET2)/$(PROFILE)/kernel
+QEMU := /home/godones/tools/qemu-7.0.0/build/qemu-system-riscv64
 NET ?= y
 SMP ?= 4
 MEMORY_SIZE := 1024M
@@ -15,6 +18,7 @@ VF2 ?= n
 TFTPBOOT := /home/godones/projects/tftpboot/
 PLATFORM := qemu_riscv
 VF2_SD ?= n
+BUILD_CFG ?=  -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem
 
 comma:= ,
 empty:=
@@ -51,7 +55,8 @@ build:
 	@echo "PLATFORM: $(PLATFORM)"
 	@echo "SM: $(SMP)"
 	@echo "VF2_SD: $(VF2_SD)"
-	LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
+	@#LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
+	LOG=$(LOG) cargo build --release -p kernel --target $(TARGET_CONFIG) $(BUILD_CFG) --features $(FEATURES)
 
 vf2: build
 	rust-objcopy --strip-all $(KERNEL) -O binary ./testos.bin
@@ -61,7 +66,7 @@ vf2: build
 
 
 run: domains sdcard initrd build
-	qemu-system-riscv64 \
+	$(QEMU) \
             -M virt \
             -bios default \
             -drive file=$(IMG),if=none,format=raw,id=x0 \
@@ -73,7 +78,7 @@ run: domains sdcard initrd build
 	-#rm $(IMG)
 
 fake_run:
-	qemu-system-riscv64 \
+	$(QEMU) \
 			-M virt \
 			-bios default \
 			-drive file=$(IMG),if=none,format=raw,id=x0 \

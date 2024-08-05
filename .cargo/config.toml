@@ -3,8 +3,17 @@ server = "run -p domain-server --"
 
 
 [profile.release]
-panic = "abort"
 #lto = true
 strip = true
-opt-level = "z"  # Optimize for size.
-incremental = true
+#opt-level = 3  # Optimize for size.
+#incremental = true
+#debug = true
+opt-level = 'z'
+lto = true
+
+[target.riscv64]
+#rustflags = [
+#    "-Cforce-unwind-tables=yes",
+#    "-Clink-args=--eh-frame-hdr",
+#    "-Cforce-frame-pointers=yes"
+#]

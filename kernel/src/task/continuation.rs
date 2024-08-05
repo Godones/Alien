@@ -123,8 +123,6 @@ __unwind:
     "#
 );
 
-
-
 #[no_mangle]
 pub extern "C" fn register_cont(cont: &Continuation) {
     register_continuation(cont)

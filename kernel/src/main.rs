@@ -9,6 +9,8 @@
 #![allow(clippy::declare_interior_mutable_const)]
 #![no_std]
 #![no_main]
+#![feature(lang_items)]
+#![allow(internal_features)]
 mod panic;
 
 #[macro_use]
