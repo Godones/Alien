@@ -173,6 +173,9 @@ impl TrapHandler for Trap {
             }
             Trap::Exception(Exception::StorePageFault)
             | Trap::Exception(Exception::LoadPageFault) => {
+                task_domain!()
+                    .do_load_page_fault(stval)
+                    .expect("do_load_page_fault failed");
                 panic!(
                     "<do_user_handle> {:?}, stval:{:#x?} sepc:{:#x?}",
                     self, stval, sepc

@@ -1,5 +1,8 @@
 use alloc::boxed::Box;
-use core::ops::{Deref, DerefMut};
+use core::{
+    ops::{Deref, DerefMut},
+    sync::atomic::AtomicUsize,
+};
 
 use config::{FRAME_BITS, FRAME_SIZE};
 use ksync::Mutex;
@@ -95,6 +98,19 @@ impl PhysPage for FrameTracker {
 
     fn as_mut_bytes(&mut self) -> &mut [u8] {
         self.deref_mut()
+    }
+    fn read_value_atomic(&self, offset: usize) -> usize {
+        let ptr = self.start() + offset;
+        unsafe {
+            AtomicUsize::from_ptr(ptr as *mut usize).load(core::sync::atomic::Ordering::Relaxed)
+        }
+    }
+    fn write_value_atomic(&mut self, offset: usize, value: usize) {
+        let ptr = self.start() + offset;
+        unsafe {
+            AtomicUsize::from_ptr(ptr as *mut usize)
+                .store(value, core::sync::atomic::Ordering::Relaxed)
+        }
     }
 }
 

@@ -91,6 +91,7 @@ fake_run:
 user:
 	@echo "Building user apps"
 	@make all -C ./user/apps
+	@make all -C ./user/musl
 	@echo "Building user apps done"
 
 

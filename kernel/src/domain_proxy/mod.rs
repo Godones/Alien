@@ -10,6 +10,7 @@ use jtable::*;
 use ksync::{Mutex, RwLock};
 use paste::paste;
 use pconst::{
+    epoll::EpollEvent,
     io::{PollEvents, RtcTime, SeekFrom},
     net::*,
 };
