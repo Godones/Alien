@@ -31,8 +31,7 @@ BUILD_CRATES := \
 	print \
 
 ifeq ($(GUI),y)
-	BUILD_CRATES += egui \
-					sysinfo \
+	BUILD_CRATES += sysinfo \
 					todo \
 					slint \
 					memory-game \

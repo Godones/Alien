@@ -28,8 +28,7 @@ TALLOC ?=y
 BUDDY ?=n
 FS ?=fat
 INITRD ?=y
-
-
+QEMU := qemu-system-riscv64
 comma:= ,
 empty:=
 space:= $(empty) $(empty)
@@ -83,7 +82,7 @@ endif
 FEATURES := $(subst $(space),$(comma),$(FEATURES))
 
 define boot_qemu
-	qemu-system-riscv64 \
+	$(QEMU) \
         -M virt $(1)\
         -bios $(BOOTLOADER) \
         -drive file=$(IMG),if=none,format=raw,id=x0 \

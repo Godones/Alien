@@ -17,6 +17,8 @@ use slint_helper::{MyPlatform, SwapBuffer};
 use virt2slint::Converter;
 use Mstd::{
     io::{keyboard_or_mouse_event, VIRTGPU_XRES, VIRTGPU_YRES},
+    println,
+    process::exit,
     time::get_time_ms,
 };
 
@@ -108,10 +110,39 @@ fn checkout_event(converter: &mut Converter, x: &mut isize, y: &mut isize) -> Ve
     for i in 0..event_num as usize {
         let event = events[i];
         // let window_event = input2event(event, x, y);
+        let e = InputEvent::from(event);
+        if e.event_type == 1 && (e.code == 1 || e.code == 273) && e.value == 0 {
+            println!("ESC or right-click pressed, exit");
+            exit(0);
+        }
         let window_event = converter.convert(event, x, y);
         window_event.map(|e| {
             res.push(e);
         });
     }
     res
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct InputEvent {
+    /// Event type.
+    pub event_type: u16,
+    /// Event code.
+    pub code: u16,
+    /// Event value.
+    pub value: u32,
+}
+
+impl From<u64> for InputEvent {
+    fn from(event: u64) -> Self {
+        let event_type = (event >> 48) as u16;
+        let code = ((event >> 32) & 0xFFFF) as u16;
+        let value = (event & 0xFFFFFFFF) as u32;
+        Self {
+            event_type,
+            code,
+            value,
+        }
+    }
 }
