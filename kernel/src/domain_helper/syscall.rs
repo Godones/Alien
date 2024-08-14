@@ -49,7 +49,10 @@ impl CoreFunction for DomainSyscall {
     }
 
     fn sys_backtrace(&self, domain_id: u64) {
-        warn!("[Domain: {}] panic, resource should recycle.", domain_id);
+        let mut info = DOMAIN_INFO.lock();
+        info.domain_list
+            .get_mut(&domain_id)
+            .map(|d| d.panic_count += 1);
         unwind();
     }
     fn sys_trampoline_addr(&self) -> usize {
@@ -99,10 +102,11 @@ impl CoreFunction for DomainSyscall {
         ty: DomainTypeRaw,
     ) -> AlienResult<()> {
         let old_domain = super::query_domain(old_domain_name);
-        let domain_info = match old_domain {
+        let old_domain_id = old_domain.as_ref().map(|d| d.domain_id());
+        let (domain_info, new_domain_id) = match old_domain {
             Some(DomainType::GpuDomain(gpu)) => {
                 let old_domain_id = gpu.domain_id();
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     ty,
                     new_domain_name,
                     None,
@@ -116,11 +120,11 @@ impl CoreFunction for DomainSyscall {
                     "Try to replace domain: {} with domain: {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(domain_info)
+                Ok((domain_info, id))
             }
             Some(DomainType::ShadowBlockDomain(shadow_blk)) => {
                 let old_domain_id = shadow_blk.domain_id();
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     ty,
                     new_domain_name,
                     None,
@@ -134,11 +138,11 @@ impl CoreFunction for DomainSyscall {
                     "Try to replace domain: {} with domain: {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(domain_info)
+                Ok((domain_info, id))
             }
             Some(DomainType::SchedulerDomain(scheduler)) => {
                 let old_domain_id = scheduler.domain_id();
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     ty,
                     new_domain_name,
                     None,
@@ -152,11 +156,11 @@ impl CoreFunction for DomainSyscall {
                     "Try to replace {:?} [{}] with [{}] ok",
                     ty, old_domain_name, new_domain_name
                 );
-                Ok(domain_info)
+                Ok((domain_info, id))
             }
             Some(DomainType::LogDomain(logger)) => {
                 let old_domain_id = logger.domain_id();
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     ty,
                     new_domain_name,
                     None,
@@ -170,12 +174,12 @@ impl CoreFunction for DomainSyscall {
                     "Try to replace logger domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(domain_info)
+                Ok((domain_info, id))
             }
 
             Some(DomainType::InputDomain(input)) => {
                 let old_domain_id = input.domain_id();
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     ty,
                     new_domain_name,
                     None,
@@ -189,12 +193,12 @@ impl CoreFunction for DomainSyscall {
                     "Try to replace input domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(domain_info)
+                Ok((domain_info, id))
             }
 
             Some(DomainType::NetDeviceDomain(nic)) => {
                 let old_domain_id = nic.domain_id();
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     ty,
                     new_domain_name,
                     None,
@@ -208,12 +212,12 @@ impl CoreFunction for DomainSyscall {
                     "Try to replace net device domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(domain_info)
+                Ok((domain_info, id))
             }
 
             Some(DomainType::VfsDomain(vfs)) => {
                 let old_domain_id = vfs.domain_id();
-                let (_id, new_domain, loader) = crate::domain_loader::creator::create_domain(
+                let (id, new_domain, loader) = crate::domain_loader::creator::create_domain(
                     ty,
                     new_domain_name,
                     None,
@@ -227,7 +231,7 @@ impl CoreFunction for DomainSyscall {
                     "Try to replace vfs domain {} with {} ok",
                     old_domain_name, new_domain_name
                 );
-                Ok(domain_info)
+                Ok((domain_info, id))
             }
             None => {
                 println!(
@@ -241,13 +245,15 @@ impl CoreFunction for DomainSyscall {
             }
         }?;
         let domain_data = DomainDataInfo {
+            name: old_domain_name.to_string(),
             ty,
+            panic_count: 0,
             file_info: domain_info,
         };
-        DOMAIN_INFO
-            .lock()
-            .domain_list
-            .insert(old_domain_name.to_string(), domain_data);
+
+        let mut info = DOMAIN_INFO.lock();
+        info.domain_list.remove(&old_domain_id.unwrap());
+        info.domain_list.insert(new_domain_id, domain_data);
         Ok(())
     }
     fn sys_reload_domain(&self, domain_name: &str) -> AlienResult<()> {
@@ -331,7 +337,6 @@ extern "C" {
     fn strampoline();
 }
 static BLK_CRASH: AtomicBool = AtomicBool::new(true);
-fn unwind() -> ! {
+fn unwind() {
     BLK_CRASH.store(false, core::sync::atomic::Ordering::Relaxed);
-    crate::task::continuation::unwind()
 }

@@ -100,18 +100,22 @@ pub fn register_domain(
     domain: DomainType,
     unique: bool,
 ) -> String {
+    let domain_id = domain.domain_id();
     let ty = domain.to_raw();
     let res = DOMAIN_CONTAINER
         .lock()
         .insert(identifier.to_string(), domain, unique);
     let domain_data = DomainDataInfo {
+        name: res.clone(),
         ty,
+        panic_count: 0,
         file_info: domain_file,
     };
+
     DOMAIN_INFO
         .lock()
         .domain_list
-        .insert(res.clone(), domain_data);
+        .insert(domain_id, domain_data);
     res
 }
 

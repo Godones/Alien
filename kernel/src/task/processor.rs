@@ -9,7 +9,6 @@ use config::CPU_NUM;
 use task_meta::{TaskContext, TaskStatus};
 
 use crate::task::{
-    continuation::ContinuationManager,
     resource::TaskMetaExt,
     scheduler::{add_task, fetch_task},
 };
@@ -18,7 +17,6 @@ use crate::task::{
 pub struct Cpu {
     pub(crate) task: Option<Arc<Mutex<TaskMetaExt>>>,
     pub(crate) context: TaskContext,
-    pub(crate) continuation: ContinuationManager,
 }
 
 impl Cpu {
@@ -26,7 +24,6 @@ impl Cpu {
         Self {
             task: None,
             context: TaskContext::empty(),
-            continuation: ContinuationManager::new(),
         }
     }
     pub fn current(&self) -> Option<Arc<Mutex<TaskMetaExt>>> {

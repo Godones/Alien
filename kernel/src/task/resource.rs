@@ -5,8 +5,6 @@ use mem::VirtAddr;
 use rref::RRef;
 use task_meta::{TaskBasicInfo, TaskMeta, TaskSchedulingInfo};
 
-use crate::task::continuation::ContinuationManager;
-
 #[derive(Debug)]
 pub struct KStack {
     top: VirtAddr,
@@ -40,7 +38,6 @@ pub struct TaskMetaExt {
     pub kstack: KStack,
     pub basic_info: TaskBasicInfo,
     pub scheduling_info: Option<RRef<TaskSchedulingInfo>>,
-    pub continuation: ContinuationManager,
 }
 
 impl TaskMetaExt {
@@ -58,7 +55,6 @@ impl TaskMetaExt {
             kstack,
             basic_info,
             scheduling_info: Some(RRef::new(scheduling_info)),
-            continuation: ContinuationManager::new(),
         }
     }
     pub fn take_scheduling_info(&mut self) -> RRef<TaskSchedulingInfo> {
