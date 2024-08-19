@@ -4,7 +4,6 @@ use core::{any::Any, sync::atomic::AtomicBool};
 use config::FRAME_BITS;
 use corelib::{domain_info::DomainDataInfo, CoreFunction};
 use interface::*;
-use log::warn;
 use platform::iprint;
 use task_meta::{OperationResult, TaskOperation};
 

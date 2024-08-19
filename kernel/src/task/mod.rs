@@ -6,7 +6,7 @@ use alloc::sync::Arc;
 use core::arch::global_asm;
 
 use arch::hart_id;
-use basic::task::TaskContext;
+use basic::{sync::Once, task::TaskContext};
 use config::CPU_NUM;
 use interface::{SchedulerDomain, TaskDomain};
 use ksync::Mutex;
@@ -15,7 +15,6 @@ pub use scheduler::{
     exit_now, get_task_priority, is_task_exit, remove_task, set_task_priority, wait_now,
     wake_up_wait_task, yield_now,
 };
-use spin::Once;
 use task_meta::{TaskMeta, TaskStatus};
 
 use crate::{
@@ -40,9 +39,7 @@ pub static TASK_DOMAIN: Once<Arc<dyn TaskDomain>> = Once::new();
 #[macro_export]
 macro_rules! task_domain {
     () => {
-        $crate::task::TASK_DOMAIN
-            .get()
-            .expect("task domain not init")
+        $crate::task::TASK_DOMAIN.get_must()
     };
 }
 

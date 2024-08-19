@@ -18,4 +18,5 @@ build:
 
 BUILD_CRATES := \
 	hello \
-	async_test
+	async_test \
+	ftest

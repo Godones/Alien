@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 use gimli::Register;
 
 use crate::{registers, registers::Registers};
@@ -5,6 +7,17 @@ use crate::{registers, registers::Registers};
 extern "C" {
     pub fn unwind_lander(regs: *const LandingRegs) -> !;
     pub fn unwind_trampoline(ctx: usize);
+}
+
+#[inline(always)]
+pub fn hart_id() -> usize {
+    let mut id: usize;
+    unsafe {
+        asm!(
+        "mv {},tp", out(reg)id,
+        );
+    }
+    id
 }
 
 #[no_mangle]
@@ -31,6 +44,7 @@ unsafe extern "C" fn unwind_recorder(
     registers[Riscv64::X27] = Some(saved_regs.r[9]);
     registers[Riscv64::X2] = Some(stack);
     registers[Riscv64::X1] = Some(saved_regs.ra);
+    registers[Riscv64::X4] = Some(hart_id() as _);
 
     super::unwind_from_panic_stub(registers, ctx);
 }

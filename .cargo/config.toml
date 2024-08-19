@@ -3,12 +3,10 @@ server = "run -p domain-server --"
 
 
 [profile.release]
-#lto = true
 strip = true
-#opt-level = 3  # Optimize for size.
 #incremental = true
 #debug = true
-opt-level = 'z'
+opt-level = 3
 lto = true
 
 [target.riscv64]

@@ -30,7 +30,6 @@ BUILD_CRATES := \
 	client \
 	out \
 	nice \
-	ftest \
 #	run_test \
 	tests \
 	sleep \

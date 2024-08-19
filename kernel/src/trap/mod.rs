@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 use core::arch::{asm, global_asm};
 
 use arch::hart_id;
+use basic::sync::{Once, OnceGet};
 use config::TRAMPOLINE;
 use interface::{PLICDomain, SysCallDomain};
 use log::debug;
@@ -15,7 +16,6 @@ use riscv::register::{
     stval, stvec,
     stvec::TrapMode,
 };
-use spin::Once;
 
 use crate::{task_domain, timer};
 
@@ -25,17 +25,13 @@ pub static PLIC_DOMAIN: Once<Arc<dyn PLICDomain>> = Once::new();
 #[macro_export]
 macro_rules! syscall_domain {
     () => {
-        $crate::trap::SYSCALL_DOMAIN
-            .get()
-            .expect("syscall domain not init")
+        $crate::trap::SYSCALL_DOMAIN.get_must()
     };
 }
 
 macro_rules! plic_domain {
     () => {
-        crate::trap::PLIC_DOMAIN
-            .get()
-            .expect("plic domain not init")
+        crate::trap::PLIC_DOMAIN.get_must()
     };
 }
 

@@ -3,7 +3,7 @@ TARGET_CONFIG := ./tools/riscv64.json
 TARGET2 := riscv64
 PROFILE := release
 KERNEL := target/$(TARGET2)/$(PROFILE)/kernel
-QEMU := /home/godones/tools/qemu-7.0.0/build/qemu-system-riscv64
+QEMU := qemu-system-riscv64
 NET ?= y
 SMP ?= 4
 MEMORY_SIZE := 1024M
@@ -143,7 +143,7 @@ initrd:
 
 
 gdb-server: domains build sdcard
-	@qemu-system-riscv64 \
+	@$(QEMU) \
             -M virt\
             -bios default \
             -drive file=$(IMG),if=none,format=raw,id=x0 \

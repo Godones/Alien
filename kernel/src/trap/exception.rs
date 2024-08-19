@@ -1,4 +1,4 @@
-use basic::task::TrapFrame;
+use basic::{sync::OnceGet, task::TrapFrame};
 use mem::PhysAddr;
 
 use crate::{syscall_domain, task_domain};
