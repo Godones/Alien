@@ -13,7 +13,7 @@ use vfscore::{
     utils::{
         VfsDirEntry, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsRenameFlag, VfsTime, VfsTimeSpec,
     },
-    VfsResult,
+    RRefVec, VfsResult,
 };
 
 use super::*;

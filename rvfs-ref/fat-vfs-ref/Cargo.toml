@@ -1,16 +1,18 @@
 [package]
-name = "ramfs-ref"
+name = "fat-vfs-ref"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lock_api = { version = "0",default-features = false }
-vfscore = { path = "../vfscore-ref", package = "vfscore-ref" }
+fatfs = { git = "https://github.com/os-module/rust-fatfs.git", default-features = false,features = ["alloc","lfn"] }
+lock_api = {version = "0",default-features = false}
 log = "0.4.14"
+
 unifs = { path = "../unifs-ref", package = "unifs-ref" }
-pconst = { git = "https://github.com/os-module/pconst.git" }
+vfscore = { path = "../vfscore-ref", package = "vfscore-ref" }
+
 
 [dev-dependencies]
 spin = "0"

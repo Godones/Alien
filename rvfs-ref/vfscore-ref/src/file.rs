@@ -1,4 +1,5 @@
 use downcast_rs::{impl_downcast, DowncastSync};
+use rref::RRefVec;
 
 use crate::{
     error::VfsError,
@@ -7,10 +8,10 @@ use crate::{
 };
 
 pub trait VfsFile: Send + Sync + DowncastSync {
-    fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> VfsResult<usize> {
+    fn read_at(&self, _offset: u64, _buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
         Err(VfsError::NoSys)
     }
-    fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
+    fn write_at(&self, _offset: u64, _buf: &RRefVec<u8>) -> VfsResult<usize> {
         Err(VfsError::NoSys)
     }
     /// Read directory entries. This is called by the getdents(2) system call.

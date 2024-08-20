@@ -125,11 +125,10 @@ pub fn user_trap_vector() {
 #[no_mangle]
 pub fn trap_return() -> ! {
     // signal_handler();
-    arch::interrupt_disable();
+    // arch::interrupt_disable();
     set_user_trap_entry();
     let task_domain = task_domain!();
-    let trap_cx_ptr = task_domain.trap_frame_virt_addr().unwrap();
-    let user_satp = task_domain.current_task_satp().unwrap();
+    let (user_satp, trap_cx_ptr) = task_domain.satp_with_trap_frame_virt_addr().unwrap();
     let restore_va = user_r as usize - user_v as usize + TRAMPOLINE;
     unsafe {
         asm!(

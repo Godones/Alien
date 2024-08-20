@@ -11,7 +11,7 @@ mod data;
 mod vmm;
 
 pub use data::INITRD_DATA;
-pub use frame::{alloc_frame_trackers, alloc_frames, free_frames};
+pub use frame::{alloc_frame_trackers, alloc_frames, free_frames, FrameTracker};
 use ksync::Mutex;
 pub use memory_addr::{PhysAddr, VirtAddr};
 pub use page_table::MappingFlags;

@@ -1,5 +1,5 @@
 [package]
-name = "ramfs-ref"
+name = "devfs-ref"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,10 +7,10 @@ edition = "2021"
 
 [dependencies]
 lock_api = { version = "0",default-features = false }
-vfscore = { path = "../vfscore-ref", package = "vfscore-ref" }
 log = "0.4.14"
 unifs = { path = "../unifs-ref", package = "unifs-ref" }
-pconst = { git = "https://github.com/os-module/pconst.git" }
+vfscore = { path = "../vfscore-ref", package = "vfscore-ref" }
+
 
 [dev-dependencies]
 spin = "0"

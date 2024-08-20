@@ -1,16 +1,20 @@
 use std::{error::Error, sync::Arc};
 
+use fake_rref::fake_init_rref;
 use log::{error, info};
 use ramfs::{RamFs, RamFsProvider};
+use ramfs_ref as ramfs;
 use spin::mutex::Mutex;
 use vfscore::{
     fstype::VfsFsType,
     path::DirIter,
     utils::{VfsNodePerm, VfsNodeType, VfsTimeSpec},
+    RRefVec,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+    fake_init_rref();
     // create the fstype for ramfs
     let ramfs = Arc::new(RamFs::<_, Mutex<()>>::new(PageProviderImpl));
     // create a real ramfs
@@ -25,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let root_inode = root.inode()?;
     // write dir will cause a error
     root_inode
-        .write_at(0, &[0; 10])
+        .write_at(0, &RRefVec::new(0, 10))
         .is_err()
         .then(|| error!("write to dir error"));
 
@@ -54,17 +58,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .then(|| info!("find test file ok"));
 
     test_inode
-        .write_at(0, &[b'x'; 10])
+        .write_at(0, &RRefVec::new(b'x', 10))
         .is_ok()
         .then(|| info!("write to file xxxxxxxxxx ok"));
-    let mut buf = [0u8; 10];
-    test_inode.read_at(0, &mut buf).is_ok().then(|| {
-        println!(
-            "read file ok, the content is {}",
-            core::str::from_utf8(&buf).unwrap()
-        )
-    });
-
+    let buf = RRefVec::new(0, 10);
+    let (buf, _r) = test_inode.read_at(0, buf).unwrap();
+    println!(
+        "read file ok, the content is {}",
+        core::str::from_utf8(&buf).unwrap()
+    );
     // create a mount point
     let mount_dir = root_inode.create(
         "mount_dir",

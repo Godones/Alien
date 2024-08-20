@@ -1,24 +1,30 @@
 use core::ops::{Deref, DerefMut};
 
 use config::{FRAME_SIZE, KTHREAD_STACK_SIZE, USER_KERNEL_STACK_SIZE};
-use mem::VirtAddr;
+use mem::{FrameTracker, VirtAddr};
 use rref::RRef;
 use task_meta::{TaskBasicInfo, TaskMeta, TaskSchedulingInfo};
 
 #[derive(Debug)]
+#[allow(unused)]
 pub struct KStack {
     top: VirtAddr,
     tid: usize,
     pages: usize,
+    frame_tracker: FrameTracker,
 }
 
 impl KStack {
     pub fn new(tid: usize, pages: usize) -> Self {
-        let top = mem::map_kstack_for_task(tid, pages).expect("map kstack failed");
+        // let top = mem::map_kstack_for_task(tid, pages).expect("map kstack failed");
+        assert_eq!(pages.next_power_of_two(), pages);
+        let frame = mem::alloc_frame_trackers(pages);
+        let top = frame.start() + frame.len();
         Self {
             top: VirtAddr::from(top),
             tid,
             pages,
+            frame_tracker: frame,
         }
     }
 
@@ -29,7 +35,7 @@ impl KStack {
 
 impl Drop for KStack {
     fn drop(&mut self) {
-        mem::unmap_kstack_for_task(self.tid, self.pages).expect("unmap kstack failed");
+        // mem::unmap_kstack_for_task(self.tid, self.pages).expect("unmap kstack failed");
     }
 }
 

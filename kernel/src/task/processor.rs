@@ -1,5 +1,5 @@
 use alloc::sync::Arc;
-use core::hint::spin_loop;
+use core::{arch::asm, hint::spin_loop};
 
 use basic::{
     arch::{hart_id, CpuLocal},
@@ -52,11 +52,39 @@ pub fn current_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
 }
 
 pub fn current_tid() -> Option<usize> {
-    current_task().map(|task| task.lock().tid())
+    // current_task().map(|task| task.lock().tid())
+    let mut tp: usize;
+    unsafe {
+        asm!(
+            "mv {}, tp",
+            out(reg) tp,
+        )
+    }
+    tp = tp >> 32;
+    if tp == 0 {
+        None
+    } else {
+        Some(tp)
+    }
 }
 
 pub fn take_current_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
     CPUS[hart_id()].as_mut().take_current()
+}
+
+#[inline(always)]
+fn set_tp(tp: usize) {
+    unsafe {
+        asm!("mv tp, {}", in(reg) tp, options(nostack));
+    }
+}
+
+#[inline(always)]
+fn tp_from_tid(tid: usize) -> usize {
+    let hart_id = hart_id(); // lower 32 bits
+                             // tid:hart_id
+                             // 32:32
+    (tid << 32) | hart_id
 }
 
 pub fn schedule() {
@@ -72,7 +100,7 @@ pub fn cpu_loop() {
     loop {
         let cpu = current_cpu();
         let current_task = take_current_task();
-        let tid = match current_task {
+        let _tid = match current_task {
             Some(task) => {
                 let tid = task.lock().tid();
                 let status = task.lock().status();
@@ -92,12 +120,14 @@ pub fn cpu_loop() {
         if let Some(next_task) = fetch_task() {
             next_task.lock().set_status(TaskStatus::Running);
             let next_task_ctx_ptr = next_task.lock().get_context_raw_mut_ptr();
-            log::warn!(
-                "[tid: {:?}] switch to task {:?}",
-                tid,
-                next_task.lock().tid()
-            );
+            // log::warn!(
+            //     "[tid: {:?}] switch to task {:?}",
+            //     tid,
+            //     next_task.lock().tid()
+            // );
+            let next_tid = next_task.lock().tid();
             cpu.set_current(next_task);
+            set_tp(tp_from_tid(next_tid));
             let cpu_context = cpu.get_idle_task_cx_ptr();
             crate::task::switch(cpu_context, next_task_ctx_ptr)
         } else {

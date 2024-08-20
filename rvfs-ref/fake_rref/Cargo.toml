@@ -1,0 +1,9 @@
+[package]
+name = "fake_rref"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rref = { path = "../../domain-lib/rref" }
+spin = "0"
+log = "0"

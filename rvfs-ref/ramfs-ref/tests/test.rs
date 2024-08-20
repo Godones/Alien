@@ -1,13 +1,15 @@
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 
+use fake_rref::fake_init_rref;
 use ramfs::{RamFs, RamFsProvider};
+use ramfs_ref as ramfs;
 use spin::{mutex::Mutex, Lazy};
 use vfscore::{
     dentry::VfsDentry,
     fstype::VfsFsType,
     path::DirIter,
     utils::{VfsNodeType, VfsTimeSpec},
-    VfsResult,
+    RRefVec, VfsResult,
 };
 
 static FS: Lazy<Mutex<Arc<dyn VfsFsType>>> =
@@ -24,8 +26,15 @@ impl RamFsProvider for RamFsProviderImpl {
 fn make_ramfs() -> VfsResult<Arc<dyn VfsDentry>> {
     FS.lock().clone().mount(0, "/", None, &[])
 }
+
+fn init_rref() {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| fake_init_rref());
+}
+
 #[test]
 fn test_link() {
+    init_rref();
     let root = make_ramfs().unwrap();
     let f1 = root
         .inode()
@@ -52,6 +61,7 @@ fn test_link() {
 
 #[test]
 fn test_symlink() {
+    init_rref();
     let root = make_ramfs().unwrap();
     let f1 = root
         .inode()
@@ -70,9 +80,9 @@ fn test_symlink() {
     let num = root.inode().unwrap().children().fold(0, |acc, _| acc + 1);
     assert_eq!(num, 1);
 
-    let mut buf = vec![0; 2];
-    f1_sym.readlink(&mut buf).unwrap();
-    assert_eq!(buf, b"f1");
+    let buf = RRefVec::new(0, 2);
+    let (buf, _r) = f1_sym.readlink(buf).unwrap();
+    assert_eq!(buf.as_slice(), b"f1");
 }
 
 #[test]

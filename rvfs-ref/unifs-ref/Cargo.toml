@@ -1,5 +1,5 @@
 [package]
-name = "unifs"
+name = "unifs-ref"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 lock_api = { version = "0",default-features = false }
-vfscore = { path = "../vfscore" }
+vfscore = { path = "../vfscore-ref", package = "vfscore-ref" }
 log = "0.4.14"
 
 

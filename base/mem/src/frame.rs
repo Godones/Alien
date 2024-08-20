@@ -82,7 +82,7 @@ impl FrameTracker {
         }
     }
 
-    fn start(&self) -> usize {
+    pub fn start(&self) -> usize {
         self.start_page << FRAME_BITS
     }
 }

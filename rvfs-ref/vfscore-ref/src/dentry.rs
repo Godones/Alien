@@ -55,7 +55,7 @@ pub trait VfsDentry: Send + Sync + DowncastSync {
                 String::from("/") + self.name().as_str()
             };
             let parent_name = p.name();
-            return if parent_name == "/" {
+            if parent_name == "/" {
                 if p.parent().is_some() {
                     // p is a mount point
                     p.parent().unwrap().path() + path.as_str()
@@ -65,7 +65,7 @@ pub trait VfsDentry: Send + Sync + DowncastSync {
             } else {
                 // p is not root
                 p.path() + path.as_str()
-            };
+            }
         } else {
             warn!("dentry has no parent");
             String::from("/")

@@ -13,6 +13,7 @@ use core::{
 };
 
 use log::{error, trace};
+use rref::RRefVec;
 
 use crate::{
     dentry::VfsDentry,
@@ -89,12 +90,12 @@ impl VfsPath {
 
     fn to_symlink(&self, symlink: Arc<dyn VfsDentry>) -> VfsResult<Arc<dyn VfsDentry>> {
         let inode = symlink.inode()?;
-        let mut buf = [0; 255];
-        let r = inode.readlink(&mut buf)?;
+        let buf = RRefVec::new_uninit(255);
+        let (buf, r) = inode.readlink(buf)?;
         if r > 255 {
             return Err(VfsError::Invalid);
         }
-        let path = core::str::from_utf8(&buf[..r]).map_err(|_| VfsError::Invalid)?;
+        let path = core::str::from_utf8(&buf.as_slice()[..r]).map_err(|_| VfsError::Invalid)?;
         if path.starts_with("/") {
             trace!("[to_symlink] absolute path: {}", path);
             // absolute path
@@ -708,10 +709,10 @@ pub fn print_fs_tree(
         let rwx_buf = perm.rwx_buf();
         let rwx = core::str::from_utf8(&rwx_buf)?;
 
-        let mut buf = [0u8; 20];
+        let buf = RRefVec::new_uninit(32);
         let option = if inode_type == VfsNodeType::SymLink {
-            let r = inode.readlink(&mut buf)?;
-            let content = core::str::from_utf8(&buf[..r])?;
+            let (buf, r) = inode.readlink(buf)?;
+            let content = core::str::from_utf8(&buf.as_slice()[..r])?;
             "-> ".to_string() + content
         } else {
             "".to_string()

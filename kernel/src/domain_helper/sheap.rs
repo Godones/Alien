@@ -118,13 +118,13 @@ impl SharedHeapAlloc for SharedHeapAllocator {
             shared_heap.insert(ptr as usize, res);
             return Some(res);
         }
+        let mut shared_heap = SHARED_HEAP.lock();
         let res = SharedHeapAllocator::alloc_from_cache(&layout, type_id, drop_fn);
         let (ptr, res) = if let Some((ptr, res)) = res {
             (ptr, res)
         } else {
             SharedHeapAllocator::alloc_from_heap(layout, type_id, drop_fn)?
         };
-        let mut shared_heap = SHARED_HEAP.lock();
         shared_heap.insert(ptr as usize, res);
         Some(res)
     }

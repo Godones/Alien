@@ -17,7 +17,8 @@ pub fn hart_id() -> usize {
         "mv {},tp", out(reg)id,
         );
     }
-    id
+    // lower 32 bits of tp register is the hart id
+    id as u32 as usize
 }
 
 #[no_mangle]

@@ -10,5 +10,6 @@ pub mod inode;
 pub mod path;
 pub mod superblock;
 pub mod utils;
-
 pub type VfsResult<T> = Result<T, error::VfsError>;
+
+pub use rref::RRefVec;

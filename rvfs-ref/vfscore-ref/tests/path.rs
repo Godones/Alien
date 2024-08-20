@@ -9,6 +9,7 @@ use vfscore::{
     utils::{VfsInodeMode, VfsNodeType, VfsTimeSpec},
     VfsResult,
 };
+use vfscore_ref as vfscore;
 
 static FS: Lazy<Mutex<Arc<dyn VfsFsType>>> =
     Lazy::new(|| Mutex::new(Arc::new(RamFs::<_, Mutex<()>>::new(RamFsProviderImpl))));

@@ -10,7 +10,7 @@ use vfscore::{
     utils::{
         VfsFileStat, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsRenameFlag, VfsTime, VfsTimeSpec,
     },
-    VfsResult,
+    RRefVec, VfsResult,
 };
 
 use super::*;
@@ -59,12 +59,13 @@ impl<T: RamFsProvider + 'static, R: VfsRawMutex + 'static> VfsInode for RamFsSym
         self.basic.inner.lock().perm
     }
 
-    fn readlink(&self, buf: &mut [u8]) -> VfsResult<usize> {
+    fn readlink(&self, buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
         let inner = self.inner.lock();
         let len = inner.as_bytes().len();
         let min_len = buf.len().min(len);
-        buf[..min_len].copy_from_slice(&inner.as_bytes()[..min_len]);
-        Ok(min_len)
+        let mut buf = buf;
+        buf.as_mut_slice()[..min_len].copy_from_slice(&inner.as_bytes()[..min_len]);
+        Ok((buf, min_len))
     }
 
     fn set_attr(&self, attr: InodeAttr) -> VfsResult<()> {
