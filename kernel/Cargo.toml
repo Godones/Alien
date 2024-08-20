@@ -33,7 +33,7 @@ hashbrown = "0.14.5"
 
 
 #jtable = { git = "https://github.com/os-module/eebpf.git" }
-jtable = { path = "../../os-modules/eebpf/jtable" }
+jtable = { path = "../base/jtable" }
 naked-function = "0.1.5"
 paste = "1.0.15"
 

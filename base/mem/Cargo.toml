@@ -12,14 +12,13 @@ ksync = { path = "../../domain-lib/ksync" }
 platform = { path = "../platform" }
 page_table = { git = "https://github.com/os-module/page-table.git", package = "page-table" }
 memory_addr = { git ="https://github.com/os-module/memory_addr" }
-#ptable = { git = "https://github.com/os-module/vmspace", package = "vmspace" }
+ptable = { git = "https://github.com/os-module/vmspace", package = "vmspace" }
 pconst = { git = "https://github.com/os-module/pconst.git", features = ["special_error"] }
 talc = { version = "4" }
 pager = { git = "https://github.com/os-module/pager", default-features = false, optional = true }
 spin = "0"
 log = "0"
 
-ptable = { path = "../../../os-modules/vmspace", package = "vmspace" }
 
 [features]
 default = ["pager_bitmap",]
