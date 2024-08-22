@@ -10,7 +10,7 @@ use alloc::{sync::Arc, vec, vec::Vec};
 use constants::{io::OpenFlags, net::*, AlienResult, LinuxErrno};
 use knet::{
     addr::RawIpV4Addr,
-    socket::{SocketData, SocketFile, SocketFileExt},
+    socket::{Socket, SocketData, SocketFile, SocketFileExt},
 };
 use vfs::kfile::File;
 
@@ -460,21 +460,45 @@ pub fn socket_pair(domain: usize, s_type: usize, protocol: usize, sv: usize) -> 
     }
     // println_color!(32,
     //     "socketpair: {:?}, {:?}, {:?}, {:?}",
-    //     domain, s_type, protocol, sv
+    //     domain, socket_type, protocol, sv
     // );
     let file1 = SocketData::new(domain, socket_type, protocol)?;
-    let file2 = file1.clone();
-    info!("socket domain: {:?}, type: {:?}", domain, socket_type);
+    let file2 = SocketData::new(domain, socket_type, protocol)?;
     if s_type & SocketType::SOCK_NONBLOCK as usize != 0 {
         let socket = file1.get_socketdata()?;
         file1.set_open_flag(file1.get_open_flag() | OpenFlags::O_NONBLOCK);
+        socket.set_socket_nonblock(true);
+        let socket = file2.get_socketdata()?;
+        file2.set_open_flag(file2.get_open_flag() | OpenFlags::O_NONBLOCK);
         socket.set_socket_nonblock(true);
         info!("socket with nonblock");
     }
     if s_type & SocketType::SOCK_CLOEXEC as usize != 0 {
         file1.set_close_on_exec();
+        file2.set_close_on_exec();
         info!("socket with cloexec");
     }
+
+    let socket_guard = file1.get_socketdata()?;
+    match &socket_guard.socket {
+        Socket::Unix(unix_socket) => {
+            unix_socket.set_remote(&(file2));
+        }
+        _ => {
+            panic!("socket_pair: unsupported socket type")
+        }
+    }
+    drop(socket_guard);
+    let socket_guard = file2.get_socketdata()?;
+    match &socket_guard.socket {
+        Socket::Unix(unix_socket) => {
+            unix_socket.set_remote(&file1);
+        }
+        _ => {
+            panic!("socket_pair: unsupported socket type")
+        }
+    }
+    drop(socket_guard);
     let task = current_task().unwrap();
     let fd1 = task.add_file(file1).map_err(|_| LinuxErrno::EMFILE)?;
     let fd2 = task.add_file(file2).map_err(|_| LinuxErrno::EMFILE)?;

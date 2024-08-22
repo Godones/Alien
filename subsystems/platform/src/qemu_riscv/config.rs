@@ -1,6 +1,6 @@
 pub const CLOCK_FREQ: usize = 1250_0000;
 pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
-pub const HEAP_SIZE: usize = 0x40_00000; // (32+6)MB
+pub const HEAP_SIZE: usize = 0x70_00000; // (32+6)MB
 
 /// qemu的设备地址空间
 pub const MMIO: &[(usize, usize)] = &[

@@ -1,6 +1,6 @@
 pub const CLOCK_FREQ: usize = 400_0000;
 pub const BLOCK_CACHE_FRAMES: usize = 1024 * 4 * 4;
-pub const HEAP_SIZE: usize = 0x40_00000;
+pub const HEAP_SIZE: usize = 0x70_00000;
 
 /// vf2的设备地址空间
 

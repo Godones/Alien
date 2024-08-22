@@ -26,7 +26,6 @@ BUILD_CRATES := \
 	sleep \
 	socket_test \
 	final_test \
-	ftest \
 #	shell \
 	print \
 

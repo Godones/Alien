@@ -1129,9 +1129,6 @@ dependencies = [
 [[package]]
 name = "ftest"
 version = "0.1.0"
-dependencies = [
- "Mstd",
-]
 
 [[package]]
 name = "gethostname"

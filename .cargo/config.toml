@@ -1,0 +1,6 @@
+[profile.release]
+#strip = true
+#incremental = true
+#debug = true
+opt-level = 3
+lto = true

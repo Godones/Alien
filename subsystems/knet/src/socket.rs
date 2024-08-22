@@ -10,7 +10,7 @@
 use alloc::{boxed::Box, sync::Arc};
 use core::{
     fmt::{Debug, Formatter},
-    net::SocketAddr,
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
 };
 
 use constants::{
@@ -266,7 +266,7 @@ impl SocketData {
                     .map_err(neterror2alien)?;
             }
             _ => {
-                panic!("bind is not supported")
+                panic!("bind is not supported socket addr: {:?}", socket_addr);
             }
         }
         Ok(())
@@ -329,8 +329,9 @@ impl SocketData {
                     udp.send(message).map_err(neterror2alien)
                 }
             }
+            Socket::Unix(unix) => unix.send_to(message),
             _ => {
-                panic!("bind is not supported")
+                panic!("send_to is not supported")
             }
         }
     }
@@ -347,6 +348,11 @@ impl SocketData {
                 let recv = udp.recv_from(message).map_err(neterror2alien)?;
                 // let peer_addr = udp.peer_addr().map_err(neterror2linux)?;
                 Ok((recv.0, recv.1))
+            }
+            Socket::Unix(unix) => {
+                let socket_addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 0));
+                let len = unix.recvfrom(message)?;
+                Ok((len, socket_addr))
             }
             _ => {
                 panic!("bind is not supported")
@@ -434,8 +440,9 @@ impl SocketData {
                     false
                 }
             }
+            Socket::Unix(unix) => unix.ready_read(),
             _ => {
-                panic!("bind is not supported")
+                panic!("ready_read is not supported")
             }
         }
     }

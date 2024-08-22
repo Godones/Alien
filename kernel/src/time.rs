@@ -21,11 +21,30 @@ use constants::{
 use log::{info, warn};
 use platform::{config::CLOCK_FREQ, set_timer};
 use syscall_table::syscall_func;
-use timer::{read_timer, TimeNow, Times, ToClock};
+use timer::{get_time_ms, read_timer, TimeNow, Times, ToClock};
 use vfs::timerfd::TimerFile;
 
 use crate::task::{current_task, do_suspend, StatisticalData};
 
+#[inline]
+#[allow(unused)]
+pub fn read_time_ms() -> u64 {
+    get_time_ms() as u64
+}
+
+#[inline]
+#[allow(unused)]
+pub fn read_time_ns() -> u64 {
+    let time = read_timer();
+    time as u64 * 1_000_000_000 / CLOCK_FREQ as u64
+}
+
+#[inline]
+#[allow(unused)]
+pub fn read_time_us() -> u64 {
+    let time = read_timer();
+    time as u64 * 1_000_000 / CLOCK_FREQ as u64
+}
 /// 每秒包含的 时间片 数，每隔一个时间片，就会产生一个时钟中断
 const TICKS_PER_SEC: usize = 10;
 // const TICKS_PER_SEC_IN_KERNEL: usize = 1000;

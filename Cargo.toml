@@ -7,10 +7,6 @@ members = [
     "user/apps/*",
     "user/musl/hello",
     "user/musl/async_test",
+    "user/musl/ftest",
 ]
-
-
-[profile.release]
-#lto = true
-#codegen-units = 1
 
