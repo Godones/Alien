@@ -39,9 +39,10 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 
 ## Run
 
-1. install qemu 7.0.0
+1. install qemu 7.0.0(qume版本最低要求7.0.0)
 2. install rust nightly
-3. install riscv64-linux-musl [toolchain](https://musl.cc/)
+3. install riscv64-linux-musl [toolchain](https://musl.cc/)<br>
+以上内容可以参考[简明 ArceOS Tutorial Book](https://rcore-os.cn/arceos-tutorial-book/ch01-02.html)
 
 ```
 make help
@@ -49,6 +50,7 @@ make help
 
 ```
 # 一键运行qemu，注意在编译busybox时选择静态链接Settings->Build static binary (no shared libs)
+# 忘记设置静态链接可以使用make clean重新配置
 make run
 # run test
 > cd tests
@@ -59,8 +61,9 @@ make run
 
 ```
 make run GUI=y
+# 在编译和运行的时候指定参数y
 cd tests
-slint or guitest or todo or printdemo or memorygame or ...
+slint or sysinfo or todo or printdemo or memorygame 
 ```
 
 ### [Run VisionFive2](./docs/doc/boot.md)
