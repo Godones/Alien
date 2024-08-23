@@ -23,6 +23,7 @@ cargo build --release -Z build-std=core,std,panic_abort
 在编写程序时，我们可以使用`#![no_main]` 关闭默认的`main` 函数。这可以减少一些不必要的系统调用，因为rust的默认实现会做一些保护措施，一上来就会调用奇怪的系统调用。
 
 
+make run 无法进去静态编译请检查网络
 
 ## 提示找不到运行时库的问题
 
