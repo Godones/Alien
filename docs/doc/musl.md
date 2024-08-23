@@ -23,6 +23,7 @@ cargo build --release -Z build-std=core,std,panic_abort
 在编写程序时，我们可以使用`#![no_main]` 关闭默认的`main` 函数。这可以减少一些不必要的系统调用，因为rust的默认实现会做一些保护措施，一上来就会调用奇怪的系统调用。
 
 
+make run 无法进去静态编译请检查网络
 
 ## 提示找不到运行时库的问题
 
@@ -38,7 +39,8 @@ https://stackoverflow.com/questions/74424444/how-to-build-a-rust-program-for-ris
 https://www.reddit.com/r/rust/comments/17nxdc3/help_trying_to_build_for_riscv64gcunknownlinuxmusl/
 
 https://github.com/rust-lang/rust/issues/120655 给出了解决方案
-
+（在自己的riscv工具链命令下创建一个符号链接，指向libgcc.）
+ln -s your path/libgcc.a /your path/libunwind.a
 
 
 ## 缺少浮点数相关的函数的问题
