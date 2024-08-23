@@ -41,7 +41,7 @@ A simple operating system implemented in rust. The purpose is to explore how to 
 
 1. install qemu 7.0.0(qume版本最低要求7.0.0)
 2. install rust nightly
-3. install riscv64-linux-musl [toolchain](https://musl.cc/)<br>   
+3. install riscv64-linux-musl [toolchain](https://musl.cc/)<br>
 以上内容可以参考[简明 ArceOS Tutorial Book](https://rcore-os.cn/arceos-tutorial-book/ch01-02.html)
 
 ```
