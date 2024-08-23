@@ -166,7 +166,7 @@ pub fn do_exit(exit_code: i32, exit_group: u8) -> isize {
 /// 目前该系统调用直接调用[`do_exit`]，有关进程组的相关功能有待实现。
 #[syscall_func(94)]
 pub fn exit_group(exit_code: i32) -> isize {
-    do_exit(exit_code, 1)
+    do_exit(exit_code, 0)
 }
 
 pub fn check_exit_group() {
