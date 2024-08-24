@@ -111,7 +111,7 @@ pub fn syslog(log_type: u32, buf: usize, len: usize) -> isize {
 }
 
 extern "C" {
-    fn ekernel();
+    fn eheap();
 }
 
 /// 一个系统调用函数，用于获取系统相关信息。信息包括系统的自启动经过的时间、对于内存的使用情况、共享存储区的大小、
@@ -134,7 +134,7 @@ pub fn sys_info(dst_info: usize) -> isize {
             task_number * LINUX_SYSINFO_LOADS_SCALE / 900,
         ],
         totalram: memory_info.end - memory_info.start,
-        freeram: memory_info.end - ekernel as usize,
+        freeram: memory_info.end - eheap as usize,
         sharedram: 0,
         bufferram: 0,
         totalswap: 0,
