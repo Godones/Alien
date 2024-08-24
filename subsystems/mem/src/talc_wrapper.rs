@@ -1,17 +1,18 @@
-use core::alloc::GlobalAlloc;
+use core::{
+    alloc::{Allocator, GlobalAlloc, Layout},
+    ptr::NonNull,
+};
 
 use config::FRAME_SIZE;
+use ksync::Mutex;
 use log::trace;
-use talc::{ClaimOnOom, Talc, Talck};
+use platform::config::HEAP_SIZE;
+use spin::Lazy;
+use talc::{ErrOnOom, Talc, Talck};
 
-use crate::{alloc_frames, free_frames, KERNEL_HEAP};
+use crate::{alloc_frames, eheap, free_frames};
 
-static HEAP_ALLOCATOR: Talck<ksync::Mutex<()>, ClaimOnOom> = Talc::new(unsafe {
-    ClaimOnOom::new(talc::Span::from_const_array(core::ptr::addr_of!(
-        KERNEL_HEAP
-    )))
-})
-.lock();
+static HEAP_ALLOCATOR: Lazy<MyAllocator> = Lazy::new(|| MyAllocator::new());
 
 pub struct TalcAllocator;
 
@@ -33,5 +34,29 @@ unsafe impl GlobalAlloc for TalcAllocator {
         } else {
             HEAP_ALLOCATOR.dealloc(ptr, layout);
         }
+    }
+}
+
+pub struct MyAllocator(Talck<Mutex<()>, ErrOnOom>);
+
+impl MyAllocator {
+    fn new() -> Self {
+        let talck = Talc::new(ErrOnOom).lock::<Mutex<()>>();
+        unsafe {
+            let heap = core::slice::from_raw_parts_mut(eheap as usize as *mut u8, HEAP_SIZE);
+            let _res = talck.lock().claim(heap.as_mut().into()).unwrap();
+        }
+
+        Self(talck)
+    }
+}
+
+unsafe impl GlobalAlloc for MyAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let ptr = self.0.allocate(layout).unwrap().as_mut_ptr();
+        ptr
+    }
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        self.0.deallocate(NonNull::new(ptr).unwrap(), layout);
     }
 }

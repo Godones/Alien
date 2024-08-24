@@ -35,13 +35,8 @@ impl HeapAllocator {
             allocator: ksync::Mutex::new(LockedHeap::<32>::new()),
         }
     }
-    pub fn init(&self, heap: &mut [u8]) {
-        unsafe {
-            self.allocator
-                .lock()
-                .lock()
-                .init(heap.as_mut_ptr() as usize, heap.len())
-        }
-        println!("Kernel Heap size: {:#x}MB", heap.len() / 1024 / 1024);
+    pub fn init(&self, start: usize, size: usize) {
+        unsafe { self.allocator.lock().lock().init(start, size) }
+        println!("Kernel Heap size: {:#x}MB", size / 1024 / 1024);
     }
 }
