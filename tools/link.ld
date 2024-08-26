@@ -60,7 +60,7 @@ SECTIONS
 /*        . = ALIGN(4K);*/
 /*        kernel_eh_frame_hdr_end = .;*/
 /*    }*/
-      eheap = .;
+      sheap = .;
 /*    ekernel = .;*/
     PROVIDE(end = .);
 }

@@ -29,17 +29,17 @@ static HEAP_ALLOCATOR: heap::HeapAllocator = heap::HeapAllocator::new();
 static HEAP_ALLOCATOR: talc_wrapper::TalcAllocator = talc_wrapper::TalcAllocator;
 
 extern "C" {
-    fn eheap();
+    fn sheap();
 }
 
 pub fn init_memory_system(memory_end: usize, is_first_cpu: bool) {
     if is_first_cpu {
-        frame::init_frame_allocator(eheap as usize + HEAP_SIZE, memory_end);
+        frame::init_frame_allocator(sheap as usize + HEAP_SIZE, memory_end);
         println!("Frame allocator init success");
         #[cfg(feature = "initrd")]
         data::relocate_removable_data();
         #[cfg(feature = "buddy")]
-        HEAP_ALLOCATOR.init(eheap as usize, HEAP_SIZE);
+        HEAP_ALLOCATOR.init(sheap as usize, HEAP_SIZE);
         #[cfg(feature = "talloc")]
         println!("Talloc allocator init success");
         #[cfg(feature = "buddy")]
