@@ -10,7 +10,7 @@ use platform::config::HEAP_SIZE;
 use spin::Lazy;
 use talc::{ErrOnOom, Talc, Talck};
 
-use crate::{alloc_frames, eheap, free_frames};
+use crate::{alloc_frames, free_frames, sheap};
 
 static HEAP_ALLOCATOR: Lazy<MyAllocator> = Lazy::new(|| MyAllocator::new());
 
@@ -43,7 +43,7 @@ impl MyAllocator {
     fn new() -> Self {
         let talck = Talc::new(ErrOnOom).lock::<Mutex<()>>();
         unsafe {
-            let heap = core::slice::from_raw_parts_mut(eheap as usize as *mut u8, HEAP_SIZE);
+            let heap = core::slice::from_raw_parts_mut(sheap as usize as *mut u8, HEAP_SIZE);
             let _res = talck.lock().claim(heap.as_mut().into()).unwrap();
         }
 

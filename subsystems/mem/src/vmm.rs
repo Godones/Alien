@@ -17,7 +17,7 @@ extern "C" {
     fn srodata();
     fn sdata();
     fn sbss();
-    fn eheap();
+    fn sheap();
     fn strampoline();
     fn sinit();
     fn einit();
@@ -46,13 +46,13 @@ fn kernel_info(memory_end: usize) {
     );
     println!(
         "kernel bss:           {:#x}-{:#x}",
-        sbss as usize, eheap as usize
+        sbss as usize, sheap as usize
     );
     // println!("kernel eh_frame:      {:#x}-{:#x}", kernel_eh_frame as usize, kernel_eh_frame_end as usize);
     // println!("kernel eh_frame_hdr:  {:#x}-{:#x}", kernel_eh_frame_hdr as usize, kernel_eh_frame_hdr_end as usize);
     println!(
         "kernel heap:          {:#x}-{:#x}",
-        eheap as usize, memory_end
+        sheap as usize, memory_end
     );
 }
 
@@ -96,16 +96,16 @@ pub fn build_kernel_address_space(memory_end: usize) {
         .map_region(
             VirtAddr::from(sbss as usize),
             PhysAddr::from(sbss as usize),
-            eheap as usize - sbss as usize,
+            sheap as usize - sbss as usize,
             "RWVAD".into(),
             true,
         )
         .unwrap();
     kernel_space
         .map_region(
-            VirtAddr::from(eheap as usize),
-            PhysAddr::from(eheap as usize),
-            memory_end - eheap as usize,
+            VirtAddr::from(sheap as usize),
+            PhysAddr::from(sheap as usize),
+            memory_end - sheap as usize,
             "RWVAD".into(),
             true,
         )
