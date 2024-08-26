@@ -68,6 +68,6 @@ SECTIONS
         kernel_eh_frame_end = .;
     }
     . = ALIGN(4K);
-    ekernel = .;
+    sheap = .;
     PROVIDE(end = .);
 }

@@ -20,7 +20,7 @@ extern "C" {
     fn srodata();
     fn sdata();
     fn sbss();
-    fn ekernel();
+    fn sheap();
     fn sinit();
     fn einit();
 
@@ -49,15 +49,15 @@ pub fn kernel_info(memory_end: usize) -> usize {
     );
     println!(
         "kernel bss:           {:#x}-{:#x}",
-        sbss as usize, ekernel as usize
+        sbss as usize, sheap as usize
     );
     // println!("kernel eh_frame:      {:#x}-{:#x}", kernel_eh_frame as usize, kernel_eh_frame_end as usize);
     // println!("kernel eh_frame_hdr:  {:#x}-{:#x}", kernel_eh_frame_hdr as usize, kernel_eh_frame_hdr_end as usize);
     println!(
         "kernel heap:          {:#x}-{:#x}",
-        ekernel as usize, memory_end
+        sheap as usize, memory_end
     );
-    ekernel as usize
+    sheap as usize
 }
 
 static KERNEL_MAP_MAX: AtomicUsize = AtomicUsize::new(0);
@@ -74,11 +74,11 @@ pub fn build_kernel_address_space(memory_end: usize) {
         MappingFlags::READ | MappingFlags::WRITE,
     );
     let sbss_area = VmAreaEqual::new(
-        sbss as _..ekernel as _,
+        sbss as _..sheap as _,
         MappingFlags::READ | MappingFlags::WRITE,
     );
     let free_area = VmAreaEqual::new(
-        ekernel as _..memory_end,
+        sheap as _..memory_end,
         MappingFlags::READ | MappingFlags::WRITE,
     );
 

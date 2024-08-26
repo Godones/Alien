@@ -1,17 +1,17 @@
 use std::{fs::File, io::Read, time::Instant};
 
 fn main() {
-    // read_bash_test();
+    read_bash_test();
     // in cache
     read_bash_test();
 
-    read_once_test();
+    // read_once_test();
 }
 
 fn read_bash_test() {
     let mut file = File::open("/tests/bash").unwrap();
     let now = Instant::now();
-    let mut buf = [0u8; 512];
+    let mut buf = [0u8; 4096];
     let mut bytes = 0;
     loop {
         let res = file.read(&mut buf).unwrap();
