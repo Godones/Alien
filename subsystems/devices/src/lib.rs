@@ -213,7 +213,8 @@ fn init_block_device(blk: prob::DeviceInfo, mmio_transport: Option<MmioTransport
             #[cfg(not(feature = "ramdisk"))]
             {
                 use drivers::block_device::VF2SDDriver;
-                let block_device = VF2SDDriver::new();
+                let mut block_device = VF2SDDriver::new();
+                block_device.init();
                 let size = block_device.capacity();
                 println!("Block device size is {}MB", size * 512 / 1024 / 1024);
                 let block_device = Arc::new(GenericBlockDevice::new(Box::new(block_device)));

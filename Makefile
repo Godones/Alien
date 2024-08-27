@@ -32,7 +32,7 @@ QEMU := qemu-system-riscv64
 comma:= ,
 empty:=
 space:= $(empty) $(empty)
-
+SD ?= n
 
 ifeq ($(GUI),y)
 QEMU_ARGS += -device virtio-gpu-device \
@@ -44,7 +44,10 @@ endif
 
 
 ifeq ($(VF2),y)
-FEATURES += vf2 ramdisk
+FEATURES += vf2
+ifeq ($(SD),n)
+FEATURES += ramdisk
+endif
 else ifeq ($(UNMATCHED),y)
 FEATURES += hifive ramdisk
 else

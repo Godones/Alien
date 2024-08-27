@@ -1,15 +1,22 @@
-use std::{fs::File, io::Read, time::Instant};
+use std::{env, fs::File, io::Read, time::Instant};
 
 fn main() {
-    read_bash_test();
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("Usage: {} <block size>", args[0]);
+        return;
+    }
+    let blk_size=  args[1].parse::<usize>().unwrap();
+    read_bash_test(blk_size);
     // in cache
-    read_bash_test();
+    read_bash_test(blk_size);
     // read_once_test();
 }
-fn read_bash_test() {
+
+fn read_bash_test(blk_size:usize) {
     let mut file = File::open("/tests/bash2").unwrap();
     let now = Instant::now();
-    let mut buf = [0u8; 4096];
+    let mut buf = vec![0u8; blk_size];
     let mut bytes = 0;
     loop {
         let res = file.read(&mut buf).unwrap();
