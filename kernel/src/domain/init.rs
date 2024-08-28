@@ -33,6 +33,8 @@ const INIT_DOMAIN_LIST: &[(&str, DomainTypeRaw)] = &[
     ("domainfs", DomainTypeRaw::FsDomain),
     #[cfg(all(vf2, not(vf2_sd)))]
     ("mem_block", DomainTypeRaw::BlkDeviceDomain),
+    #[cfg(feature = "bench")]
+    ("mem_block", DomainTypeRaw::BlkDeviceDomain),
     #[cfg(vf2)]
     ("uart8250", DomainTypeRaw::UartDomain),
     #[cfg(all(vf2, vf2_sd))]

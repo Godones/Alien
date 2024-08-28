@@ -54,6 +54,18 @@ pub fn init_with_dtb() -> AlienResult<()> {
         }
     }
 
+    #[cfg(feature = "bench")]
+    {
+        let ramdisk_start = RAMDISK.as_ptr() as usize;
+        let len = RAMDISK.len();
+        let info = CommonDeviceInfo {
+            address_range: PhysAddr::from(ramdisk_start)..PhysAddr::from(ramdisk_start + len),
+            irq: None,
+            compatible: None,
+        };
+        devices.push(CommonDeviceType::Ramdisk(info));
+    }
+
     #[cfg(vf2)]
     {
         #[cfg(not(vf2_sd))]
@@ -93,5 +105,7 @@ pub fn init_with_dtb() -> AlienResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "bench")]
+static RAMDISK: &'static [u8] = &[0u8; 1024];
 #[cfg(all(vf2, not(vf2_sd)))]
 static RAMDISK: &'static [u8] = include_bytes!("../../../build/sdcard.img");

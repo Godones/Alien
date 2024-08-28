@@ -18,6 +18,8 @@ extern crate platform;
 #[macro_use]
 extern crate log;
 extern crate alloc;
+#[cfg(feature = "bench")]
+mod bench;
 mod bus;
 mod domain;
 mod domain_helper;
@@ -51,6 +53,8 @@ fn main(hart_id: usize) {
         bus::init_with_dtb().unwrap();
         domain::load_domains().unwrap();
         trap::init_trap_subsystem();
+        #[cfg(feature = "bench")]
+        bench::test_func_cycle();
         STARTED.store(false, Ordering::Relaxed);
     } else {
         while STARTED.load(Ordering::Relaxed) {

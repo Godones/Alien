@@ -19,7 +19,7 @@ TFTPBOOT := /home/godones/projects/tftpboot/
 PLATFORM := qemu_riscv
 VF2_SD ?= n
 BUILD_CFG ?=  -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem
-
+BENCH ?= n
 comma:= ,
 empty:=
 space:= $(empty) $(empty)
@@ -33,6 +33,11 @@ ifeq ($(GUI),y)
 else
 	QEMU_ARGS += -nographic
 endif
+
+ifeq ($(BENCH),y)
+FEATURES += bench
+endif
+
 
 ifeq ($(NET),y)
 QEMU_ARGS += -device virtio-net-device,netdev=net0 \

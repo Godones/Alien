@@ -82,9 +82,6 @@ impl SchedulerDomain for SchedulerDomainProxy {
 impl SchedulerDomainProxy {
     fn __add_task(&self, scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
         let r_domain = self.domain.get();
-        if !r_domain.is_active() {
-            return Err(AlienError::DOMAINCRASH);
-        }
         let id = r_domain.domain_id();
         let old_id = scheduling_info.move_to(id);
 
@@ -111,9 +108,6 @@ impl SchedulerDomainProxy {
         info: RRef<TaskSchedulingInfo>,
     ) -> AlienResult<RRef<TaskSchedulingInfo>> {
         let r_domain = self.domain.get();
-        if !r_domain.is_active() {
-            return Err(AlienError::DOMAINCRASH);
-        }
         let id = r_domain.domain_id();
         let old_id = info.move_to(id);
 

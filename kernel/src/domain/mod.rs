@@ -107,11 +107,19 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 let (ramdisk, domain_file_info) =
                     create_domain!(BlkDomainProxy, DomainTypeRaw::BlkDeviceDomain, "mem_block")?;
                 ramdisk.init_by_box(Box::new(address..address + size))?;
+                #[cfg(not(feature = "bench"))]
                 register_domain!(
                     "block",
                     domain_file_info,
                     DomainType::BlkDeviceDomain(ramdisk),
                     false
+                );
+                #[cfg(feature = "bench")]
+                register_domain!(
+                    "bench_block",
+                    domain_file_info,
+                    DomainType::BlkDeviceDomain(ramdisk),
+                    true
                 );
             }
             "loopback" => {
