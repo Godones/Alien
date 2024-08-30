@@ -184,7 +184,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 blk_driver.init_by_box(Box::new(address..address + size))?;
                 println!(
                     "dev capacity: {:?}MB",
-                    blk_driver.get_capacity()? / 1024 / 1024
+                    blk_driver.get_capacity()? * 512 / 1024 / 1024
                 );
                 register_domain!(
                     "block",

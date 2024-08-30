@@ -2,7 +2,7 @@ use core::{cmp::min, ops::Range};
 
 use basic::io::SafeIORegion;
 use corelib::{AlienError, AlienResult};
-use interface::{Basic, BlkDeviceDomain, DeviceBase};
+use interface::{define_unwind_for_BlkDeviceDomain, Basic, BlkDeviceDomain, DeviceBase};
 use ksync::Mutex;
 use rref::RRefVec;
 
@@ -89,3 +89,7 @@ impl BlkDeviceDomain for MemoryImg {
         Ok(())
     }
 }
+
+define_unwind_for_BlkDeviceDomain!(MemoryImg);
+
+pub type UnwindMemoryImg = UnwindWrap;
