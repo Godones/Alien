@@ -7,15 +7,15 @@ pub fn synchronize_sched() {
     synchronize_rcu();
 }
 
-/// Acquire the RCU read lock
-pub fn rcu_read_lock_sched() {
-    // preempt_disable();
-}
-
-/// Release the RCU read lock
-pub fn rcu_read_unlock_sched() {
-    // preempt_enable();
-}
+// /// Acquire the RCU read lock
+// pub fn rcu_read_lock_sched() {
+//     // preempt_disable();
+// }
+//
+// /// Release the RCU read lock
+// pub fn rcu_read_unlock_sched() {
+//     // preempt_enable();
+// }
 
 pub fn synchronize_rcu() {
     crate::task::synchronize_rcu();

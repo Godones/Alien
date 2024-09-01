@@ -10,20 +10,19 @@ pub use arch::*;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct StaticKey {
+pub struct StaticKey<const T: bool> {
     enabled: AtomicBool,
 }
 
-impl StaticKey {
-    pub const fn default_true() -> Self {
-        StaticKey {
-            enabled: AtomicBool::new(true),
-        }
-    }
-    pub const fn default_false() -> Self {
-        StaticKey {
+impl<const T: bool> StaticKey<T> {
+    pub const fn new() -> Self {
+        Self {
             enabled: AtomicBool::new(false),
         }
+    }
+
+    pub const fn is_true(&self) -> bool {
+        T
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -36,23 +35,9 @@ impl StaticKey {
     }
 }
 
-#[derive(Debug)]
-pub struct StaticKeyTrue(pub StaticKey);
+pub type StaticKeyTrue = StaticKey<true>;
 
-impl StaticKeyTrue {
-    pub const fn new() -> Self {
-        StaticKeyTrue(StaticKey::default_true())
-    }
-}
-
-#[derive(Debug)]
-pub struct StaticKeyFalse(pub StaticKey);
-
-impl StaticKeyFalse {
-    pub const fn new() -> Self {
-        StaticKeyFalse(StaticKey::default_false())
-    }
-}
+pub type StaticKeyFalse = StaticKey<false>;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum StaticKeyType {
@@ -61,48 +46,21 @@ pub enum StaticKeyType {
     Other,
 }
 
-pub trait StaticKeyTypeTrait {
-    fn static_key_type(&self) -> StaticKeyType;
-}
-
-impl<T> StaticKeyTypeTrait for T {
-    #[inline]
-    default fn static_key_type(&self) -> StaticKeyType {
-        StaticKeyType::Other
-    }
-}
-
-impl StaticKeyTypeTrait for StaticKeyTrue {
-    #[inline]
-    fn static_key_type(&self) -> StaticKeyType {
-        StaticKeyType::StaticKeyTrue
-    }
-}
-
-impl StaticKeyTypeTrait for StaticKeyFalse {
-    #[inline]
-    fn static_key_type(&self) -> StaticKeyType {
-        StaticKeyType::StaticKeyFalse
-    }
-}
-
 #[macro_export]
 macro_rules! static_branch_likely {
     ($key:ident) => {{
-        if $key.static_key_type() == StaticKeyType::StaticKeyTrue {
-            unsafe {
-                paste! {
-                    [<$key _is_false>]()
-                }
-            }
-        } else if $key.static_key_type() == StaticKeyType::StaticKeyFalse {
+        if $key.is_true() {
             unsafe {
                 paste! {
                     [<$key _is_false>]()
                 }
             }
         } else {
-            panic!("static key is not true or false")
+            unsafe {
+                paste! {
+                    [<$key _is_false>]()
+                }
+            }
         }
     }};
 }
@@ -110,20 +68,18 @@ macro_rules! static_branch_likely {
 #[macro_export]
 macro_rules! static_branch_unlikely {
     ($key:ident) => {{
-        if $key.static_key_type() == StaticKeyType::StaticKeyTrue {
-            unsafe {
-                paste! {
-                    ![<$key _is_false>]()
-                }
-            }
-        } else if $key.static_key_type() == StaticKeyType::StaticKeyFalse {
+        if $key.is_true() {
             unsafe {
                 paste! {
                     ![<$key _is_false>]()
                 }
             }
         } else {
-            panic!("static key is not true or false")
+            unsafe {
+                paste! {
+                    ![<$key _is_false>]()
+                }
+            }
         }
     }};
 }
@@ -132,7 +88,7 @@ macro_rules! static_branch_unlikely {
 macro_rules! static_branch_enable {
     ($key:ident) => {{
         static_key_enable(
-            &$key.0,
+            &$key,
             paste! {
                     [<$key _is_false>]
             } as usize,
@@ -144,7 +100,7 @@ macro_rules! static_branch_enable {
 macro_rules! static_branch_disable {
     ($key:ident) => {{
         static_key_disable(
-            &$key.0,
+            &$key,
             paste! {
                     [<$key _is_false>]
             } as usize,

@@ -48,7 +48,7 @@ macro_rules! define_static_key_false {
 }
 
 #[inline(always)]
-pub fn static_key_enable(key: &StaticKey, func_ptr: usize) {
+pub fn static_key_enable<const T: bool>(key: &StaticKey<T>, func_ptr: usize) {
     if key.is_enabled() {
         return;
     }
@@ -62,7 +62,7 @@ pub fn static_key_enable(key: &StaticKey, func_ptr: usize) {
 }
 
 #[inline(always)]
-pub fn static_key_disable(key: &StaticKey, func_ptr: usize) {
+pub fn static_key_disable<const T: bool>(key: &StaticKey<T>, func_ptr: usize) {
     if !key.is_enabled() {
         return;
     }

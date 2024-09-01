@@ -2,7 +2,7 @@ use core::{cmp::min, ops::Range};
 
 use basic::io::SafeIORegion;
 use corelib::{AlienError, AlienResult};
-use interface::{define_unwind_for_BlkDeviceDomain, Basic, BlkDeviceDomain, DeviceBase};
+use interface::{Basic, BlkDeviceDomain, DeviceBase};
 use ksync::Mutex;
 use rref::RRefVec;
 
@@ -90,6 +90,41 @@ impl BlkDeviceDomain for MemoryImg {
     }
 }
 
-define_unwind_for_BlkDeviceDomain!(MemoryImg);
-
+#[derive(Debug)]
+pub struct UnwindWrap(MemoryImg);
+impl UnwindWrap {
+    pub fn new(real: MemoryImg) -> Self {
+        Self(real)
+    }
+}
+impl DeviceBase for UnwindWrap {
+    fn handle_irq(&self) -> AlienResult<()> {
+        unwind::catch::catch_unwind(|| self.0.handle_irq()).unwrap()
+    }
+}
+impl Basic for UnwindWrap {
+    fn domain_id(&self) -> u64 {
+        self.0.domain_id()
+    }
+    fn is_active(&self) -> bool {
+        self.0.is_active()
+    }
+}
+impl BlkDeviceDomain for UnwindWrap {
+    fn init(&self, device_info: &Range<usize>) -> AlienResult<()> {
+        self.0.init(device_info)
+    }
+    fn read_block(&self, block: u32, data: RRefVec<u8>) -> AlienResult<RRefVec<u8>> {
+        unwind::catch::catch_unwind(|| self.0.read_block(block, data)).unwrap()
+    }
+    fn write_block(&self, block: u32, data: &RRefVec<u8>) -> AlienResult<usize> {
+        unwind::catch::catch_unwind(|| self.0.write_block(block, data)).unwrap()
+    }
+    fn get_capacity(&self) -> AlienResult<u64> {
+        unwind::catch::catch_unwind(|| self.0.get_capacity()).unwrap()
+    }
+    fn flush(&self) -> AlienResult<()> {
+        unwind::catch::catch_unwind(|| self.0.flush()).unwrap()
+    }
+}
 pub type UnwindMemoryImg = UnwindWrap;
