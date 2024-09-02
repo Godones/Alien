@@ -2,6 +2,8 @@ Welcome to the Alien OS blog, where Alien OS maintainers announce development an
 
 ## Posts from 2024
 
+**2024/9** [模块列表](./modules.md)
+
 **2024/2** [ext文件系统支持](./ext.md)
 
 **2024/1** [子系统划分](./subsystem.md)
