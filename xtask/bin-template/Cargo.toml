@@ -1,0 +1,15 @@
+[package]
+name = "PACKAGE"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+malloc = { path = "../../domain-lib/malloc" }
+corelib = { path = "../../domain-lib/corelib" }
+basic = { path = "../../domain-lib/basic" }
+rref = { path = "../../domain-lib/rref" }
+interface = { path = "../../domain-lib/interface", features = ["domain"] }
+storage = { path = "../../domain-lib/storage", features = ["impl"] }
+DOMAIN_NAME = { path = "../../TY/DOMAIN_NAME" }

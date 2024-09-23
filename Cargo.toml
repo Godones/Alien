@@ -16,7 +16,8 @@ members = [
     "user/apps/nice",
     "user/musl/hello",
     "user/musl/async_test",
-    "user/musl/ftest"
+    "user/musl/ftest",
+    "xtask"
 ]
 resolver = "2"
 

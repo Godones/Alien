@@ -8,8 +8,8 @@ use page_table::MappingFlags;
 use platform::{config::DEVICE_SPACE, println};
 use ptable::{PhysPage, VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
-
-use super::AlienResult;
+use arch::sfence_vma_all;
+use super::{alloc_frame_trackers, AlienResult};
 use crate::frame::{FrameTracker, VmmPageAllocator};
 
 pub static KERNEL_SPACE: Lazy<Arc<RwLock<VmSpace<VmmPageAllocator>>>> =
@@ -126,24 +126,6 @@ pub fn kernel_satp() -> usize {
     8usize << 60 | (kernel_pgd() >> FRAME_BITS)
 }
 
-/// Allocate a free region in kernel space.
-pub fn alloc_free_region(size: usize) -> Option<usize> {
-    assert!(size > 0 && size % FRAME_SIZE == 0);
-    Some(KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::SeqCst))
-}
-
-pub fn map_area_to_kernel(area: VmArea) -> AlienResult<()> {
-    let mut kernel_space = KERNEL_SPACE.write();
-    kernel_space.map(VmAreaType::VmArea(area)).unwrap();
-    Ok(())
-}
-
-pub fn unmap_region_from_kernel(addr: usize) -> Result<(), &'static str> {
-    assert_eq!(addr % FRAME_SIZE, 0);
-    let mut kernel_space = KERNEL_SPACE.write();
-    kernel_space.unmap(addr).unwrap();
-    Ok(())
-}
 
 pub fn query_kernel_space(addr: usize) -> Option<usize> {
     let kernel_space = KERNEL_SPACE.read();
@@ -196,5 +178,72 @@ pub fn unmap_kstack_for_task(task_id: usize, pages: usize) -> AlienResult<()> {
         "unmap task {} kstack: {:#x?}-{:#x?}",
         task_id, kstack_lower, kstack_upper
     );
+    Ok(())
+}
+
+
+#[derive(Debug)]
+pub struct VirtDomainArea {
+    start: usize,
+    size: usize,
+}
+
+impl VirtDomainArea {
+    pub(super) fn new(start: usize, size: usize) -> Self {
+        Self { start, size }
+    }
+    pub fn as_ptr(&self) -> *mut u8 {
+        self.start as *mut u8
+    }
+    pub fn as_slice(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self.start as *const u8, self.size) }
+    }
+    pub fn as_mut_slice(&self) -> &mut [u8] {
+        unsafe { core::slice::from_raw_parts_mut(self.start as *mut u8, self.size) }
+    }
+    pub fn len(&self) -> usize {
+        self.size
+    }
+}
+
+
+pub fn map_domain_region(size: usize) -> VirtDomainArea {
+    assert_eq!(size % FRAME_SIZE, 0);
+    let virt_start = KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::Relaxed);
+    // alloc physical memory and map to virtual memory
+    println!("[alloc_free_module_region] virt_start: {:#x}, size: {:#x}", virt_start, size);
+    let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
+    for _ in 0..size / FRAME_SIZE {
+        let frame = Box::new(alloc_frame_trackers(1));
+        phy_frames.push(frame);
+    }
+    let mut kernel_space = KERNEL_SPACE.write();
+    let vm_area = VmArea::new(
+        virt_start..virt_start + size,
+        MappingFlags::READ | MappingFlags::WRITE,
+        phy_frames,
+    );
+    kernel_space.map(VmAreaType::VmArea(vm_area)).unwrap();
+    // flush TLB
+    sfence_vma_all();
+    VirtDomainArea::new(virt_start, size)
+}
+
+
+pub fn unmap_domain_area(area: VirtDomainArea) {
+    let mut kernel_space = KERNEL_SPACE.write();
+    kernel_space.unmap(area.start).unwrap();
+    sfence_vma_all();
+}
+
+
+pub fn set_memory_x(virt_addr: usize, numpages: usize) -> AlienResult<()> {
+    let mut kernel_space = KERNEL_SPACE.write();
+    // kernel_space.set_flags(virt_addr, numpages, MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE).unwrap();
+    let mut addr = virt_addr;
+    for _ in 0..numpages {
+        kernel_space.protect(addr..addr + FRAME_SIZE, MappingFlags::READ | MappingFlags::EXECUTE).unwrap();
+        addr += FRAME_SIZE;
+    }
     Ok(())
 }

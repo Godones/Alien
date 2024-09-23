@@ -1,17 +1,8 @@
 [alias]
 server = "run -p domain-server --"
-
+domain = "run -p xtask --"
 
 [profile.release]
 strip = true
-#incremental = true
-#debug = true
 opt-level = 3
 lto = true
-
-[target.riscv64]
-#rustflags = [
-#    "-Cforce-unwind-tables=yes",
-#    "-Clink-args=--eh-frame-hdr",
-#    "-Cforce-frame-pointers=yes"
-#]

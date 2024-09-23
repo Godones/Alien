@@ -17,6 +17,7 @@ use crate::{
     error::{AlienError, AlienResult},
     register_domain,
 };
+use crate::domain_loader::loader::DomainCall;
 
 static DOMAIN_ELF: RwLock<BTreeMap<String, DomainData>> = RwLock::new(BTreeMap::new());
 
@@ -163,8 +164,7 @@ pub fn create_domain<T: ?Sized>(
     let mut domain_loader = DomainLoader::new(data.data, domain_file_name);
     domain_loader.load().unwrap();
     let id = alloc_domain_id();
-    let domain = domain_loader.call(id, use_old_id);
-
+    let domain = domain_loader.call_main(id, use_old_id);
     Some((id, domain, domain_loader))
 }
 
@@ -174,6 +174,6 @@ pub fn create_domain_with_loader<T: ?Sized>(
 ) -> Option<(u64, Box<T>, DomainLoader)> {
     domain_loader.load().unwrap();
     let id = alloc_domain_id();
-    let domain = domain_loader.call(id, use_old_id);
+    let domain = domain_loader.call_main(id, use_old_id);
     Some((id, domain, domain_loader))
 }
