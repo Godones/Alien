@@ -12,12 +12,11 @@ use ksync::RwLock;
 
 use crate::{
     domain_helper::{alloc_domain_id, DomainCreate, DOMAIN_INFO},
-    domain_loader::loader::DomainLoader,
+    domain_loader::loader::{DomainCall, DomainLoader},
     domain_proxy::*,
     error::{AlienError, AlienResult},
     register_domain,
 };
-use crate::domain_loader::loader::DomainCall;
 
 static DOMAIN_ELF: RwLock<BTreeMap<String, DomainData>> = RwLock::new(BTreeMap::new());
 

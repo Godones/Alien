@@ -25,8 +25,8 @@ use pconst::LinuxErrno;
 pub use ptable::*;
 use spin::Lazy;
 pub use vmm::{
-    kernel_satp, map_kstack_for_task, query_kernel_space,
-    unmap_kstack_for_task, map_domain_region, unmap_domain_area, VirtDomainArea, set_memory_x
+    kernel_satp, map_domain_region, map_kstack_for_task, query_kernel_space, set_memory_x,
+    unmap_domain_area, unmap_kstack_for_task, VirtDomainArea,
 };
 
 type AlienError = LinuxErrno;

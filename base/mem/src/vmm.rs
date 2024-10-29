@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, sync::Arc, vec, vec::Vec};
 use core::sync::atomic::AtomicUsize;
 
+use arch::sfence_vma_all;
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
 use ksync::RwLock;
 use log::info;
@@ -8,7 +9,7 @@ use page_table::MappingFlags;
 use platform::{config::DEVICE_SPACE, println};
 use ptable::{PhysPage, VmArea, VmAreaEqual, VmAreaType, VmSpace};
 use spin::Lazy;
-use arch::sfence_vma_all;
+
 use super::{alloc_frame_trackers, AlienResult};
 use crate::frame::{FrameTracker, VmmPageAllocator};
 
@@ -126,7 +127,6 @@ pub fn kernel_satp() -> usize {
     8usize << 60 | (kernel_pgd() >> FRAME_BITS)
 }
 
-
 pub fn query_kernel_space(addr: usize) -> Option<usize> {
     let kernel_space = KERNEL_SPACE.read();
     kernel_space
@@ -181,7 +181,6 @@ pub fn unmap_kstack_for_task(task_id: usize, pages: usize) -> AlienResult<()> {
     Ok(())
 }
 
-
 #[derive(Debug)]
 pub struct VirtDomainArea {
     start: usize,
@@ -206,12 +205,14 @@ impl VirtDomainArea {
     }
 }
 
-
 pub fn map_domain_region(size: usize) -> VirtDomainArea {
     assert_eq!(size % FRAME_SIZE, 0);
     let virt_start = KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::Relaxed);
     // alloc physical memory and map to virtual memory
-    println!("[alloc_free_module_region] virt_start: {:#x}, size: {:#x}", virt_start, size);
+    println!(
+        "[alloc_free_module_region] virt_start: {:#x}, size: {:#x}",
+        virt_start, size
+    );
     let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
     for _ in 0..size / FRAME_SIZE {
         let frame = Box::new(alloc_frame_trackers(1));
@@ -229,20 +230,23 @@ pub fn map_domain_region(size: usize) -> VirtDomainArea {
     VirtDomainArea::new(virt_start, size)
 }
 
-
 pub fn unmap_domain_area(area: VirtDomainArea) {
     let mut kernel_space = KERNEL_SPACE.write();
     kernel_space.unmap(area.start).unwrap();
     sfence_vma_all();
 }
 
-
 pub fn set_memory_x(virt_addr: usize, numpages: usize) -> AlienResult<()> {
     let mut kernel_space = KERNEL_SPACE.write();
     // kernel_space.set_flags(virt_addr, numpages, MappingFlags::READ | MappingFlags::WRITE | MappingFlags::EXECUTE).unwrap();
     let mut addr = virt_addr;
     for _ in 0..numpages {
-        kernel_space.protect(addr..addr + FRAME_SIZE, MappingFlags::READ | MappingFlags::EXECUTE).unwrap();
+        kernel_space
+            .protect(
+                addr..addr + FRAME_SIZE,
+                MappingFlags::READ | MappingFlags::EXECUTE,
+            )
+            .unwrap();
         addr += FRAME_SIZE;
     }
     Ok(())

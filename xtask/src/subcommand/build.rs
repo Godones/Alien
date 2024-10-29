@@ -16,11 +16,11 @@ pub fn build_single(name: &str, log: &str) {
     }
     let init_members = config.domains.get("init_members").unwrap();
     if init_members.contains(&r_name.to_string()) {
-        build_domain(name, log.to_string(), "init");
+        build_domain(r_name, log.to_string(), "init");
     } else {
         let disk_members = config.domains.get("disk_members").unwrap();
         if disk_members.contains(&r_name.to_string()) {
-            build_domain(name, log.to_string(), "disk");
+            build_domain(r_name, log.to_string(), "disk");
         } else {
             println!(
                 "Domain [{}] is not in the init or disk members list, skip building",
@@ -40,6 +40,7 @@ pub fn build_domain(name: &str, log: String, dir: &str) {
         if path.exists() {
             let path = format!("./{}/{}/g{}/Cargo.toml", ty, name, name);
             let path = Path::new(&path);
+            println!("Start building domain,path: {:?}", path);
             let _cmd = std::process::Command::new("cargo")
                 .arg("build")
                 .arg("--release")

@@ -1,4 +1,4 @@
-use core::arch::asm;
+use core::arch::naked_asm;
 
 use config::{CPU_NUM, STACK_SIZE, STACK_SIZE_BITS};
 
@@ -13,7 +13,7 @@ static mut STACK: [u8; STACK_SIZE * CPU_NUM] = [0; STACK_SIZE * CPU_NUM];
 #[link_section = ".text.entry"]
 extern "C" fn _start() {
     unsafe {
-        asm!("\
+        naked_asm!("\
         mv tp, a0
         mv gp, a1
         add t0, a0, 1
@@ -27,7 +27,6 @@ extern "C" fn _start() {
         stack_size_bits = const STACK_SIZE_BITS,
         boot_stack = sym STACK,
         platform_init = sym crate::platform_init,
-        options(noreturn)
         );
     }
 }
@@ -36,7 +35,7 @@ extern "C" fn _start() {
 #[no_mangle]
 extern "C" fn _start_secondary() {
     unsafe {
-        asm!("\
+        naked_asm!("\
         mv tp, a0
         mv gp, a1
         add t0, a0, 1
@@ -49,7 +48,6 @@ extern "C" fn _start_secondary() {
         ",
         stack_size_bits = const STACK_SIZE_BITS,
         boot_stack = sym STACK,
-        options(noreturn)
         );
     }
 }

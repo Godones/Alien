@@ -12,4 +12,5 @@ config = { path = "../../domain-lib/config" }
 spin = "0"
 fdt = { git = "https://github.com/repnop/fdt" }
 
-[features]
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(vf2)','cfg(qemu_riscv)'] }

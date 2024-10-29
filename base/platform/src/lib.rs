@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(naked_functions)]
-#![feature(asm_const)]
 #[macro_use]
 pub mod console;
 mod common_riscv;

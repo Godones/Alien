@@ -1,22 +1,23 @@
-use alloc::{boxed::Box};
-use core::{
-    fmt::{Debug},
-};
-use core::any::Any;
-use mem::{VirtDomainArea, VirtAddr};
+use alloc::boxed::Box;
+use core::{any::Any, fmt::Debug};
+
 use loader::{DomainArea, DomainVmOps};
+use mem::{VirtAddr, VirtDomainArea};
 use storage::StorageArg;
-use crate::domain_helper;
-use crate::domain_helper::{DOMAIN_DATA_ALLOCATOR, DOMAIN_SYS, SHARED_HEAP_ALLOCATOR};
+
+use crate::{
+    domain_helper,
+    domain_helper::{DOMAIN_DATA_ALLOCATOR, DOMAIN_SYS, SHARED_HEAP_ALLOCATOR},
+};
 pub type DomainLoader = loader::DomainLoader<VmOpsImpl>;
 
 pub trait DomainCall {
     fn call_main<T: ?Sized>(&self, id: u64, use_old_id: Option<u64>) -> Box<T>;
 }
 
-impl DomainCall for DomainLoader{
+impl DomainCall for DomainLoader {
     fn call_main<T: ?Sized>(&self, id: u64, use_old_id: Option<u64>) -> Box<T> {
-        let callback = |use_old_id:Option<u64>| {
+        let callback = |use_old_id: Option<u64>| {
             let syscall = DOMAIN_SYS;
             let heap = SHARED_HEAP_ALLOCATOR;
             let data_map = if let Some(old_id) = use_old_id
@@ -33,7 +34,7 @@ impl DomainCall for DomainLoader{
             domain_helper::register_domain_resource(id, data_map_ptr as usize);
             let storage_arg =
                 unsafe { StorageArg::new(DOMAIN_DATA_ALLOCATOR, Box::from_raw(data_map_ptr)) };
-            (syscall,heap,storage_arg)
+            (syscall, heap, storage_arg)
         };
         self.call(id, use_old_id, callback)
     }
@@ -42,7 +43,7 @@ impl DomainCall for DomainLoader{
 #[derive(Debug)]
 struct VirtDomainAreaWrapper(VirtDomainArea);
 
-impl DomainArea for VirtDomainAreaWrapper{
+impl DomainArea for VirtDomainAreaWrapper {
     fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
@@ -62,9 +63,9 @@ impl DomainArea for VirtDomainAreaWrapper{
 
 pub struct VmOpsImpl;
 
-impl DomainVmOps for VmOpsImpl{
+impl DomainVmOps for VmOpsImpl {
     fn map_domain_area(size: usize) -> Box<dyn DomainArea> {
-        let domain_area= mem::map_domain_region(size);
+        let domain_area = mem::map_domain_region(size);
         Box::new(VirtDomainAreaWrapper(domain_area))
     }
 
@@ -74,7 +75,6 @@ impl DomainVmOps for VmOpsImpl{
     }
 
     fn set_memory_x(start: usize, pages: usize) -> Result<(), &'static str> {
-        mem::set_memory_x(start, pages)
-            .map_err(|_| "set_memory_x failed")
+        mem::set_memory_x(start, pages).map_err(|_| "set_memory_x failed")
     }
 }

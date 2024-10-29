@@ -1,4 +1,3 @@
-#![feature(panic_info_message)]
 #![feature(naked_functions)]
 #![feature(box_into_inner)]
 #![feature(trait_upcasting)]
@@ -65,6 +64,8 @@ fn main(hart_id: usize) {
         trap::init_trap_subsystem();
         println!("hart {} start...", arch::hart_id());
     }
+    #[cfg(feature = "test")]
+    panic::test_unwind();
     timer::set_next_trigger();
     println!("Begin run task...");
     task::run_task();
