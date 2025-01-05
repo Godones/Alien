@@ -31,11 +31,12 @@ impl TimeTick {
 impl Drop for TimeTick {
     fn drop(&mut self) {
         let end = read_timer();
-        println_color!(
-            35,
-            "[{}] Time elapsed: {} us",
-            self.info,
-            (end - self.start) * 1000_000 / CLOCK_FREQ
-        );
+        let ns = (end - self.start) * 1000_000_000 / CLOCK_FREQ;
+        if ns > 2000 {
+            let us = ns / 1000;
+            println_color!(31, "[{}] Time elapsed: {} us", self.info, us);
+        } else {
+            println_color!(31, "[{}] Time elapsed: {} ns", self.info, ns);
+        }
     }
 }

@@ -186,8 +186,11 @@ impl SchedulerDomainProxy {
         // wait if there are readers which are reading the old domain but no read lock
         // todo!( "wait for all reader to finish");
         while self.all_counter() > 0 {
-            println!("Wait for all reader to finish");
-            yield_now();
+            // println!(
+            //     "Wait for all reader to finish: {}",
+            //     self.all_counter() as isize
+            // );
+            // yield_now();
         }
         drop(tick);
 

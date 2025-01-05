@@ -88,7 +88,7 @@ impl SharedHeapAllocator {
         if ptr.is_null() {
             panic!("<SharedHeap> alloc layout: {:?} failed", layout);
         }
-        log::error!(
+        log::info!(
             "<SharedHeap> alloc size: {}, ptr: {:#x}",
             layout.size(),
             ptr as usize
@@ -134,7 +134,7 @@ impl SharedHeapAlloc for SharedHeapAllocator {
         let allocation = heap.remove(&(ptr as usize));
         drop(heap);
         if let Some(allocation) = allocation {
-            log::error!("<SharedHeap> dealloc: {:p}", ptr);
+            log::info!("<SharedHeap> dealloc: {:p}", ptr);
             assert_eq!(allocation.value_pointer, ptr);
             if allocation.layout.size() > FRAME_SIZE {
                 dealloc(allocation.value_pointer, allocation.layout);

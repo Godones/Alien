@@ -11,7 +11,9 @@ platform = { path = "../base/platform" }
 riscv = "0.11"
 log = "0"
 xmas-elf = "0.9"
-pconst = { git = "https://github.com/os-module/pconst.git", features = ["special_error"] }
+pconst = { git = "https://github.com/os-module/pconst.git", features = [
+    "special_error",
+] }
 spin = "0"
 
 ksync = { path = "../domain-lib/ksync" }
@@ -25,7 +27,9 @@ task_meta = { path = "../domain-lib/task_meta" }
 storage = { path = "../domain-lib/storage" }
 loader = { path = "../domain-lib/loader" }
 
-vfscore = { path = "../rvfs-ref/vfscore-ref", package = "vfscore-ref", features = ["linux_error"] }
+vfscore = { path = "../rvfs-ref/vfscore-ref", package = "vfscore-ref", features = [
+    "linux_error",
+] }
 cpio_reader = { workspace = true }
 libflate = { workspace = true }
 core2 = { version = "0.4", default-features = false }
@@ -38,11 +42,11 @@ jtable = { path = "../base/jtable" }
 naked-function = "0.1.5"
 paste = "1.0.15"
 
-unwinding = { version = "0.2.3", default-features = false,  features = [
+unwinding = { git = "https://github.com/nbdd0121/unwinding", rev = "ff0e91b", default-features = false, features = [
     "unwinder",
     "fde-gnu-eh-frame-hdr",
     "panic",
-    "personality"
+    "personality",
 ], optional = true }
 
 
@@ -54,4 +58,8 @@ test = []
 
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(vf2)','cfg(qemu_riscv)','cfg(vf2_sd)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(vf2)',
+    'cfg(qemu_riscv)',
+    'cfg(vf2_sd)',
+] }

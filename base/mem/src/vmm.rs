@@ -209,7 +209,7 @@ pub fn map_domain_region(size: usize) -> VirtDomainArea {
     assert_eq!(size % FRAME_SIZE, 0);
     let virt_start = KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::Relaxed);
     // alloc physical memory and map to virtual memory
-    log::info!(
+    log::error!(
         "[alloc_free_module_region] virt_start: {:#x}, size: {:#x}",
         virt_start,
         size
@@ -250,5 +250,7 @@ pub fn set_memory_x(virt_addr: usize, numpages: usize) -> AlienResult<()> {
             .unwrap();
         addr += FRAME_SIZE;
     }
+    // flush TLB
+    sfence_vma_all();
     Ok(())
 }

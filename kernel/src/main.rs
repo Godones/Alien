@@ -50,8 +50,10 @@ fn main(hart_id: usize) {
         mem::init_memory_system(machine_info.memory.end, true);
         arch::allow_access_user_memory();
         bus::init_with_dtb().unwrap();
-        domain::load_domains().unwrap();
         trap::init_trap_subsystem();
+
+        domain::load_domains().unwrap();
+
         #[cfg(feature = "bench")]
         bench::test_func_cycle();
         STARTED.store(false, Ordering::Relaxed);

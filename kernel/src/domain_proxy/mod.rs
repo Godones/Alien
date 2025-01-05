@@ -126,8 +126,8 @@ impl BlkDomainProxy {
         let w_lock = self.lock.write();
         // wait if there are readers which are reading the old domain but no read lock
         while self.all_counter() > 0 {
-            println!("Wait for all reader to finish");
-            yield_now();
+            // println!("Wait for all reader to finish");
+            // yield_now();
         }
 
         let old_id = self.domain_id();
