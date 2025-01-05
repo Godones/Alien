@@ -1,4 +1,3 @@
-#![feature(panic_info_message)]
 #![no_std]
 #![feature(linkage)]
 #![allow(unused)]
@@ -35,15 +34,15 @@ pub mod domain;
 pub mod gui;
 pub mod sync;
 
+#[cfg(not(feature = "std"))]
 #[no_mangle]
 #[naked]
 extern "C" fn _start() -> ! {
     unsafe {
-        asm!(
+        core::arch::naked_asm!(
             "mv a0,sp
             call _start_rust
             ",
-            options(noreturn)
         )
     }
 }

@@ -182,33 +182,33 @@ pub enum FreeShared {
 }
 
 pub fn free_domain_shared_data(id: u64, free_shared: FreeShared) {
-    checkout_shared_data();
+    // checkout_shared_data();
     let mut data = vec![];
     let heap = SHARED_HEAP.lock();
-    println_color!(
-        34,
-        "<free_domain_shared_data> shared heap size: {}",
-        heap.len()
-    );
+    // println_color!(
+    //     34,
+    //     "<free_domain_shared_data> shared heap size: {}",
+    //     heap.len()
+    // );
     heap.iter().for_each(|(_, v)| {
         if v.domain_id() == id {
             data.push(*v);
         }
     });
     drop(heap);
-    println_color!(34, "<free_domain_shared_data> for domain_id: {}", id);
-    println_color!(34, "domain has {} data", data.len());
+    // println_color!(34, "<free_domain_shared_data> for domain_id: {}", id);
+    // println_color!(34, "domain has {} data", data.len());
 
     match free_shared {
         FreeShared::Free => {
-            println_color!(34, "free_shared is Free, free {} data", data.len());
+            // println_color!(34, "free_shared is Free, free {} data", data.len());
             data.into_iter().for_each(|v| unsafe {
                 v.drop_fn();
                 SharedHeapAllocator.dealloc(v.value_pointer);
             });
         }
         FreeShared::NotFree(domain_id) => {
-            println_color!(34, "free_shared is NotFree, do not free data");
+            // println_color!(34, "free_shared is NotFree, do not free data");
             data.into_iter().for_each(|v| v.set_domain_id(domain_id));
         }
     }

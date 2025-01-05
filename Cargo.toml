@@ -3,7 +3,6 @@ members = [
     "kernel",
     "user/userlib",
     "user/apps/init",
-    "user/apps/shell",
     "base/*",
     "tools/*",
     "rvfs-ref/*",
@@ -17,7 +16,8 @@ members = [
     "user/musl/hello",
     "user/musl/async_test",
     "user/musl/ftest",
-    "xtask"
+    "xtask",
+    "user/musl/fs_update"
 ]
 resolver = "2"
 

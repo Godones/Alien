@@ -1,28 +1,6 @@
-use crate::syscall::{sys_out_mask, sys_register_domain, sys_update_domain};
+pub use domain_info::DomainTypeRaw;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DomainTypeRaw {
-    FsDomain = 1,
-    BlkDeviceDomain = 2,
-    CacheBlkDeviceDomain = 3,
-    RtcDomain = 4,
-    GpuDomain = 5,
-    InputDomain = 6,
-    VfsDomain = 7,
-    UartDomain = 8,
-    PLICDomain = 9,
-    TaskDomain = 10,
-    SysCallDomain = 11,
-    ShadowBlockDomain = 12,
-    BufUartDomain = 13,
-    NetDeviceDomain = 14,
-    BufInputDomain = 15,
-    EmptyDeviceDomain = 16,
-    DevFsDomain = 17,
-    SchedulerDomain = 18,
-    LogDomain = 19,
-    NetDomain = 20,
-}
+use crate::syscall::{sys_out_mask, sys_register_domain, sys_update_domain};
 pub fn register_domain(fd: usize, ty: DomainTypeRaw, domain_file_name: &str) -> isize {
     sys_register_domain(
         fd,

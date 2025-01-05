@@ -16,6 +16,7 @@ use crate::{
     k_static_branch_disable, k_static_branch_enable,
     sync::{synchronize_sched, RcuData, SleepMutex},
     task::yield_now,
+    timer::TimeTick,
 };
 
 define_static_key_false!(SCHEDULER_DOMAIN_PROXY_KEY);
@@ -172,12 +173,13 @@ impl SchedulerDomainProxy {
         loader: DomainLoader,
     ) -> AlienResult<()> {
         // stage1: get the sleep lock and change to updating state
+        let tick = TimeTick::new("Task Sync");
         let mut loader_guard = self.domain_loader.lock();
 
         k_static_branch_enable!(SCHEDULER_DOMAIN_PROXY_KEY);
 
         // why we need to synchronize_sched here?
-        synchronize_sched();
+        // synchronize_sched();
 
         // stage2: get the write lock and wait for all readers to finish
         let w_lock = self.lock.write();
@@ -187,17 +189,27 @@ impl SchedulerDomainProxy {
             println!("Wait for all reader to finish");
             yield_now();
         }
+        drop(tick);
+
+        let tick = TimeTick::new("Reinit and state transfer");
         let old_id = self.domain_id();
 
         // stage3: init the new domain before swap
         let new_domain_id = new_domain.domain_id();
         new_domain.init().unwrap();
 
+        drop(tick);
+
+        let tick = TimeTick::new("Domain swap");
         // stage4: swap the domain and change to normal state
         let old_domain = self.domain.swap(Box::new(new_domain));
 
         // change to normal state
         k_static_branch_disable!(SCHEDULER_DOMAIN_PROXY_KEY);
+
+        drop(tick);
+
+        let tick = TimeTick::new("Recycle resources");
 
         // stage5: recycle all resources
         let real_domain = Box::into_inner(old_domain);
@@ -208,6 +220,7 @@ impl SchedulerDomainProxy {
         // We should not free the shared data here, because the shared data will be used
         // in new domain.
         free_domain_resource(old_id, FreeShared::NotFree(new_domain_id));
+        drop(tick);
 
         // stage6: release all locks
         *loader_guard = loader;

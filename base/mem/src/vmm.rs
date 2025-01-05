@@ -209,9 +209,10 @@ pub fn map_domain_region(size: usize) -> VirtDomainArea {
     assert_eq!(size % FRAME_SIZE, 0);
     let virt_start = KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::Relaxed);
     // alloc physical memory and map to virtual memory
-    println!(
+    log::info!(
         "[alloc_free_module_region] virt_start: {:#x}, size: {:#x}",
-        virt_start, size
+        virt_start,
+        size
     );
     let mut phy_frames: Vec<Box<dyn PhysPage>> = vec![];
     for _ in 0..size / FRAME_SIZE {

@@ -25,9 +25,9 @@ use crate::{
     error::{AlienError, AlienResult},
     sync::{synchronize_sched, RcuData, SRcuLock, SleepMutex},
     task::yield_now,
+    timer::TimeTick,
     *,
 };
-
 pub trait ProxyBuilder {
     type T;
     fn build(domain: Self::T, domain_loader: DomainLoader) -> Self;

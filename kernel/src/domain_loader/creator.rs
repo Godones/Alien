@@ -16,6 +16,7 @@ use crate::{
     domain_proxy::*,
     error::{AlienError, AlienResult},
     register_domain,
+    timer::TimeTick,
 };
 
 static DOMAIN_ELF: RwLock<BTreeMap<String, DomainData>> = RwLock::new(BTreeMap::new());
@@ -160,10 +161,12 @@ pub fn create_domain<T: ?Sized>(
         return None;
     }
     info!("Load {:?} domain, size: {}KB", ty, data.data.len() / 1024);
+    let time_tick = TimeTick::new("Load new domain");
     let mut domain_loader = DomainLoader::new(data.data, domain_file_name);
     domain_loader.load().unwrap();
     let id = alloc_domain_id();
     let domain = domain_loader.call_main(id, use_old_id);
+    drop(time_tick);
     Some((id, domain, domain_loader))
 }
 

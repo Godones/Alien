@@ -42,7 +42,7 @@ pub fn register_domain_resource(domain_id: u64, box_ptr: usize) {
 }
 
 pub fn free_domain_resource(domain_id: u64, free_shared: FreeShared) {
-    println!("free_domain_resource for domain_id: {}", domain_id);
+    // println!("free_domain_resource for domain_id: {}", domain_id);
 
     // free shared data
     free_domain_shared_data(domain_id, free_shared);
@@ -67,6 +67,6 @@ pub fn free_domain_resource(domain_id: u64, free_shared: FreeShared) {
     if let Some(data_map_addr) = ptr {
         let data_map = unsafe { Box::from_raw(data_map_addr as *mut DomainDataMap) };
         drop(data_map);
-        println_color!(31, "[Domain: {}] free DomainDataMap resource", domain_id);
+        // println_color!(31, "[Domain: {}] free DomainDataMap resource", domain_id);
     }
 }

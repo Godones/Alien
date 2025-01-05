@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 Mstd = { path = "../../userlib" }
+
+[features]
+default = []
+std = ["Mstd/std"]

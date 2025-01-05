@@ -8,6 +8,7 @@ use talc::{OomHandler, Span, Talc, Talck};
 
 use crate::{common::FRAME_SIZE, memory::sbrk};
 
+#[cfg(not(feature = "std"))]
 #[global_allocator]
 static ALLOCATOR: Talck<Mutex<()>, MyOomHandler> = Talc::new(MyOomHandler).lock();
 
@@ -19,6 +20,7 @@ pub fn init_heap() {
     // println!("init heap range: {:#x} - {:#x}", heap_began, after_alloc);
     HEAP_START.store(heap_began as usize, core::sync::atomic::Ordering::Relaxed);
     HEAP_END.store(after_alloc as usize, core::sync::atomic::Ordering::Relaxed);
+    #[cfg(not(feature = "std"))]
     unsafe {
         ALLOCATOR
             .lock()

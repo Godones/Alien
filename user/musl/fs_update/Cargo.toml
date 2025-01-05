@@ -1,0 +1,8 @@
+[package]
+name = "fs_update"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+domain-info = { path = "../../apps/domain-info" }
+domain-helper = { path = "../../apps/domain-helper",features = ["std"] }
