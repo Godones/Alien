@@ -24,7 +24,6 @@ use crate::{
     domain_loader::loader::DomainLoader,
     error::{AlienError, AlienResult},
     sync::{synchronize_sched, RcuData, SRcuLock, SleepMutex},
-    task::yield_now,
     timer::TimeTick,
     *,
 };

@@ -15,7 +15,6 @@ use crate::{
     error::{AlienError, AlienResult},
     k_static_branch_disable, k_static_branch_enable,
     sync::{synchronize_sched, RcuData, SleepMutex},
-    task::yield_now,
     timer::TimeTick,
 };
 
@@ -179,7 +178,7 @@ impl SchedulerDomainProxy {
         k_static_branch_enable!(SCHEDULER_DOMAIN_PROXY_KEY);
 
         // why we need to synchronize_sched here?
-        // synchronize_sched();
+        synchronize_sched();
 
         // stage2: get the write lock and wait for all readers to finish
         let w_lock = self.lock.write();
@@ -190,7 +189,6 @@ impl SchedulerDomainProxy {
             //     "Wait for all reader to finish: {}",
             //     self.all_counter() as isize
             // );
-            // yield_now();
         }
         drop(tick);
 
