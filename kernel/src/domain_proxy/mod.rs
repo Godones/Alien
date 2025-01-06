@@ -18,7 +18,7 @@ use rref::{RRef, RRefVec, SharedData};
 pub use scheduler::SchedulerDomainProxy;
 use spin::Once;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
-
+use crate::task::yield_now;
 use crate::{
     domain_helper::{free_domain_resource, FreeShared},
     domain_loader::loader::DomainLoader,
@@ -116,13 +116,15 @@ impl BlkDomainProxy {
     ) -> AlienResult<()> {
         // stage1: get the sleep lock and change to updating state
         let mut loader_guard = self.domain_loader.lock();
+
+        // stage2: get the write lock and wait for all readers to finish
+        let w_lock = self.lock.write();
+
         static_branch_enable!(BLKDOMAINPROXY_KEY);
 
         // why we need to synchronize_sched here?
         synchronize_sched();
 
-        // stage2: get the write lock and wait for all readers to finish
-        let w_lock = self.lock.write();
         // wait if there are readers which are reading the old domain but no read lock
         while self.all_counter() > 0 {
             // println!("Wait for all reader to finish");
