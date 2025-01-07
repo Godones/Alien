@@ -18,8 +18,14 @@ fn read_bash_test(blk_size: usize) {
     let now = Instant::now();
     let mut buf = vec![0u8; blk_size];
     let mut bytes = 0;
+    let mut mask = false;
     loop {
         let res = file.read(&mut buf).unwrap();
+        if !mask {
+            let c = Instant::now();
+            mask = true;
+            println!("Read {} bytes in {}us", res, c.elapsed().as_micros());
+        }
         if res == 0 {
             break;
         }

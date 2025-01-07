@@ -68,20 +68,20 @@ fn read_bash_for_sec(sec: usize) {
             file.seek(SeekFrom::Start(0)).unwrap();
         }
         bytes += res;
-
-        if start.elapsed().as_millis() >= 100 {
+        let new_now = Instant::now();
+        if new_now.duration_since(start).as_millis() >= 100 {
             let read_bytes = bytes - record_bytes;
-            bytes_per_100ms.push(read_bytes);
+            bytes_per_100ms.push((read_bytes, new_now.duration_since(now).as_millis()));
             record_bytes = bytes;
             // reset start
-            start = Instant::now();
+            start = new_now;
         }
-        if now.elapsed().as_secs() >= sec as u64 {
+        if new_now.duration_since(now).as_secs() >= sec as u64 {
             break;
         }
     }
     for i in 0..bytes_per_100ms.len() {
-        println!("{}ms: {} bytes", i * 100, bytes_per_100ms[i]);
+        println!("{}ms: {} bytes", bytes_per_100ms[i].1, bytes_per_100ms[i].0);
     }
     let ms = now.elapsed().as_millis();
     let speed = bytes as f64 * 1000.0 / ms as f64 / 1024.0;

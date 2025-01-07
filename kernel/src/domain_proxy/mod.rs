@@ -18,12 +18,13 @@ use rref::{RRef, RRefVec, SharedData};
 pub use scheduler::SchedulerDomainProxy;
 use spin::Once;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
-use crate::task::yield_now;
+
 use crate::{
     domain_helper::{free_domain_resource, FreeShared},
     domain_loader::loader::DomainLoader,
     error::{AlienError, AlienResult},
     sync::{synchronize_sched, RcuData, SRcuLock, SleepMutex},
+    task::yield_now,
     timer::TimeTick,
     *,
 };
