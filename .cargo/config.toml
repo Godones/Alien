@@ -1,6 +1,5 @@
 [alias]
 server = "run -p domain-server --"
-domain = "run -p xtask --"
 
 [profile.release]
 strip = true

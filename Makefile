@@ -69,7 +69,6 @@ vf2: build
 	rm ./testos.bin
 
 
-
 run: domains sdcard initrd build
 	$(QEMU) \
             -M virt \
@@ -123,17 +122,12 @@ mount:
 
 
 domains:
-	if [ ! -d "build/disk" ]; then mkdir -p build/disk; fi
-	if [ ! -d "build/init" ]; then mkdir -p build/init; fi
-	cargo domain build-all -l "$(LOG)"
-	#cp domains/build/disk/* build/disk/ -r
-	#cp domains/build/init/* build/init/ -r
+	@if [ ! -d "build" ]; then mkdir build; fi
+	cd domains && cargo domain build-all -l "$(LOG)" -o $(abspath build)
 	@make initrd
 
 domain:
-	cd domains && cargo domain build -n $(name) -l "$(LOG)"
-	cp domains/build/disk/* build/disk/ -r
-	cp domains/build/init/* build/init/ -r
+	cd domains && cargo domain build -n $(name) -l "$(LOG)" -o $(abspath build)
 	@make initrd
 
 initrd:

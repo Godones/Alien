@@ -55,6 +55,7 @@ default = ["rust-unwind"]
 rust-unwind = ["dep:unwinding"]
 bench = []
 test = []
+time-tick = []
 
 
 [lints.rust]

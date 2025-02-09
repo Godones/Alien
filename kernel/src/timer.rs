@@ -32,6 +32,7 @@ impl Drop for TimeTick {
     fn drop(&mut self) {
         let end = read_timer();
         let ns = (end - self.start) * 1000_000_000 / CLOCK_FREQ;
+        #[cfg(feature = "time-tick")]
         if ns > 2000 {
             let us = ns / 1000;
             println_color!(31, "[{}] Time elapsed: {} us", self.info, us);
