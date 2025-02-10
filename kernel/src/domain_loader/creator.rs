@@ -107,13 +107,13 @@ where
 {
     let res = create_domain(ty, domain_file_name, data, use_old_id)
         .map(|(_id, domain, loader)| {
-            let file_info = loader.domain_file_info();
+            let file_info = DomainFileInfo::from(loader.domain_file_info());
             (Arc::new(P::build(domain, loader)), file_info)
         })
         .unwrap_or_else(|| {
             println!("Create empty domain: {}", domain_file_name);
             let loader = DomainLoader::empty();
-            let file_info = loader.domain_file_info();
+            let file_info = DomainFileInfo::from(loader.domain_file_info());
             let res = Arc::new(P::build_empty(loader));
             (res, file_info)
         });

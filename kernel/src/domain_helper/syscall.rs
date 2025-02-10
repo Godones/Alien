@@ -2,7 +2,10 @@ use alloc::{string::ToString, sync::Arc};
 use core::{any::Any, sync::atomic::AtomicBool};
 
 use config::FRAME_BITS;
-use corelib::{domain_info::DomainDataInfo, CoreFunction};
+use corelib::{
+    domain_info::{DomainDataInfo, DomainFileInfo},
+    CoreFunction,
+};
 use interface::*;
 use platform::iprint;
 use task_meta::{OperationResult, TaskOperation};
@@ -113,7 +116,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let gpu_proxy = gpu.downcast_arc::<GpuDomainProxy>().unwrap();
-                let domain_info = loader.domain_file_info();
+                let domain_info = DomainFileInfo::from(loader.domain_file_info());
                 gpu_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace domain: {} with domain: {} ok",
@@ -131,7 +134,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let shadow_blk_proxy = shadow_blk.downcast_arc::<ShadowBlockDomainProxy>().unwrap();
-                let domain_info = loader.domain_file_info();
+                let domain_info = DomainFileInfo::from(loader.domain_file_info());
                 shadow_blk_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace domain: {} with domain: {} ok",
@@ -149,7 +152,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let scheduler_proxy = scheduler.downcast_arc::<SchedulerDomainProxy>().unwrap();
-                let domain_info = loader.domain_file_info();
+                let domain_info = DomainFileInfo::from(loader.domain_file_info());
                 scheduler_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace {:?} [{}] with [{}] ok",
@@ -167,7 +170,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let logger_proxy = logger.downcast_arc::<LogDomainProxy>().unwrap();
-                let domain_info = loader.domain_file_info();
+                let domain_info = DomainFileInfo::from(loader.domain_file_info());
                 logger_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace logger domain {} with {} ok",
@@ -186,7 +189,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let input_proxy = input.downcast_arc::<InputDomainProxy>().unwrap();
-                let domain_info = loader.domain_file_info();
+                let domain_info = DomainFileInfo::from(loader.domain_file_info());
                 input_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace input domain {} with {} ok",
@@ -205,7 +208,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let nic_proxy = nic.downcast_arc::<NetDeviceDomainProxy>().unwrap();
-                let domain_info = loader.domain_file_info();
+                let domain_info = DomainFileInfo::from(loader.domain_file_info());
                 nic_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace net device domain {} with {} ok",
@@ -224,7 +227,7 @@ impl CoreFunction for DomainSyscall {
                 )
                 .ok_or(AlienError::EINVAL)?;
                 let vfs_proxy = vfs.downcast_arc::<VfsDomainProxy>().unwrap();
-                let domain_info = loader.domain_file_info();
+                let domain_info = DomainFileInfo::from(loader.domain_file_info());
                 vfs_proxy.replace(new_domain, loader)?;
                 println!(
                     "Try to replace vfs domain {} with {} ok",

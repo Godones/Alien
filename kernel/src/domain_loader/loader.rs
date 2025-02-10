@@ -36,7 +36,7 @@ impl DomainCall for DomainLoader {
                 unsafe { StorageArg::new(DOMAIN_DATA_ALLOCATOR, Box::from_raw(data_map_ptr)) };
             (syscall, heap, storage_arg)
         };
-        self.call(id, use_old_id, callback)
+        self.call::<_, dyn corelib::CoreFunction, _>(id, use_old_id, callback)
     }
 }
 
