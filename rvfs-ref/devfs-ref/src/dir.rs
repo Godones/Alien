@@ -13,7 +13,7 @@ use vfscore::{
     utils::{
         VfsDirEntry, VfsFileStat, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsRenameFlag, VfsTime,
     },
-    RRefVec,
+    DVec,
 };
 
 use crate::{dev::DevFsDevInode, *};

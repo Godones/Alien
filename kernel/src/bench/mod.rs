@@ -6,7 +6,7 @@ use alloc::{boxed::Box, sync::Arc};
 use arch::read_cycle;
 use basic::time::read_time_us;
 use interface::{BlkDeviceDomain, DomainType};
-use rref::RRefVec;
+use shared_heap::DVec;
 use unwind_block::MemoryImg;
 
 use crate::{
@@ -38,7 +38,7 @@ fn test_func(name: &str, func: impl Fn() -> ()) {
 }
 
 fn test_read_block(blk_device: Arc<dyn BlkDeviceDomain>) {
-    let mut blk = RRefVec::new_uninit(512);
+    let mut blk = DVec::new_uninit(512);
     let start = read_cycle();
     let start_us = read_time_us();
     for i in 0..TEST_SIZE {
@@ -51,7 +51,7 @@ fn test_read_block(blk_device: Arc<dyn BlkDeviceDomain>) {
 }
 
 fn prepare(blk_device: Arc<dyn BlkDeviceDomain>) {
-    let mut blk = RRefVec::new_uninit(512);
+    let mut blk = DVec::new_uninit(512);
     for i in 0..TEST_SIZE {
         blk = blk_device.read_block((i % 2) as u32, blk).unwrap();
     }

@@ -2,7 +2,7 @@ use alloc::{collections::BTreeMap, sync::Arc};
 
 use basic::sync::Mutex;
 use interface::SchedulerDomain;
-use rref::RRef;
+use shared_heap::DBox;
 use spin::Once;
 use task_meta::{TaskSchedulingInfo, TaskStatus};
 
@@ -31,7 +31,7 @@ pub fn add_task(task_meta: Arc<Mutex<TaskMetaExt>>) {
 }
 
 pub fn fetch_task() -> Option<Arc<Mutex<TaskMetaExt>>> {
-    let info = RRef::new(TaskSchedulingInfo::default());
+    let info = DBox::new(TaskSchedulingInfo::default());
     assert_eq!(info.domain_id(), 0);
     let scheduling_info = global_scheduler!().fetch_task(info).unwrap();
     assert_eq!(scheduling_info.domain_id(), 0);

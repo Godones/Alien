@@ -13,7 +13,7 @@ use core::{
 };
 
 use log::{error, trace};
-use rref::RRefVec;
+use shared_heap::DVec;
 
 use crate::{
     dentry::VfsDentry,
@@ -90,7 +90,7 @@ impl VfsPath {
 
     fn to_symlink(&self, symlink: Arc<dyn VfsDentry>) -> VfsResult<Arc<dyn VfsDentry>> {
         let inode = symlink.inode()?;
-        let buf = RRefVec::new_uninit(255);
+        let buf = DVec::new_uninit(255);
         let (buf, r) = inode.readlink(buf)?;
         if r > 255 {
             return Err(VfsError::Invalid);
@@ -709,7 +709,7 @@ pub fn print_fs_tree(
         let rwx_buf = perm.rwx_buf();
         let rwx = core::str::from_utf8(&rwx_buf)?;
 
-        let buf = RRefVec::new_uninit(32);
+        let buf = DVec::new_uninit(32);
         let option = if inode_type == VfsNodeType::SymLink {
             let (buf, r) = inode.readlink(buf)?;
             let content = core::str::from_utf8(&buf.as_slice()[..r])?;

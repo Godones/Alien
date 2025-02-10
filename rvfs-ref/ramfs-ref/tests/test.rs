@@ -9,7 +9,7 @@ use vfscore::{
     fstype::VfsFsType,
     path::DirIter,
     utils::{VfsNodeType, VfsTimeSpec},
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 static FS: Lazy<Mutex<Arc<dyn VfsFsType>>> =
@@ -80,7 +80,7 @@ fn test_symlink() {
     let num = root.inode().unwrap().children().fold(0, |acc, _| acc + 1);
     assert_eq!(num, 1);
 
-    let buf = RRefVec::new(0, 2);
+    let buf = DVec::new(0, 2);
     let (buf, _r) = f1_sym.readlink(buf).unwrap();
     assert_eq!(buf.as_slice(), b"f1");
 }

@@ -10,7 +10,7 @@ use vfscore::{
     inode::{InodeAttr, VfsInode},
     path::DirIter,
     utils::*,
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 #[derive(Clone)]
@@ -63,11 +63,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let null_inode = root_inode.lookup("null")?;
     let zero_inode = root_inode.lookup("zero")?;
 
-    let w = null_inode.write_at(0, &RRefVec::new(0, 10))?;
+    let w = null_inode.write_at(0, &DVec::new(0, 10))?;
     assert_eq!(w, 10);
-    let w = zero_inode.write_at(0, &RRefVec::new(0, 10))?;
+    let w = zero_inode.write_at(0, &DVec::new(0, 10))?;
     assert_eq!(w, 10);
-    let buf = RRefVec::new(1, 10);
+    let buf = DVec::new(1, 10);
     let (buf, r) = null_inode.read_at(0, buf)?;
     assert_eq!(r, 10);
     assert_eq!(buf.as_slice(), &[0; 10]);
@@ -85,12 +85,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 struct NullDev;
 
 impl VfsFile for NullDev {
-    fn read_at(&self, _offset: u64, mut buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, _offset: u64, mut buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         buf.as_mut_slice().fill(0);
         let len = buf.len();
         Ok((buf, len))
     }
-    fn write_at(&self, _offset: u64, buf: &RRefVec<u8>) -> VfsResult<usize> {
+    fn write_at(&self, _offset: u64, buf: &DVec<u8>) -> VfsResult<usize> {
         Ok(buf.len())
     }
 }

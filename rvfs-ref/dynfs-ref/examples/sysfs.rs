@@ -9,7 +9,7 @@ use log::info;
 use spin::{Mutex, Once};
 use vfscore::{
     dentry::VfsDentry, error::VfsError, file::VfsFile, fstype::VfsFsType, inode::VfsInode,
-    path::DirIter, utils::*, RRefVec, VfsResult,
+    path::DirIter, utils::*, DVec, VfsResult,
 };
 
 #[derive(Clone)]
@@ -203,10 +203,10 @@ impl PipeInode {
 }
 
 impl VfsFile for PipeInode {
-    fn read_at(&self, _offset: u64, buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, _offset: u64, buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         Ok((buf, 0))
     }
-    fn write_at(&self, _offset: u64, _buf: &RRefVec<u8>) -> VfsResult<usize> {
+    fn write_at(&self, _offset: u64, _buf: &DVec<u8>) -> VfsResult<usize> {
         Ok(0)
     }
     fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {

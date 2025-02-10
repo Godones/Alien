@@ -10,7 +10,7 @@ use vfscore::{
     utils::{
         VfsFileStat, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsRenameFlag, VfsTime, VfsTimeSpec,
     },
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 use super::*;
@@ -59,7 +59,7 @@ impl<T: RamFsProvider + 'static, R: VfsRawMutex + 'static> VfsInode for RamFsSym
         self.basic.inner.lock().perm
     }
 
-    fn readlink(&self, buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn readlink(&self, buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         let inner = self.inner.lock();
         let len = inner.as_bytes().len();
         let min_len = buf.len().min(len);

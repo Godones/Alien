@@ -4,7 +4,7 @@ use alloc::{
 };
 use core::{alloc::Layout, any::TypeId};
 
-use rref::{SharedHeapAlloc, SharedHeapAllocation};
+use shared_heap::{SharedHeapAlloc, SharedHeapAllocation};
 use spin::{Lazy, Mutex};
 
 static SHARED_HEAP: Lazy<Mutex<BTreeMap<usize, SharedHeapAllocation>>> =
@@ -60,5 +60,5 @@ impl SharedHeapAlloc for MYSharedHeapAllocator {
 }
 
 pub fn fake_init_rref() {
-    rref::init(&MYSharedHeapAllocator, 0);
+    shared_heap::init(&MYSharedHeapAllocator, 0);
 }

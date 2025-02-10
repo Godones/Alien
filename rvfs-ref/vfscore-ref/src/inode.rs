@@ -1,7 +1,7 @@
 use alloc::{string::String, sync::Arc, vec::Vec};
 
 use downcast_rs::{impl_downcast, DowncastSync};
-use rref::RRefVec;
+use shared_heap::DVec;
 
 use crate::{
     error::VfsError,
@@ -66,7 +66,7 @@ pub trait VfsInode: DowncastSync + VfsFile {
     fn rmdir(&self, _name: &str) -> VfsResult<()> {
         Err(VfsError::NoSys)
     }
-    fn readlink(&self, _buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn readlink(&self, _buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         Err(VfsError::NoSys)
     }
     /// Set the attributes of the node.
@@ -118,7 +118,7 @@ impl_downcast!(sync  VfsInode);
 #[macro_export]
 macro_rules! impl_dir_inode_default {
     () => {
-        fn readlink(&self, _buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+        fn readlink(&self, _buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
             Err(VfsError::IsDir)
         }
         fn truncate(&self, _len: u64) -> VfsResult<()> {
@@ -207,7 +207,7 @@ macro_rules! impl_file_inode_default {
         ) -> VfsResult<()> {
             Err(VfsError::NoSys)
         }
-        fn readlink(&self, _buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+        fn readlink(&self, _buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
             Err(VfsError::NoSys)
         }
     };

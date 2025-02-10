@@ -8,7 +8,7 @@ use corelib::AlienResult;
 use domain_helper::alloc_domain_id;
 use interface::*;
 use log::warn;
-use rref::RRefVec;
+use shared_heap::DVec;
 
 use crate::{
     create_domain,
@@ -22,7 +22,7 @@ use crate::{
 
 /// set the kernel to the specific domain
 fn init_kernel_domain() {
-    rref::init(SHARED_HEAP_ALLOCATOR, alloc_domain_id());
+    shared_heap::init(SHARED_HEAP_ALLOCATOR, alloc_domain_id());
     storage::init_data_allocator(DOMAIN_DATA_ALLOCATOR);
 }
 
@@ -71,7 +71,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     create_domain!(RtcDomainProxy, DomainTypeRaw::RtcDomain, "goldfish")?;
                 rtc.init_by_box(Box::new(address..address + size))?;
                 register_domain!("rtc", domain_file_info, DomainType::RtcDomain(rtc), true);
-                plic.register_irq(irq.unwrap() as _, &RRefVec::from_slice("rtc".as_bytes()))?;
+                plic.register_irq(irq.unwrap() as _, &DVec::from_slice("rtc".as_bytes()))?;
             }
             "uart" => {
                 let compatible = device
@@ -98,10 +98,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                     DomainType::BufUartDomain(buf_uart),
                     true
                 );
-                plic.register_irq(
-                    irq.unwrap() as _,
-                    &RRefVec::from_slice("buf_uart".as_bytes()),
-                )?;
+                plic.register_irq(irq.unwrap() as _, &DVec::from_slice("buf_uart".as_bytes()))?;
             }
             "ramdisk" => {
                 let (ramdisk, domain_file_info) =
@@ -225,7 +222,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
                 let irq = device.irq();
                 plic.register_irq(
                     irq.unwrap() as _,
-                    &RRefVec::from_slice(buf_input_name.as_bytes()),
+                    &DVec::from_slice(buf_input_name.as_bytes()),
                 )?
             }
             VirtioMmioDeviceType::GPU => {
@@ -255,7 +252,7 @@ fn init_device() -> AlienResult<Arc<dyn PLICDomain>> {
             true
         );
         // register irq
-        plic.register_irq(nic_irq as _, &RRefVec::from_slice("net_stack".as_bytes()))?
+        plic.register_irq(nic_irq as _, &DVec::from_slice("net_stack".as_bytes()))?
     }
     // create shadow block and cache block device
     {

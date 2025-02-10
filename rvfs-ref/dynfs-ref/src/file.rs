@@ -14,7 +14,7 @@ use vfscore::{
         VfsFileStat, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsPollEvents, VfsRenameFlag, VfsTime,
         VfsTimeSpec,
     },
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 use crate::{DynFsKernelProvider, UniFsSuperBlock, UniInodeSameNew};
@@ -43,10 +43,10 @@ impl<T: DynFsKernelProvider + 'static, R: VfsRawMutex + 'static> DynFsFileInode<
 }
 
 impl<T: DynFsKernelProvider + 'static, R: VfsRawMutex + 'static> VfsFile for DynFsFileInode<T, R> {
-    fn read_at(&self, offset: u64, buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, offset: u64, buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         self.real_inode()?.read_at(offset, buf)
     }
-    fn write_at(&self, offset: u64, buf: &RRefVec<u8>) -> VfsResult<usize> {
+    fn write_at(&self, offset: u64, buf: &DVec<u8>) -> VfsResult<usize> {
         self.real_inode()?.write_at(offset, buf)
     }
     fn poll(&self, event: VfsPollEvents) -> VfsResult<VfsPollEvents> {

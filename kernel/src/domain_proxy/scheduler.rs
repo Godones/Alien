@@ -5,7 +5,7 @@ use interface::*;
 use jtable::*;
 use ksync::RwLock;
 use paste::paste;
-use rref::{RRef, SharedData};
+use shared_heap::{DBox, SharedData};
 use task_meta::TaskSchedulingInfo;
 
 use crate::{
@@ -66,13 +66,13 @@ impl SchedulerDomain for SchedulerDomainProxy {
     fn init(&self) -> AlienResult<()> {
         self.domain.get().init()
     }
-    fn add_task(&self, scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
+    fn add_task(&self, scheduling_info: DBox<TaskSchedulingInfo>) -> AlienResult<()> {
         if static_branch_likely!(SCHEDULER_DOMAIN_PROXY_KEY) {
             return self.__add_task_with_lock(scheduling_info);
         }
         self.__add_task_no_lock(scheduling_info)
     }
-    fn fetch_task(&self, info: RRef<TaskSchedulingInfo>) -> AlienResult<RRef<TaskSchedulingInfo>> {
+    fn fetch_task(&self, info: DBox<TaskSchedulingInfo>) -> AlienResult<DBox<TaskSchedulingInfo>> {
         if static_branch_likely!(SCHEDULER_DOMAIN_PROXY_KEY) {
             return self.__fetch_task_with_lock(info);
         }
@@ -80,7 +80,7 @@ impl SchedulerDomain for SchedulerDomainProxy {
     }
 }
 impl SchedulerDomainProxy {
-    fn __add_task(&self, scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
+    fn __add_task(&self, scheduling_info: DBox<TaskSchedulingInfo>) -> AlienResult<()> {
         let r_domain = self.domain.get();
         let id = r_domain.domain_id();
         let old_id = scheduling_info.move_to(id);
@@ -90,14 +90,14 @@ impl SchedulerDomainProxy {
             r
         })
     }
-    fn __add_task_no_lock(&self, scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
+    fn __add_task_no_lock(&self, scheduling_info: DBox<TaskSchedulingInfo>) -> AlienResult<()> {
         self.counter.inc();
         let res = self.__add_task(scheduling_info);
         self.counter.dec();
         res
     }
     #[cold]
-    fn __add_task_with_lock(&self, scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
+    fn __add_task_with_lock(&self, scheduling_info: DBox<TaskSchedulingInfo>) -> AlienResult<()> {
         let r_lock = self.lock.read();
         let res = self.__add_task(scheduling_info);
         drop(r_lock);
@@ -105,8 +105,8 @@ impl SchedulerDomainProxy {
     }
     fn __fetch_task(
         &self,
-        info: RRef<TaskSchedulingInfo>,
-    ) -> AlienResult<RRef<TaskSchedulingInfo>> {
+        info: DBox<TaskSchedulingInfo>,
+    ) -> AlienResult<DBox<TaskSchedulingInfo>> {
         let r_domain = self.domain.get();
         let id = r_domain.domain_id();
         let old_id = info.move_to(id);
@@ -118,8 +118,8 @@ impl SchedulerDomainProxy {
     }
     fn __fetch_task_no_lock(
         &self,
-        info: RRef<TaskSchedulingInfo>,
-    ) -> AlienResult<RRef<TaskSchedulingInfo>> {
+        info: DBox<TaskSchedulingInfo>,
+    ) -> AlienResult<DBox<TaskSchedulingInfo>> {
         self.counter.inc();
         let res = self.__fetch_task(info);
         self.counter.dec();
@@ -128,8 +128,8 @@ impl SchedulerDomainProxy {
     #[cold]
     fn __fetch_task_with_lock(
         &self,
-        info: RRef<TaskSchedulingInfo>,
-    ) -> AlienResult<RRef<TaskSchedulingInfo>> {
+        info: DBox<TaskSchedulingInfo>,
+    ) -> AlienResult<DBox<TaskSchedulingInfo>> {
         let r_lock = self.lock.read();
         let res = self.__fetch_task(info);
         drop(r_lock);
@@ -156,11 +156,11 @@ impl SchedulerDomain for SchedulerDomainEmptyImpl {
         Ok(())
     }
     #[doc = " add one task to scheduler"]
-    fn add_task(&self, _scheduling_info: RRef<TaskSchedulingInfo>) -> AlienResult<()> {
+    fn add_task(&self, _scheduling_info: DBox<TaskSchedulingInfo>) -> AlienResult<()> {
         Err(AlienError::ENOSYS)
     }
     #[doc = " The next task to run"]
-    fn fetch_task(&self, _info: RRef<TaskSchedulingInfo>) -> AlienResult<RRef<TaskSchedulingInfo>> {
+    fn fetch_task(&self, _info: DBox<TaskSchedulingInfo>) -> AlienResult<DBox<TaskSchedulingInfo>> {
         Err(AlienError::ENOSYS)
     }
 }

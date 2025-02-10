@@ -10,7 +10,7 @@ use vfscore::{
     inode::VfsInode,
     path::print_fs_tree,
     utils::{VfsDirEntry, VfsFileStat, VfsNodeType, VfsTimeSpec},
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 #[derive(Clone)]
@@ -179,7 +179,7 @@ impl CustomInode {
 }
 
 impl VfsFile for CustomInode {
-    fn read_at(&self, offset: u64, buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, offset: u64, buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         if offset as usize >= self.data.len() {
             return Ok((buf, 0));
         }

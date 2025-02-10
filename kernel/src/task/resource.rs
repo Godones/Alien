@@ -2,7 +2,7 @@ use core::ops::{Deref, DerefMut};
 
 use config::{FRAME_SIZE, KTHREAD_STACK_SIZE, USER_KERNEL_STACK_SIZE};
 use mem::{FrameTracker, VirtAddr};
-use rref::RRef;
+use shared_heap::DBox;
 use task_meta::{TaskBasicInfo, TaskMeta, TaskSchedulingInfo};
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ impl Drop for KStack {
 pub struct TaskMetaExt {
     pub kstack: KStack,
     pub basic_info: TaskBasicInfo,
-    pub scheduling_info: Option<RRef<TaskSchedulingInfo>>,
+    pub scheduling_info: Option<DBox<TaskSchedulingInfo>>,
 }
 
 impl TaskMetaExt {
@@ -60,15 +60,15 @@ impl TaskMetaExt {
         Self {
             kstack,
             basic_info,
-            scheduling_info: Some(RRef::new(scheduling_info)),
+            scheduling_info: Some(DBox::new(scheduling_info)),
         }
     }
-    pub fn take_scheduling_info(&mut self) -> RRef<TaskSchedulingInfo> {
+    pub fn take_scheduling_info(&mut self) -> DBox<TaskSchedulingInfo> {
         self.scheduling_info
             .take()
             .expect("scheduling_info is None")
     }
-    pub fn set_sched_info(&mut self, sched_info: RRef<TaskSchedulingInfo>) {
+    pub fn set_sched_info(&mut self, sched_info: DBox<TaskSchedulingInfo>) {
         self.scheduling_info = Some(sched_info);
     }
 }

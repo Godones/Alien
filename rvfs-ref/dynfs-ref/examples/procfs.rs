@@ -5,7 +5,7 @@ use dynfs_ref as dynfs;
 use spin::Mutex;
 use vfscore::{
     error::VfsError, file::VfsFile, fstype::VfsFsType, inode::VfsInode, path::DirIter, utils::*,
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 #[derive(Clone)]
@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     let p = root_inode.lookup("2")?;
-    let buf = RRefVec::new(0, 10);
+    let buf = DVec::new(0, 10);
     let (buf, r) = p.read_at(0, buf)?;
     let content = core::str::from_utf8(&buf.as_slice()[..r]).unwrap();
     println!("The content is:\n{content}");
@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 struct ProcessInfo;
 
 impl VfsFile for ProcessInfo {
-    fn read_at(&self, _offset: u64, mut buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, _offset: u64, mut buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         let data = b"pid:2";
         let min_len = min(data.len(), buf.len());
         buf.as_mut_slice()[..min_len].copy_from_slice(&data[..min_len]);

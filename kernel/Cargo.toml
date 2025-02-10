@@ -19,7 +19,7 @@ spin = "0"
 ksync = { path = "../domain-lib/ksync" }
 arch = { path = "../domain-lib/arch" }
 config = { path = "../domain-lib/config" }
-rref = { path = "../domain-lib/rref" }
+shared_heap = { path = "../domain-lib/shared_heap" }
 interface = { path = "../domain-lib/interface" }
 corelib = { path = "../domain-lib/corelib" }
 basic = { path = "../domain-lib/basic", features = ["task"] }

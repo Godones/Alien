@@ -5,7 +5,7 @@ use interface::*;
 use jtable::*;
 use ksync::RwLock;
 use paste::paste;
-use rref::{RRefVec, SharedData};
+use shared_heap::{DVec, SharedData};
 use spin::Once;
 
 use crate::{
@@ -103,13 +103,13 @@ impl BlkDeviceDomain for BlkDomainProxy {
     fn init(&self, device_info: &Range<usize>) -> AlienResult<()> {
         self.domain.get().init(device_info)
     }
-    fn read_block(&self, block: u32, data: RRefVec<u8>) -> AlienResult<RRefVec<u8>> {
+    fn read_block(&self, block: u32, data: DVec<u8>) -> AlienResult<DVec<u8>> {
         if static_branch_likely!(BLKDOMAINPROXY_KEY_FAKE) {
             return self.__read_block_with_lock(block, data);
         }
         self.__read_block_no_lock(block, data)
     }
-    fn write_block(&self, block: u32, data: &RRefVec<u8>) -> AlienResult<usize> {
+    fn write_block(&self, block: u32, data: &DVec<u8>) -> AlienResult<usize> {
         if static_branch_likely!(BLKDOMAINPROXY_KEY_FAKE) {
             return self.__write_block_with_lock(block, data);
         }
@@ -130,7 +130,7 @@ impl BlkDeviceDomain for BlkDomainProxy {
 }
 impl BlkDomainProxy {
     #[inline(always)]
-    fn __read_block(&self, block: u32, data: RRefVec<u8>) -> AlienResult<RRefVec<u8>> {
+    fn __read_block(&self, block: u32, data: DVec<u8>) -> AlienResult<DVec<u8>> {
         let r_domain = self.domain.get();
         let id = r_domain.domain_id();
         let old_id = data.move_to(id);
@@ -141,7 +141,7 @@ impl BlkDomainProxy {
         res
     }
     #[inline(always)]
-    fn __read_block_no_lock(&self, block: u32, data: RRefVec<u8>) -> AlienResult<RRefVec<u8>> {
+    fn __read_block_no_lock(&self, block: u32, data: DVec<u8>) -> AlienResult<DVec<u8>> {
         self.counter.inc();
         let res = self.__read_block(block, data);
         self.counter.dec();
@@ -149,20 +149,20 @@ impl BlkDomainProxy {
     }
     #[cold]
     #[inline(always)]
-    fn __read_block_with_lock(&self, block: u32, data: RRefVec<u8>) -> AlienResult<RRefVec<u8>> {
+    fn __read_block_with_lock(&self, block: u32, data: DVec<u8>) -> AlienResult<DVec<u8>> {
         let r_lock = self.lock.read();
         let res = self.__read_block(block, data);
         drop(r_lock);
         res
     }
     #[inline(always)]
-    fn __write_block(&self, block: u32, data: &RRefVec<u8>) -> AlienResult<usize> {
+    fn __write_block(&self, block: u32, data: &DVec<u8>) -> AlienResult<usize> {
         let r_domain = self.domain.get();
         let res = r_domain.write_block(block, data).map(|r| r);
         res
     }
     #[inline(always)]
-    fn __write_block_no_lock(&self, block: u32, data: &RRefVec<u8>) -> AlienResult<usize> {
+    fn __write_block_no_lock(&self, block: u32, data: &DVec<u8>) -> AlienResult<usize> {
         self.counter.inc();
         let res = self.__write_block(block, data);
         self.counter.dec();
@@ -170,7 +170,7 @@ impl BlkDomainProxy {
     }
     #[cold]
     #[inline(always)]
-    fn __write_block_with_lock(&self, block: u32, data: &RRefVec<u8>) -> AlienResult<usize> {
+    fn __write_block_with_lock(&self, block: u32, data: &DVec<u8>) -> AlienResult<usize> {
         let r_lock = self.lock.read();
         let res = self.__write_block(block, data);
         drop(r_lock);

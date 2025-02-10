@@ -14,8 +14,8 @@ use pconst::{
     io::{PollEvents, RtcTime, SeekFrom},
     net::*,
 };
-use rref::{RRef, RRefVec, SharedData};
 pub use scheduler::SchedulerDomainProxy;
+use shared_heap::{DBox, DVec, SharedData};
 use spin::Once;
 use vfscore::{fstype::FileSystemFlags, inode::InodeAttr, superblock::SuperType, utils::*};
 

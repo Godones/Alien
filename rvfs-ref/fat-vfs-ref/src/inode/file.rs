@@ -8,7 +8,7 @@ use vfscore::{
     inode::{InodeAttr, VfsInode},
     superblock::VfsSuperBlock,
     utils::{VfsFileStat, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsRenameFlag, VfsTime},
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 use crate::{fs::FatFsSuperBlock, inode::FatFsInodeSame, *};
@@ -57,7 +57,7 @@ where
 }
 
 impl<R: VfsRawMutex + 'static> VfsFile for FatFsFileInode<R> {
-    fn read_at(&self, offset: u64, mut o_buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, offset: u64, mut o_buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         let mut file = self.file.lock();
         let fat_offset = file.offset();
         if offset != fat_offset as u64 {
@@ -76,7 +76,7 @@ impl<R: VfsRawMutex + 'static> VfsFile for FatFsFileInode<R> {
         }
         Ok((o_buf, count))
     }
-    fn write_at(&self, offset: u64, buf: &RRefVec<u8>) -> VfsResult<usize> {
+    fn write_at(&self, offset: u64, buf: &DVec<u8>) -> VfsResult<usize> {
         if buf.is_empty() {
             return Ok(0);
         }

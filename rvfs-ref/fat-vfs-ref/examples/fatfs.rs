@@ -11,7 +11,7 @@ use log::info;
 use spin::Mutex;
 use vfscore::{
     error::VfsError, file::VfsFile, fstype::VfsFsType, inode::VfsInode, path::print_fs_tree,
-    utils::*, RRefVec, VfsResult,
+    utils::*, DVec, VfsResult,
 };
 
 #[derive(Clone)]
@@ -84,7 +84,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .inode()?
         .create("f4", VfsNodeType::File, "rwxrwxrwx".into(), None)?;
     let mut offset = 0;
-    let mut buf = RRefVec::new(0, 1024);
+    let mut buf = DVec::new(0, 1024);
     let mut data = 1;
     loop {
         buf.fill(data);
@@ -131,7 +131,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     f3.truncate(10)?;
     let stat = f3.get_attr()?;
     assert_eq!(stat.st_size, 10);
-    let w = f3.write_at(10, &RRefVec::new(1, 10))?;
+    let w = f3.write_at(10, &DVec::new(1, 10))?;
     assert_eq!(w, 10);
     f3.flush()?;
     let stat = f3.get_attr()?;
@@ -149,12 +149,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     print_fs_tree(&mut FakeWriter, root.clone(), "".to_string(), true)?;
     let sb = root.inode()?.get_super_block()?;
 
-    let buf = RRefVec::new(0, 1024);
+    let buf = DVec::new(0, 1024);
     let w = f4.write_at(10, &buf)?;
     assert_eq!(w, 1024);
     let attr = f4.get_attr()?;
     assert_eq!(attr.st_size, 1034);
-    let buf = RRefVec::new(0, 1034);
+    let buf = DVec::new(0, 1034);
     let (_buf, r) = f4.read_at(0, buf)?;
     assert_eq!(r, 1034);
 
@@ -241,7 +241,7 @@ impl DeviceInode {
 }
 
 impl VfsFile for DeviceInode {
-    fn read_at(&self, offset: u64, mut buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, offset: u64, mut buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         use std::io::{Read, Seek};
         self.file
             .lock()
@@ -255,7 +255,7 @@ impl VfsFile for DeviceInode {
             .map_err(|_| VfsError::IoError)?;
         Ok((buf, r))
     }
-    fn write_at(&self, offset: u64, buf: &RRefVec<u8>) -> VfsResult<usize> {
+    fn write_at(&self, offset: u64, buf: &DVec<u8>) -> VfsResult<usize> {
         use std::io::{Seek, Write};
         self.file
             .lock()

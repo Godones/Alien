@@ -11,7 +11,7 @@ use vfscore::{
         VfsFileStat, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsPollEvents, VfsRenameFlag, VfsTime,
         VfsTimeSpec,
     },
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 use super::*;
@@ -47,7 +47,7 @@ impl<T: RamFsProvider + 'static, R: VfsRawMutex + 'static> RamFsFileInode<T, R> 
 }
 
 impl<T: RamFsProvider + 'static, R: VfsRawMutex + 'static> VfsFile for RamFsFileInode<T, R> {
-    fn read_at(&self, offset: u64, buf: RRefVec<u8>) -> VfsResult<(RRefVec<u8>, usize)> {
+    fn read_at(&self, offset: u64, buf: DVec<u8>) -> VfsResult<(DVec<u8>, usize)> {
         let inner = self.inner.lock();
         let size = inner.data.len() as u64;
         let offset = offset.min(size);
@@ -57,7 +57,7 @@ impl<T: RamFsProvider + 'static, R: VfsRawMutex + 'static> VfsFile for RamFsFile
         buf.as_mut_slice()[..len].copy_from_slice(&data[offset as usize..offset as usize + len]);
         Ok((buf, len))
     }
-    fn write_at(&self, offset: u64, buf: &RRefVec<u8>) -> VfsResult<usize> {
+    fn write_at(&self, offset: u64, buf: &DVec<u8>) -> VfsResult<usize> {
         if buf.is_empty() {
             return Ok(0);
         }

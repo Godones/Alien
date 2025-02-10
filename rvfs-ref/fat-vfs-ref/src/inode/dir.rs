@@ -15,7 +15,7 @@ use vfscore::{
     utils::{
         VfsDirEntry, VfsFileStat, VfsInodeMode, VfsNodePerm, VfsNodeType, VfsRenameFlag, VfsTime,
     },
-    RRefVec, VfsResult,
+    DVec, VfsResult,
 };
 
 use crate::{

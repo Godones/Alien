@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 
 use fatfs::{IoBase, Read, Seek, SeekFrom, Write};
-use vfscore::{inode::VfsInode, RRefVec};
+use vfscore::{inode::VfsInode, DVec};
 
 #[derive(Clone)]
 pub struct FatDevice {
@@ -23,7 +23,7 @@ impl IoBase for FatDevice {
 }
 impl Write for FatDevice {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        let rvec = RRefVec::from_other_rvec_slice(buf);
+        let rvec = DVec::from_other_rvec_slice(buf);
         let len = self
             .device_file
             .write_at(self.pos as u64, &rvec)
@@ -39,7 +39,7 @@ impl Write for FatDevice {
 
 impl Read for FatDevice {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        let rvec = RRefVec::from_other_rvec_slice(buf);
+        let rvec = DVec::from_other_rvec_slice(buf);
         let (_buf, len) = self
             .device_file
             .read_at(self.pos as u64, rvec)

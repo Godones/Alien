@@ -10,7 +10,7 @@ use core::{alloc::Layout, any::TypeId};
 use config::FRAME_SIZE;
 use hashbrown::HashMap;
 use ksync::Mutex;
-use rref::{SharedHeapAlloc, SharedHeapAllocation};
+use shared_heap::{SharedHeapAlloc, SharedHeapAllocation};
 use spin::Lazy;
 
 static SHARED_HEAP: Mutex<BTreeMap<usize, SharedHeapAllocation>> = Mutex::new(BTreeMap::new());

@@ -205,7 +205,7 @@ fn main(
 以调度器为例，我们看域如何保存和恢复这些需要同步的更新数据：
 
 ```rust
-type __TaskList = Mutex<VecDeque<RRef<TaskSchedulingInfo>, DataStorageHeap>>;
+type __TaskList = Mutex<VecDeque<DBox<TaskSchedulingInfo>, DataStorageHeap>>;
 type TaskList = Arc<__TaskList, DataStorageHeap>;
 #[derive(Debug)]
 pub struct CustomFiFoScheduler {

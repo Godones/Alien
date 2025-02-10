@@ -9,7 +9,7 @@ use vfscore::{
     fstype::VfsFsType,
     path::DirIter,
     utils::{VfsNodePerm, VfsNodeType, VfsTimeSpec},
-    RRefVec,
+    DVec,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let root_inode = root.inode()?;
     // write dir will cause a error
     root_inode
-        .write_at(0, &RRefVec::new(0, 10))
+        .write_at(0, &DVec::new(0, 10))
         .is_err()
         .then(|| error!("write to dir error"));
 
@@ -58,10 +58,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .then(|| info!("find test file ok"));
 
     test_inode
-        .write_at(0, &RRefVec::new(b'x', 10))
+        .write_at(0, &DVec::new(b'x', 10))
         .is_ok()
         .then(|| info!("write to file xxxxxxxxxx ok"));
-    let buf = RRefVec::new(0, 10);
+    let buf = DVec::new(0, 10);
     let (buf, _r) = test_inode.read_at(0, buf).unwrap();
     println!(
         "read file ok, the content is {}",
