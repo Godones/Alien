@@ -51,7 +51,7 @@ unwinding = { git = "https://github.com/nbdd0121/unwinding", rev = "ff0e91b", de
 
 
 [features]
-default = ["rust-unwind"]
+default = ["rust-unwind","time-tick"]
 rust-unwind = ["dep:unwinding"]
 bench = []
 test = []

@@ -18,14 +18,21 @@ fn main() {
     let blk_size = args[1].parse::<usize>().unwrap();
     read_bash_test(blk_size);
 
-    let read_thread = std::thread::spawn(|| {
-        read_bash_for_sec(10);
-    });
+    let mut read_threads = vec![];
+    for _ in 0..3 {
+        let read_thread = std::thread::spawn(|| {
+            read_bash_for_sec(5);
+        });
+        read_threads.push(read_thread);
+    }
+
     let update_thread = std::thread::spawn(|| {
-        update_vfs();
+        update_vfs(2);
     });
 
-    read_thread.join().unwrap();
+    for read_thread in read_threads {
+        read_thread.join().unwrap();
+    }
     update_thread.join().unwrap();
 }
 
@@ -80,22 +87,23 @@ fn read_bash_for_sec(sec: usize) {
             break;
         }
     }
-    for i in 0..bytes_per_100ms.len() {
-        println!("{}ms: {} bytes", bytes_per_100ms[i].1, bytes_per_100ms[i].0);
-    }
+    // for i in 0..bytes_per_100ms.len() {
+    //     println!("{}ms: {} bytes", bytes_per_100ms[i].1, bytes_per_100ms[i].0);
+    // }
     let ms = now.elapsed().as_millis();
     let speed = bytes as f64 * 1000.0 / ms as f64 / 1024.0;
+    let tid = std::thread::current().id();
     println!(
-        "Read {} bytes in {}ms, speed: {} KB/s",
+        "[Tid:{:?}] Read {} bytes in {}ms, speed: {} KB/s",tid ,
         bytes, ms, speed as isize
     );
 }
 
-fn update_vfs() {
+fn update_vfs(sec:usize) {
     let now = Instant::now();
     loop {
         let elapsed = now.elapsed().as_secs();
-        if elapsed >= 5 {
+        if elapsed >= sec as u64 {
             break;
         } else {
             yield_now()
@@ -108,7 +116,7 @@ fn update_vfs() {
         .domain_file_name("vfs2")
         .domain_name("vfs");
 
-    builder.clone().register_domain_file().unwrap();
+    // builder.clone().register_domain_file().unwrap();
 
     builder.update_domain().unwrap();
     println!("Test register and update vfs domain success");
