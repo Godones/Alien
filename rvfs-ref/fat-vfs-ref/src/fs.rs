@@ -24,6 +24,7 @@ pub struct FatFs<T: Send + Sync, R: VfsRawMutex> {
     #[allow(unused)]
     provider: T,
     fs_container: Mutex<R, BTreeMap<usize, Arc<FatFsSuperBlock<R>>>>,
+    magic: u128,
 }
 
 impl<T: Send + Sync, R: VfsRawMutex> FatFs<T, R> {
@@ -31,6 +32,7 @@ impl<T: Send + Sync, R: VfsRawMutex> FatFs<T, R> {
         Self {
             provider,
             fs_container: Mutex::new(BTreeMap::new()),
+            magic: uuid::Uuid::new_v4().as_u128(),
         }
     }
 }
@@ -53,7 +55,12 @@ impl<T: FatFsProvider + 'static, R: VfsRawMutex + 'static> VfsFsType for FatFs<T
             return sb.root_dentry(ab_mnt);
         }
         let fat_dev = FatDevice::new(dev);
-        let sb = FatFsSuperBlock::<R>::new(&(self.clone() as Arc<dyn VfsFsType>), fat_dev, ab_mnt);
+        let sb = FatFsSuperBlock::<R>::new(
+            &(self.clone() as Arc<dyn VfsFsType>),
+            fat_dev,
+            ab_mnt,
+            self.magic,
+        );
         // we use dev_ino as the key to store the superblock
         self.fs_container
             .lock()
@@ -94,10 +101,16 @@ pub struct FatFsSuperBlock<R: VfsRawMutex> {
     root: Mutex<R, Option<Arc<dyn VfsInode>>>,
     fs: FileSystem<FatDevice, DefaultTimeProvider, LossyOemCpConverter>,
     mnt_info: Mutex<R, BTreeMap<String, Arc<dyn VfsDentry>>>,
+    magic: u128,
 }
 
 impl<R: VfsRawMutex + 'static> FatFsSuperBlock<R> {
-    pub fn new(fs_type: &Arc<dyn VfsFsType>, device: FatDevice, ab_mnt: &str) -> Arc<Self> {
+    pub fn new(
+        fs_type: &Arc<dyn VfsFsType>,
+        device: FatDevice,
+        ab_mnt: &str,
+        magic: u128,
+    ) -> Arc<Self> {
         let fs = FileSystem::new(device.clone(), fatfs::FsOptions::new()).unwrap();
         let root_disk_dir = Arc::new(Mutex::new(fs.root_dir()));
         let sb = Arc::new(Self {
@@ -106,6 +119,7 @@ impl<R: VfsRawMutex + 'static> FatFsSuperBlock<R> {
             root: Mutex::new(None),
             fs,
             mnt_info: Mutex::new(BTreeMap::new()),
+            magic,
         });
         let root_inode = Arc::new(FatFsDirInode::new(
             &root_disk_dir.clone(),
@@ -175,5 +189,8 @@ impl<R: VfsRawMutex + 'static> VfsSuperBlock for FatFsSuperBlock<R> {
     fn root_inode(&self) -> VfsResult<Arc<dyn VfsInode>> {
         let root = self.root.lock().clone().unwrap();
         Ok(root)
+    }
+    fn magic(&self) -> u128 {
+        self.magic
     }
 }

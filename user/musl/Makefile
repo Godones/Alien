@@ -20,4 +20,5 @@ BUILD_CRATES := \
 	hello \
 	async_test \
 	ftest \
-	fs_update
+	fs_update \
+	pingpong

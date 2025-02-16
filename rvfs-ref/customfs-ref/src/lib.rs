@@ -20,6 +20,7 @@ pub trait FsKernelProvider: Send + Sync + Clone {
 pub struct CustomFs<T: Send + Sync, R: VfsRawMutex> {
     fs: UniFs<T, R>,
     root_inode: Arc<dyn VfsInode>,
+    magic: u128,
 }
 
 impl<T: FsKernelProvider + 'static, R: VfsRawMutex + 'static> CustomFs<T, R> {
@@ -27,7 +28,12 @@ impl<T: FsKernelProvider + 'static, R: VfsRawMutex + 'static> CustomFs<T, R> {
         Self {
             fs: UniFs::new(fs_name, provider),
             root_inode,
+            magic: uuid::Uuid::new_v4().as_u128(),
         }
+    }
+
+    pub fn magic(&self) -> u128 {
+        self.magic
     }
 }
 
@@ -42,7 +48,7 @@ impl<T: FsKernelProvider + 'static, R: VfsRawMutex + 'static> VfsFsType for Cust
         let fs = self.clone() as Arc<dyn VfsFsType>;
         let mut this = self.fs.sb.lock();
         if this.is_none() {
-            let sb = UniFsSuperBlock::new(&fs);
+            let sb = UniFsSuperBlock::new(&fs, self.magic);
             let root = self.root_inode.clone();
             *sb.root.lock() = Some(root);
             sb.inode_index

@@ -564,7 +564,8 @@ fn checkout_busy(dentry: &Arc<dyn VfsDentry>, context: &SysContext) -> VfsResult
 fn check_same_fs(dentry1: &Arc<dyn VfsDentry>, dentry2: &Arc<dyn VfsDentry>) -> VfsResult<()> {
     let fs1 = dentry1.inode()?.get_super_block()?;
     let fs2 = dentry2.inode()?.get_super_block()?;
-    if !Arc::ptr_eq(&fs1, &fs2) {
+    if fs1.magic() != fs2.magic() {
+        log::error!("fs1 magic: {}, fs2 magic: {}", fs1.magic(), fs2.magic());
         return Err(VfsError::Invalid);
     }
     Ok(())

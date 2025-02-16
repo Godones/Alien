@@ -94,12 +94,12 @@ fn read_bash_for_sec(sec: usize) {
     let speed = bytes as f64 * 1000.0 / ms as f64 / 1024.0;
     let tid = std::thread::current().id();
     println!(
-        "[Tid:{:?}] Read {} bytes in {}ms, speed: {} KB/s",tid ,
-        bytes, ms, speed as isize
+        "[Tid:{:?}] Read {} bytes in {}ms, speed: {} KB/s",
+        tid, bytes, ms, speed as isize
     );
 }
 
-fn update_vfs(sec:usize) {
+fn update_vfs(sec: usize) {
     let now = Instant::now();
     loop {
         let elapsed = now.elapsed().as_secs();

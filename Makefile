@@ -6,7 +6,7 @@ KERNEL := target/$(TARGET2)/$(PROFILE)/kernel
 QEMU := qemu-system-riscv64
 NET ?= y
 SMP ?= 4
-MEMORY_SIZE := 1024M
+MEMORY_SIZE := 2048M
 LOG ?=
 GUI ?=n
 FS ?=fat
@@ -61,7 +61,7 @@ build:
 	@echo "SM: $(SMP)"
 	@echo "VF2_SD: $(VF2_SD)"
 	@#LOG=$(LOG) cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
-	LOG=$(LOG) cargo build --release -p kernel --target $(TARGET_CONFIG) $(BUILD_CFG) --features $(FEATURES)
+	RUSTFLAGS='--cfg getrandom_backend="custom"' LOG=$(LOG) cargo build --release -p kernel --target $(TARGET_CONFIG) $(BUILD_CFG) --features $(FEATURES)
 
 vf2: build
 	rust-objcopy --strip-all $(KERNEL) -O binary ./testos.bin
@@ -135,7 +135,7 @@ initrd:
 	@mkdir -p ./initrd
 	@cp ./build/init/g* ./initrd
 	@cp ./user/initrd/initramfs/* ./initrd -r
-	@-cp ./user/bin/* ./initrd/bin -r
+	@#-cp ./user/bin/* ./initrd/bin -r
 	@#cd ./initrd && find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..
 	@cd ./initrd && find . | cpio -o -H newc | gzip -9 > ../build/initramfs.cpio.gz && cd ..
 	@rm -rf ./initrd

@@ -301,12 +301,14 @@ impl<R: VfsRawMutex + 'static> VfsInode for FatFsDirInode<R> {
                 .downcast_arc::<FatFsDirInode<R>>()
                 .map_err(|_| VfsError::Invalid)?;
             if Arc::ptr_eq(&self.dir, &new_parent.dir) {
+                let _ = dir.remove(new_name);
                 dir.rename(old_name, &*dir, new_name).map_err(|e| match e {
                     Error::NotFound => VfsError::NoEntry,
                     Error::AlreadyExists => VfsError::EExist,
                     _ => VfsError::IoError,
                 })?;
             } else {
+                let _ = dir.remove(new_name);
                 dir.rename(old_name, &*new_parent.dir.lock(), new_name)
                     .map_err(|e| match e {
                         Error::NotFound => VfsError::NoEntry,

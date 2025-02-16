@@ -50,7 +50,7 @@ impl<T: RamFsProvider + 'static, R: VfsRawMutex + 'static> VfsFsType for RamFs<T
         _data: &[u8],
     ) -> VfsResult<Arc<dyn VfsDentry>> {
         let unifs = Arc::new(UniFs::<T, R>::new("ramfs", self.provider.clone()));
-        let sb = UniFsSuperBlock::new(&(self.clone() as Arc<dyn VfsFsType>));
+        let sb = UniFsSuperBlock::new(&(self.clone() as Arc<dyn VfsFsType>), unifs.magic());
         let root = Arc::new(RamFsDirInode::new(
             &sb,
             self.provider.clone(),

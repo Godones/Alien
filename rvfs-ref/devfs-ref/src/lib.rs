@@ -43,7 +43,7 @@ impl<T: DevKernelProvider + 'static, R: VfsRawMutex + 'static> VfsFsType for Dev
         _data: &[u8],
     ) -> VfsResult<Arc<dyn VfsDentry>> {
         if self.0.sb.lock().is_none() {
-            let sb = UniFsSuperBlock::new(&(self.clone() as Arc<dyn VfsFsType>));
+            let sb = UniFsSuperBlock::new(&(self.clone() as Arc<dyn VfsFsType>), self.0.magic());
             let root = Arc::new(DevFsDirInode::new(
                 0,
                 self.0.provider.clone(),

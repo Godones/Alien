@@ -171,7 +171,7 @@ impl TrapHandler for Trap {
                 task_domain!()
                     .do_load_page_fault(stval)
                     .expect("do_load_page_fault failed");
-                panic!(
+                debug!(
                     "<do_user_handle> {:?}, stval:{:#x?} sepc:{:#x?}",
                     self, stval, sepc
                 );

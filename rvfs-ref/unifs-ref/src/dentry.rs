@@ -120,13 +120,14 @@ impl<R: VfsRawMutex + 'static> VfsDentry for UniFsDentry<R> {
                 },
             }),
         });
-        self.inner
+        let _old = self
+            .inner
             .lock()
             .children
             .as_mut()
             .unwrap()
-            .insert(name.to_string(), child.clone())
-            .map_or(Ok(child), |_| Err(VfsError::EExist))
+            .insert(name.to_string(), child.clone());
+        Ok(child as Arc<dyn VfsDentry>)
     }
 
     fn remove(&self, name: &str) -> Option<Arc<dyn VfsDentry>> {

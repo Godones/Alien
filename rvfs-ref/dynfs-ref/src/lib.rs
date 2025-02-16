@@ -43,7 +43,7 @@ impl<T: DynFsKernelProvider + 'static, R: VfsRawMutex + 'static> VfsFsType for D
         let fs = self.clone() as Arc<dyn VfsFsType>;
         let mut this = self.0.sb.lock();
         if this.is_none() {
-            let sb = UniFsSuperBlock::new(&fs);
+            let sb = UniFsSuperBlock::new(&fs, self.0.magic());
             let root = Arc::new(DynFsDirInode::new(
                 0,
                 self.0.provider.clone(),

@@ -39,6 +39,8 @@ pub trait VfsSuperBlock: Send + Sync + DowncastSync {
 
     /// Get the root inode of this super block
     fn root_inode(&self) -> VfsResult<Arc<dyn VfsInode>>;
+
+    fn magic(&self) -> u128;
 }
 
 impl_downcast!(sync  VfsSuperBlock);

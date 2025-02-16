@@ -31,6 +31,7 @@ pub struct UniFs<T: Send + Sync, R: VfsRawMutex> {
     real_fs: &'static str,
     pub provider: T,
     pub sb: lock_api::Mutex<R, Option<Arc<UniFsSuperBlock<R>>>>,
+    magic: u128,
 }
 
 impl<T: Send + Sync, R: VfsRawMutex + 'static> UniFs<T, R> {
@@ -39,7 +40,12 @@ impl<T: Send + Sync, R: VfsRawMutex + 'static> UniFs<T, R> {
             real_fs: name,
             provider,
             sb: lock_api::Mutex::new(None),
+            magic: uuid::Uuid::new_v4().as_u128(),
         }
+    }
+
+    pub fn magic(&self) -> u128 {
+        self.magic
     }
 }
 
@@ -75,11 +81,12 @@ pub struct UniFsSuperBlock<R: VfsRawMutex> {
     pub inode_count: AtomicUsize,
     inode_cache: lock_api::Mutex<R, BTreeMap<u64, Arc<dyn VfsInode>>>,
     pub mnt_info: lock_api::Mutex<R, BTreeMap<String, Arc<dyn VfsDentry>>>,
+    magic: u128,
 }
 
 impl<R: VfsRawMutex + 'static> UniFsSuperBlock<R> {
     /// Call this function only once
-    pub fn new(fs_type: &Arc<dyn VfsFsType>) -> Arc<Self> {
+    pub fn new(fs_type: &Arc<dyn VfsFsType>, magic: u128) -> Arc<Self> {
         Arc::new(Self {
             fs_type: Arc::downgrade(fs_type),
             root: lock_api::Mutex::new(None),
@@ -87,6 +94,7 @@ impl<R: VfsRawMutex + 'static> UniFsSuperBlock<R> {
             inode_count: AtomicUsize::new(0),
             inode_cache: lock_api::Mutex::new(BTreeMap::new()),
             mnt_info: lock_api::Mutex::new(BTreeMap::new()),
+            magic,
         })
     }
     pub fn insert_inode(&self, inode_number: u64, inode: Arc<dyn VfsInode>) {
@@ -155,5 +163,8 @@ impl<R: VfsRawMutex + 'static> VfsSuperBlock for UniFsSuperBlock<R> {
         } else {
             Err(VfsError::Invalid)
         }
+    }
+    fn magic(&self) -> u128 {
+        self.magic
     }
 }

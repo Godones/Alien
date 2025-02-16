@@ -10,6 +10,10 @@ lock_api = { version = "0",default-features = false }
 vfscore = { path = "../vfscore-ref", package = "vfscore-ref" }
 log = "0.4.14"
 
+[dependencies.uuid]
+version = "1.13.1"
+default-features = false
+features = ["v4"]
 
 [dev-dependencies]
 spin = "0"

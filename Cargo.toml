@@ -16,7 +16,8 @@ members = [
     "user/musl/hello",
     "user/musl/async_test",
     "user/musl/ftest",
-    "user/musl/fs_update"
+    "user/musl/fs_update",
+    "user/musl/pingpong",
 ]
 resolver = "2"
 
