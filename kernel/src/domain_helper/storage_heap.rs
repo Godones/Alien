@@ -11,7 +11,7 @@ use core::{
 };
 
 use ksync::Mutex;
-use storage::{DataStorageHeap, DomainDataStorage, SendAllocator};
+use storage::{CustomStorge, DomainDataStorage, SendAllocator};
 
 pub struct DomainDataMapManager {
     map_per_domain: BTreeMap<u64, DomainDataMap>,
@@ -49,7 +49,7 @@ impl DomainDataMapManager {
     }
 }
 
-type ArcValueType = Arc<dyn Any + Send + Sync, DataStorageHeap>;
+type ArcValueType = Arc<dyn Any + Send + Sync, CustomStorge>;
 
 #[derive(Debug)]
 pub struct DomainDataMap {
