@@ -4,6 +4,7 @@ use core::{any::Any, fmt::Debug, mem::forget};
 use interface::*;
 use jtable::*;
 use ksync::RwLock;
+use mem::free_frames;
 use paste::paste;
 use shared_heap::{DBox, SharedData};
 use task_meta::TaskSchedulingInfo;
@@ -220,7 +221,7 @@ impl SchedulerDomainProxy {
         // todo!(how to recycle the old domain)
         // We should not free the shared data here, because the shared data will be used
         // in new domain.
-        free_domain_resource(old_id, FreeShared::NotFree(new_domain_id));
+        free_domain_resource(old_id, FreeShared::NotFree(new_domain_id), free_frames);
         drop(tick);
 
         // stage6: release all locks

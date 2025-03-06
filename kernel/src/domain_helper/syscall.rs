@@ -6,12 +6,13 @@ use corelib::{
     domain_info::{DomainDataInfo, DomainFileInfo},
     CoreFunction,
 };
+use domain_manager::resource::DOMAIN_RESOURCE;
 use interface::*;
 use platform::iprint;
 use task_meta::{OperationResult, TaskOperation};
 
 use crate::{
-    domain_helper::{resource::DOMAIN_RESOURCE, DOMAIN_CREATE, DOMAIN_INFO},
+    domain_helper::{DOMAIN_CREATE, DOMAIN_INFO},
     domain_proxy::*,
     error::{AlienError, AlienResult},
 };

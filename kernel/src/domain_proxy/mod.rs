@@ -8,6 +8,7 @@ use config::CPU_NUM;
 use interface::*;
 use jtable::*;
 use ksync::{Mutex, RwLock};
+use mem::free_frames;
 use paste::paste;
 use pconst::{
     epoll::EpollEvent,
@@ -147,7 +148,7 @@ impl BlkDomainProxy {
         // stage5: recycle all resources
         let real_domain = Box::into_inner(old_domain);
         forget(real_domain);
-        free_domain_resource(old_id, FreeShared::Free);
+        free_domain_resource(old_id, FreeShared::Free, free_frames);
 
         // stage6: release all locks
         *loader_guard = loader;

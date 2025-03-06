@@ -26,6 +26,7 @@ basic = { path = "../domain-lib/basic", features = ["task"] }
 task_meta = { path = "../domain-lib/task_meta" }
 storage = { path = "../domain-lib/storage" }
 loader = { path = "../domain-lib/loader" }
+domain_manager = { path = "../domain-lib/domain_manager" }
 
 vfscore = { path = "../rvfs-ref/vfscore-ref", package = "vfscore-ref", features = [
     "linux_error",
