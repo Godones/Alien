@@ -2,18 +2,9 @@
 #![no_std]
 extern crate Mstd;
 extern crate alloc;
-
-use alloc::sync::Arc;
-
-use simplegui::{
-    complex::{desktop::Desktop, terminal::GodTerminal},
-    GPUDevice,
-};
 use Mstd::{
-    gui::embedded_graphics::geometry::{Point, Size},
     io::{flush_frame_buffer, frame_buffer, VIRTGPU_XRES, VIRTGPU_YRES},
     println,
-    sync::mutex::Mutex,
 };
 
 struct GpuDevice {
@@ -27,7 +18,7 @@ impl GpuDevice {
     }
 }
 
-impl GPUDevice for GpuDevice {
+impl GpuDevice {
     fn flush(&self) {
         flush_frame_buffer();
     }
@@ -45,9 +36,12 @@ impl GPUDevice for GpuDevice {
 #[no_mangle]
 fn main() {
     println!("embedded graphics demo");
-    simplegui::init_gpu(Arc::new(Mutex::new(GpuDevice::new())));
-    let desk = Desktop::new(VIRTGPU_XRES as u32, VIRTGPU_YRES as u32);
-    desk.paint();
-    let terminal = GodTerminal::new(Size::new(300, 300), Point::new(100, 100));
-    terminal.add_str("hello world");
+    let mut device = GpuDevice::new();
+    for x in 0..VIRTGPU_XRES {
+        for y in 0..VIRTGPU_YRES {
+            device.draw_point(x as i32, y as i32, 0x00ff00);
+        }
+    }
+    device.flush();
+    println!("embedded graphics demo end");
 }
