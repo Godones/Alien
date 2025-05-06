@@ -22,12 +22,7 @@ static RECURSION: AtomicBool = AtomicBool::new(false);
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     if let Some(p) = info.location() {
-        println!(
-            "line {}, file {}: {}",
-            p.line(),
-            p.file(),
-            info.message().unwrap()
-        );
+        println!("line {}, file {}: {}", p.line(), p.file(), info.message());
     } else {
         println!("no location information available");
     }

@@ -12,4 +12,4 @@ arch = { path = "../arch" }
 
 [features]
 debug-eh-frame = []
-debug-frame-pointer = []
+debug-frame-point = []

@@ -1,4 +1,7 @@
 #![feature(atomic_from_mut)]
+// To handle compiler bugs
+#![allow(incomplete_features)]
+#![feature(generic_const_exprs)]
 #![no_std]
 #![no_main]
 
