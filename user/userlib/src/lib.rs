@@ -1,16 +1,14 @@
-#![feature(panic_info_message)]
 #![no_std]
 #![feature(linkage)]
 #![allow(unused)]
 #![allow(non_snake_case)]
-#![feature(naked_functions)]
 extern crate alloc;
 
 use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::arch::asm;
+use core::arch::naked_asm;
 
 use crate::{heap::init_heap, process::exit, syscall::__system_shutdown};
 
@@ -35,14 +33,13 @@ pub mod gui;
 pub mod sync;
 
 #[no_mangle]
-#[naked]
+#[unsafe(naked)]
 extern "C" fn _start() -> ! {
     unsafe {
-        asm!(
+        naked_asm!(
             "mv a0,sp
-        call _start_rust
-        ",
-            options(noreturn)
+             call _start_rust
+            ",
         )
     }
 }

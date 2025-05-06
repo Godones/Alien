@@ -97,7 +97,7 @@ impl Dirent64 {
     pub fn get_name(&self) -> &str {
         unsafe {
             let name = self.name.as_ptr();
-            let name = core::ffi::CStr::from_ptr(name as *const i8);
+            let name = core::ffi::CStr::from_ptr(name);
             name.to_str().unwrap()
         }
     }

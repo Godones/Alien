@@ -837,7 +837,7 @@ impl TaskInner {
                 .query(VirtAddr::from(start))
                 .expect(format!("transfer_buffer: {:x} failed", start).as_str());
             if !flag.contains(MappingFlags::V) {
-                panic!("transfer_buffer: {:x} not mapped", start);
+                panic!("transfer_buffer: {:#x} not mapped", start);
             }
             // start_phy向上取整到FRAME_SIZE
             let bound = (start & !(FRAME_SIZE - 1)) + FRAME_SIZE;
