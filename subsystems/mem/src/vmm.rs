@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+use core::sync::atomic::AtomicUsize;
 
 use config::{FRAME_BITS, FRAME_SIZE, TRAMPOLINE};
 use ksync::Mutex;
@@ -131,9 +132,10 @@ pub fn build_kernel_address_space(memory_end: usize) {
             .unwrap();
         println!("map mmio: {:#x?}-{:#x?}", pair.0, pair.0 + pair.1);
     }
+    KERNEL_MAP_MAX.store(memory_end, core::sync::atomic::Ordering::Relaxed);
 }
 
-// static KERNEL_MAP_MAX: AtomicUsize = AtomicUsize::new(0);
+static KERNEL_MAP_MAX: AtomicUsize = AtomicUsize::new(0);
 pub fn kernel_pgd() -> usize {
     KERNEL_SPACE.lock().root_paddr().as_usize()
 }
@@ -142,10 +144,11 @@ pub fn kernel_satp() -> usize {
     8usize << 60 | (KERNEL_SPACE.lock().root_paddr().as_usize() >> FRAME_BITS)
 }
 
-// pub fn alloc_kernel_free_region(size: usize) -> usize {
-//     assert!(size > 0 && size % FRAME_SIZE == 0);
-//     KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::SeqCst)
-// }
+/// Allocates a region of memory in the kernel space.
+pub fn alloc_kernel_free_region(size: usize) -> usize {
+    assert!(size > 0 && size % FRAME_SIZE == 0);
+    KERNEL_MAP_MAX.fetch_add(size, core::sync::atomic::Ordering::Relaxed)
+}
 
 pub fn map_region_to_kernel(addr: usize, size: usize, flags: MappingFlags) {
     let mut kernel_space = KERNEL_SPACE.lock();

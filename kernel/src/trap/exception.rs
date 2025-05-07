@@ -10,7 +10,10 @@ use constants::{AlienError, AlienResult};
 use riscv::register::scause::{Exception, Trap};
 use vfs::kfile::File;
 
-use crate::task::{current_task, current_trap_frame};
+use crate::{
+    task::{current_task, current_trap_frame},
+    trap::context::CommonTrapFrame,
+};
 
 /// 系统调用异常处理
 pub fn syscall_exception_handler() {
@@ -157,5 +160,30 @@ pub fn trap_common_read_file(file: Arc<dyn File>, buf: &mut [u8], offset: u64) {
     let r = file.read_at(offset, buf);
     if r.is_err() {
         info!("page fault: read file error");
+    }
+}
+
+/// break 异常处理
+pub fn ebreak_handler(mut frame: CommonTrapFrame) {
+    println_color!(
+        34,
+        "ebreak_handler from kernel[{}]/user[{}]",
+        frame.is_kernel(),
+        frame.is_user()
+    );
+    let res = crate::kprobe::run_all_kprobe(&mut frame);
+    if res.is_some() {
+        // if kprobe is hit, the spec will be updated in kprobe_handler
+        return;
+    }
+    match frame {
+        // from kernel
+        CommonTrapFrame::Kernel(ktrap) => {
+            ktrap.set_sepc(ktrap.sepc() + 2);
+        }
+        // from user
+        CommonTrapFrame::User(utrap) => {
+            utrap.set_sepc(utrap.sepc() + 2);
+        }
     }
 }

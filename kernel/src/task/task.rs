@@ -601,7 +601,7 @@ impl TaskInner {
         if self.trap_cx_before_signal.is_some() {
             return false;
         }
-        self.trap_cx_before_signal = Some(*trap_frame);
+        self.trap_cx_before_signal = Some(trap_frame.clone());
         self.signal_set_siginfo = false;
         true
     }
@@ -1655,7 +1655,7 @@ impl Task {
         if !flag.contains(CloneFlags::CLONE_PARENT) {
             inner.children.push(task.clone());
         }
-        error!("create a task success");
+        info!("create a task success");
         Some(task)
     }
 

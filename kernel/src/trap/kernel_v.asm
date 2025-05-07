@@ -14,6 +14,7 @@
 kernel_v:
     addi sp, sp, -34*8
     sd x1, 1*8(sp)
+    # sd sp, 2*8(sp) # x2 = sp
     sd x3, 3*8(sp)
     sd x4, 4*8(sp)
     .set n, 5
@@ -27,21 +28,20 @@ kernel_v:
     sd t1, 33*8(sp)
     mv a0, sp
     # call the C trap handler in trap.c
-    csrr t2, sscratch
-    jalr t2
+    # csrr t2, sscratch
+    call kernel_trap_vector
 
-
-     ld t0, 32*8(sp)
-     ld t1, 33*8(sp)
-     csrw sstatus, t0
-     csrw sepc, t1
-     ld x1, 1*8(sp)
-     ld x3, 3*8(sp)
-     ld x4, 4*8(sp)
-     .set n, 5
-     .rept 27
-         KLOAD_GP %n
-         .set n, n+1
-     .endr
-     addi sp, sp, 34*8
-     sret
+    ld t0, 32*8(sp)
+    ld t1, 33*8(sp)
+    csrw sstatus, t0
+    csrw sepc, t1
+    ld x1, 1*8(sp)
+    ld x3, 3*8(sp)
+    ld x4, 4*8(sp)
+    .set n, 5
+    .rept 27
+        KLOAD_GP %n
+        .set n, n+1
+    .endr
+    addi sp, sp, 34*8
+    sret
