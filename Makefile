@@ -212,7 +212,7 @@ img-hex:
 	@cat test.hex
 
 gdb-server: sdcard install compile
-	@qemu-system-riscv64 \
+	qemu-system-riscv64 \
             -M virt\
             -bios $(BOOTLOADER) \
             -device loader,file=kernel-qemu,addr=$(KERNEL_ENTRY_PA) \
@@ -224,7 +224,7 @@ gdb-server: sdcard install compile
             -s -S
 
 gdb-client:
-	@riscv64-unknown-elf-gdb -ex 'file kernel-qemu' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
+	riscv64-unknown-elf-gdb -ex 'file kernel-qemu' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
 kernel_asm:
 	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm

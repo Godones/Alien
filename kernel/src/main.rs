@@ -2,16 +2,17 @@
 // To handle compiler bugs
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
+#![feature(breakpoint)]
 #![no_std]
 #![no_main]
 
+extern crate alloc;
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate syscall_table;
-#[macro_use]
 extern crate platform;
-extern crate alloc;
+#[macro_use]
+extern crate syscall_table;
 extern crate unwinder;
 use alloc::boxed::Box;
 
@@ -19,6 +20,7 @@ pub use syscall_table::*;
 mod fs;
 mod gui;
 mod ipc;
+mod kprobe;
 mod mm;
 mod net;
 mod system;
@@ -67,6 +69,8 @@ fn main(hart_id: usize) {
         trap::init_trap_subsystem();
         println!("hart {} start", arch::hart_id());
     }
+    #[cfg(feature = "kprobe_test")]
+    kprobe::kprobe_test::kprobe_test();
     time::set_next_trigger();
     println!("Begin run task...");
     task::schedule::run_task();

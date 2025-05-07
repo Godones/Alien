@@ -1,9 +1,13 @@
 //! Trap 上下文 (Trap帧) 的定义和相关操作
+
+use core::any::Any;
+
 use arch::ExtSstatus;
+use kprobe::ProbeArgs;
 use riscv::register::sstatus::SPP;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct TrapFrame {
     /// 整数寄存器组
     x: [usize; 32],
@@ -20,6 +24,76 @@ pub struct TrapFrame {
     /// 给出 Trap 发生之前 CPU 处在哪个特权级等信息
     sstatus: ExtSstatus,
     fg: [usize; 2],
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct KTrapFrame {
+    x: [usize; 32],
+    sstatus: ExtSstatus,
+    sepc: usize,
+}
+
+#[derive(Debug)]
+pub enum CommonTrapFrame {
+    Kernel(&'static mut KTrapFrame),
+    User(&'static mut TrapFrame),
+}
+
+impl CommonTrapFrame {
+    pub fn is_kernel(&self) -> bool {
+        match self {
+            CommonTrapFrame::Kernel(_) => true,
+            CommonTrapFrame::User(_) => false,
+        }
+    }
+    pub fn is_user(&self) -> bool {
+        !self.is_kernel()
+    }
+}
+
+impl KTrapFrame {
+    /// 返回 Trap 帧中的 sepc
+    pub fn sepc(&self) -> usize {
+        self.sepc
+    }
+
+    /// 设置 Trap 帧中的 sepc
+    pub fn set_sepc(&mut self, val: usize) {
+        self.sepc = val;
+    }
+}
+
+impl ProbeArgs for CommonTrapFrame {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+    fn break_address(&self) -> usize {
+        match self {
+            CommonTrapFrame::Kernel(ktrap) => ktrap.sepc,
+            CommonTrapFrame::User(utrap) => utrap.sepc,
+        }
+    }
+    fn debug_address(&self) -> usize {
+        match self {
+            CommonTrapFrame::Kernel(ktrap) => ktrap.sepc,
+            CommonTrapFrame::User(utrap) => utrap.sepc,
+        }
+    }
+    // fn set_single_step(&mut self, enable: bool) {}
+    fn update_pc(&mut self, pc: usize) {
+        match self {
+            CommonTrapFrame::Kernel(ktrap) => {
+                ktrap.sepc = pc;
+            }
+            CommonTrapFrame::User(utrap) => {
+                utrap.sepc = pc;
+            }
+        }
+    }
 }
 
 impl TrapFrame {
@@ -52,7 +126,6 @@ impl TrapFrame {
         self.sepc = val;
     }
 
-    /// 用一个从文件系统中读取到的相关app数据，初始化一个 Trap 帧，使通过其创建的进程在初次进入用户态时能正常运行
     pub fn init_for_task(
         entry: usize,
         sp: usize,
@@ -62,7 +135,7 @@ impl TrapFrame {
     ) -> Self {
         let mut sstatus = ExtSstatus::read();
         sstatus.set_spie();
-        // assert!(sstatus.0.get_bit(5)); //spie == 1
+        // assert!(sstatus.0.get_bit(5)); // spie == 1
         sstatus.set_spp(SPP::User);
         sstatus.set_sie(false);
         let mut res = Self {

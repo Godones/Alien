@@ -12,11 +12,11 @@ use constants::{
     time::TimerType,
     AlienError,
 };
-pub use context::TrapFrame;
+pub use context::{CommonTrapFrame, TrapFrame};
 pub use exception::trap_common_read_file;
 use riscv::register::{
     scause::{Exception, Interrupt, Trap},
-    sepc, sscratch, sstatus,
+    sepc, sstatus,
     sstatus::SPP,
     stval, stvec,
     stvec::TrapMode,
@@ -26,6 +26,7 @@ use crate::{
     ipc::{send_signal, signal_handler, signal_return, solve_futex_wait},
     task::{current_task, current_trap_frame, current_user_token, do_exit, do_suspend},
     time::{check_timer_queue, set_next_trigger_in_kernel},
+    trap::context::KTrapFrame,
 };
 
 mod context;
@@ -82,7 +83,6 @@ fn set_user_trap_entry() {
 #[inline]
 pub fn set_kernel_trap_entry() {
     unsafe {
-        sscratch::write(kernel_trap_vector as usize);
         stvec::write(kernel_v as usize, TrapMode::Direct);
     }
 }
@@ -100,7 +100,7 @@ pub fn init_trap_subsystem() {
 
 pub trait TrapHandler {
     fn do_user_handle(&self);
-    fn do_kernel_handle(&self, sp: usize);
+    fn do_kernel_handle(&self, ktrap_frame: &'static mut KTrapFrame);
 }
 
 impl TrapHandler for Trap {
@@ -181,6 +181,11 @@ impl TrapHandler for Trap {
                 trace!("external interrupt");
                 external_interrupt_handler();
             }
+            Trap::Exception(Exception::Breakpoint) => {
+                // breakpoint
+                let trap_frame = current_trap_frame();
+                exception::ebreak_handler(CommonTrapFrame::User(trap_frame));
+            }
             _ => {
                 panic!(
                     "unhandled trap: {:?}, stval: {:?}, sepc: {:x}",
@@ -191,7 +196,7 @@ impl TrapHandler for Trap {
     }
 
     /// 内核态下的 trap 例程
-    fn do_kernel_handle(&self, sp: usize) {
+    fn do_kernel_handle(&self, ktrap: &'static mut KTrapFrame) {
         let stval = stval::read();
         let sepc = sepc::read();
         match self {
@@ -212,10 +217,13 @@ impl TrapHandler for Trap {
                     debug!("physical address: {:#x?}", phy);
                 }
             }
+            Trap::Exception(Exception::Breakpoint) => {
+                exception::ebreak_handler(CommonTrapFrame::Kernel(ktrap));
+            }
             Trap::Exception(_) => {
                 panic!(
-                    "unhandled trap: {:?}, stval: {:#x?}, sepc: {:#x}, sp: {:#x}",
-                    self, stval, sepc, sp
+                    "unhandled trap: {:?}, stval: {:#x?}, sepc: {:#x}",
+                    self, stval, sepc,
                 )
             }
             Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -282,7 +290,7 @@ pub fn check_task_timer_expired() {
 /// 只有在内核态下才能进入这个函数
 /// 避免嵌套中断发生这里不会再开启中断
 #[no_mangle]
-pub fn kernel_trap_vector(sp: usize) {
+extern "C" fn kernel_trap_vector(ktrap: &'static mut KTrapFrame) {
     let sstatus = sstatus::read();
     let spp = sstatus.spp();
     if spp == SPP::User {
@@ -291,5 +299,5 @@ pub fn kernel_trap_vector(sp: usize) {
     let enable = is_interrupt_enable();
     assert!(!enable);
     let cause = riscv::register::scause::read().cause();
-    cause.do_kernel_handle(sp)
+    cause.do_kernel_handle(ktrap)
 }

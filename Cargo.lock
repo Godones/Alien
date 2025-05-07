@@ -1547,6 +1547,7 @@ dependencies = [
  "gmanager",
  "interrupt",
  "knet",
+ "kprobe",
  "ksync",
  "log",
  "mem",
@@ -1584,6 +1585,17 @@ dependencies = [
  "netcore",
  "vfs",
  "vfscore",
+]
+
+[[package]]
+name = "kprobe"
+version = "0.1.0"
+source = "git+https://github.com/Godones/ext_ebpf#047a0fb562c375597b717e736ca28e3916d7bb13"
+dependencies = [
+ "lock_api",
+ "log",
+ "yaxpeax-arch",
+ "yaxpeax-x86",
 ]
 
 [[package]]
@@ -1739,9 +1751,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.20"
+version = "0.4.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
+checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
 name = "loopback"
@@ -4214,6 +4226,26 @@ name = "yansi"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
+
+[[package]]
+name = "yaxpeax-arch"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36274fcc5403da2a7636ffda4d02eca12a1b2b8267b9d2e04447bd2ccfc72082"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "yaxpeax-x86"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a9a30b7dd533c7b1a73eaf7c4ea162a7a632a2bb29b9fff47d8f2cc8513a883"
+dependencies = [
+ "cfg-if",
+ "num-traits",
+ "yaxpeax-arch",
+]
 
 [[package]]
 name = "zero"

@@ -20,8 +20,9 @@ timer = { path = "../subsystems/timer" }
 ksync = { path = "../subsystems/ksync" }
 knet = { path = "../subsystems/knet" }
 gmanager = { path = "../subsystems/gmanager" }
-shim = { path = "../subsystems/shim", features = ["kernel"]}
-
+shim = { path = "../subsystems/shim", features = ["kernel"] }
+kprobe = { git = "https://github.com/Godones/ext_ebpf" }
+#kprobe = { path = "../../os-modules/ext_ebpf/kprobe" }
 
 
 riscv = "0.10"
@@ -29,7 +30,7 @@ bit_field = "0.10"
 xmas-elf = "0.9"
 bitflags = "1.3"
 spin = "0"
-log = "0"
+log = "0.4.21"
 vfscore = { git = "https://github.com/os-module/rvfs.git", features = [
     "linux_error",
 ] }
@@ -40,10 +41,10 @@ netcore = { git = "https://github.com/os-module/simple-net" }
 small-index = { git = "https://github.com/os-module/small-index" }
 
 [features]
-default = ["smp","test"]
-qemu = ["platform/qemu_riscv","interrupt/qemu","mem/initrd"]
-vf2 = ["platform/vf2","interrupt/vf2", "devices/vf2","mem/initrd"]
-hifive = ["platform/hifive","interrupt/hifive","devices/hifive"]
+default = ["smp", "test", "kprobe_test"]
+qemu = ["platform/qemu_riscv", "interrupt/qemu", "mem/initrd"]
+vf2 = ["platform/vf2", "interrupt/vf2", "devices/vf2", "mem/initrd"]
+hifive = ["platform/hifive", "interrupt/hifive", "devices/hifive"]
 smp = ["platform/smp"]
 
 fat = ["vfs/fat"]
@@ -59,3 +60,4 @@ pager_bitmap = ["mem/pager_bitmap"]
 
 ramdisk = ["devices/ramdisk"]
 test = ["devices/test"]
+kprobe_test = []
