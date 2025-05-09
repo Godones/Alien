@@ -198,8 +198,8 @@ ext:
 
 mount:
 	@echo "Mounting $(IMG) to $(FSMOUNT)"
-	@-sudo umount $(FSMOUNT);
-	@sudo rm -rf $(FSMOUNT)
+	@-sudo umount $(FSMOUNT)
+	@-sudo rm -rf $(FSMOUNT)
 	@-mkdir $(FSMOUNT)
 	@sudo mount $(IMG) $(FSMOUNT)
 	@sudo rm -rf $(FSMOUNT)/*
