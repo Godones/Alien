@@ -21,8 +21,8 @@ ksync = { path = "../subsystems/ksync" }
 knet = { path = "../subsystems/knet" }
 gmanager = { path = "../subsystems/gmanager" }
 shim = { path = "../subsystems/shim", features = ["kernel"] }
-kprobe = { git = "https://github.com/Godones/ext_ebpf" }
-#kprobe = { path = "../../os-modules/ext_ebpf/kprobe" }
+#kprobe = { git = "https://github.com/Godones/ext_ebpf" }
+kprobe = { path = "../../os-modules/ext_ebpf/kprobe" }
 
 
 riscv = "0.10"

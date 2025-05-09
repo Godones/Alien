@@ -1151,6 +1151,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22030e2c5a68ec659fde1e949a745124b48e6fa8b045b7ed5bd1fe4ccc5c4e5d"
 
 [[package]]
+name = "gimli"
+version = "0.31.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
+
+[[package]]
 name = "glob"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1590,7 +1596,6 @@ dependencies = [
 [[package]]
 name = "kprobe"
 version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf#047a0fb562c375597b717e736ca28e3916d7bb13"
 dependencies = [
  "lock_api",
  "log",
@@ -3531,6 +3536,16 @@ dependencies = [
  "arch",
  "platform",
  "tracer",
+ "unwinding",
+]
+
+[[package]]
+name = "unwinding"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8393f2782b6060a807337ff353780c1ca15206f9ba2424df18cb6e733bd7b345"
+dependencies = [
+ "gimli 0.31.1",
 ]
 
 [[package]]

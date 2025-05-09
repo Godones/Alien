@@ -9,7 +9,12 @@ edition = "2021"
 tracer = { git = "https://github.com/os-module/tracer" }
 platform = { path = "../platform" }
 arch = { path = "../arch" }
-
+unwinding = { version = "=0.2.6", default-features = false, features = [
+    "unwinder",
+    "fde-gnu-eh-frame-hdr",
+    "panic",
+    "personality",
+] }
 [features]
 debug-eh-frame = []
 debug-frame-point = []
