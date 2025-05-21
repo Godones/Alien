@@ -193,10 +193,15 @@ pub fn do_mmap(
     let mut process_inner = process.access_inner();
     let prot = ProtFlags::from_bits_truncate(prot);
     let flags = MMapFlags::from_bits_truncate(flags);
-    warn!(
-        "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
-        start, len, prot, flags, fd, offset
-    );
+    // log::error!(
+    //     "mmap: start: {:#x}, len: {:#x}, prot: {:?}, flags: {:?}, fd: {}, offset: {:#x}",
+    //     start,
+    //     len,
+    //     prot,
+    //     flags,
+    //     fd,
+    //     offset
+    // );
     process_inner
         .add_mmap(start, len, prot, flags, fd, offset)
         .map(|addr| addr as isize)

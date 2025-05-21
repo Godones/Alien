@@ -1,3 +1,4 @@
 #![no_std]
+#![feature(panic_can_unwind)]
 mod panic;
-mod symbol;
+extern crate alloc;

@@ -72,7 +72,7 @@ fn main() {
         cmd.env("CARGO_CFG_BPF_TARGET_ARCH", arch);
 
         // Workaround to make sure that the rust-toolchain.toml is respected.
-        for key in ["RUSTUP_TOOLCHAIN", "RUSTC", "RUSTC_WORKSPACE_WRAPPER", "RUSTFLAGS"] {
+        for key in ["RUSTUP_TOOLCHAIN", "RUSTC", "RUSTC_WORKSPACE_WRAPPER"] {
             cmd.env_remove(key);
         }
         cmd.current_dir(ebpf_dir);

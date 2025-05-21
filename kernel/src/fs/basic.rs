@@ -88,9 +88,12 @@ pub fn sys_openat(dirfd: isize, path: *const u8, flag: usize, mode: u32) -> Alie
     let process = current_task().unwrap();
     let path_str = process.transfer_str(path);
     let path = user_path_at(dirfd, &path_str)?;
-    warn!(
+    log::info!(
         "open file: dirfd:[{}], {:?},flag:{:?}, mode:{:?}",
-        dirfd, path, flag, file_mode
+        dirfd,
+        path,
+        flag,
+        file_mode
     );
 
     let dentry = path.open(file_mode)?;

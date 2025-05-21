@@ -35,8 +35,8 @@ pub struct Utsname {
 fn system_info() -> Utsname {
     const SYSNAME: &str = "Linux";
     const NODENAME: &str = "Alien";
-    const RELEASE: &str = "5.1";
-    const VERSION: &str = "5.1";
+    const RELEASE: &str = "6.0.0";
+    const VERSION: &str = "6.0.0";
     const MACHINE: &str = "riscv64";
     const DOMAINNAME: &str = "RustOS";
     let mut name = Utsname {

@@ -4,7 +4,6 @@
 #![feature(generic_const_exprs)]
 #![feature(breakpoint)]
 #![no_std]
-#![no_main]
 
 extern crate alloc;
 #[macro_use]
@@ -17,12 +16,15 @@ extern crate unwinder;
 use alloc::boxed::Box;
 
 pub use syscall_table::*;
+mod ebpf;
 mod fs;
 mod gui;
 mod ipc;
 mod kprobe;
 mod mm;
 mod net;
+mod per_cpu;
+mod perf;
 mod system;
 mod task;
 mod time;

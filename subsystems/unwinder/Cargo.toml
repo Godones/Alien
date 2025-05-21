@@ -15,6 +15,6 @@ unwinding = { version = "=0.2.6", default-features = false, features = [
     "panic",
     "personality",
 ] }
-[features]
-debug-eh-frame = []
-debug-frame-point = []
+constants = { path = "../constants" }
+ksym = { git = "https://github.com/Godones/ext_ebpf" }
+# ksym = { path = "../../../os-modules/ext_ebpf/ksym" }

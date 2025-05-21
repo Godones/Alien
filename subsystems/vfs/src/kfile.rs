@@ -87,6 +87,9 @@ pub trait File: DowncastSync + Debug {
     fn poll(&self, _event: PollEvents) -> AlienResult<PollEvents> {
         panic!("poll is not implemented for :{:?}", self)
     }
+    fn mmap(&self, _addr: usize, _len: usize, _offset: usize) -> AlienResult<()> {
+        Err(LinuxErrno::ENOSYS)
+    }
 }
 
 impl_downcast!(sync  File);

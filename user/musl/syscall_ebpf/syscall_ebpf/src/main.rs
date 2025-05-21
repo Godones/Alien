@@ -1,13 +1,11 @@
+extern crate libc;
 use aya::{maps::HashMap, programs::KProbe};
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::{signal, task::yield_now, time};
 
-extern crate libc;
-
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    // env_logger::init();
     env_logger::builder()
         .filter_level(log::LevelFilter::Warn)
         .format_timestamp(None)
@@ -39,8 +37,8 @@ async fn main() -> anyhow::Result<()> {
 
     let program: &mut KProbe = ebpf.program_mut("syscall_ebpf").unwrap().try_into()?;
     program.load()?;
-    program.attach("dragonos_kernel::syscall::Syscall::handle", 0)?;
-    // println!("attacch the kprobe to dragonos_kernel::syscall::Syscall::handle");
+    program.attach("kernel::trap::exception::syscall_entry", 0)?;
+    log::info!("attacch the kprobe to syscall_entry ok");
 
     // print the value of the blocklist per 5 seconds
     tokio::spawn(async move {

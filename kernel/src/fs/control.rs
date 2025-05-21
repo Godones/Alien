@@ -1,5 +1,5 @@
 use constants::{
-    io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, OpenFlags, TeletypeCommand},
+    io::{FaccessatFlags, FaccessatMode, Fcntl64Cmd, OpenFlags},
     time::TimeSpec,
     AlienResult, LinuxErrno, AT_FDCWD,
 };
@@ -91,8 +91,7 @@ pub fn fcntl(fd: usize, cmd: usize, arg: usize) -> AlienResult<isize> {
 pub fn ioctl(fd: usize, cmd: usize, arg: usize) -> AlienResult<isize> {
     let process = current_task().unwrap();
     let file = process.get_file(fd).ok_or(LinuxErrno::EBADF)?;
-    let cmd = TeletypeCommand::try_from(cmd as u32).map_err(|_| LinuxErrno::EINVAL)?;
-    info!("ioctl: {:?} {:?} {:?}", fd, cmd, arg);
+    // log::info!("ioctl: {:?} {:?} {:?}", fd, cmd, arg);
     let res = file.ioctl(cmd as u32, arg)?;
     Ok(res as isize)
 }

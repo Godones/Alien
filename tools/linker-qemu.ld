@@ -8,6 +8,7 @@ SECTIONS
     skernel = .;
 
     .text : ALIGN(4096){
+        __executable_start = .;
         stext = .;
         *(.text.entry)
         . = ALIGN(4K);
@@ -19,12 +20,14 @@ SECTIONS
         *(.text .text.*)
         . = ALIGN(4K);
         etext = .;
+        __etext = .;
     }
 
     .rodata : ALIGN(4096){
         srodata = .;
         *(.rodata .rodata.*)
         *(.srodata .srodata.*)
+        *(.gcc_except_table .gcc_except_table.*)
         . = ALIGN(4K);
         erodata = .;
     }
@@ -49,18 +52,21 @@ SECTIONS
         . = ALIGN(4K);
         ebss = .;
     }
-/*    .eh_frame : ALIGN(8){*/
-/*        kernel_eh_frame = .;*/
-/*        KEEP(*(.eh_frame .eh_frame.*))*/
-/*        kernel_eh_frame_end = .;*/
-/*    }*/
-/*    .eh_frame_hdr : ALIGN(4K){*/
-/*        kernel_eh_frame_hdr = .;*/
-/*        *(.eh_frame_hdr .eh_frame_hdr.*)*/
-/*        . = ALIGN(4K);*/
-/*        kernel_eh_frame_hdr_end = .;*/
-/*    }*/
-      sheap = .;
+
+    eh_frame = .;
+	.eh_frame : ALIGN(4096){
+		__eh_frame_hdr_start = .;
+        __GNU_EH_FRAME_HDR = .;
+		*(.eh_frame_hdr)
+		__eh_frame_hdr_end = .;
+		__eh_frame_start = .;
+		*(.eh_frame)
+		*(.rela.eh_frame)
+		__eh_frame_end = .;
+        . = ALIGN(4K);
+	}
+    
+    sheap = .;
 /*    ekernel = .;*/
     PROVIDE(end = .);
 }

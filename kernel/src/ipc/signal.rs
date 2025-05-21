@@ -297,7 +297,7 @@ pub fn signal_handler() {
     let handler = handler.lock();
     if let Some(signum) = receiver.get_one_signal() {
         let sig = SignalNumber::try_from(signum as u8).unwrap();
-        error!("task {:?} receive signal {:?}", task.tid, sig);
+        log::info!("task {:?} receive signal {:?}", task.tid, sig);
         match sig {
             SignalNumber::SIGSEGV | SignalNumber::SIGBUS => {
                 // we need exit the process

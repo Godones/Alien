@@ -202,7 +202,7 @@ impl SocketData {
     ) -> AlienResult<Arc<SocketFile>> {
         let raw_socket = match domain {
             Domain::AF_UNIX => {
-                error!("AF_UNIX is not supported");
+                log::warn!("AF_UNIX is not supported");
                 Socket::Unix(UnixSocket::new())
             }
             Domain::AF_INET => match s_type {
@@ -413,8 +413,9 @@ impl SocketData {
                     None
                 }
             }
-            _ => {
-                panic!("bind is not supported")
+            _ty => {
+                // log::error!("peer_addr is not supported for socket type: {:?}", ty);
+                None
             }
         }
     }
