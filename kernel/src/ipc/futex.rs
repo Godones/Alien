@@ -141,7 +141,7 @@ impl FutexWaitManager {
             warn!("wake {} tasks", min_index);
             Ok(min_index)
         } else {
-            error!("futex {} not found", futex);
+            log::warn!("futex {} not found", futex);
             Err(AlienError::EINVAL)
         }
     }

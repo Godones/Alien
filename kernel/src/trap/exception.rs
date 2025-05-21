@@ -25,8 +25,26 @@ pub fn syscall_exception_handler() {
     // get system call return value
     let parameters = cx.parameters();
 
+    let result = syscall_entry(
+        parameters[0],
+        [
+            parameters[1],
+            parameters[2],
+            parameters[3],
+            parameters[4],
+            parameters[5],
+            parameters[6],
+        ],
+    );
+    // cx is changed during sys_exec, so we have to call it again
+    cx = current_trap_frame();
+    cx.update_res(result);
+}
+
+#[inline(never)]
+pub fn syscall_entry(syscall_id: usize, parameters: [usize; 6]) -> usize {
     // See https://gpages.juszkiewicz.com.pl/syscalls-table/syscalls.html
-    let syscall_name = constants::syscall_name(parameters[0]);
+    let syscall_name = constants::syscall_name(syscall_id);
 
     let task = current_task().unwrap();
     let p_name = task.get_name();
@@ -39,41 +57,34 @@ pub fn syscall_exception_handler() {
             pid,
             tid,
             p_name,
-            parameters[0],
+            syscall_id,
             syscall_name,
+            parameters[0],
             parameters[1],
             parameters[2],
             parameters[3],
             parameters[4],
             parameters[5],
-            parameters[6]
         );
     }
 
     let result = invoke_call_id!(
+        syscall_id,
         parameters[0],
         parameters[1],
         parameters[2],
         parameters[3],
         parameters[4],
         parameters[5],
-        parameters[6]
     );
-    let result = Some(result);
-    // cx is changed during sys_exec, so we have to call it again
-    cx = current_trap_frame();
 
     if !p_name.contains("shell") && !p_name.contains("init") && !p_name.contains("ls") {
         info!(
-            "[pid:{}, tid: {}] syscall: [{}] result: {:?}, tp: {:#x}",
-            pid,
-            tid,
-            syscall_name,
-            result,
-            cx.regs()[4]
+            "[pid:{}, tid: {}] syscall: [{}] result: {:?}",
+            pid, tid, syscall_name, result,
         );
     }
-    cx.update_res(result.unwrap() as usize);
+    result as usize
 }
 
 /// 页异常处理，会根据不同的异常类型，分发至指令页错误异常处理 [`instruction_page_fault_exception_handler`]、
@@ -165,12 +176,12 @@ pub fn trap_common_read_file(file: Arc<dyn File>, buf: &mut [u8], offset: u64) {
 
 /// break 异常处理
 pub fn ebreak_handler(mut frame: CommonTrapFrame) {
-    println_color!(
-        34,
-        "ebreak_handler from kernel[{}]/user[{}]",
-        frame.is_kernel(),
-        frame.is_user()
-    );
+    // println_color!(
+    //     34,
+    //     "ebreak_handler from kernel[{}]/user[{}]",
+    //     frame.is_kernel(),
+    //     frame.is_user()
+    // );
     let res = crate::kprobe::run_all_kprobe(&mut frame);
     if res.is_some() {
         // if kprobe is hit, the spec will be updated in kprobe_handler

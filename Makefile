@@ -2,6 +2,7 @@ TRACE_EXE  	:= trace_exe
 EXTMKFS	:= lwext4-mkfs
 TARGET      := riscv64gc-unknown-none-elf
 OUTPUT := target/$(TARGET)/release
+KERNEL_LIB := $(OUTPUT)/libkernel.a
 KERNEL_FILE := $(OUTPUT)/kernel
 DEBUG_FILE  ?= $(KERNEL_FILE)
 KERNEL_ENTRY_PA := 0x80200000
@@ -17,6 +18,9 @@ SMP ?= 1
 GUI ?=n
 NET ?=y
 #IMG1 := tools/fs1.img
+RUSTFLAGS := $(RUSTFLAGS)
+RUSTFLAGS +=  -Cforce-unwind-tables -Cpanic=unwind 
+LINKER_SCRIPT := tools/linker-qemu.ld
 
 VF2 ?=n
 UNMATCHED ?=n
@@ -45,6 +49,7 @@ endif
 
 ifeq ($(VF2),y)
 FEATURES += vf2
+LINKER_SCRIPT = tools/linker-vf2.ld
 ifeq ($(SD),n)
 FEATURES += ramdisk
 endif
@@ -109,11 +114,29 @@ endif
 build:install  compile
 
 compile:
-	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
-	(nm -n ${KERNEL_FILE} | $(TRACE_EXE) > subsystems/unwinder/src/kernel_symbol.S)
-	cargo build --release -p kernel --target $(TARGET) --features $(FEATURES)
+	RUSTFLAGS="$(RUSTFLAGS)" \
+		cargo build --release -p kernel \
+		--target $(TARGET) \
+		--features $(FEATURES)
+
+	@riscv64-linux-gnu-ld -T $(LINKER_SCRIPT) \
+		-o $(KERNEL_FILE) \
+		$(KERNEL_LIB)
+	
+	@nm -n -C ${KERNEL_FILE} | grep ' [Tt] ' | grep -v '\.L' | grep -v '$$x' \
+		| cargo run --manifest-path ../os-modules/ext_ebpf/ksym/Cargo.toml \
+		--bin gen_ksym --features="demangle" > subsystems/unwinder/src/kernel_symbol.S
+	
+	@riscv64-linux-gnu-gcc \
+		-c subsystems/unwinder/src/kernel_symbol.S \
+		-o subsystems/unwinder/src/ksym.o
+	@riscv64-linux-gnu-ld -T $(LINKER_SCRIPT) \
+		-o $(KERNEL_FILE) \
+		$(KERNEL_LIB) \
+		subsystems/unwinder/src/ksym.o
+
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
-	cp $(KERNEL_FILE) ./kernel-qemu
+	@cp $(KERNEL_FILE) ./kernel-qemu
 
 initramfs:
 	make -C tools/initrd
@@ -244,8 +267,10 @@ clean:
 
 
 check:
-	cargo check --target riscv64gc-unknown-none-elf --features $(FEATURES)
+	cargo check -p kernel --target riscv64gc-unknown-none-elf --features $(FEATURES)
 
+fix: 
+	cargo fix --allow-dirty --allow-staged -p kernel --target riscv64gc-unknown-none-elf --features $(FEATURES)
 
 help:
 	@echo "Usage: make [target]"

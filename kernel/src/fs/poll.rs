@@ -140,7 +140,7 @@ pub fn epoll_pwait(
     epfd: usize,
     events_ptr: usize,
     maxevents: usize,
-    timeout_ms: usize,
+    timeout_ms: isize,
     _sigmask: usize,
 ) -> AlienResult<isize> {
     // println_color!(
@@ -176,19 +176,29 @@ pub fn epoll_pwait(
             break res;
         }
         let now = get_time_ms() as usize;
-        if now - now_ms >= timeout_ms {
+        if now - now_ms >= timeout_ms as usize {
             break Vec::new();
+        }
+        // suspend
+        do_suspend();
+        let task = current_task().unwrap();
+        // interrupt by signal
+        // let task = current_task().unwrap();
+        let task_inner = task.access_inner();
+        let receiver = task_inner.signal_receivers.lock();
+        if receiver.have_signal() {
+            return Err(LinuxErrno::EINTR.into());
         }
     };
     if res.len() > maxevents {
         panic!("epoll_pwait: res.len() > maxevents");
     }
-    // println_color!(32, "epoll_pwait: res: {:?}", res);
     if res.is_empty() {
         return Ok(0);
     }
     let task = current_task().unwrap();
     task.access_inner()
         .copy_to_user_buffer(res.as_ptr(), events_ptr as *mut EpollEvent, res.len());
+    // println_color!(32, "epoll_pwait: res: {:?}", res);
     Ok(res.len() as isize)
 }

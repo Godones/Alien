@@ -33,3 +33,4 @@ subsystems/unwinder/src/kernel_symbol.S
 tools/initrd/busybox*
 tools/initrd/initramfs*
 tools/qemu-loongarch-runenv
+subsystems/unwinder/src/ksym.o

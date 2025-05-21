@@ -83,3 +83,10 @@ pub fn allow_access_user_memory() {
         riscv::register::sstatus::set_sum();
     }
 }
+
+pub fn enbale_float() {
+    unsafe { riscv::register::sstatus::set_fs(riscv::register::sstatus::FS::Initial) };
+}
+pub fn disable_float() {
+    unsafe { riscv::register::sstatus::set_fs(riscv::register::sstatus::FS::Off) };
+}

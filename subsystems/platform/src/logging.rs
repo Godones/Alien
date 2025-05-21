@@ -17,10 +17,15 @@ impl Log for SimpleLogger {
             Level::Debug => 32, // Green
             Level::Trace => 90, // BrightBlack
         };
+        let module = record.module_path().unwrap_or("<unknown>");
+        if !module.contains("bpf_basic") && record.level() != LevelFilter::Error {
+            return;
+        }
         println!(
-            "\u{1B}[{}m[{:>1}] {}\u{1B}[0m",
+            "\u{1B}[{}m[{:>1}] [{}] {}\u{1B}[0m",
             color,
             record.level(),
+            module,
             record.args(),
         );
     }
@@ -36,6 +41,6 @@ pub fn init_logger() {
         Some("INFO") => LevelFilter::Info,
         Some("DEBUG") => LevelFilter::Debug,
         Some("TRACE") => LevelFilter::Trace,
-        _ => LevelFilter::Off,
+        _ => LevelFilter::Info,
     });
 }

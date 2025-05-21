@@ -1,20 +1,31 @@
 //! panic 处理
 
-use core::{panic::PanicInfo, sync::atomic::AtomicBool};
+use alloc::boxed::Box;
+use core::{ffi::c_void, panic::PanicInfo, sync::atomic::AtomicBool};
 
-use platform::{println, system_shutdown};
-#[cfg(all(not(feature = "debug-eh-frame"), not(feature = "debug-frame-point")))]
-use tracer::CompilerTracer;
-#[cfg(feature = "debug-eh-frame")]
-use tracer::DwarfTracer;
-#[cfg(feature = "debug-frame-point")]
-use tracer::FramePointTracer;
-use tracer::{Tracer, TracerProvider};
-
-use crate::symbol::find_symbol_with_addr;
+use constants::{AlienError, AlienResult};
+use ksym::lookup_kallsyms;
+use platform::{println, println_color, system_shutdown};
+use unwinding::abi::{UnwindContext, UnwindReasonCode, _Unwind_Backtrace, _Unwind_GetIP};
 
 /// 递归标志
 static RECURSION: AtomicBool = AtomicBool::new(false);
+
+#[derive(Debug)]
+struct PanicGuard;
+
+impl PanicGuard {
+    pub fn new() -> Self {
+        arch::enbale_float();
+        Self
+    }
+}
+
+impl Drop for PanicGuard {
+    fn drop(&mut self) {
+        arch::disable_float();
+    }
+}
 
 /// 错误处理
 ///
@@ -27,61 +38,54 @@ fn panic_handler(info: &PanicInfo) -> ! {
         println!("no location information available");
     }
     if !RECURSION.swap(true, core::sync::atomic::Ordering::SeqCst) {
-        back_trace();
+        if info.can_unwind() {
+            let guard = Box::new(PanicGuard::new());
+            print_stack_trace();
+            let _res = unwinding::panic::begin_panic(guard);
+            println_color!(31, "panic unreachable: {:?}", _res.0);
+        }
     }
     println!("!TEST FINISH!");
     system_shutdown();
 }
 
-#[derive(Clone)]
-struct TracerProviderImpl;
-impl TracerProvider for TracerProviderImpl {
-    fn address2symbol(&self, addr: usize) -> Option<(usize, &'static str)> {
-        find_symbol_with_addr(addr)
+pub fn print_stack_trace() {
+    println!("Rust Panic Backtrace:");
+    struct CallbackData {
+        counter: usize,
+        kernel_main: bool,
     }
+    extern "C" fn callback(unwind_ctx: &UnwindContext<'_>, arg: *mut c_void) -> UnwindReasonCode {
+        let data = unsafe { &mut *(arg as *mut CallbackData) };
+        if data.kernel_main {
+            // If we are in kernel_main, we don't need to print the backtrace.
+            return UnwindReasonCode::NORMAL_STOP;
+        }
+        data.counter += 1;
+        let pc = _Unwind_GetIP(unwind_ctx);
+        if pc > 0 {
+            let fmt_str = unsafe { lookup_kallsyms(pc as u64, data.counter as i32) };
+            println!("{}", fmt_str);
+            if fmt_str.contains("main") {
+                data.kernel_main = true;
+            }
+        }
+        UnwindReasonCode::NO_REASON
+    }
+    let mut data = CallbackData {
+        counter: 0,
+        kernel_main: false,
+    };
+    _Unwind_Backtrace(callback, &mut data as *mut _ as _);
 }
 
-#[cfg(feature = "debug-eh-frame")]
-extern "C" {
-    fn kernel_eh_frame();
-    fn kernel_eh_frame_end();
-    fn kernel_eh_frame_hdr();
-    fn kernel_eh_frame_hdr_end();
-}
-
-#[cfg(feature = "debug-eh-frame")]
-struct DwarfProviderImpl;
-
-#[cfg(feature = "debug-eh-frame")]
-impl DwarfProvider for DwarfProviderImpl {
-    fn kernel_eh_frame_hdr(&self) -> usize {
-        kernel_eh_frame_hdr as usize
+pub fn kernel_catch_unwind<R, F: FnOnce() -> R>(f: F) -> AlienResult<R> {
+    let res = unwinding::panic::catch_unwind(f);
+    match res {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            println_color!(31, "Catch Unwind Error: {:?}", e);
+            Err(AlienError::EIO)
+        }
     }
-
-    fn kernel_eh_frame(&self) -> usize {
-        kernel_eh_frame as usize
-    }
-
-    fn kernel_eh_frame_hdr_end(&self) -> usize {
-        kernel_eh_frame_hdr_end as usize
-    }
-
-    fn kernel_eh_frame_end(&self) -> usize {
-        kernel_eh_frame_end as usize
-    }
-}
-
-/// 打印堆栈回溯信息
-fn back_trace() {
-    println!("---START BACKTRACE---");
-    #[cfg(all(not(feature = "debug-eh-frame"), not(feature = "debug-frame-point")))]
-    let tracer = CompilerTracer::new(TracerProviderImpl);
-    #[cfg(feature = "debug-frame-point")]
-    let tracer = FramePointTracer::new(TracerProviderImpl);
-    #[cfg(feature = "debug-eh-frame")]
-    let tracer = DwarfTracer::new(DwarfProviderImpl, TracerProviderImpl);
-    for x in tracer.trace() {
-        println!("[{:#x}] (+{:0>4x}) {}", x.func_addr, x.bias, x.func_name);
-    }
-    println!("---END   BACKTRACE---");
 }

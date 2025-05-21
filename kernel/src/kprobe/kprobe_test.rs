@@ -1,9 +1,9 @@
 use alloc::string::ToString;
 
-use kprobe::{register_kprobe, unregister_kprobe, KprobeBuilder, ProbeArgs};
+use kprobe::{KprobeBuilder, ProbeArgs};
 
 use crate::{
-    kprobe::{KPROBE_MANAGER, KPROBE_POINT_LIST},
+    kprobe::{register_kprobe, unregister_kprobe},
     trap::CommonTrapFrame,
 };
 
@@ -40,10 +40,7 @@ pub fn kprobe_test() {
         true,
     );
 
-    let mut manager = KPROBE_MANAGER.lock();
-    let mut kprobe_list = KPROBE_POINT_LIST.lock();
-
-    let kprobe = register_kprobe(&mut manager, &mut kprobe_list, kprobe_builder);
+    let kprobe = register_kprobe(kprobe_builder);
     let new_pre_handler = |regs: &dyn ProbeArgs| {
         let pt_regs = regs.as_any().downcast_ref::<CommonTrapFrame>().unwrap();
         println_color!(34, "new_pre_handler: is kernel: {}", pt_regs.is_kernel());
@@ -57,20 +54,15 @@ pub fn kprobe_test() {
         post_handler,
         true,
     );
-    let kprobe2 = register_kprobe(&mut manager, &mut kprobe_list, builder2);
-    drop(manager);
-    drop(kprobe_list);
+    let kprobe2 = register_kprobe(builder2);
     println_color!(
         34,
         "install 2 kprobes at [detect_func]: {:#x}",
         detect_func as usize
     );
     detect_func(1, 2);
-
-    let mut manager = KPROBE_MANAGER.lock();
-    let mut kprobe_list = KPROBE_POINT_LIST.lock();
-    unregister_kprobe(&mut manager, &mut kprobe_list, kprobe);
-    unregister_kprobe(&mut manager, &mut kprobe_list, kprobe2);
+    unregister_kprobe(kprobe);
+    unregister_kprobe(kprobe2);
     println_color!(
         34,
         "uninstall 2 kprobes at [detect_func]: {:#x}",

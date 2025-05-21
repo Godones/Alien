@@ -1,5 +1,7 @@
+cargo-features = ["edition2024"]
 [profile.release]
-#strip = true
+strip = true
+debug = false
 #incremental = true
 #debug = true
 #opt-level = 3

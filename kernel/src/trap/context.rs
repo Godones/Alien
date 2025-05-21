@@ -50,6 +50,20 @@ impl CommonTrapFrame {
     pub fn is_user(&self) -> bool {
         !self.is_kernel()
     }
+
+    pub fn pc(&self) -> usize {
+        match self {
+            CommonTrapFrame::Kernel(ktrap) => ktrap.sepc,
+            CommonTrapFrame::User(utrap) => utrap.sepc,
+        }
+    }
+
+    pub fn regs(&self) -> &[usize] {
+        match self {
+            CommonTrapFrame::Kernel(ktrap) => &ktrap.x,
+            CommonTrapFrame::User(utrap) => &utrap.x,
+        }
+    }
 }
 
 impl KTrapFrame {

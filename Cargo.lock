@@ -47,6 +47,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
 name = "android-activity"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -204,9 +210,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.4.2"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
+checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 
 [[package]]
 name = "block"
@@ -231,6 +237,19 @@ checksum = "8dd9e63c1744f755c2f60332b88de39d341e5e86239014ad839bd71c106dec42"
 dependencies = [
  "block-sys",
  "objc2-encode",
+]
+
+[[package]]
+name = "bpf-basic"
+version = "0.1.0"
+source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
+dependencies = [
+ "bitflags 2.9.1",
+ "int-enum",
+ "log",
+ "lru 0.13.0",
+ "printf-compat",
+ "rbpf 0.3.0 (git+https://github.com/Godones/ext_ebpf)",
 ]
 
 [[package]]
@@ -412,6 +431,15 @@ name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
+
+[[package]]
+name = "combine"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "config"
@@ -779,7 +807,7 @@ dependencies = [
  "ksync",
  "log",
  "loopback",
- "lru",
+ "lru 0.10.1",
  "mem",
  "netcore",
  "platform",
@@ -800,7 +828,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0f8a69e60d75ae7dab4ef26a59ca99f2a89d4c142089b537775ae0c198bdcde"
 dependencies = [
- "bitflags 2.4.2",
+ "bitflags 2.9.1",
  "bytemuck",
  "drm-ffi",
  "drm-fourcc",
@@ -1031,6 +1059,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "foldhash"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+
+[[package]]
 name = "fontconfig-parser"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1199,6 +1233,18 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+
+[[package]]
+name = "hashbrown"
+version = "0.15.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84b26c544d002229e640969970a2e74021aadf6e2f96372b9c58eff97de08eb3"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
+ "rustc-std-workspace-alloc",
+]
 
 [[package]]
 name = "heapless"
@@ -1450,15 +1496,14 @@ dependencies = [
 
 [[package]]
 name = "int-enum"
-version = "1.1.2"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a37a9c11c6ecfec8b9bed97337dfecff3686d02ba8f52e8addad2829d047128"
+checksum = "e366a1634cccc76b4cfd3e7580de9b605e4d93f1edac48d786c1f867c0def495"
 dependencies = [
  "proc-macro2",
  "proc-macro2-diagnostics",
  "quote",
  "syn 2.0.65",
- "version_check",
 ]
 
 [[package]]
@@ -1546,6 +1591,7 @@ dependencies = [
  "arch",
  "bit_field",
  "bitflags 1.3.2",
+ "bpf-basic",
  "config",
  "constants",
  "devices",
@@ -1554,12 +1600,14 @@ dependencies = [
  "interrupt",
  "knet",
  "kprobe",
+ "ksym",
  "ksync",
  "log",
  "mem",
  "netcore",
  "page-table",
  "platform",
+ "rbpf 0.3.0",
  "riscv",
  "shim",
  "small-index",
@@ -1596,12 +1644,18 @@ dependencies = [
 [[package]]
 name = "kprobe"
 version = "0.1.0"
+source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
 dependencies = [
  "lock_api",
  "log",
  "yaxpeax-arch",
  "yaxpeax-x86",
 ]
+
+[[package]]
+name = "ksym"
+version = "0.1.0"
+source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
 
 [[package]]
 name = "ksync"
@@ -1707,7 +1761,7 @@ version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3af92c55d7d839293953fcd0fda5ecfe93297cfde6ffbdec13b41d99c0ba6607"
 dependencies = [
- "bitflags 2.4.2",
+ "bitflags 2.9.1",
  "libc",
  "redox_syscall 0.4.1",
 ]
@@ -1775,6 +1829,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "718e8fae447df0c7e1ba7f5189829e63fd536945c8988d61444c19039f16b670"
 dependencies = [
  "hashbrown 0.13.2",
+]
+
+[[package]]
+name = "lru"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "227748d55f2f0ab4735d87fd623798cb6b664512fe979705f829c9f81c934465"
+dependencies = [
+ "hashbrown 0.15.3",
 ]
 
 [[package]]
@@ -2260,7 +2323,7 @@ checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
 [[package]]
 name = "pconst"
 version = "0.1.0"
-source = "git+https://github.com/os-module/pconst.git#ed1dd3dd6a427b3d7c9cb14731c775476afca160"
+source = "git+https://github.com/os-module/pconst.git#defd726594258db36e1d1489432f53222bd51f7d"
 dependencies = [
  "bitflags 1.3.2",
  "int-enum",
@@ -2494,7 +2557,6 @@ dependencies = [
  "quote",
  "syn 2.0.65",
  "version_check",
- "yansi",
 ]
 
 [[package]]
@@ -2582,6 +2644,27 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "rbpf"
+version = "0.3.0"
+dependencies = [
+ "byteorder",
+ "combine",
+ "hashbrown 0.15.3",
+ "log",
+]
+
+[[package]]
+name = "rbpf"
+version = "0.3.0"
+source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
+dependencies = [
+ "byteorder",
+ "combine",
+ "hashbrown 0.15.3",
+ "log",
 ]
 
 [[package]]
@@ -2721,6 +2804,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
+name = "rustc-std-workspace-alloc"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d441c3b2ebf55cebf796bfdc265d67fa09db17b7bb6bd4be75c509e1e8fec3"
+
+[[package]]
 name = "rustc_version"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2735,7 +2824,7 @@ version = "0.38.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ea3e1a662af26cd7a3ba09c0297a31af215563ecf42817c98df621387f4e949"
 dependencies = [
- "bitflags 2.4.2",
+ "bitflags 2.9.1",
  "errno",
  "libc",
  "linux-raw-sys 0.4.13",
@@ -3452,7 +3541,7 @@ name = "uart8250"
 version = "0.6.0"
 source = "git+https://github.com/os-module/uart-rs.git#bc35b9b68272eee757d4aed7abd0c9fa448df6aa"
 dependencies = [
- "bitflags 2.4.2",
+ "bitflags 2.9.1",
  "volatile-register",
 ]
 
@@ -3534,6 +3623,8 @@ name = "unwinder"
 version = "0.1.0"
 dependencies = [
  "arch",
+ "constants",
+ "ksym",
  "platform",
  "tracer",
  "unwinding",
@@ -3638,6 +3729,7 @@ version = "0.1.0"
 dependencies = [
  "arch",
  "bitflags 1.3.2",
+ "config",
  "constants",
  "core2",
  "cpio_reader",
@@ -3688,7 +3780,7 @@ name = "virtio-drivers"
 version = "0.7.2"
 source = "git+https://github.com/rcore-os/virtio-drivers#3a9a69c7ae36dd9f9fb393209c59f8dca49009b4"
 dependencies = [
- "bitflags 2.4.2",
+ "bitflags 2.9.1",
  "log",
  "zerocopy",
 ]
@@ -3841,7 +3933,7 @@ version = "0.31.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82fb96ee935c2cea6668ccb470fb7771f6215d1691746c2d896b447a00ad3f1f"
 dependencies = [
- "bitflags 2.4.2",
+ "bitflags 2.9.1",
  "rustix",
  "wayland-backend",
  "wayland-scanner 0.31.1",
@@ -4235,12 +4327,6 @@ name = "xmlwriter"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
-
-[[package]]
-name = "yansi"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yaxpeax-arch"

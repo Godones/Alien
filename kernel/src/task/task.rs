@@ -473,7 +473,7 @@ impl Task {
     }
 
     /// 获取一个虚拟地址 `ptr` 对应的 T 类型数据 的 可变引用
-    pub fn transfer_raw_ptr<T>(&self, ptr: *mut T) -> &'static mut T {
+    pub fn transfer_raw_ptr<T: Copy>(&self, ptr: *mut T) -> &'static mut T {
         self.access_inner().transfer_raw_ptr_mut(ptr)
     }
 
@@ -1099,7 +1099,7 @@ impl TaskInner {
             v_range.end - v_range.start,
             prot,
             flags,
-            fd,
+            fd.clone(),
             offset,
         );
         // warn!("add mmap region:{:#x?}",region);
@@ -1107,6 +1107,11 @@ impl TaskInner {
         let start = v_range.start;
         let mut map_flags: MappingFlags = prot.into(); // no V  flag
         map_flags |= "AD".into();
+        let mut lazy_alloc = true;
+        if fd.is_some() {
+            map_flags |= MappingFlags::V;
+            lazy_alloc = false;
+        }
         self.address_space
             .lock()
             .map_region_no_target(
@@ -1114,9 +1119,20 @@ impl TaskInner {
                 v_range.end - start,
                 map_flags,
                 false,
-                true,
+                lazy_alloc,
             )
             .unwrap();
+        if let Some(file) = fd {
+            let phy_addr = self
+                .address_space
+                .lock()
+                .query(VirtAddr::from(start))
+                .unwrap()
+                .0;
+            let _r = file.mmap(phy_addr.as_usize(), len, offset);
+        }
+        log::info!("mmap result:{:#x?}", start);
+
         Ok(start)
     }
 

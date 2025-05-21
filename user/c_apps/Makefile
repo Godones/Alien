@@ -21,6 +21,7 @@ clean:
 
 BUILD_LIST := \
 	eventfd_test \
+	test_epoll \
 
 
 .PHONY: install clean all
