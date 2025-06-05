@@ -242,7 +242,7 @@ dependencies = [
 [[package]]
 name = "bpf-basic"
 version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
+source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
 dependencies = [
  "bitflags 2.9.1",
  "int-enum",
@@ -1243,7 +1243,6 @@ dependencies = [
  "allocator-api2",
  "equivalent",
  "foldhash",
- "rustc-std-workspace-alloc",
 ]
 
 [[package]]
@@ -1607,7 +1606,7 @@ dependencies = [
  "netcore",
  "page-table",
  "platform",
- "rbpf 0.3.0",
+ "rbpf 0.3.0 (git+https://github.com/qmonnet/rbpf.git)",
  "riscv",
  "shim",
  "small-index",
@@ -1644,7 +1643,7 @@ dependencies = [
 [[package]]
 name = "kprobe"
 version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
+source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
 dependencies = [
  "lock_api",
  "log",
@@ -1655,7 +1654,7 @@ dependencies = [
 [[package]]
 name = "ksym"
 version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
+source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
 
 [[package]]
 name = "ksync"
@@ -2649,6 +2648,7 @@ dependencies = [
 [[package]]
 name = "rbpf"
 version = "0.3.0"
+source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
 dependencies = [
  "byteorder",
  "combine",
@@ -2659,7 +2659,7 @@ dependencies = [
 [[package]]
 name = "rbpf"
 version = "0.3.0"
-source = "git+https://github.com/Godones/ext_ebpf#f916a585167bc9dd67718b3b6d1f473854c03fe9"
+source = "git+https://github.com/qmonnet/rbpf.git#f31e471a29dea9a0c272626f7b762adba755e6cc"
 dependencies = [
  "byteorder",
  "combine",
@@ -2802,12 +2802,6 @@ name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
-
-[[package]]
-name = "rustc-std-workspace-alloc"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9d441c3b2ebf55cebf796bfdc265d67fa09db17b7bb6bd4be75c509e1e8fec3"
 
 [[package]]
 name = "rustc_version"

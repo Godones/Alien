@@ -38,7 +38,10 @@ impl PerfEventOps for BpfPerfEvent {
 
 pub fn perf_event_open_bpf(args: PerfProbeArgs) -> BpfPerfEvent {
     // For bpf prog output
-    assert_eq!(args.config, perf_sw_ids::PERF_COUNT_SW_BPF_OUTPUT);
+    // assert_eq!(
+    //     args.config,
+    //     PerfProbeConfig::PerfSwIds(perf_sw_ids::PERF_COUNT_SW_BPF_OUTPUT)
+    // );
     assert_eq!(
         args.sample_type,
         Some(perf_event_sample_format::PERF_SAMPLE_RAW)

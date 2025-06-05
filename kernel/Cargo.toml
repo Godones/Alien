@@ -27,12 +27,7 @@ shim = { path = "../subsystems/shim", features = ["kernel"] }
 kprobe = { git = "https://github.com/Godones/ext_ebpf" }
 bpf-basic = { git = "https://github.com/Godones/ext_ebpf" }
 ksym = { git = "https://github.com/Godones/ext_ebpf" }
-# kprobe = { path = "../../os-modules/ext_ebpf/kprobe" }
-# bpf-basic = { path = "../../os-modules/ext_ebpf/bpf-basic" }
-# ksym = { path = "../../os-modules/ext_ebpf/ksym" }
-rbpf = { path = "../../os-modules/ext_ebpf/rbpf", default-features = false, features = [
-    "skip_mem_check",
-] }
+rbpf = { git = "https://github.com/qmonnet/rbpf.git", default-features = false }
 
 
 riscv = "0.10"

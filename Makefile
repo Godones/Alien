@@ -250,7 +250,7 @@ gdb-client:
 	riscv64-unknown-elf-gdb -ex 'file kernel-qemu' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
 
 kernel_asm:
-	@riscv64-unknown-elf-objdump -d target/riscv64gc-unknown-none-elf/release/kernel > kernel.asm
+	@riscv64-unknown-elf-objdump -d $(KERNEL_FILE) > kernel.asm
 	@vim kernel.asm
 	@rm kernel.asm
 

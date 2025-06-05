@@ -1,5 +1,5 @@
-use alloc::{boxed::Box, sync::Arc};
-use core::any::Any;
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use core::{any::Any, sync::atomic::AtomicU32};
 
 use bpf_basic::perf::PerfProbeArgs;
 use kprobe::{CallBackFunc, KprobeBuilder, ProbeArgs};
@@ -17,10 +17,24 @@ use crate::{
 pub struct KprobePerfEvent {
     _args: PerfProbeArgs,
     kprobe: Arc<KernelKprobe>,
+    callback_list: Vec<u32>,
+}
+
+impl KprobePerfEvent {
+    pub fn new(args: PerfProbeArgs, kprobe: Arc<KernelKprobe>) -> Self {
+        KprobePerfEvent {
+            _args: args,
+            kprobe,
+            callback_list: Vec::new(),
+        }
+    }
 }
 
 impl Drop for KprobePerfEvent {
     fn drop(&mut self) {
+        for callback_id in &self.callback_list {
+            self.kprobe.unregister_event_callback(*callback_id);
+        }
         unregister_kprobe(self.kprobe.clone());
     }
 }
@@ -92,10 +106,16 @@ impl KprobePerfEvent {
         for (key, value) in BPF_HELPER_FUN_SET.iter() {
             vm.register_helper(*key, *value).unwrap();
         }
+
+        static CALLBACK_ID: AtomicU32 = AtomicU32::new(0);
+
+        let id = CALLBACK_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+
         // create a callback to execute the ebpf prog
         let callback = Box::new(KprobePerfCallBack::new(bpf_prog, vm));
         // update callback for kprobe
-        self.kprobe.update_event_callback(callback);
+        self.kprobe.register_event_callback(id, callback);
+        self.callback_list.push(id);
         Ok(())
     }
 }
@@ -115,8 +135,5 @@ pub fn perf_event_open_kprobe(args: PerfProbeArgs) -> KprobePerfEvent {
     let builder = perf_probe_arg_to_kprobe_builder(&args);
     let kprobe = register_kprobe(builder);
     println_color!(32, "create kprobe ok");
-    KprobePerfEvent {
-        _args: args,
-        kprobe,
-    }
+    KprobePerfEvent::new(args, kprobe)
 }
