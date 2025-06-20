@@ -30,7 +30,7 @@ fn syscall_bpf(cmd: u32, attr: *mut u8, size: u32) -> AlienResult<isize> {
 }
 
 pub fn bpf(cmd: bpf_cmd, attr: &bpf_attr) -> AlienResult<isize> {
-    println_color!(31, "bpf cmd: [{:?}]", cmd);
+    // println_color!(31, "bpf cmd: [{:?}]", cmd);
     let update_arg = BpfMapUpdateArg::try_from(attr).map_err(|_| AlienError::EINVAL)?;
     match cmd {
         // Map related commands

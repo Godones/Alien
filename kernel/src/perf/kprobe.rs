@@ -106,7 +106,7 @@ impl KprobePerfEvent {
         for (key, value) in BPF_HELPER_FUN_SET.iter() {
             vm.register_helper(*key, *value).unwrap();
         }
-
+        vm.register_allowed_memory(0..u64::MAX);
         static CALLBACK_ID: AtomicU32 = AtomicU32::new(0);
 
         let id = CALLBACK_ID.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
