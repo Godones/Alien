@@ -84,6 +84,7 @@ pub fn ktread_create(func: fn(), name: &str) -> AlienResult<()> {
                 ss_size: 0,
             },
             exit_group: false,
+            kretprobe_instances: Vec::new(),
         }),
         send_sigchld_when_exit: false,
     };

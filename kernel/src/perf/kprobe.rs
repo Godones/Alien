@@ -2,15 +2,14 @@ use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{any::Any, sync::atomic::AtomicU32};
 
 use bpf_basic::perf::PerfProbeArgs;
-use kprobe::{CallBackFunc, KprobeBuilder, ProbeArgs};
+use kprobe::{CallBackFunc, KprobeBuilder, PtRegs};
 use rbpf::EbpfVmRaw;
 use vfs::kfile::File;
 
 use super::PerfEventOps;
 use crate::{
     ebpf::{prog::BpfProg, BPF_HELPER_FUN_SET},
-    kprobe::{register_kprobe, unregister_kprobe, KProbeContext, KernelKprobe, KprobeAuxiliary},
-    trap::CommonTrapFrame,
+    kprobe::{register_kprobe, unregister_kprobe, KernelKprobe, KprobeAuxiliary},
 };
 
 #[derive(Debug)]
@@ -77,17 +76,9 @@ impl KprobePerfCallBack {
 }
 
 impl CallBackFunc for KprobePerfCallBack {
-    fn call(&self, trap_frame: &dyn ProbeArgs) {
-        let trap_frame = trap_frame
-            .as_any()
-            .downcast_ref::<CommonTrapFrame>()
-            .unwrap();
-        let pt_regs = KProbeContext::from(trap_frame);
+    fn call(&self, pt_regs: &mut PtRegs) {
         let probe_context = unsafe {
-            core::slice::from_raw_parts_mut(
-                &pt_regs as *const KProbeContext as *mut u8,
-                size_of::<KProbeContext>(),
-            )
+            core::slice::from_raw_parts_mut(pt_regs as *mut PtRegs as *mut u8, size_of::<PtRegs>())
         };
         // log::error!("call kprobe callback");
         let res = self.vm.execute_program(probe_context);
@@ -125,7 +116,7 @@ fn perf_probe_arg_to_kprobe_builder(args: &PerfProbeArgs) -> KprobeBuilder<Kprob
     let addr = unsafe { ksym::addr_from_symbol(symbol).unwrap() as usize };
     // let addr = syscall_entry as usize;
     println_color!(32, "perf_probe: symbol: {}, addr: {:#x}", symbol, addr);
-    let builder = KprobeBuilder::new(Some(symbol.clone()), addr, 0, |_| {}, |_| {}, false);
+    let builder = KprobeBuilder::new(Some(symbol.clone()), addr, 0, false);
     builder
 }
 

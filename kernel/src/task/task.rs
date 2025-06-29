@@ -133,8 +133,8 @@ pub struct TaskInner {
     /// - SS_ONSTACK = 1
     /// - SS_DISABLE = 2
     pub ss_stack: SignalStack,
-
     pub exit_group: bool,
+    pub kretprobe_instances: Vec<kprobe::KretprobeInstance>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -1460,6 +1460,7 @@ impl Task {
                     ss_size: 0,
                 },
                 exit_group: false,
+                kretprobe_instances: Vec::new(),
             }),
             send_sigchld_when_exit: false,
         };
@@ -1664,6 +1665,7 @@ impl Task {
                     ss_size: 0,
                 },
                 exit_group: false,
+                kretprobe_instances: Vec::new(),
             }),
             send_sigchld_when_exit: sig == SignalNumber::SIGCHLD,
         };

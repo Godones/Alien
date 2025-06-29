@@ -242,14 +242,14 @@ dependencies = [
 [[package]]
 name = "bpf-basic"
 version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
+source = "git+https://github.com/Godones/ext_ebpf?rev=9d09582#9d0958266b64090fe1bb111f5e9dcdef64a6833a"
 dependencies = [
  "bitflags 2.9.1",
  "int-enum",
  "log",
- "lru 0.13.0",
- "printf-compat",
- "rbpf 0.3.0 (git+https://github.com/Godones/ext_ebpf)",
+ "lru 0.14.0",
+ "printf-compat 0.1.1 (git+https://github.com/lights0123/printf-compat?rev=5f5c9cc)",
+ "rbpf",
 ]
 
 [[package]]
@@ -1599,14 +1599,14 @@ dependencies = [
  "interrupt",
  "knet",
  "kprobe",
- "ksym",
+ "ksym 0.1.0 (git+https://github.com/Godones/ext_ebpf?rev=9d09582)",
  "ksync",
  "log",
  "mem",
  "netcore",
  "page-table",
  "platform",
- "rbpf 0.3.0 (git+https://github.com/qmonnet/rbpf.git)",
+ "rbpf",
  "riscv",
  "shim",
  "small-index",
@@ -1643,13 +1643,18 @@ dependencies = [
 [[package]]
 name = "kprobe"
 version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
+source = "git+https://github.com/Godones/ext_ebpf?rev=9d09582#9d0958266b64090fe1bb111f5e9dcdef64a6833a"
 dependencies = [
  "lock_api",
  "log",
  "yaxpeax-arch",
  "yaxpeax-x86",
 ]
+
+[[package]]
+name = "ksym"
+version = "0.1.0"
+source = "git+https://github.com/Godones/ext_ebpf?rev=9d09582#9d0958266b64090fe1bb111f5e9dcdef64a6833a"
 
 [[package]]
 name = "ksym"
@@ -1832,9 +1837,9 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "227748d55f2f0ab4735d87fd623798cb6b664512fe979705f829c9f81c934465"
+checksum = "9f8cc7106155f10bdf99a6f379688f543ad6596a415375b36a59a054ceda1198"
 dependencies = [
  "hashbrown 0.15.3",
 ]
@@ -2504,6 +2509,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "printf-compat"
+version = "0.1.1"
+source = "git+https://github.com/lights0123/printf-compat?rev=5f5c9cc#5f5c9cc363f047411a0dccb37e0efb452ffb61d9"
+dependencies = [
+ "bitflags 1.3.2",
+ "itertools 0.9.0",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "1.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2643,17 +2657,6 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
-]
-
-[[package]]
-name = "rbpf"
-version = "0.3.0"
-source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
-dependencies = [
- "byteorder",
- "combine",
- "hashbrown 0.15.3",
- "log",
 ]
 
 [[package]]
@@ -3618,7 +3621,7 @@ version = "0.1.0"
 dependencies = [
  "arch",
  "constants",
- "ksym",
+ "ksym 0.1.0 (git+https://github.com/Godones/ext_ebpf)",
  "platform",
  "tracer",
  "unwinding",
@@ -3740,7 +3743,7 @@ dependencies = [
  "lwext4-vfs",
  "mem",
  "platform",
- "printf-compat",
+ "printf-compat 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ramfs",
  "shim",
  "spin",

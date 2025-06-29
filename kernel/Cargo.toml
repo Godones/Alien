@@ -24,9 +24,9 @@ ksync = { path = "../subsystems/ksync" }
 knet = { path = "../subsystems/knet" }
 gmanager = { path = "../subsystems/gmanager" }
 shim = { path = "../subsystems/shim", features = ["kernel"] }
-kprobe = { git = "https://github.com/Godones/ext_ebpf" }
-bpf-basic = { git = "https://github.com/Godones/ext_ebpf" }
-ksym = { git = "https://github.com/Godones/ext_ebpf" }
+kprobe = { git = "https://github.com/Godones/ext_ebpf", rev = "9d09582" }
+bpf-basic = { git = "https://github.com/Godones/ext_ebpf", rev = "9d09582" }
+ksym = { git = "https://github.com/Godones/ext_ebpf", rev = "9d09582" }
 rbpf = { git = "https://github.com/qmonnet/rbpf.git", default-features = false }
 
 

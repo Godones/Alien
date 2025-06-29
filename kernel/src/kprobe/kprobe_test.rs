@@ -1,11 +1,8 @@
 use alloc::string::ToString;
 
-use kprobe::{KprobeBuilder, ProbeArgs};
+use kprobe::{KprobeBuilder, ProbeData, PtRegs};
 
-use crate::{
-    kprobe::{register_kprobe, unregister_kprobe},
-    trap::CommonTrapFrame,
-};
+use crate::kprobe::{register_kprobe, unregister_kprobe};
 
 #[inline(never)]
 #[no_mangle]
@@ -15,14 +12,12 @@ fn detect_func(x: usize, y: usize) -> usize {
     hart
 }
 
-fn pre_handler(regs: &dyn ProbeArgs) {
-    let pt_regs = regs.as_any().downcast_ref::<CommonTrapFrame>().unwrap();
-    println_color!(34, "pre_handler: is kernel: {}", pt_regs.is_kernel());
+fn pre_handler(_data: &dyn ProbeData, pt_regs: &mut PtRegs) {
+    println_color!(34, "pre_handler: ret_value: {}", pt_regs.ret_value());
 }
 
-fn post_handler(regs: &dyn ProbeArgs) {
-    let pt_regs = regs.as_any().downcast_ref::<CommonTrapFrame>().unwrap();
-    println_color!(34, "post_handler: is kernel: {}", pt_regs.is_kernel());
+fn post_handler(_data: &dyn ProbeData, pt_regs: &mut PtRegs) {
+    println_color!(34, "post_handler: ret_value: {}", pt_regs.ret_value());
 }
 
 pub fn kprobe_test() {
@@ -31,29 +26,24 @@ pub fn kprobe_test() {
         "kprobe test for [detect_func]: {:#x}",
         detect_func as usize
     );
-    let kprobe_builder = KprobeBuilder::new(
-        None,
-        detect_func as usize,
-        0,
-        pre_handler,
-        post_handler,
-        true,
-    );
+    let kprobe_builder = KprobeBuilder::new(None, detect_func as usize, 0, true)
+        .with_pre_handler(pre_handler)
+        .with_post_handler(post_handler);
 
     let kprobe = register_kprobe(kprobe_builder);
-    let new_pre_handler = |regs: &dyn ProbeArgs| {
-        let pt_regs = regs.as_any().downcast_ref::<CommonTrapFrame>().unwrap();
-        println_color!(34, "new_pre_handler: is kernel: {}", pt_regs.is_kernel());
+    let new_pre_handler = |_data: &dyn ProbeData, pt_regs: &mut PtRegs| {
+        println_color!(34, "new_pre_handler: ret_value: {}", pt_regs.ret_value());
     };
 
     let builder2 = KprobeBuilder::new(
         Some("kprobe::detect_func".to_string()),
         detect_func as usize,
         0,
-        new_pre_handler,
-        post_handler,
         true,
-    );
+    )
+    .with_pre_handler(new_pre_handler)
+    .with_post_handler(post_handler);
+
     let kprobe2 = register_kprobe(builder2);
     println_color!(
         34,

@@ -1,9 +1,7 @@
 //! Trap 上下文 (Trap帧) 的定义和相关操作
 
-use core::any::Any;
-
 use arch::ExtSstatus;
-use kprobe::ProbeArgs;
+use kprobe::PtRegs;
 use riscv::register::sstatus::SPP;
 
 #[repr(C)]
@@ -41,27 +39,91 @@ pub enum CommonTrapFrame {
 }
 
 impl CommonTrapFrame {
-    pub fn is_kernel(&self) -> bool {
+    pub fn update_from_pt_regs(&mut self, pt_regs: &PtRegs) {
         match self {
-            CommonTrapFrame::Kernel(_) => true,
-            CommonTrapFrame::User(_) => false,
-        }
-    }
-    pub fn is_user(&self) -> bool {
-        !self.is_kernel()
-    }
-
-    pub fn pc(&self) -> usize {
-        match self {
-            CommonTrapFrame::Kernel(ktrap) => ktrap.sepc,
-            CommonTrapFrame::User(utrap) => utrap.sepc,
+            CommonTrapFrame::Kernel(ktrap) => ktrap.update_from_pt_regs(pt_regs),
+            CommonTrapFrame::User(utrap) => utrap.update_from_pt_regs(pt_regs),
         }
     }
 
-    pub fn regs(&self) -> &[usize] {
+    pub fn to_pt_regs(&self) -> PtRegs {
         match self {
-            CommonTrapFrame::Kernel(ktrap) => &ktrap.x,
-            CommonTrapFrame::User(utrap) => &utrap.x,
+            CommonTrapFrame::Kernel(frame) => PtRegs {
+                epc: frame.sepc,
+                ra: frame.x[1],
+                sp: frame.x[2],
+                gp: frame.x[3],
+                tp: frame.x[4],
+                t0: frame.x[5],
+                t1: frame.x[6],
+                t2: frame.x[7],
+                s0: frame.x[8],
+                s1: frame.x[9],
+                a0: frame.x[10],
+                a1: frame.x[11],
+                a2: frame.x[12],
+                a3: frame.x[13],
+                a4: frame.x[14],
+                a5: frame.x[15],
+                a6: frame.x[16],
+                a7: frame.x[17],
+                s2: frame.x[18],
+                s3: frame.x[19],
+                s4: frame.x[20],
+                s5: frame.x[21],
+                s6: frame.x[22],
+                s7: frame.x[23],
+                s8: frame.x[24],
+                s9: frame.x[25],
+                s10: frame.x[26],
+                s11: frame.x[27],
+                t3: frame.x[28],
+                t4: frame.x[29],
+                t5: frame.x[30],
+                t6: frame.x[31],
+                status: frame.sstatus.0,
+                badaddr: 0,
+                cause: 0,
+                orig_a0: 0,
+            },
+            CommonTrapFrame::User(frame) => PtRegs {
+                epc: frame.sepc,
+                ra: frame.x[1],
+                sp: frame.x[2],
+                gp: frame.x[3],
+                tp: frame.x[4],
+                t0: frame.x[5],
+                t1: frame.x[6],
+                t2: frame.x[7],
+                s0: frame.x[8],
+                s1: frame.x[9],
+                a0: frame.x[10],
+                a1: frame.x[11],
+                a2: frame.x[12],
+                a3: frame.x[13],
+                a4: frame.x[14],
+                a5: frame.x[15],
+                a6: frame.x[16],
+                a7: frame.x[17],
+                s2: frame.x[18],
+                s3: frame.x[19],
+                s4: frame.x[20],
+                s5: frame.x[21],
+                s6: frame.x[22],
+                s7: frame.x[23],
+                s8: frame.x[24],
+                s9: frame.x[25],
+                s10: frame.x[26],
+                s11: frame.x[27],
+                t3: frame.x[28],
+                t4: frame.x[29],
+                t5: frame.x[30],
+                t6: frame.x[31],
+                status: frame.sstatus.0,
+                badaddr: 0,
+                cause: 0,
+                orig_a0: 0,
+            },
         }
     }
 }
@@ -76,37 +138,42 @@ impl KTrapFrame {
     pub fn set_sepc(&mut self, val: usize) {
         self.sepc = val;
     }
-}
 
-impl ProbeArgs for CommonTrapFrame {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-    fn break_address(&self) -> usize {
-        match self {
-            CommonTrapFrame::Kernel(ktrap) => ktrap.sepc,
-            CommonTrapFrame::User(utrap) => utrap.sepc,
-        }
-    }
-    fn debug_address(&self) -> usize {
-        match self {
-            CommonTrapFrame::Kernel(ktrap) => ktrap.sepc,
-            CommonTrapFrame::User(utrap) => utrap.sepc,
-        }
-    }
-    // fn set_single_step(&mut self, enable: bool) {}
-    fn update_pc(&mut self, pc: usize) {
-        match self {
-            CommonTrapFrame::Kernel(ktrap) => {
-                ktrap.sepc = pc;
-            }
-            CommonTrapFrame::User(utrap) => {
-                utrap.sepc = pc;
-            }
-        }
+    pub fn update_from_pt_regs(&mut self, pt_regs: &PtRegs) {
+        let frame = self;
+        frame.sepc = pt_regs.epc;
+        frame.x[1] = pt_regs.ra;
+        frame.x[2] = pt_regs.sp;
+        frame.x[3] = pt_regs.gp;
+        frame.x[4] = pt_regs.tp;
+        frame.x[5] = pt_regs.t0;
+        frame.x[6] = pt_regs.t1;
+        frame.x[7] = pt_regs.t2;
+        frame.x[8] = pt_regs.s0;
+        frame.x[9] = pt_regs.s1;
+        frame.x[10] = pt_regs.a0;
+        frame.x[11] = pt_regs.a1;
+        frame.x[12] = pt_regs.a2;
+        frame.x[13] = pt_regs.a3;
+        frame.x[14] = pt_regs.a4;
+        frame.x[15] = pt_regs.a5;
+        frame.x[16] = pt_regs.a6;
+        frame.x[17] = pt_regs.a7;
+        frame.x[18] = pt_regs.s2;
+        frame.x[19] = pt_regs.s3;
+        frame.x[20] = pt_regs.s4;
+        frame.x[21] = pt_regs.s5;
+        frame.x[22] = pt_regs.s6;
+        frame.x[23] = pt_regs.s7;
+        frame.x[24] = pt_regs.s8;
+        frame.x[25] = pt_regs.s9;
+        frame.x[26] = pt_regs.s10;
+        frame.x[27] = pt_regs.s11;
+        frame.x[28] = pt_regs.t3;
+        frame.x[29] = pt_regs.t4;
+        frame.x[30] = pt_regs.t5;
+        frame.x[31] = pt_regs.t6;
+        frame.sstatus.set_value(pt_regs.status);
     }
 }
 
@@ -185,5 +252,42 @@ impl TrapFrame {
     /// 获取整数寄存器组的可变引用
     pub fn regs(&mut self) -> &mut [usize] {
         &mut self.x
+    }
+
+    pub fn update_from_pt_regs(&mut self, pt_regs: &PtRegs) {
+        let frame = self;
+        frame.sepc = pt_regs.epc;
+        frame.x[1] = pt_regs.ra;
+        frame.x[2] = pt_regs.sp;
+        frame.x[3] = pt_regs.gp;
+        frame.x[4] = pt_regs.tp;
+        frame.x[5] = pt_regs.t0;
+        frame.x[6] = pt_regs.t1;
+        frame.x[7] = pt_regs.t2;
+        frame.x[8] = pt_regs.s0;
+        frame.x[9] = pt_regs.s1;
+        frame.x[10] = pt_regs.a0;
+        frame.x[11] = pt_regs.a1;
+        frame.x[12] = pt_regs.a2;
+        frame.x[13] = pt_regs.a3;
+        frame.x[14] = pt_regs.a4;
+        frame.x[15] = pt_regs.a5;
+        frame.x[16] = pt_regs.a6;
+        frame.x[17] = pt_regs.a7;
+        frame.x[18] = pt_regs.s2;
+        frame.x[19] = pt_regs.s3;
+        frame.x[20] = pt_regs.s4;
+        frame.x[21] = pt_regs.s5;
+        frame.x[22] = pt_regs.s6;
+        frame.x[23] = pt_regs.s7;
+        frame.x[24] = pt_regs.s8;
+        frame.x[25] = pt_regs.s9;
+        frame.x[26] = pt_regs.s10;
+        frame.x[27] = pt_regs.s11;
+        frame.x[28] = pt_regs.t3;
+        frame.x[29] = pt_regs.t4;
+        frame.x[30] = pt_regs.t5;
+        frame.x[31] = pt_regs.t6;
+        frame.sstatus.set_value(pt_regs.status);
     }
 }

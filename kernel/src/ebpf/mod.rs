@@ -61,7 +61,7 @@ pub fn bpf(cmd: bpf_cmd, attr: &bpf_attr) -> AlienResult<isize> {
                 .map_or_else(bpf_error_to_alien, |_| Ok(0))
         }
         bpf_cmd::BPF_MAP_FREEZE => {
-            bpf_basic::map::bpf_map_freeze::<EbpfKernelAuxiliary>(update_arg)
+            bpf_basic::map::bpf_map_freeze::<EbpfKernelAuxiliary>(update_arg.map_fd)
                 .map_or_else(bpf_error_to_alien, |_| Ok(0))
         }
         // Program related commands

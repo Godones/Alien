@@ -1,7 +1,7 @@
 use core::any::Any;
 
 use bpf_basic::{
-    linux_bpf::{perf_event_sample_format, perf_sw_ids},
+    linux_bpf::{perf_event_sample_format},
     perf::{bpf::BpfPerfEvent, PerfProbeArgs},
 };
 use constants::AlienResult;
