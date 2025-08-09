@@ -65,6 +65,8 @@ make run GUI=y
 cd tests
 slint or sysinfo or todo or printdemo or memorygame 
 ```
+按下ESC退出GUI程序。
+
 
 ### [Run VisionFive2](./docs/doc/boot.md)
 
