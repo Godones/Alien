@@ -125,7 +125,7 @@ compile:
 	
 	@nm -n -C ${KERNEL_FILE} | grep ' [Tt] ' | grep -v '\.L' | grep -v '$$x' \
 		| cargo run --manifest-path ../os-modules/ext_ebpf/ksym/Cargo.toml \
-		--bin gen_ksym --features="demangle" > subsystems/unwinder/src/kernel_symbol.S
+		--bin gen_ksym_as --features="demangle" > subsystems/unwinder/src/kernel_symbol.S
 	
 	@riscv64-linux-gnu-gcc \
 		-c subsystems/unwinder/src/kernel_symbol.S \

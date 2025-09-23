@@ -1599,7 +1599,7 @@ dependencies = [
  "interrupt",
  "knet",
  "kprobe",
- "ksym 0.1.0 (git+https://github.com/Godones/ext_ebpf?rev=9d09582)",
+ "ksym",
  "ksync",
  "log",
  "mem",
@@ -1655,11 +1655,6 @@ dependencies = [
 name = "ksym"
 version = "0.1.0"
 source = "git+https://github.com/Godones/ext_ebpf?rev=9d09582#9d0958266b64090fe1bb111f5e9dcdef64a6833a"
-
-[[package]]
-name = "ksym"
-version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf#8410a1eecdb60eb641d84bc524132386a212745d"
 
 [[package]]
 name = "ksync"
@@ -3621,7 +3616,7 @@ version = "0.1.0"
 dependencies = [
  "arch",
  "constants",
- "ksym 0.1.0 (git+https://github.com/Godones/ext_ebpf)",
+ "ksym",
  "platform",
  "tracer",
  "unwinding",

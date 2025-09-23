@@ -16,5 +16,6 @@ unwinding = { version = "=0.2.6", default-features = false, features = [
     "personality",
 ] }
 constants = { path = "../constants" }
-ksym = { git = "https://github.com/Godones/ext_ebpf" }
+# ksym = { git = "https://github.com/Godones/ext_ebpf" }
+ksym = { git = "https://github.com/Godones/ext_ebpf", rev = "9d09582" }
 # ksym = { path = "../../../os-modules/ext_ebpf/ksym" }
