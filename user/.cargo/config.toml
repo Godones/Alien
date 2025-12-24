@@ -1,5 +1,0 @@
-## 使用我们的 linker script 来进行链接
-#[target.riscv64gc-unknown-none-elf]
-#rustflags = [
-#    "-Clink-arg=-Tuser/apps/linker.ld",
-#]
