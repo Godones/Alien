@@ -104,39 +104,42 @@ endef
 all:
 
 install:
-ifeq (, $(shell which $(TRACE_EXE)))
-	@cargo install --git https://github.com/os-module/elfinfo
-else
-	@echo "elfinfo has been installed"
-endif
+	@if ! command -v gen_ksym >/dev/null 2>&1; then \
+		echo "Installing gen_ksym..."; \
+		RUSTFLAGS= cargo install --git https://github.com/Starry-OS/ksym --features=demangle; \
+	else \
+		echo "gen_ksym already installed."; \
+	fi
 
-
-build:install  compile
+build: install compile
 
 compile:
 	RUSTFLAGS="$(RUSTFLAGS)" \
 		cargo build --release -p kernel \
 		--target $(TARGET) \
 		--features $(FEATURES)
-
+	
 	@riscv64-linux-gnu-ld -T $(LINKER_SCRIPT) \
 		-o $(KERNEL_FILE) \
 		$(KERNEL_LIB)
-	
-	@nm -n -C ${KERNEL_FILE} | grep ' [Tt] ' | grep -v '\.L' | grep -v '$$x' \
-		| cargo run --manifest-path ../os-modules/ext_ebpf/ksym/Cargo.toml \
-		--bin gen_ksym_as --features="demangle" > subsystems/unwinder/src/kernel_symbol.S
-	
-	@riscv64-linux-gnu-gcc \
-		-c subsystems/unwinder/src/kernel_symbol.S \
-		-o subsystems/unwinder/src/ksym.o
-	@riscv64-linux-gnu-ld -T $(LINKER_SCRIPT) \
-		-o $(KERNEL_FILE) \
-		$(KERNEL_LIB) \
-		subsystems/unwinder/src/ksym.o
+	@echo "Generating kernel symbols at $@"
+	@nm -n -C $(KERNEL_FILE) | grep ' [Tt] ' | grep -v '\.L' | grep -v '$$x' | RUSTFLAGS= gen_ksym > kallsyms
+	@make copy_kallsyms
 
 	@#$(OBJCOPY) $(KERNEL_FILE) --strip-all -O binary $(KERNEL_BIN)
 	@cp $(KERNEL_FILE) ./kernel-qemu
+
+
+copy_kallsyms:
+	@-sudo umount $(FSMOUNT)
+	@-sudo rm -rf $(FSMOUNT)
+	@-mkdir $(FSMOUNT)
+	@sudo mount $(IMG) $(FSMOUNT)
+	@echo "copying kallsyms"
+	sudo cp kallsyms $(FSMOUNT)/kallsyms
+	@echo "copying kallsyms done"
+	@make unmount
+	@rm kallsyms
 
 initramfs:
 	make -C tools/initrd
@@ -145,12 +148,11 @@ user:
 	@echo "Building user apps"
 	@make all -C ./user/apps
 	@make all -C ./user/c_apps ARCH=riscv64
-# 	@make all -C ./user/musl
+	@make all -C ./user/musl
 	@echo "Building user apps done"
 
 sdcard:$(FS) mount testelf user initramfs
-	@sudo umount $(FSMOUNT)
-	@rm -rf $(FSMOUNT)
+	@make unmount
 
 run:sdcard install compile
 	@echo qemu booot $(SMP)
@@ -209,15 +211,23 @@ jh7110:
 	@dtc -I dtb -o dts -o jh7110.dts ./tools/jh7110-visionfive-v2.dtb
 
 fat:
-	dd if=/dev/zero of=$(IMG) bs=1M count=72;
-	@mkfs.fat -F 32 $(IMG)
+# check the file if exist 
+	if [ ! -f $(IMG) ]; then \
+		echo "Creating $(IMG)"; \
+		dd if=/dev/zero of=$(IMG) bs=1M count=72; \
+		mkfs.fat -F 32 $(IMG); \
+	else \
+		echo "$(IMG) already exists."; \
+	fi
 
 ext:
-	@if [ `ls -l $(IMG) | awk '{print $$5}' ` -lt 2147483648 ]; then \
-		echo "resize img to 2G"; \
-		dd if=/dev/zero bs=1M count=2048 >> $(IMG); \
+	if [ ! -f $(IMG) ]; then \
+		echo "Creating $(IMG)"; \
+		dd if=/dev/zero of=$(IMG) bs=1M count=128; \
+		mkfs.ext4 $(IMG); \
+	else \
+		echo "$(IMG) already exists."; \
 	fi
-	@mkfs.ext4 $(IMG)
 
 mount:
 	@echo "Mounting $(IMG) to $(FSMOUNT)"
@@ -229,6 +239,11 @@ mount:
 	@sudo cp tools/f1.txt $(FSMOUNT)
 	@sudo mkdir $(FSMOUNT)/folder
 	@sudo cp tools/f1.txt $(FSMOUNT)/folder
+
+unmount:
+	@echo "Unmounting $(FSMOUNT)"
+	@sudo umount $(FSMOUNT)
+	@-rm -rf $(FSMOUNT)
 
 img-hex:
 	@hexdump $(IMG) > test.hex

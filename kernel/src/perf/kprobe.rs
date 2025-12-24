@@ -113,7 +113,10 @@ impl KprobePerfEvent {
 
 fn perf_probe_arg_to_kprobe_builder(args: &PerfProbeArgs) -> KprobeBuilder<KprobeAuxiliary> {
     let symbol = &args.name;
-    let addr = unsafe { ksym::addr_from_symbol(symbol).unwrap() as usize };
+    let addr = crate::ksym::KALLSYMS
+        .get()
+        .and_then(|ksym| ksym.lookup_name(symbol))
+        .unwrap() as usize;
     // let addr = syscall_entry as usize;
     println_color!(32, "perf_probe: symbol: {}, addr: {:#x}", symbol, addr);
     let builder = KprobeBuilder::new(Some(symbol.clone()), addr, 0, false);

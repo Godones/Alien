@@ -9,7 +9,7 @@ dependencies = [
  "bitflags 1.3.2",
  "core2",
  "embedded-graphics",
- "spin",
+ "spin 0.9.8",
  "talc",
 ]
 
@@ -247,7 +247,7 @@ dependencies = [
  "bitflags 2.9.1",
  "int-enum",
  "log",
- "lru 0.14.0",
+ "lru",
  "printf-compat 0.1.1 (git+https://github.com/lights0123/printf-compat?rev=5f5c9cc)",
  "rbpf",
 ]
@@ -258,7 +258,7 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d44d578cadd17312c75e7d0ef489361f160ace58f7139aa32001fee1a51b89b5"
 dependencies = [
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -761,7 +761,7 @@ dependencies = [
  "platform",
  "shim",
  "smoltcp",
- "spin",
+ "spin 0.9.8",
  "vfscore",
  "virtio-drivers",
 ]
@@ -807,13 +807,13 @@ dependencies = [
  "ksync",
  "log",
  "loopback",
- "lru 0.10.1",
+ "lru",
  "mem",
  "netcore",
  "platform",
  "rtc",
  "shim",
- "spin",
+ "spin 0.9.8",
  "timer",
  "uart16550",
  "uart8250",
@@ -996,7 +996,7 @@ source = "git+https://github.com/os-module/rust-fatfs.git#55d0dbaccef99655413d2f
 dependencies = [
  "bitflags 1.3.2",
  "log",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1055,7 +1055,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55ac459de2512911e4b674ce33cf20befaba382d05b62b008afc1c8b57cbf181"
 dependencies = [
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1180,12 +1180,6 @@ checksum = "0e4075386626662786ddb0ec9081e7c7eeb1ba31951f447ca780ef9f5d568189"
 
 [[package]]
 name = "gimli"
-version = "0.26.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22030e2c5a68ec659fde1e949a745124b48e6fa8b045b7ed5bd1fe4ccc5c4e5d"
-
-[[package]]
-name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
@@ -1254,7 +1248,7 @@ dependencies = [
  "atomic-polyfill",
  "hash32",
  "rustc_version",
- "spin",
+ "spin 0.9.8",
  "stable_deref_trait",
 ]
 
@@ -1524,7 +1518,7 @@ dependencies = [
  "ksync",
  "platform",
  "plic",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1611,7 +1605,7 @@ dependencies = [
  "shim",
  "small-index",
  "smpscheduler",
- "spin",
+ "spin 0.10.0",
  "syscall-table",
  "timer",
  "unwinder",
@@ -1653,8 +1647,8 @@ dependencies = [
 
 [[package]]
 name = "ksym"
-version = "0.1.0"
-source = "git+https://github.com/Godones/ext_ebpf?rev=9d09582#9d0958266b64090fe1bb111f5e9dcdef64a6833a"
+version = "0.3.0"
+source = "git+https://github.com/Godones/ext_ebpf#a5eb5a3ad94ba8fda60c038e5c9308d7fd138f8e"
 
 [[package]]
 name = "ksync"
@@ -1823,15 +1817,6 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "718e8fae447df0c7e1ba7f5189829e63fd536945c8988d61444c19039f16b670"
-dependencies = [
- "hashbrown 0.13.2",
-]
-
-[[package]]
-name = "lru"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f8cc7106155f10bdf99a6f379688f543ad6596a415375b36a59a054ceda1198"
@@ -1946,7 +1931,7 @@ dependencies = [
  "page-table",
  "pager",
  "platform",
- "spin",
+ "spin 0.9.8",
  "talc",
 ]
 
@@ -2109,7 +2094,7 @@ dependencies = [
  "log",
  "preprint",
  "smoltcp",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -2402,7 +2387,7 @@ dependencies = [
  "ksync",
  "log",
  "preprint",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -2908,7 +2893,7 @@ name = "shell"
 version = "0.1.0"
 dependencies = [
  "Mstd",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -2916,7 +2901,7 @@ name = "shim"
 version = "0.1.0"
 dependencies = [
  "downcast-rs",
- "spin",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -3135,6 +3120,15 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+dependencies = [
+ "lock_api",
+]
+
+[[package]]
+name = "spin"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5fe4ccb98d9c292d56fec89a5e07da7fc4cf0dc11e156b41793132775d3e591"
 dependencies = [
  "lock_api",
 ]
@@ -3479,16 +3473,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracer"
-version = "0.2.0"
-source = "git+https://github.com/os-module/tracer#a02d62f74e11de9ea94b2ba71f4a0cd080f76932"
-dependencies = [
- "bit_field",
- "gimli 0.26.2",
- "log",
-]
-
-[[package]]
 name = "tracing"
 version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3618,7 +3602,7 @@ dependencies = [
  "constants",
  "ksym",
  "platform",
- "tracer",
+ "spin 0.10.0",
  "unwinding",
 ]
 
@@ -3741,7 +3725,7 @@ dependencies = [
  "printf-compat 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ramfs",
  "shim",
- "spin",
+ "spin 0.9.8",
  "timer",
  "tinyrlibc",
  "vfscore",

@@ -130,7 +130,7 @@ impl FutexWaitManager {
     /// 唤醒 futex 上的至多 num 个等待的进程
     pub fn wake(&mut self, futex: usize, num: usize) -> AlienResult<usize> {
         if let Some(waiters) = self.map.get_mut(&futex) {
-            error!("there are {} waiters, wake {}", waiters.len(), num);
+            log::info!("there are {} waiters, wake {}", waiters.len(), num);
             let min_index = min(num, waiters.len());
             for i in 0..min_index {
                 let task = waiters[i].wake();

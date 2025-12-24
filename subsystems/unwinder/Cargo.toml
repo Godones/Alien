@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tracer = { git = "https://github.com/os-module/tracer" }
 platform = { path = "../platform" }
 arch = { path = "../arch" }
 unwinding = { version = "=0.2.6", default-features = false, features = [
@@ -16,6 +15,5 @@ unwinding = { version = "=0.2.6", default-features = false, features = [
     "personality",
 ] }
 constants = { path = "../constants" }
-# ksym = { git = "https://github.com/Godones/ext_ebpf" }
-ksym = { git = "https://github.com/Godones/ext_ebpf", rev = "9d09582" }
-# ksym = { path = "../../../os-modules/ext_ebpf/ksym" }
+ksym = { git = "https://github.com/Godones/ext_ebpf" }
+spin = "0.10"

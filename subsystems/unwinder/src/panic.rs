@@ -4,11 +4,10 @@ use alloc::boxed::Box;
 use core::{ffi::c_void, panic::PanicInfo, sync::atomic::AtomicBool};
 
 use constants::{AlienError, AlienResult};
-use ksym::lookup_kallsyms;
 use platform::{println, println_color, system_shutdown};
+use spin::Once;
 use unwinding::abi::{UnwindContext, UnwindReasonCode, _Unwind_Backtrace, _Unwind_GetIP};
 
-/// 递归标志
 static RECURSION: AtomicBool = AtomicBool::new(false);
 
 #[derive(Debug)]
@@ -27,9 +26,6 @@ impl Drop for PanicGuard {
     }
 }
 
-/// 错误处理
-///
-/// 发生 panic 是进行结果处理.目前我们会读取符号表信息，进行堆栈回溯
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     if let Some(p) = info.location() {
@@ -61,13 +57,29 @@ pub fn print_stack_trace() {
             // If we are in kernel_main, we don't need to print the backtrace.
             return UnwindReasonCode::NORMAL_STOP;
         }
+        let mut name_buf = [0u8; 1024];
         data.counter += 1;
         let pc = _Unwind_GetIP(unwind_ctx);
         if pc > 0 {
-            let fmt_str = unsafe { lookup_kallsyms(pc as u64, data.counter as i32) };
-            println!("{}", fmt_str);
-            if fmt_str.contains("main") {
-                data.kernel_main = true;
+            let res = PANIC_HELPER
+                .get()
+                .and_then(|helper| helper.lookup_symbol(pc, &mut name_buf));
+            if let Some((name, addr)) = res {
+                println_color!(
+                    33,
+                    "  #{:<2} {:#018x} - {} (+{:#x})",
+                    data.counter,
+                    addr,
+                    name,
+                    pc as usize - addr
+                );
+            } else {
+                println_color!(
+                    33,
+                    "  #{:<2} {:#018x} - <unknown>",
+                    data.counter,
+                    pc as usize
+                );
             }
         }
         UnwindReasonCode::NO_REASON
@@ -88,4 +100,16 @@ pub fn kernel_catch_unwind<R, F: FnOnce() -> R>(f: F) -> AlienResult<R> {
             Err(AlienError::EIO)
         }
     }
+}
+
+pub trait PanicHelper: Send + Sync {
+    /// Looks up the symbol name and its base address by the given address.
+    fn lookup_symbol<'a>(&self, addr: usize, buf: &'a mut [u8; 1024]) -> Option<(&'a str, usize)>;
+}
+
+static PANIC_HELPER: Once<&'static dyn PanicHelper> = Once::new();
+
+/// Sets the panic helper.
+pub fn set_panic_helper(helper: &'static dyn PanicHelper) {
+    PANIC_HELPER.call_once(|| helper);
 }
