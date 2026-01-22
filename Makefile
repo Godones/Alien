@@ -15,7 +15,7 @@ FSMOUNT := ./diskfs
 FEATURES := default
 name ?=
 VF2 ?= n
-TFTPBOOT := /home/godones/projects/tftpboot/
+TFTPBOOT := ~/projects/tftpboot/
 PLATFORM := qemu_riscv
 VF2_SD ?= n
 BUILD_CFG ?=  -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem
