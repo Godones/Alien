@@ -25,8 +25,6 @@ make initrd       # build initrd (choose static busybox)
 ```
 
 
-
-
 You can press `Esc` to exit the app. 
 
 ### Load domain from disk
